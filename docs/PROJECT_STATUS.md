@@ -13,7 +13,7 @@ corrected first.
 | Stream A — app | Not started. Next milestone: **M0.1 Repository and tooling** |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | None open. Start `feat/m0-1-tooling` from `main` |
-| Last session | Planning session: project foundation, merged by pull request #PR_NUMBER |
+| Last session | Planning session: project foundation, merged by pull request #1 |
 
 ## What is in the repository
 
@@ -162,5 +162,5 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
-| 2026-10-07 | Planning session | Updated the PRD to revision 129 (sources ready, decisions, Zaydi-library section, section order fixed, registry row 19, new open points). Added the project foundation: PRD export, architecture, plan, design-system mapping, sources, rights register, decisions, workflow, identity files with verified fonts and a preview script, agents, skills, MCP configuration, extraction tool. No application code. | Pull request #PR_NUMBER |
+| 2026-10-07 | Planning session | Updated the PRD to revision 129 (sources ready, decisions, Zaydi-library section, section order fixed, registry row 19, new open points). Added the project foundation: PRD export, architecture, plan, design-system mapping, sources, rights register, decisions, workflow, identity files with verified fonts and a preview script, agents, skills, MCP configuration, extraction tool. No application code. | Pull request #1 |
 | 2026-10-06 | Owner's other account | `flutter create` skeleton committed. | `664e167` |
