@@ -43,3 +43,33 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Raw extraction output and local data (never committed; see tools/ziydia/README.md)
+ziydia_out/
+ziydia_out.zip
+ziydia_sample/
+ziydia_sample.zip
+# Downloaded source files (data/raw) and packs built from them (data/build)
+/data/raw/
+/data/build/
+
+# Signing keys and local secrets
+*.jks
+*.keystore
+*.pem
+*.p12
+*.key
+key.properties
+/secrets/
+.env
+.env.*
+
+# Personal Claude Code files
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Python caches from tools/
+__pycache__/
+
+# Identity previews rebuilt by design/preview/build.py
+/design/preview/out/

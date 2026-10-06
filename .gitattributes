@@ -1,0 +1,8 @@
+# Files whose bytes are pinned or copied from an approved source are never
+# line-ending converted, so that their hashes hold on every platform.
+docs/prd/PRD.ar.md -text
+design/design-system/** -text
+design/identity-boards/** -text
+.claude/skills/** -text
+*.ttf binary
+*.woff2 binary
