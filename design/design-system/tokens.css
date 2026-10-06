@@ -1,0 +1,391 @@
+/* هوية القرآن الكريم — generated from tokens.json */
+:root, [data-theme="paper"] {
+  --emerald-950: #072e2b; /* زمرد أعمق: أيقونة التطبيق الداكنة، والنص على الذهب (on-primary في الليل). */
+  --emerald-900: #0a423d; /* نص على زمرد فاتح (emerald-100)، وعنوان التبويب النشط. */
+  --emerald-700: #0e5a52; /* الزمرد الأساسي: الأزرار، والمشغّل، وبطاقة «أكمل القراءة»، والعناوين على الورق. */
+  --emerald-500: #3c8a80; /* زمرد متوسط: إطار التحديد، وخلفيات العرض. لا يُستخدم لنص صغير. */
+  --emerald-100: #d5e8e4; /* زمرد فاتح: الوسم المختار، وحبة التبويب النشط، والأيقونة أحادية اللون. */
+  --emerald-50: #eaf3f1; /* أفتح درجات الزمرد: خلفيات واسعة نادرة. */
+  --gold-800: #8a6212; /* الذهب الوحيد للنص الصغير على الورق: التسميات، وأرقام الآيات. */
+  --gold-600: #b8862b; /* ذهب الزخرفة على الورق: النجمة، وإطار رأس السورة، وفاصلة الآية. لا يُستخدم لنص. */
+  --gold-400: #d9ae5a; /* ذهب الخلفيات الداكنة: الرمز على الزمرد، وزر التشغيل، ونص الذهب في الليل. */
+  --gold-100: #f1e2bc; /* ذهب فاتح: خلفية الزر الثانوي «أضف إلى مجموعة» ونصه gold-text-strong. */
+  --gold-text-strong: #5b4000; /* نص على gold-100 (الزر النغمي). */
+  --paper-50: #fffbf2; /* ورق فاتح: سطح البطاقات على الورق. */
+  --paper-100: #f8f2e4; /* ورق المصحف: الأرضية الافتراضية، والنص على الزمرد. */
+  --paper-200: #efe6d0; /* ورق أغمق: مسار المفتاح المقطعي، وخلفية أزرار الأيقونات، ومسار التقدّم. */
+  --paper-300: #ddd2b8; /* حدود البطاقات والفواصل على الورق. */
+  --ink-600: #51605d; /* حبر ثانوي: النص الثانوي على الورق. */
+  --ink-900: #1b2a28; /* حبر المصحف: النص الأساسي والنص القرآني على الورق. */
+  --ground: var(--paper-100); /* أرضية الشاشة وصفحة المصحف. */
+  --surface: var(--paper-50); /* البطاقات والأوراق المنزلقة وشريط التنقل. */
+  --surface-sunk: var(--paper-200); /* المسارات والحقول وأزرار الأيقونات المظلّلة. */
+  --line: var(--paper-300); /* الحدود والفواصل الرفيعة. في التباين العالي حدّ أبيض كامل يفصل الأسطح. */
+  --line-strong: #8c8270; /* حدود العناصر التفاعلية غير المملوءة (٣:١ على ground وsurface). */
+  --ink: var(--ink-900); /* النص الأساسي على ground وsurface وsurface-sunk. */
+  --ink-muted: var(--ink-600); /* النص الثانوي والبيانات الوصفية على ground وsurface. */
+  --ink-disabled: #7b8683; /* نص العناصر المعطّلة على surface-sunk. لا يُستخدم لمحتوى يُقرأ. */
+  --brand-ink: var(--emerald-700); /* لون اسم التطبيق والكتاب في الرمز على ground: زمرد على الورق، وحبر فاتح في الليل. */
+  --quran-ink: var(--ink); /* النص القرآني. لا يأخذ لونًا آخر إلا ألوان التجويد. */
+  --primary: var(--emerald-700); /* الإجراء الأساسي والحالة النشطة. نصًّا: على ground وsurface. */
+  --on-primary: var(--paper-100); /* النص والأيقونات فوق primary. */
+  --primary-soft: var(--emerald-100); /* الوسم المختار وحبة التبويب النشط. */
+  --on-primary-soft: var(--emerald-900); /* النص على primary-soft. */
+  --accent: var(--gold-800); /* نص الذهب: التسميات الصغيرة، وأرقام الآيات، ورقم الصفحة؛ على ground وsurface. */
+  --ornament: var(--gold-600); /* الزخرفة: نجمة الربع، وإطار رأس السورة الخارجي، ودائرة فاصلة الآية. على الورق قيمته من المصدر ٢٫٩:١، فهو زخرفي، ورقم الآية داخل الدائرة بلون accent ليبقى مقروءًا. */
+  --ornament-soft: var(--gold-400); /* الإطار الداخلي لرأس السورة. زخرفي فقط. */
+  --player: var(--emerald-700); /* سطح المشغّل وبطاقة «أكمل القراءة». */
+  --on-player: var(--paper-100); /* النص على player. */
+  --on-player-muted: var(--emerald-100); /* النص الثانوي على player: اسم القارئ وموضع الآية. */
+  --player-accent: var(--gold-400); /* زر التشغيل الكبير وشريط التقدّم على player، والنص فوقه emerald-950. */
+  --highlight-ayah: rgba(184,134,43,0.24); /* خلفية الآية الجاري تلاوتها؛ معها تمتلئ فاصلتها. */
+  --highlight-word: rgba(184,134,43,0.5); /* خلفية الكلمة المنطوقة، ومعها خط سفلي highlight-word-line. */
+  --highlight-word-line: var(--gold-800); /* الخط السفلي ٢ بكسل تحت الكلمة المنطوقة: الإشارة غير اللونية للتتبّع. */
+  --selection: var(--emerald-100); /* الآية المختارة بلمسة مطوّلة، مع selection-line. */
+  --selection-line: var(--emerald-500); /* الإطار الرفيع حول الآية المختارة. */
+  --search-match: rgba(30,79,160,0.12); /* خلفية الكلمة المطابقة في نتائج البحث، مع خط info. */
+  --conceal: #e3d8bc; /* شريط إخفاء الكلمة في الحفظ: يحلّ محل حبر النص (الذي يصير شفافًا) مع خط سفلي line-strong، فيبقى موضع كل كلمة وطولها ظاهرين. */
+  --success: #2d7a52; /* نجاح: «تم التنزيل». دائمًا مع أيقونة ونص؛ على ground وsurface. */
+  --warning: #9a5b00; /* تنبيه: مساحة قليلة، تأخّر الختمة. دائمًا مع أيقونة ونص. */
+  --warning-soft: #f6e9cc; /* خلفية بطاقة التنبيه؛ نصها ink. */
+  --error: #a3243b; /* خطأ: تعذّر الاتصال، فشل التنزيل. دائمًا مع أيقونة ونص. */
+  --info: #1e4fa0; /* معلومة: مصدر البيانات، ونتائج البحث. */
+  --focus: #1e4fa0; /* حلقة التركيز: ٢ بكسل صلبة بعد فراغ ٢ بكسل بلون ground (٣:١ على كل سطح). */
+  --scrim: rgba(7,46,43,0.40); /* ستارة خلف الأوراق المنزلقة. */
+  --tj-ghunna: #0e7c86; /* غنّة · خط منقّط تحت الحرف. النص القرآني على ground. */
+  --tj-idgham: #1e4fa0; /* إدغام · خط متصل تحت الحرف. النص القرآني على ground. */
+  --tj-ikhfa: #6f3fa0; /* إخفاء · خط متقطّع تحت الحرف. النص القرآني على ground. */
+  --tj-iqlab: #b24a00; /* إقلاب · خط مزدوج تحت الحرف. النص القرآني على ground. */
+  --tj-qalqala: #a3243b; /* قلقلة · خط متموّج تحت الحرف. النص القرآني على ground. */
+  --tj-madd-tabii: #7a6200; /* مدّ طبيعي · خط رفيع فوق الحرف. النص القرآني على ground. */
+  --tj-madd-wajib: #2e7d32; /* مدّ متصل ومنفصل · خط سميك فوق الحرف. النص القرآني على ground. */
+  --tj-madd-lazim: #8e1e6b; /* مدّ لازم · خطّان فوق الحرف. النص القرآني على ground. */
+  --shadow-card: 0 2px 8px rgba(7,46,43,0.10); /* المستوى ٢: بطاقة مرفوعة. المستوى ١ حدّ line فقط. */
+  --shadow-sheet: 0 12px 28px rgba(7,46,43,0.20); /* المستوى ٣: الأوراق المنزلقة والمشغّل العائم. */
+}
+[data-theme="night"] {
+  --ground: #0a1413;
+  --surface: #13211f;
+  --surface-sunk: #101d1b;
+  --line: #25393a;
+  --line-strong: #66736d;
+  --ink: #e8e2d0;
+  --ink-muted: #a7b3af;
+  --ink-disabled: #5e6e6b;
+  --brand-ink: #e8e2d0;
+  --quran-ink: var(--ink);
+  --primary: var(--gold-400);
+  --on-primary: var(--emerald-950);
+  --primary-soft: #1c3a35;
+  --on-primary-soft: var(--emerald-100);
+  --accent: var(--gold-400);
+  --ornament: var(--gold-400);
+  --ornament-soft: var(--gold-800);
+  --player: #13211f;
+  --on-player: #e8e2d0;
+  --on-player-muted: #a7b3af;
+  --player-accent: var(--gold-400);
+  --highlight-ayah: rgba(217,174,90,0.18);
+  --highlight-word: rgba(217,174,90,0.42);
+  --highlight-word-line: var(--gold-400);
+  --selection: #1c3a35;
+  --selection-line: var(--emerald-500);
+  --search-match: rgba(141,178,240,0.18);
+  --conceal: #2a403d;
+  --success: #7bc79a;
+  --warning: #f0b95a;
+  --warning-soft: #33270f;
+  --error: #f08a9b;
+  --info: #8db2f0;
+  --focus: #8db2f0;
+  --scrim: rgba(0,0,0,0.60);
+  --tj-ghunna: #5cc8d0;
+  --tj-idgham: #8db2f0;
+  --tj-ikhfa: #c79be6;
+  --tj-iqlab: #f0a56b;
+  --tj-qalqala: #f08a9b;
+  --tj-madd-tabii: #e0c45a;
+  --tj-madd-wajib: #a9d77b;
+  --tj-madd-lazim: #e58fc7;
+  --shadow-card: 0 2px 8px rgba(0,0,0,0.35);
+  --shadow-sheet: 0 -12px 32px rgba(0,0,0,0.40);
+}
+[data-theme="sepia"] {
+  --ground: #f0e2c0;
+  --surface: #f7edd2;
+  --surface-sunk: #e8d7ae;
+  --line: #d8c697;
+  --line-strong: #8a7748;
+  --ink: #3a2a12;
+  --ink-muted: #5c4a2a;
+  --ink-disabled: #8e7d5c;
+  --brand-ink: var(--emerald-700);
+  --quran-ink: var(--ink);
+  --primary: var(--emerald-700);
+  --on-primary: #f7edd2;
+  --primary-soft: #dce3c6;
+  --on-primary-soft: var(--emerald-900);
+  --accent: #7a4e0e;
+  --ornament: #9a6a1e;
+  --ornament-soft: #c49a4a;
+  --player: var(--emerald-700);
+  --on-player: #f7edd2;
+  --on-player-muted: var(--emerald-100);
+  --player-accent: var(--gold-400);
+  --highlight-ayah: rgba(122,78,14,0.16);
+  --highlight-word: rgba(122,78,14,0.3);
+  --highlight-word-line: #7a4e0e;
+  --selection: #dce3c6;
+  --selection-line: var(--emerald-500);
+  --search-match: rgba(30,79,160,0.12);
+  --conceal: #dcc99b;
+  --success: #276b48;
+  --warning: #9a5b00;
+  --warning-soft: #ead3a0;
+  --error: #a3243b;
+  --info: #1e4fa0;
+  --focus: #1e4fa0;
+  --scrim: rgba(58,42,18,0.40);
+  --tj-ghunna: #0e7c86;
+  --tj-idgham: #1e4fa0;
+  --tj-ikhfa: #6f3fa0;
+  --tj-iqlab: #b24a00;
+  --tj-qalqala: #a3243b;
+  --tj-madd-tabii: #7a6200;
+  --tj-madd-wajib: #2e7d32;
+  --tj-madd-lazim: #8e1e6b;
+  --shadow-card: 0 2px 8px rgba(58,42,18,0.12);
+  --shadow-sheet: 0 12px 28px rgba(58,42,18,0.22);
+}
+[data-theme="contrast"] {
+  --ground: #000000;
+  --surface: #1a1a1a;
+  --surface-sunk: #262626;
+  --line: #ffffff;
+  --line-strong: #ffffff;
+  --ink: #ffffff;
+  --ink-muted: #e0e0e0;
+  --ink-disabled: #9e9e9e;
+  --brand-ink: #ffffff;
+  --quran-ink: var(--ink);
+  --primary: #ffd54a;
+  --on-primary: #000000;
+  --primary-soft: #003d35;
+  --on-primary-soft: #ffffff;
+  --accent: #ffd54a;
+  --ornament: #ffd54a;
+  --ornament-soft: #ffd54a;
+  --player: #000000;
+  --on-player: #ffffff;
+  --on-player-muted: #e0e0e0;
+  --player-accent: #ffd54a;
+  --highlight-ayah: rgba(255,213,74,0.30);
+  --highlight-word: rgba(255,213,74,0.34);
+  --highlight-word-line: #ffd54a;
+  --selection: #003d35;
+  --selection-line: #ffffff;
+  --search-match: rgba(141,178,240,0.30);
+  --conceal: #4d4d4d;
+  --success: #7bc79a;
+  --warning: #f0b95a;
+  --warning-soft: #33270f;
+  --error: #ff9e9e;
+  --info: #9cc8ff;
+  --focus: #ffd54a;
+  --scrim: rgba(0,0,0,0.75);
+  --tj-ghunna: #5cc8d0;
+  --tj-idgham: #8db2f0;
+  --tj-ikhfa: #c79be6;
+  --tj-iqlab: #f0a56b;
+  --tj-qalqala: #f08a9b;
+  --tj-madd-tabii: #e0c45a;
+  --tj-madd-wajib: #a9d77b;
+  --tj-madd-lazim: #e58fc7;
+  --shadow-card: none;
+  --shadow-sheet: none;
+}
+:root {
+  --space-1: 4px; /* أصغر فجوة: بين الأيقونة ونصها الملاصق. */
+  --space-2: 8px; /* بين الوسوم، وبين أزرار شريط الأدوات. */
+  --space-3: 12px; /* بين عناصر البطاقة الواحدة. */
+  --space-4: 16px; /* حشوة البطاقات الصغيرة، وهامش الأزرار. */
+  --space-5: 24px; /* حشوة البطاقات، وبين البطاقات المتجاورة. */
+  --space-6: 32px; /* بين أقسام الشاشة. */
+  --space-7: 48px; /* بين المجموعات الكبيرة، والارتفاع الأدنى لكل عنصر يُلمس. */
+  --radius-sm: 8px; /* عناصر صغيرة داخل البطاقات، وتمييز الكلمة. */
+  --radius-md: 12px; /* رأس السورة الداخلي، وبطاقات النسخ. */
+  --radius-button: 16px; /* الأزرار والحقول. */
+  --radius-card: 24px; /* البطاقات والودجات. */
+  --radius-sheet: 28px; /* الحافة العلوية للأوراق المنزلقة. */
+  --radius-full: 9999px; /* الوسوم والمفاتيح وأزرار الأيقونات الدائرية. */
+  --target-min: 48px; /* أقل ارتفاع وعرض لأي عنصر يُلمس. */
+  --button-height: 52px; /* ارتفاع الزر العادي. */
+  --icon-size: 24px; /* الأيقونة على شبكة ٢٤. */
+  --icon-stroke: 1.75px; /* سُمك خط الأيقونات، بأطراف مدوّرة. */
+  --ayah-marker: 26px; /* قطر فاصلة الآية في صفحة المصحف. */
+  --font-quran: "Amiri Quran", serif;
+  --font-kufi: "Reem Kufi", "IBM Plex Sans Arabic", sans-serif;
+  --font-sans: "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --text-quran-page: 400 25px/2.3 var(--font-quran); /* صفحة المصحف ووضع السورة؛ يكبر مع إعداد التكبير حتى ٢٠٠٪. */
+  --text-quran-ayah: 400 34px/2.3 var(--font-quran); /* صف الآية، ووضع الدراسة، والآية في المشغّل. */
+  --text-quran-focus: 400 44px/2 var(--font-quran); /* الكلمة المختارة، والحفظ، وبطاقات المشاركة. */
+  --text-display: 700 64px/1.3 var(--font-kufi); /* عناوين الدليل والشاشات الترحيبية فقط. */
+  --text-surah-card: 700 32px/1.3 var(--font-kufi); /* اسم السورة في بطاقة «أكمل القراءة» والودجات. */
+  --text-surah-header: 600 24px/1.4 var(--font-kufi); /* رأس السورة، وعنوان المشغّل، وعنوان صفحة المصحف. */
+  --text-app-title: 700 22px/1.4 var(--font-kufi); /* اسم التطبيق في الرأس، بجانب الرمز. الحد الأدنى للخط الكوفي ٢٠. */
+  --text-screen-title: 700 28px/1.4 var(--font-sans); /* عنوان الشاشة. */
+  --text-section-title: 600 20px/1.5 var(--font-sans); /* عنوان قسم داخل الشاشة. */
+  --text-tafsir: 400 18px/2 var(--font-sans); /* التفسير والإعراب والنصوص الطويلة؛ عرض السطر ≤ ٧٠ حرفًا. */
+  --text-body: 400 17px/1.7 var(--font-sans); /* النص الأساسي. لا ينقص نص قابل للمس عن ١٧. */
+  --text-body-strong: 600 17px/1.6 var(--font-sans); /* الأزرار وعناوين الصفوف. */
+  --text-secondary: 400 15px/1.6 var(--font-sans); /* البيانات الوصفية بلون ink-muted. */
+  --text-caption: 600 13px/1.5 var(--font-sans); /* التسميات الصغيرة فوق العناوين، بلون accent. الحد الأدنى. */
+  --text-tab-label: 600 12px/1.4 var(--font-sans); /* شريط التنقل فقط، تحت أيقونته. */
+}
+.quran-page {
+  font-family: var(--font-quran);
+  font-size: 25px;
+  line-height: 2.3;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.quran-ayah {
+  font-family: var(--font-quran);
+  font-size: 34px;
+  line-height: 2.3;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.quran-focus {
+  font-family: var(--font-quran);
+  font-size: 44px;
+  line-height: 2;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.display {
+  font-family: var(--font-kufi);
+  font-size: 64px;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.surah-card {
+  font-family: var(--font-kufi);
+  font-size: 32px;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.surah-header {
+  font-family: var(--font-kufi);
+  font-size: 24px;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.app-title {
+  font-family: var(--font-kufi);
+  font-size: 22px;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.screen-title {
+  font-family: var(--font-sans);
+  font-size: 28px;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.section-title {
+  font-family: var(--font-sans);
+  font-size: 20px;
+  line-height: 1.5;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.tafsir {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  line-height: 2;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.body {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.7;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.body-strong {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.6;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.secondary {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.caption {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.tab-label {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+@font-face {
+  font-family: "Amiri Quran";
+  src: url("fonts/AmiriQuran-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Reem Kufi";
+  src: url("fonts/ReemKufi-Variable.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Sans Arabic";
+  src: url("fonts/IBMPlexSansArabic-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Sans Arabic";
+  src: url("fonts/IBMPlexSansArabic-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Sans Arabic";
+  src: url("fonts/IBMPlexSansArabic-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Sans Arabic";
+  src: url("fonts/IBMPlexSansArabic-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}

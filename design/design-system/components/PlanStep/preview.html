@@ -1,0 +1,12 @@
+<!-- @dsCard group="الحفظ" height=330 -->
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><title>خطوة الخطة — معاينة</title></head>
+<body>
+<div id="root" class="qk-row" dir="rtl" style=""></div>
+<script>
+var Q = window.Quran, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h('div', {style: {width: 420, display: 'flex', flexDirection: 'column', gap: 2}}, h(Q.PlanStep, {state: "done", title: "الآية ١", repeats: "٧ مرات"}), h(Q.PlanStep, {state: "done", title: "الآية ٢", repeats: "٧ مرات"}), h(Q.PlanStep, {state: "current", title: "الآيات ١–٢ معًا", repeats: "٣ مرات", merge: true}), h(Q.PlanStep, {state: "next", title: "الآية ٣", repeats: "٧ مرات"}), h(Q.PlanStep, {state: "next", title: "الآيات ١–٣ معًا", repeats: "٣ مرات", merge: true})));
+</script>
+</body>
+</html>

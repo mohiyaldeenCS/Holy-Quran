@@ -1,0 +1,331 @@
+{
+  "v": 3,
+  "assetGroups": {
+    "Icons": {
+      "files": {
+        "alert.svg": {
+          "blob": "fe16ed677e0a51b7f521829fee8a91c0",
+          "name": "alert.svg",
+          "size": 244,
+          "type": "image/svg+xml"
+        },
+        "bookmark.svg": {
+          "blob": "1c0d1de5cae0401395dfc6fa10f03c68",
+          "name": "bookmark.svg",
+          "size": 221,
+          "type": "image/svg+xml"
+        },
+        "check.svg": {
+          "blob": "f9ca8c4d1c801aa7f9c4a29b0bdf4380",
+          "name": "check.svg",
+          "size": 220,
+          "type": "image/svg+xml"
+        },
+        "close.svg": {
+          "blob": "f7d4262a608f672db47b5366aa6e7337",
+          "name": "close.svg",
+          "size": 218,
+          "type": "image/svg+xml"
+        },
+        "context.svg": {
+          "blob": "2ef8181d261e3d26167f6f676bb48011",
+          "name": "context.svg",
+          "size": 265,
+          "type": "image/svg+xml"
+        },
+        "download.svg": {
+          "blob": "27e5f33bb8802567b57218ff37686246",
+          "name": "download.svg",
+          "size": 263,
+          "type": "image/svg+xml"
+        },
+        "eye.svg": {
+          "blob": "711b216a2e071005a70c65726623db50",
+          "name": "eye.svg",
+          "size": 295,
+          "type": "image/svg+xml"
+        },
+        "home.svg": {
+          "blob": "45bc2e3ec062a48114c4d037a11f917a",
+          "name": "home.svg",
+          "size": 260,
+          "type": "image/svg+xml"
+        },
+        "index.svg": {
+          "blob": "ba9ad88397526feba33138609d64b47e",
+          "name": "index.svg",
+          "size": 247,
+          "type": "image/svg+xml"
+        },
+        "khatma.svg": {
+          "blob": "07fc5c4a9c89f777cd8658daaa204c76",
+          "name": "khatma.svg",
+          "size": 250,
+          "type": "image/svg+xml"
+        },
+        "listen.svg": {
+          "blob": "54ad86780777fa9e72e6ac6d07cba473",
+          "name": "listen.svg",
+          "size": 324,
+          "type": "image/svg+xml"
+        },
+        "mic.svg": {
+          "blob": "7563f0fc79c3da5d79e2233740d2461b",
+          "name": "mic.svg",
+          "size": 283,
+          "type": "image/svg+xml"
+        },
+        "minus.svg": {
+          "blob": "262eb06f062efd04f5ca45bc5f95b6e4",
+          "name": "minus.svg",
+          "size": 205,
+          "type": "image/svg+xml"
+        },
+        "more.svg": {
+          "blob": "4cff881c8421c66879779266451ad75e",
+          "name": "more.svg",
+          "size": 284,
+          "type": "image/svg+xml"
+        },
+        "mushaf.svg": {
+          "blob": "492f9f8dda74482d397cc7d640b80fa1",
+          "name": "mushaf.svg",
+          "size": 298,
+          "type": "image/svg+xml"
+        },
+        "next.svg": {
+          "blob": "f7b769df00841c331dfebdbe0c7d65e8",
+          "name": "next.svg",
+          "size": 211,
+          "type": "image/svg+xml"
+        },
+        "night.svg": {
+          "blob": "973367444b41907ae0c2dba9abdc7f83",
+          "name": "night.svg",
+          "size": 243,
+          "type": "image/svg+xml"
+        },
+        "pause.svg": {
+          "blob": "44afa96f38bd1cc476aa5d8a664184f3",
+          "name": "pause.svg",
+          "size": 210,
+          "type": "image/svg+xml"
+        },
+        "play.svg": {
+          "blob": "e55d0e981fd091dbf689e0c4dd283b55",
+          "name": "play.svg",
+          "size": 134,
+          "type": "image/svg+xml"
+        },
+        "plus.svg": {
+          "blob": "689ea890ab1039aa44fa5f1c4239d6ea",
+          "name": "plus.svg",
+          "size": 213,
+          "type": "image/svg+xml"
+        },
+        "previous.svg": {
+          "blob": "4220c2362eb2c0db1485a32246a0412d",
+          "name": "previous.svg",
+          "size": 210,
+          "type": "image/svg+xml"
+        },
+        "repeat.svg": {
+          "blob": "ff973639da3bbb4eb982e00e2383fa2d",
+          "name": "repeat.svg",
+          "size": 255,
+          "type": "image/svg+xml"
+        },
+        "search.svg": {
+          "blob": "7764575d40a256bc41ab53632fcf8c8f",
+          "name": "search.svg",
+          "size": 243,
+          "type": "image/svg+xml"
+        },
+        "settings.svg": {
+          "blob": "b2ebee57f3f190773eff7340914dad8d",
+          "name": "settings.svg",
+          "size": 286,
+          "type": "image/svg+xml"
+        },
+        "sort.svg": {
+          "blob": "5a027ba9e8ceafb86520759a5547ea54",
+          "name": "sort.svg",
+          "size": 238,
+          "type": "image/svg+xml"
+        },
+        "study.svg": {
+          "blob": "4e62e253d2ee0ed22c6fe68d5dcdec0a",
+          "name": "study.svg",
+          "size": 266,
+          "type": "image/svg+xml"
+        }
+      },
+      "name": "Icons",
+      "order": [
+        "home.svg",
+        "mushaf.svg",
+        "listen.svg",
+        "study.svg",
+        "more.svg",
+        "search.svg",
+        "bookmark.svg",
+        "play.svg",
+        "pause.svg",
+        "next.svg",
+        "previous.svg",
+        "repeat.svg",
+        "download.svg",
+        "night.svg",
+        "settings.svg",
+        "index.svg",
+        "khatma.svg",
+        "alert.svg",
+        "check.svg",
+        "close.svg",
+        "mic.svg",
+        "eye.svg",
+        "sort.svg",
+        "minus.svg",
+        "plus.svg",
+        "context.svg"
+      ],
+      "tile": "s"
+    },
+    "Logos": {
+      "files": {
+        "app-icon-dark.svg": {
+          "blob": "5ea18fe1d366be1f339bf3b8d606f80c",
+          "name": "app-icon-dark.svg",
+          "size": 685,
+          "type": "image/svg+xml"
+        },
+        "app-icon-fullbleed.svg": {
+          "blob": "5e92aea1d5b257d31cdd5d1dc106d1f6",
+          "name": "app-icon-fullbleed.svg",
+          "size": 677,
+          "type": "image/svg+xml"
+        },
+        "app-icon-light.svg": {
+          "blob": "6de8cfc5d35198634e7cbcb32cc1937c",
+          "name": "app-icon-light.svg",
+          "size": 743,
+          "type": "image/svg+xml"
+        },
+        "app-icon-mono.svg": {
+          "blob": "5884a17db989a0ad3bcae360135be17d",
+          "name": "app-icon-mono.svg",
+          "size": 680,
+          "type": "image/svg+xml"
+        },
+        "app-icon.svg": {
+          "blob": "5ae503f18e4b20ff795eff879acc02ed",
+          "name": "app-icon.svg",
+          "size": 655,
+          "type": "image/svg+xml"
+        },
+        "lockup-horizontal-emerald.svg": {
+          "blob": "e1d8a676aa38c239f85b80e8f68411f4",
+          "name": "lockup-horizontal-emerald.svg",
+          "size": 8895,
+          "type": "image/svg+xml"
+        },
+        "lockup-horizontal.svg": {
+          "blob": "d140cbc7605bb1ee556aad963c9c9599",
+          "name": "lockup-horizontal.svg",
+          "size": 8895,
+          "type": "image/svg+xml"
+        },
+        "lockup-vertical.svg": {
+          "blob": "2fc97c889662e10eab381d4b81b7f83a",
+          "name": "lockup-vertical.svg",
+          "size": 8888,
+          "type": "image/svg+xml"
+        },
+        "mark-24.svg": {
+          "blob": "18790f0be8f1d49760999ae44ecb790b",
+          "name": "mark-24.svg",
+          "size": 579,
+          "type": "image/svg+xml"
+        },
+        "mark-dark.svg": {
+          "blob": "adbbc5f2345b418e1beda3ea106ca06d",
+          "name": "mark-dark.svg",
+          "size": 610,
+          "type": "image/svg+xml"
+        },
+        "mark-emerald.svg": {
+          "blob": "6991cfbef1568e596f545ec366e17703",
+          "name": "mark-emerald.svg",
+          "size": 610,
+          "type": "image/svg+xml"
+        },
+        "mark-mono.svg": {
+          "blob": "ba06b08e8a989b140e0f1466ce8b781d",
+          "name": "mark-mono.svg",
+          "size": 587,
+          "type": "image/svg+xml"
+        },
+        "mark-paper.svg": {
+          "blob": "6b1dd023714028303033eade5421c585",
+          "name": "mark-paper.svg",
+          "size": 610,
+          "type": "image/svg+xml"
+        }
+      },
+      "name": "Logos",
+      "order": [
+        "mark-paper.svg",
+        "mark-emerald.svg",
+        "mark-dark.svg",
+        "mark-mono.svg",
+        "mark-24.svg",
+        "lockup-horizontal.svg",
+        "lockup-horizontal-emerald.svg",
+        "lockup-vertical.svg",
+        "app-icon.svg",
+        "app-icon-light.svg",
+        "app-icon-dark.svg",
+        "app-icon-mono.svg",
+        "app-icon-fullbleed.svg"
+      ],
+      "tile": "l"
+    }
+  },
+  "blobs": {},
+  "createdOnFiles": {
+    "at": "2026-10-03T05:38:34Z",
+    "v": 1
+  },
+  "docs": {
+    "readme": "project/README.md",
+    "sections": []
+  },
+  "groups": [
+    "Logos",
+    "Icons"
+  ],
+  "lastChange": {
+    "at": "2026-10-03T06:05:05Z",
+    "by": "Claude",
+    "note": "إضافة ١١ مكوّنًا للبحث والحفظ، و٦ أيقونات، ورمز conceal، وقسم «البحث والحفظ» في دليل الهوية",
+    "via": "Claude"
+  },
+  "layout": "files",
+  "libraries": [
+    {
+      "file": "components/lib/react.production.min.js",
+      "global": "React",
+      "name": "react",
+      "version": "18"
+    },
+    {
+      "file": "components/lib/react-dom.production.min.js",
+      "global": "ReactDOM",
+      "name": "react-dom",
+      "version": "18"
+    }
+  ],
+  "namespace": "Quran",
+  "sections": {},
+  "title": "هوية القرآن الكريم"
+}

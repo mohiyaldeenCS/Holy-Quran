@@ -1,0 +1,675 @@
+{
+  "manifestVersion": 3,
+  "name": "هوية القرآن الكريم",
+  "namespace": "Quran",
+  "files": [
+    "assets/Icons/README.md",
+    "assets/Logos/README.md",
+    "components/AyahMarker/README.md",
+    "components/AyahRow/README.md",
+    "components/Button/README.md",
+    "components/ConcealedText/README.md",
+    "components/ContextSheet/README.md",
+    "components/ContinueCard/README.md",
+    "components/Icon/README.md",
+    "components/IconButton/README.md",
+    "components/LevelSwitch/README.md",
+    "components/Lockup/README.md",
+    "components/Mark/README.md",
+    "components/MiniPlayer/README.md",
+    "components/ModeChips/README.md",
+    "components/PlanStep/README.md",
+    "components/ProgressBar/README.md",
+    "components/QuranText/README.md",
+    "components/RepeatDots/README.md",
+    "components/ResourceRow/README.md",
+    "components/SearchField/README.md",
+    "components/SearchResult/README.md",
+    "components/SearchSummary/README.md",
+    "components/SessionBar/README.md",
+    "components/SessionStatus/README.md",
+    "components/Stepper/README.md",
+    "components/SurahHeader/README.md",
+    "components/SurahListItem/README.md",
+    "components/Switch/README.md",
+    "components/TabBar/README.md",
+    "components/Tag/README.md",
+    "components/TajweedKey/README.md",
+    "components/WordSheet/README.md",
+    "components/bundle.css",
+    "components/bundle.js",
+    "components/index.d.ts",
+    "components/lib/react-dom.production.min.js",
+    "components/lib/react.production.min.js",
+    "fonts/AmiriQuran-Regular.woff2",
+    "fonts/IBMPlexSansArabic-Bold.woff2",
+    "fonts/IBMPlexSansArabic-Medium.woff2",
+    "fonts/IBMPlexSansArabic-Regular.woff2",
+    "fonts/IBMPlexSansArabic-SemiBold.woff2",
+    "fonts/ReemKufi-Variable.woff2",
+    "tokens.css"
+  ],
+  "libraries": [
+    {
+      "name": "react",
+      "version": "18",
+      "global": "React",
+      "file": "components/lib/react.production.min.js"
+    },
+    {
+      "name": "react-dom",
+      "version": "18",
+      "global": "ReactDOM",
+      "file": "components/lib/react-dom.production.min.js"
+    }
+  ],
+  "components": [
+    {
+      "name": "Mark",
+      "group": "الهوية",
+      "summary": "رمز التطبيق: نجمة الربع (مربعان متراكبان) تحتضن كتابًا مفتوحًا، وفوقه النقطة العلوية التي تعني «موضع القراءة الحالي»."
+    },
+    {
+      "name": "Lockup",
+      "group": "الهوية",
+      "summary": "الرمز مع الاسم «القرآن الكريم» بخط ريم كوفي ٧٠٠. الرمز على يمين الاسم لأن القراءة تبدأ منه."
+    },
+    {
+      "name": "Icon",
+      "group": "الهوية",
+      "summary": "مجموعة أيقونات خطية على شبكة ٢٤: خط ١٫٧٥ بأطراف مدوّرة، بلا تعبئة إلا التشغيل والإيقاف. تأخذ لونها من currentColor."
+    },
+    {
+      "name": "Button",
+      "group": "الإجراءات",
+      "summary": "الأزرار: ارتفاع ٥٢، زوايا ١٦، نص ١٧ نصف عريض. الارتفاع الأدنى ٤٨ والنص لا ينقص عن ١٧."
+    },
+    {
+      "name": "IconButton",
+      "group": "الإجراءات",
+      "summary": "زر أيقونة دائري، ٤٨ بكسل افتراضيًا. label إلزامي لأنه الاسم الذي يقرؤه قارئ الشاشة."
+    },
+    {
+      "name": "LevelSwitch",
+      "group": "التحكم",
+      "summary": "مفتاح مستوى الواجهة: بسيط · متوسط · دراسة. يغيّر الأدوات الظاهرة في التطبيق كله من إعداد واحد."
+    },
+    {
+      "name": "Tag",
+      "group": "التحكم",
+      "summary": "وسم تصنيف للعلامات والملاحظات والمجموعات. لكل تصنيف شكل ولون واسم، فلا يُترك التمييز للون وحده."
+    },
+    {
+      "name": "Switch",
+      "group": "التحكم",
+      "summary": "مفتاح تشغيل وإيقاف للإعدادات، ٥٦×٣٢ داخل صف ارتفاعه ٤٨. عند التفعيل تكون الدائرة على اليسار والمسار زمرديًا."
+    },
+    {
+      "name": "AyahMarker",
+      "group": "المصحف",
+      "summary": "فاصلة الآية: دائرة ذهبية رقيقة (ornament) ورقم الآية بداخلها بخط الواجهة ٦٠٠ بلون accent."
+    },
+    {
+      "name": "QuranText",
+      "group": "المصحف",
+      "summary": "حاوية النص القرآني بخط أميري قرآن. size: page (٢٥/٢٫٣ لصفحة المصحف)، ayah (٣٤/٢٫٣)، focus (٤٤/٢)، compact (٢٢/٢٫٢ لنتائج البحث وورقة السياق والحفظ)."
+    },
+    {
+      "name": "SurahHeader",
+      "group": "المصحف",
+      "summary": "رأس السورة: إطار مزدوج (خارجي ١٫٥ بلون ornament وداخلي ١ بلون ornament-soft) ونجمتا الربع على الجانبين، والاسم بخط ريم كوفي ٦٠٠ بلون primary."
+    },
+    {
+      "name": "AyahRow",
+      "group": "المصحف",
+      "summary": "الآية بطاقةً مستقلة لوضع الدراسة والبحث والعلامات: فاصلتها، ثم ثلاثة أفعال (تشغيل من هنا، علامة مرجعية، مركز الدراسة)، ثم النص بحجم quran-ayah."
+    },
+    {
+      "name": "SurahListItem",
+      "group": "المصحف",
+      "summary": "صف فهرس السور: الرقم داخل نجمة الربع، والاسم بخط ريم كوفي، ثم «مكية/مدنية · عدد الآيات»، وصفحة البداية."
+    },
+    {
+      "name": "ProgressBar",
+      "group": "الصوت والتقدّم",
+      "summary": "شريط تقدّم يمتلئ من بداية السطر، أي من اليمين، مثل اتجاه القراءة."
+    },
+    {
+      "name": "MiniPlayer",
+      "group": "الصوت والتقدّم",
+      "summary": "بطاقة المشغّل الزمردية: السورة والآية بخط ريم كوفي، واسم القارئ، والسرعة، وشريط تقدّم ذهبي، وخمسة أزرار: تكرار، والآية السابقة، وتشغيل/إيقاف (ذهب ٦٠ بكسل)، وال…"
+    },
+    {
+      "name": "ContinueCard",
+      "group": "الصوت والتقدّم",
+      "summary": "بطاقة «أكمل القراءة» في الرئيسية: زمرد بنجمة ذهبية خافتة في الزاوية، واسم السورة بخط ريم كوفي ٣٢، والموضع، والتقدّم في المصحف، وزر «تابع القراءة»."
+    },
+    {
+      "name": "ResourceRow",
+      "group": "الصوت والتقدّم",
+      "summary": "صف في مدير الموارد: تفاسير، وتلاوات، وروايات، وموارد لغوية."
+    },
+    {
+      "name": "TajweedKey",
+      "group": "المصحف",
+      "summary": "مفتاح أحكام التجويد الثمانية. لكل حكم لون (tj-*) وعلامة خطية واسم، فلا يُترك التمييز لحاسة اللون وحدها."
+    },
+    {
+      "name": "TabBar",
+      "group": "التنقل والدراسة",
+      "summary": "شريط التنقل السفلي بخمسة أقسام: الرئيسية، المصحف، الاستماع، الدراسة، المزيد. القسم النشط بحبّة زمردية فاتحة خلف أيقونته."
+    },
+    {
+      "name": "WordSheet",
+      "group": "التنقل والدراسة",
+      "summary": "الورقة المنزلقة لدراسة كلمة: تبويبات (النص، التفسير، الإعراب، الصرف، التجويد)، ثم الكلمة بحجم quran-focus، ثم صفوف «تسمية · قيمة»."
+    },
+    {
+      "name": "SearchField",
+      "group": "البحث",
+      "summary": "حقل البحث: أيقونة، ونص ١٨ نصف عريض، وزر الميكروفون ٤٨ لـ«اقرأ جزءًا من الآية». ارتفاعه ٥٦، وحدّه line-strong، ويصير زمرديًا ٢ بكسل حين يأخذ التركيز."
+    },
+    {
+      "name": "ModeChips",
+      "group": "البحث",
+      "summary": "حبّات أنواع البحث: كلمة، الجذر، بلا تشكيل، المشتقات، في التفاسير، الموضوعات. واحد منها مختار دائمًا."
+    },
+    {
+      "name": "SearchSummary",
+      "group": "البحث",
+      "summary": "سطر ما بحثتَ عنه وعدد نتائجه، وفي آخره زر الترتيب (ترتيب المصحف، الأقرب، الأكثر ورودًا)."
+    },
+    {
+      "name": "SearchResult",
+      "group": "البحث",
+      "summary": "بطاقة نتيجة واحدة: الموضع («البقرة · الآية ٤٥»)، وزرّان (سياق الآية، افتح في المصحف)، ثم الآية كاملة بخط المصحف ٢٢."
+    },
+    {
+      "name": "ContextSheet",
+      "group": "البحث",
+      "summary": "ورقة منزلقة تُظهر الآية بين ما قبلها وما بعدها، تُفتح من زر «سياق الآية» في نتيجة البحث."
+    },
+    {
+      "name": "RepeatDots",
+      "group": "الحفظ",
+      "summary": "نقاط عدّاد التكرار: المنجز مملوء بالزمرد، والجاري حلقة ذهبية ٣ بكسل بداخلها ذهب فاتح، والقادم حلقة فارغة بحدّ line-strong. الأشكال الثلاثة تختلف بالتعبئة والسُ…"
+    },
+    {
+      "name": "SessionStatus",
+      "group": "الحفظ",
+      "summary": "بطاقة رأس جلسة الحفظ: «الخطوة ٤ من ٩» بلون accent، ثم «الآية ٣ · التكرار ٤ من ٧»، وفي آخرها RepeatDots."
+    },
+    {
+      "name": "ConcealedText",
+      "group": "الحفظ",
+      "summary": "نص الحفظ بعد حجب حبره. لا يُحذف شيء: النص باقٍ كلمةً كلمة تحت شريط conceal (خط سفلي line-strong وشريط بطول الكلمة)، فيبقى موضع كل كلمة وطولها ظاهرين ليتذكّر ال…"
+    },
+    {
+      "name": "SessionBar",
+      "group": "الحفظ",
+      "summary": "الشريط الزمردي العائم أسفل جلسة الحفظ: إيقاف مؤقت/متابعة (ذهب ٥٢)، وما يجري الآن، وزر الخطوة التالية (٤٨)."
+    },
+    {
+      "name": "Stepper",
+      "group": "الحفظ",
+      "summary": "رقم يُعدَّل بزرّي إنقاص وزيادة، كلٌّ منهما بحجم لمس ٤٨. للإعدادات الصغيرة: عدد التكرار، وتكرار الدمج، ومدة الصمت."
+    },
+    {
+      "name": "PlanStep",
+      "group": "الحفظ",
+      "summary": "صف من تسلسل الجلسة في خطة الحفظ: الآية ثم تكرارها، وبعد كل آية جديدة «دمج» بما سبقها: ١ ثم ٢ ثم ١–٢ معًا ثم ٣ ثم ١–٣ معًا، وهكذا."
+    }
+  ],
+  "assetGroups": [
+    {
+      "name": "Logos",
+      "tile": "l",
+      "order": [
+        "mark-paper.svg",
+        "mark-emerald.svg",
+        "mark-dark.svg",
+        "mark-mono.svg",
+        "mark-24.svg",
+        "lockup-horizontal.svg",
+        "lockup-horizontal-emerald.svg",
+        "lockup-vertical.svg",
+        "app-icon.svg",
+        "app-icon-light.svg",
+        "app-icon-dark.svg",
+        "app-icon-mono.svg",
+        "app-icon-fullbleed.svg"
+      ],
+      "files": [
+        {
+          "path": "assets/Logos/mark-paper.svg",
+          "id": "6b1dd023714028303033eade5421c585"
+        },
+        {
+          "path": "assets/Logos/mark-emerald.svg",
+          "id": "6991cfbef1568e596f545ec366e17703"
+        },
+        {
+          "path": "assets/Logos/mark-dark.svg",
+          "id": "adbbc5f2345b418e1beda3ea106ca06d"
+        },
+        {
+          "path": "assets/Logos/mark-mono.svg",
+          "id": "ba06b08e8a989b140e0f1466ce8b781d"
+        },
+        {
+          "path": "assets/Logos/mark-24.svg",
+          "id": "18790f0be8f1d49760999ae44ecb790b"
+        },
+        {
+          "path": "assets/Logos/lockup-horizontal.svg",
+          "id": "d140cbc7605bb1ee556aad963c9c9599"
+        },
+        {
+          "path": "assets/Logos/lockup-horizontal-emerald.svg",
+          "id": "e1d8a676aa38c239f85b80e8f68411f4"
+        },
+        {
+          "path": "assets/Logos/lockup-vertical.svg",
+          "id": "2fc97c889662e10eab381d4b81b7f83a"
+        },
+        {
+          "path": "assets/Logos/app-icon.svg",
+          "id": "5ae503f18e4b20ff795eff879acc02ed"
+        },
+        {
+          "path": "assets/Logos/app-icon-light.svg",
+          "id": "6de8cfc5d35198634e7cbcb32cc1937c"
+        },
+        {
+          "path": "assets/Logos/app-icon-dark.svg",
+          "id": "5ea18fe1d366be1f339bf3b8d606f80c"
+        },
+        {
+          "path": "assets/Logos/app-icon-mono.svg",
+          "id": "5884a17db989a0ad3bcae360135be17d"
+        },
+        {
+          "path": "assets/Logos/app-icon-fullbleed.svg",
+          "id": "5e92aea1d5b257d31cdd5d1dc106d1f6"
+        }
+      ]
+    },
+    {
+      "name": "Icons",
+      "tile": "s",
+      "order": [
+        "home.svg",
+        "mushaf.svg",
+        "listen.svg",
+        "study.svg",
+        "more.svg",
+        "search.svg",
+        "bookmark.svg",
+        "play.svg",
+        "pause.svg",
+        "next.svg",
+        "previous.svg",
+        "repeat.svg",
+        "download.svg",
+        "night.svg",
+        "settings.svg",
+        "index.svg",
+        "khatma.svg",
+        "alert.svg",
+        "check.svg",
+        "close.svg",
+        "mic.svg",
+        "eye.svg",
+        "sort.svg",
+        "minus.svg",
+        "plus.svg",
+        "context.svg"
+      ],
+      "files": [
+        {
+          "path": "assets/Icons/home.svg",
+          "id": "45bc2e3ec062a48114c4d037a11f917a"
+        },
+        {
+          "path": "assets/Icons/mushaf.svg",
+          "id": "492f9f8dda74482d397cc7d640b80fa1"
+        },
+        {
+          "path": "assets/Icons/listen.svg",
+          "id": "54ad86780777fa9e72e6ac6d07cba473"
+        },
+        {
+          "path": "assets/Icons/study.svg",
+          "id": "4e62e253d2ee0ed22c6fe68d5dcdec0a"
+        },
+        {
+          "path": "assets/Icons/more.svg",
+          "id": "4cff881c8421c66879779266451ad75e"
+        },
+        {
+          "path": "assets/Icons/search.svg",
+          "id": "7764575d40a256bc41ab53632fcf8c8f"
+        },
+        {
+          "path": "assets/Icons/bookmark.svg",
+          "id": "1c0d1de5cae0401395dfc6fa10f03c68"
+        },
+        {
+          "path": "assets/Icons/play.svg",
+          "id": "e55d0e981fd091dbf689e0c4dd283b55"
+        },
+        {
+          "path": "assets/Icons/pause.svg",
+          "id": "44afa96f38bd1cc476aa5d8a664184f3"
+        },
+        {
+          "path": "assets/Icons/next.svg",
+          "id": "f7b769df00841c331dfebdbe0c7d65e8"
+        },
+        {
+          "path": "assets/Icons/previous.svg",
+          "id": "4220c2362eb2c0db1485a32246a0412d"
+        },
+        {
+          "path": "assets/Icons/repeat.svg",
+          "id": "ff973639da3bbb4eb982e00e2383fa2d"
+        },
+        {
+          "path": "assets/Icons/download.svg",
+          "id": "27e5f33bb8802567b57218ff37686246"
+        },
+        {
+          "path": "assets/Icons/night.svg",
+          "id": "973367444b41907ae0c2dba9abdc7f83"
+        },
+        {
+          "path": "assets/Icons/settings.svg",
+          "id": "b2ebee57f3f190773eff7340914dad8d"
+        },
+        {
+          "path": "assets/Icons/index.svg",
+          "id": "ba9ad88397526feba33138609d64b47e"
+        },
+        {
+          "path": "assets/Icons/khatma.svg",
+          "id": "07fc5c4a9c89f777cd8658daaa204c76"
+        },
+        {
+          "path": "assets/Icons/alert.svg",
+          "id": "fe16ed677e0a51b7f521829fee8a91c0"
+        },
+        {
+          "path": "assets/Icons/check.svg",
+          "id": "f9ca8c4d1c801aa7f9c4a29b0bdf4380"
+        },
+        {
+          "path": "assets/Icons/close.svg",
+          "id": "f7d4262a608f672db47b5366aa6e7337"
+        },
+        {
+          "path": "assets/Icons/mic.svg",
+          "id": "7563f0fc79c3da5d79e2233740d2461b"
+        },
+        {
+          "path": "assets/Icons/eye.svg",
+          "id": "711b216a2e071005a70c65726623db50"
+        },
+        {
+          "path": "assets/Icons/sort.svg",
+          "id": "5a027ba9e8ceafb86520759a5547ea54"
+        },
+        {
+          "path": "assets/Icons/minus.svg",
+          "id": "262eb06f062efd04f5ca45bc5f95b6e4"
+        },
+        {
+          "path": "assets/Icons/plus.svg",
+          "id": "689ea890ab1039aa44fa5f1c4239d6ea"
+        },
+        {
+          "path": "assets/Icons/context.svg",
+          "id": "2ef8181d261e3d26167f6f676bb48011"
+        }
+      ]
+    }
+  ],
+  "storage": {
+    "files": {
+      "assets/Icons/alert.svg": {
+        "store": "blob",
+        "id": "fe16ed677e0a51b7f521829fee8a91c0",
+        "bytes": 244,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/bookmark.svg": {
+        "store": "blob",
+        "id": "1c0d1de5cae0401395dfc6fa10f03c68",
+        "bytes": 221,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/check.svg": {
+        "store": "blob",
+        "id": "f9ca8c4d1c801aa7f9c4a29b0bdf4380",
+        "bytes": 220,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/close.svg": {
+        "store": "blob",
+        "id": "f7d4262a608f672db47b5366aa6e7337",
+        "bytes": 218,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/context.svg": {
+        "store": "blob",
+        "id": "2ef8181d261e3d26167f6f676bb48011",
+        "bytes": 265,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/download.svg": {
+        "store": "blob",
+        "id": "27e5f33bb8802567b57218ff37686246",
+        "bytes": 263,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/eye.svg": {
+        "store": "blob",
+        "id": "711b216a2e071005a70c65726623db50",
+        "bytes": 295,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/home.svg": {
+        "store": "blob",
+        "id": "45bc2e3ec062a48114c4d037a11f917a",
+        "bytes": 260,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/index.svg": {
+        "store": "blob",
+        "id": "ba9ad88397526feba33138609d64b47e",
+        "bytes": 247,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/khatma.svg": {
+        "store": "blob",
+        "id": "07fc5c4a9c89f777cd8658daaa204c76",
+        "bytes": 250,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/listen.svg": {
+        "store": "blob",
+        "id": "54ad86780777fa9e72e6ac6d07cba473",
+        "bytes": 324,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/mic.svg": {
+        "store": "blob",
+        "id": "7563f0fc79c3da5d79e2233740d2461b",
+        "bytes": 283,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/minus.svg": {
+        "store": "blob",
+        "id": "262eb06f062efd04f5ca45bc5f95b6e4",
+        "bytes": 205,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/more.svg": {
+        "store": "blob",
+        "id": "4cff881c8421c66879779266451ad75e",
+        "bytes": 284,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/mushaf.svg": {
+        "store": "blob",
+        "id": "492f9f8dda74482d397cc7d640b80fa1",
+        "bytes": 298,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/next.svg": {
+        "store": "blob",
+        "id": "f7b769df00841c331dfebdbe0c7d65e8",
+        "bytes": 211,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/night.svg": {
+        "store": "blob",
+        "id": "973367444b41907ae0c2dba9abdc7f83",
+        "bytes": 243,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/pause.svg": {
+        "store": "blob",
+        "id": "44afa96f38bd1cc476aa5d8a664184f3",
+        "bytes": 210,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/play.svg": {
+        "store": "blob",
+        "id": "e55d0e981fd091dbf689e0c4dd283b55",
+        "bytes": 134,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/plus.svg": {
+        "store": "blob",
+        "id": "689ea890ab1039aa44fa5f1c4239d6ea",
+        "bytes": 213,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/previous.svg": {
+        "store": "blob",
+        "id": "4220c2362eb2c0db1485a32246a0412d",
+        "bytes": 210,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/repeat.svg": {
+        "store": "blob",
+        "id": "ff973639da3bbb4eb982e00e2383fa2d",
+        "bytes": 255,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/search.svg": {
+        "store": "blob",
+        "id": "7764575d40a256bc41ab53632fcf8c8f",
+        "bytes": 243,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/settings.svg": {
+        "store": "blob",
+        "id": "b2ebee57f3f190773eff7340914dad8d",
+        "bytes": 286,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/sort.svg": {
+        "store": "blob",
+        "id": "5a027ba9e8ceafb86520759a5547ea54",
+        "bytes": 238,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/study.svg": {
+        "store": "blob",
+        "id": "4e62e253d2ee0ed22c6fe68d5dcdec0a",
+        "bytes": 266,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/app-icon-dark.svg": {
+        "store": "blob",
+        "id": "5ea18fe1d366be1f339bf3b8d606f80c",
+        "bytes": 685,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/app-icon-fullbleed.svg": {
+        "store": "blob",
+        "id": "5e92aea1d5b257d31cdd5d1dc106d1f6",
+        "bytes": 677,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/app-icon-light.svg": {
+        "store": "blob",
+        "id": "6de8cfc5d35198634e7cbcb32cc1937c",
+        "bytes": 743,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/app-icon-mono.svg": {
+        "store": "blob",
+        "id": "5884a17db989a0ad3bcae360135be17d",
+        "bytes": 680,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/app-icon.svg": {
+        "store": "blob",
+        "id": "5ae503f18e4b20ff795eff879acc02ed",
+        "bytes": 655,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/lockup-horizontal-emerald.svg": {
+        "store": "blob",
+        "id": "e1d8a676aa38c239f85b80e8f68411f4",
+        "bytes": 8895,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/lockup-horizontal.svg": {
+        "store": "blob",
+        "id": "d140cbc7605bb1ee556aad963c9c9599",
+        "bytes": 8895,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/lockup-vertical.svg": {
+        "store": "blob",
+        "id": "2fc97c889662e10eab381d4b81b7f83a",
+        "bytes": 8888,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/mark-24.svg": {
+        "store": "blob",
+        "id": "18790f0be8f1d49760999ae44ecb790b",
+        "bytes": 579,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/mark-dark.svg": {
+        "store": "blob",
+        "id": "adbbc5f2345b418e1beda3ea106ca06d",
+        "bytes": 610,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/mark-emerald.svg": {
+        "store": "blob",
+        "id": "6991cfbef1568e596f545ec366e17703",
+        "bytes": 610,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/mark-mono.svg": {
+        "store": "blob",
+        "id": "ba06b08e8a989b140e0f1466ce8b781d",
+        "bytes": 587,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/mark-paper.svg": {
+        "store": "blob",
+        "id": "6b1dd023714028303033eade5421c585",
+        "bytes": 610,
+        "type": "image/svg+xml"
+      }
+    },
+    "blobBytesUsed": 39500
+  }
+}

@@ -1,0 +1,12 @@
+<!-- @dsCard group="الصوت والتقدّم" height=230 -->
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><title>المشغّل — معاينة</title></head>
+<body>
+<div id="root" class="qk-row" dir="rtl" style=""></div>
+<script>
+var Q = window.Quran, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h('div', {style: {width: 520}}, h(Q.MiniPlayer, {title: 'الفاتحة · الآية ٥', reciter: '[اسم القارئ]', progress: 46, repeat: 3})));
+</script>
+</body>
+</html>

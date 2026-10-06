@@ -1,0 +1,12 @@
+<!-- @dsCard group="البحث" height=120 -->
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><title>حقل البحث — معاينة</title></head>
+<body>
+<div id="root" class="qk-row" dir="rtl" style=""></div>
+<script>
+var Q = window.Quran, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h('div', {style: {width: 420, display: 'flex', flexDirection: 'column', gap: 16}}, h(Q.SearchField, {defaultValue: 'صبر'}), h(Q.SearchField, null)));
+</script>
+</body>
+</html>

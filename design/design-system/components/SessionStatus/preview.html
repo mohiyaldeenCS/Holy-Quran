@@ -1,0 +1,12 @@
+<!-- @dsCard group="الحفظ" height=130 -->
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><title>حالة الجلسة — معاينة</title></head>
+<body>
+<div id="root" class="qk-row" dir="rtl" style=""></div>
+<script>
+var Q = window.Quran, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h('div', {style: {width: 420}}, h(Q.SessionStatus, {step: 4, steps: 9, ayah: 'الآية ٣', repetition: 4, total: 7})));
+</script>
+</body>
+</html>

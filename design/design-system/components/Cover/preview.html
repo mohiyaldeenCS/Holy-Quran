@@ -1,0 +1,56 @@
+<!-- @dsCard height=340 -->
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>القرآن الكريم</title>
+<style>
+  html, body { margin:0; height:100%; }
+  body { background:var(--ground); color:var(--ink); font-family:var(--font-sans); overflow:hidden; }
+  .cover { position:relative; width:960px; height:340px; overflow:hidden; direction:rtl; }
+  /* Arabic composes right to left: the name holds the right, the composition sits in the left box (x 0–480) */
+  .art { position:absolute; top:0; left:0; width:480px; height:340px; overflow:hidden; direction:ltr; }
+  .art svg { display:block; }
+  .brand { fill:var(--emerald-700); }
+  .mid { fill:var(--emerald-500); }
+  .tint { fill:var(--gold-100); }
+  .gold { fill:var(--gold-400); }
+  .blk { rx:var(--radius-card); }
+  .pill { rx:16px; }
+  .star { fill:none; stroke-width:2; stroke-linejoin:round; }
+  .star.on-brand { stroke:var(--gold-400); }
+  .star.on-tint { stroke:var(--gold-600); }
+  .star.on-mid { stroke:var(--paper-100); }
+  .words { position:absolute; right:var(--space-6); bottom:var(--space-6); max-width:440px; text-align:right; }
+  .name { margin:0; font-family:var(--font-kufi); font-size:88px; line-height:1.2; font-weight:700; color:var(--brand-ink); white-space:nowrap; }
+  .tag { margin:var(--space-2) 0 0; font-size:14px; line-height:20px; color:var(--ink-muted); }
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="art" aria-hidden="true">
+<svg viewBox="0 0 480 340" width="480" height="340">
+<!--
+  blocks      emerald-700 slab 152×292 bled off the top, nearest the name (the brand) · emerald-500 176×220 bleeding off the left edge · gold-100 tint 120×276 between them · gold-400 72×32 pill once (the reading dot, the one gold that moves) — ≈45% of the art box
+  arrangement one tall emerald slab with satellites, mirrored for right-to-left: largest block beside the name, the rest stepping away to the left, bottoms on one line space-6 above the edge, space-4 gutters
+  pattern     the quarter-star itself (two squares, one turned 45°) from the mark: three stars at a 64px pitch (space-7 + space-4) down the slab in gold-400, one on the tint in gold-600, one in paper on the emerald-500 block
+  scales      sides in space-2 multiples; gutters space-4; pitch space-7 + space-4; block corners radius-card, the pill rx = half its height
+-->
+<rect class="mid blk" x="-24" y="96" width="176" height="220" rx="24"/>
+<rect class="tint blk" x="168" y="40" width="120" height="276" rx="24"/>
+<rect class="brand blk" x="304" y="-24" width="152" height="292" rx="24"/>
+<rect class="gold pill" x="384" y="284" width="72" height="32" rx="16"/>
+<g class="star on-brand"><rect x="364" y="40" width="32" height="32"/><rect x="364" y="40" width="32" height="32" transform="rotate(45 380 56)"/></g>
+<g class="star on-brand"><rect x="364" y="104" width="32" height="32"/><rect x="364" y="104" width="32" height="32" transform="rotate(45 380 120)"/></g>
+<g class="star on-brand"><rect x="364" y="168" width="32" height="32"/><rect x="364" y="168" width="32" height="32" transform="rotate(45 380 184)"/></g>
+<g class="star on-tint"><rect x="204" y="200" width="48" height="48"/><rect x="204" y="200" width="48" height="48" transform="rotate(45 228 224)"/></g>
+<g class="star on-mid"><rect x="32" y="152" width="64" height="64"/><rect x="32" y="152" width="64" height="64" transform="rotate(45 64 184)"/></g>
+</svg>
+</div>
+<div class="words">
+<h1 class="name">القرآن الكريم</h1>
+<p class="tag">هوية هادئة وموقّرة تخدم النص ولا تنافسه.</p>
+</div>
+</div>
+</body>
+</html>
