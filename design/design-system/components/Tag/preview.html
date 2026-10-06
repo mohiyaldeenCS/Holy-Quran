@@ -1,0 +1,12 @@
+<!-- @dsCard group="التحكم" height=90 -->
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><title>الوسوم — معاينة</title></head>
+<body>
+<div id="root" class="qk-row" dir="rtl" style=""></div>
+<script>
+var Q = window.Quran, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null, h(Q.Tag, {selected: true, shape: 'circle', color: 'var(--emerald-700)'}, 'حفظ'), h(Q.Tag, {shape: 'square', color: 'var(--gold-600)'}, 'مراجعة'), h(Q.Tag, {shape: 'diamond', color: 'var(--info)'}, 'دراسة'), h(Q.Tag, {shape: 'ring', color: 'var(--error)'}, 'آيات مهمة')));
+</script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "Colors.dc.html": {
+      "h": 1720,
+      "title": "٢ · الألوان",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "Logo.dc.html": {
+      "h": 2160,
+      "title": "١ · الشعار",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "Main.dc.html": {
+      "h": 1000,
+      "title": "الغلاف",
+      "w": 1440,
+      "x": 3040,
+      "y": 0
+    },
+    "Screens.dc.html": {
+      "h": 1260,
+      "title": "٥ · الشاشات",
+      "w": 1440,
+      "x": 0,
+      "y": 2280
+    },
+    "System.dc.html": {
+      "h": 2140,
+      "title": "٤ · نظام التصميم",
+      "w": 1440,
+      "x": 1520,
+      "y": 2280
+    },
+    "Type.dc.html": {
+      "h": 2980,
+      "title": "٣ · الخطوط",
+      "w": 1440,
+      "x": 3040,
+      "y": 2280
+    },
+    "Mushaf.dc.html": {
+      "x": 3040,
+      "y": 5380,
+      "w": 1440,
+      "h": 3950,
+      "title": "٦ · عناصر المصحف"
+    },
+    "Screens2.dc.html": {
+      "x": 1520,
+      "y": 5380,
+      "w": 1440,
+      "h": 1300,
+      "title": "٧ · شاشات أخرى"
+    },
+    "Share.dc.html": {
+      "x": 0,
+      "y": 5380,
+      "w": 1440,
+      "h": 1860,
+      "title": "٨ · المشاركة والودجات"
+    },
+    "Search.dc.html": {
+      "x": 1120,
+      "y": 7360,
+      "w": 1840,
+      "h": 1320,
+      "title": "٩ · البحث والحفظ"
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-10-03T05:12:40Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "notes": {},
+  "order": [
+    "Main.dc.html",
+    "Logo.dc.html",
+    "Colors.dc.html",
+    "Type.dc.html",
+    "System.dc.html",
+    "Screens.dc.html",
+    "Mushaf.dc.html",
+    "Screens2.dc.html",
+    "Share.dc.html",
+    "Search.dc.html"
+  ],
+  "pages": [],
+  "title": "الهوية البصرية — القرآن الكريم"
+}

@@ -1,0 +1,12 @@
+<!-- @dsCard group="الحفظ" height=240 -->
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><title>مُعدّل الرقم — معاينة</title></head>
+<body>
+<div id="root" class="qk-row" dir="rtl" style=""></div>
+<script>
+var Q = window.Quran, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h('div', {style: {width: 420, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 20, padding: '4px 16px'}}, h(Q.Stepper, {label: 'تكرار كل آية', defaultValue: 7, min: 1, max: 20}), h(Q.Stepper, {label: 'تكرار الدمج', defaultValue: 3, min: 1, max: 10}), h(Q.Stepper, {label: 'الصمت بعد كل تكرار', defaultValue: 3, min: 0, max: 10, unit: 'ث'})));
+</script>
+</body>
+</html>
