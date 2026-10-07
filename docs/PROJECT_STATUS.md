@@ -246,7 +246,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
-| 2026-10-07 | Planning session | Checked the owner's extraction of seven Zaydi-library books (471, 473, 514, 737, 165, 276, 440): all complete; multi-part navigation confirmed; three more honorific codes found; linking prospects noted per book. | Pull request #PRNUM |
+| 2026-10-07 | Planning session | Checked the owner's extraction of seven Zaydi-library books (471, 473, 514, 737, 165, 276, 440): all complete; multi-part navigation confirmed; three more honorific codes found; linking prospects noted per book. | Pull request #5 |
 | 2026-10-07 | First implementing session (continued) | M0.3: plan in `docs/plans/M0.3.md`; pack format v1; addresses, `PackText`, manifest verification, read-only SQLite reader, text repository, integrity suite and guards; D-061 to D-067; code review applied. | Pull request #4 |
 | 2026-10-07 | First implementing session (continued) | M0.2: plan in `docs/plans/M0.2.md`; owner decided follow-system dark (D-050, D-053), the APK only by hand (D-049), the missing icons (D-051, D-052), tab label scaling (D-058); generator, themes, fonts, 13 widgets, gallery, 60 goldens via the CI `goldens` task, guards; code and identity reviews applied. | Pull request #3 |
 | 2026-10-07 | First implementing session | Read the documents; installed Flutter 3.44.7; recorded the environment; owner answered K1–K4, O-15 (D-050) and the APK question (D-049); fetched the 13 logo files and verified the identity copy against the live artifacts; M0.1: strict lints, Arabic five-tab shell, single ARB, CI with Android build, setup hook, README; `code-reviewer` findings applied. | Pull request #2 |
