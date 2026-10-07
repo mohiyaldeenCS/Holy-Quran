@@ -120,6 +120,11 @@ brand and not the reading surface:
 | App-icon tile in the home header | Tile `emerald-700`, star `gold-400`, book `paper-100` (the emerald `Mark` on a rounded tile) |
 | Reader's floating player bar | Drawn on the paper board as `emerald-700` with a `gold-400` button and `emerald-950` glyph: these are `player`, `player-accent` and its fixed glyph colour, so it follows the theme like `MiniPlayer` |
 
+The debug-only gallery (`lib/ui/core/gallery/`) shows the emerald and dark `Mark` and
+the emerald `Lockup` on `emerald-700` and `emerald-950` backdrops, as their previews
+do; it ships in no release build. A guard allows `ramps.g.dart` only in these widget
+files and the gallery.
+
 Nothing else reaches a ramp. Any other colour on a board is mapped to its semantic
 token by role (see the `apply-visual-identity` skill). Mapping a fixed brand surface
 by role would be wrong: the splash as `primary` would turn gold at night.
@@ -146,8 +151,8 @@ primary button is emerald on paper and sepia and gold in night: use `primary` an
 
 `RD-08` asks for an option to follow the system's dark mode. The identity does not say
 which theme that maps to. The reading taken here: when the option is on, the app
-shows `night` while the system is dark and the user's chosen light theme otherwise.
-The owner confirmed it on 2026-10-07 (D-050).
+shows `night` while the system is dark and the user's chosen theme otherwise; a user
+on `contrast` stays on `contrast` (D-050, D-053, both the owner's).
 
 ### Type
 
