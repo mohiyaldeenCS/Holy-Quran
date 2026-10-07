@@ -568,6 +568,39 @@ class InnerNumbersTest(LinkCase):
         self.assertEqual([len(p["paragraphs"]) for p in notes], [1])
         self.assertEqual(notes[0]["paragraphs"][0]["site_page"], 2)
 
+    def test_footnote_mark_inside_a_quotation_is_not_an_ayah_number(self):
+        self.assertEqual(z.inner_numbers("كلام" + mark(1) + " كلام ٧"), [("كلام  كلام ", 7)])
+        self.assertEqual(z.inner_numbers("كلام (٣) كلام ٧")[0][1], 3)
+
+    def test_number_before_the_first_surah_heading_links_nothing(self):
+        pages = self.book()
+        pages[0]["html"] += para("{" + quote("كلام ٧") + "}")
+        result = self.link(473, pages, profile=self.PROFILE)
+        self.assertEqual(len(self.linked(result)), 3)
+        self.assertIsNone(result.passages[1]["surah"])
+
+    def test_heading_with_the_word_for_surah_in_another_form_stops(self):
+        pages = self.book()
+        pages[2]["html"] += head("[فضل سورة كذا]")
+        with self.assertRaises(z.LinkError):
+            self.link(473, pages, profile=self.PROFILE)
+
+    def test_line_that_holds_words_is_a_footnote_not_a_line(self):
+        pages = self.book()
+        worded = '<p style="font-size: 0.8em;"><hr style="margin-top: 12px;">حاشية</p>'
+        pages[3]["html"] += worded
+        result = self.link(473, pages, profile=self.PROFILE)
+        self.assertEqual(result.counts["rules_dropped"], 1)
+        self.assertEqual(result.passages[-1]["paragraphs"][0]["html"], worded)
+        self.assertEqual(result.passages[-1]["kind"], "footnote")
+
+    def test_only_the_first_line_of_a_page_is_left_out(self):
+        pages = self.book()
+        pages[1]["html"] += FOOT_LINE
+        result = self.link(473, pages, profile=self.PROFILE)
+        self.assertEqual(result.counts["rules_dropped"], 1)
+        self.assertEqual(len([p for p in result.passages if p["kind"] == "footnote"][0]["paragraphs"]), 2)
+
     def test_number_in_a_footnote_links_nothing(self):
         pages = self.book()
         pages[1]["html"] += para("{" + quote("كلام ٧") + "}")
@@ -673,6 +706,36 @@ class FootnoteReferencesTest(LinkCase):
             first = [p for p in result.passages if p.get("item") == 1][0]
             self.assertEqual((first["kind"], first["surah"], first["refs"]), ("unlinked", None, []))
             self.assertIn(expected, self.note_kinds(result))
+
+    def test_the_mark_must_stand_right_after_the_quotation(self):
+        late = head("١ - أخبرني عن قوله: {%s} وما معناه%s؟" % (quote(), mark(2)))
+        result = self.run_book(footnote(2, "سورة الثانية، الآية ٥."), question=late)
+        self.assertIn("question_without_a_footnote_mark", self.note_kinds(result))
+
+    def test_footnote_of_another_page_is_not_used(self):
+        pages = self.book(footnote(3, "سورة الأولى، الآية ٣."))
+        pages[0]["html"] += footnote(2, "سورة الثانية، الآية ٥.")
+        result = self.link(440, pages, table=self.TABLE)
+        self.assertIn("footnote_not_on_the_page", self.note_kinds(result))
+        self.assertEqual([p["item"] for p in self.linked(result)], [2])
+
+    def test_footnote_numbered_with_a_range_or_twice_is_not_taken(self):
+        ranged = '<p style="font-size: 0.8em;">' + red("(٢ - ٣)") + " سورة الثانية، الآية ٥.</p>"
+        result = self.run_book(ranged)
+        self.assertEqual(result.checks["questions_linked"], 0)
+        with self.assertRaises(z.LinkError):
+            self.run_book(footnote(2, "سورة الثانية، الآية ٥."), footnote(2, "سورة الأولى، الآية ٣."))
+
+    def test_another_heading_ends_the_question(self):
+        pages = self.book(footnote(2, "سورة الثانية، الآية ٥."))
+        pages[1]["html"] = pages[1]["html"].replace(para("بيت"), head("فصل") + para("بيت"))
+        result = self.link(440, pages, table=self.TABLE)
+        self.assertEqual(len(self.linked(result)[0]["paragraphs"]), 2)
+
+    def test_number_in_the_quotation_is_compared_with_the_end_of_the_footnotes_range(self):
+        result = self.run_book(footnote(2, "سورة الثانية، الآية ٤ - ٥."),
+                               question=self.question(1, 2, WORDS + " ٥"))
+        self.assertNotIn("review", self.linked(result)[0])
 
     def test_question_without_a_mark_is_noted(self):
         result = self.run_book(question=self.question(1))
@@ -1018,6 +1081,27 @@ class OutputTest(LinkCase):
         self.assertEqual([s.encode("utf-8") for s in stored],
                          [p.encode("utf-8") for p in z.split_paragraphs(pages[0])])
         self.assertNotIn(b"\r", b"".join(lines))
+
+    def test_paragraph_with_words_cannot_be_left_out_as_a_line(self):
+        book, refs = z.read_book(self.pages())
+        result = z.Result(183, "bracket_numbers", refs)
+        z.link_bracket_numbers(book, z.PROFILES[183], result, None)
+        entry = result.passages[2]["paragraphs"].pop()
+        result.dropped.append(entry["html"])
+        with self.assertRaises(z.LinkError):
+            z.finish(result, book)
+
+    def test_closed_output_pipe_is_not_an_error(self):
+        self.write_book(183, self.pages())
+
+        def closed(text):
+            raise BrokenPipeError()
+
+        saved, z.say = z.say, closed
+        self.addCleanup(setattr, z, "say", saved)
+        saved_discard, z.discard_further_output = z.discard_further_output, lambda: None
+        self.addCleanup(setattr, z, "discard_further_output", saved_discard)
+        self.assertEqual(z.main(["ziydia_link.py", "--in", self.inp, "--out", self.out, "link", "183"]), 0)
 
     def test_lost_or_doubled_paragraph_stops(self):
         book, refs = z.read_book(self.pages())

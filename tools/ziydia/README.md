@@ -161,4 +161,7 @@ book's earlier results, so a stopped run leaves none behind.
 - In book 473 a quotation that prints no number links nothing, and a number printed
   inside a quotation is read as an ayah of the surah being explained. If the author
   cites another surah there, the link is wrong; the comparison is what shows it.
+  The paragraphs that close the book are carried into its last passage.
+- In book 440 the link follows the footnote. Where the quotation prints another
+  number, the passage is flagged and the footnote is still what links it.
 - Nothing here has been compared with a printed copy.

@@ -84,6 +84,7 @@ NAMED_REF = re.compile(
 )
 NAME_MARKS = re.compile("[ً-ْٰـ]")
 FOOTNOTE_MARK = re.compile(r"\}?\s*" + chr(0x2063) + r"?\(" + chr(0x2063) + "?(" + NUM + r")\)")
+MARK_IN_TEXT = re.compile(chr(0x2063) + r"\(" + chr(0x2063) + "?" + NUM + r"\)")
 FOOTNOTE_REF = re.compile(SURAH + r"\s+([^،]+?)\s*،\s*الآية\s*(" + RANGE + r")\s*\.?")
 
 # How each book prints its links. A book without a profile is not linked: run
@@ -119,6 +120,7 @@ PROFILES = {
     # number closes the quotation, inside it; footnotes below a line.
     473: {
         "kind": "inner_numbers",
+        "surah_heading": r"(?:تفسير\s*)?(?:غريب\s*)?" + SURAH,
         "surahs": 114,
     },
     # Numbered questions "N -"; headings name the surah without its number.
@@ -717,13 +719,17 @@ def keep_footnotes(footnotes, result):
 
 
 def inner_numbers(inner):
-    """(words, ayah number) for each number printed inside one quotation."""
-    parts = re.split("(" + NUM + ")", plain(inner))
+    """(words, ayah number) for each number printed inside one quotation.
+
+    A footnote mark that fell inside the quotation is not an ayah number.
+    """
+    parts = re.split("(" + NUM + ")", MARK_IN_TEXT.sub(" ", plain(inner)))
     return [(parts[i], int(parts[i + 1])) for i in range(0, len(parts) - 1, 2)]
 
 
 def link_inner_numbers(book, profile, result, table):
     order = [1] + list(range(profile["surahs"], 1, -1))
+    surah_heading = re.compile(profile["surah_heading"])
     names = table["names"] if table else {}
     surah = None
     current = None
@@ -735,6 +741,8 @@ def link_inner_numbers(book, profile, result, table):
             if HEADING_CLASS in html:
                 key = heading_key(html)
                 if SURAH in key:
+                    if not surah_heading.match(key):
+                        raise LinkError("page %d: heading not understood: %r" % (paragraph.where, key))
                     if len(result.surahs) == len(order):
                         raise LinkError("page %d: one surah heading too many: %r" % (paragraph.where, key))
                     surah = order[len(result.surahs)]
@@ -815,6 +823,8 @@ def link_footnote_references(book, profile, result, table):
             red = RED_START.match(paragraph.html)
             mark = NUMBER_LIST.fullmatch(plain(red.group(1))) if red else None
             if mark and "-" not in mark.group(1):
+                if int(mark.group(1)) in texts:
+                    raise LinkError("page %d: footnote %s comes twice" % (paragraph.where, mark.group(1)))
                 texts[int(mark.group(1))] = plain(paragraph.html)[len(plain(red.group(1))):].strip()
         for paragraph in body:
             html = paragraph.html
@@ -1034,6 +1044,8 @@ def finish(result, book):
     """Proves that no paragraph was lost, doubled or changed, then counts."""
     given = collections.Counter(p.html for page in book for p in page)
     kept = collections.Counter(e["html"] for p in result.passages for e in p["paragraphs"])
+    if any(re.search(r"\w", plain(html)) for html in result.dropped):
+        raise LinkError("a paragraph that holds words was left out as a dividing line")
     if given != kept + collections.Counter(result.dropped):
         raise LinkError(
             "paragraphs differ between input and output: %d in, %d out, %d rules dropped"
@@ -1397,6 +1409,10 @@ def say(text):
     sys.stdout.flush()
 
 
+def discard_further_output():
+    os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+
+
 def main(argv):
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")
@@ -1427,7 +1443,7 @@ def main(argv):
             say("notes: %s" % (dict(sorted(kinds.items())) or "none"))
     except BrokenPipeError:
         # Whoever was reading the output stopped reading; the run itself is sound.
-        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        discard_further_output()
         return 0
     except (LinkError, OSError) as error:
         say("STOPPED: %s" % error)
