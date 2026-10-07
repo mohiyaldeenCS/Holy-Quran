@@ -94,6 +94,7 @@ void main() {
             isButton: true,
             hasSelectedState: true,
             isSelected: index == 0,
+            isInMutuallyExclusiveGroup: true,
             isFocusable: true,
             hasTapAction: true,
             hasFocusAction: true,

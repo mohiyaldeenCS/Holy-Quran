@@ -72,31 +72,85 @@ class TabBar extends StatelessWidget {
           AppSpacing.space2,
           bottom,
         ),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final (index, item) in items.indexed)
-                Expanded(
-                  child: _Tab(
-                    item: item,
-                    selected: index == currentIndex,
-                    onTap: () => onSelected(index),
-                  ),
-                ),
-            ],
-          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final labelScaler = _labelScaler(
+              context,
+              constraints.maxWidth / items.length,
+            );
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final (index, item) in items.indexed)
+                    Expanded(
+                      child: _Tab(
+                        item: item,
+                        selected: index == currentIndex,
+                        labelScaler: labelScaler,
+                        onTap: () => onSelected(index),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
   }
+
+  /// The system text scale, capped where the widest label stops fitting a
+  /// tab on one line (D-058), and never capped below 1. Every label is
+  /// measured at the current tab's weight, so the cap does not move when the
+  /// current tab changes.
+  TextScaler _labelScaler(BuildContext context, double tabWidth) {
+    var widest = 0.0;
+    for (final item in items) {
+      final painter = TextPainter(
+        text: TextSpan(
+          text: item.label,
+          style: _labelStyle(context, selected: true),
+        ),
+        textDirection: Directionality.of(context),
+        locale: Localizations.maybeLocaleOf(context),
+        maxLines: 1,
+      )..layout();
+      widest = math.max(widest, painter.width);
+      painter.dispose();
+    }
+    final fit = widest == 0 ? double.infinity : tabWidth / widest;
+    return MediaQuery.textScalerOf(
+      context,
+    ).clamp(maxScaleFactor: math.max(1, fit));
+  }
+}
+
+/// The label's style as [Text] draws it: the ambient style, then
+/// `.qk-tab-label`, then the system's bold-text setting.
+TextStyle _labelStyle(BuildContext context, {required bool selected}) {
+  final style = DefaultTextStyle.of(context).style.merge(
+    AppTextStyles.tabLabel.copyWith(
+      // .qk-tab-label: font-weight 500; .is-on: 600.
+      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+    ),
+  );
+  return MediaQuery.boldTextOf(context)
+      ? style.merge(const TextStyle(fontWeight: FontWeight.bold))
+      : style;
 }
 
 class _Tab extends StatelessWidget {
-  const _Tab({required this.item, required this.selected, required this.onTap});
+  const _Tab({
+    required this.item,
+    required this.selected,
+    required this.labelScaler,
+    required this.onTap,
+  });
 
   final TabBarItem item;
   final bool selected;
+  final TextScaler labelScaler;
   final VoidCallback onTap;
 
   @override
@@ -124,11 +178,13 @@ class _Tab extends StatelessWidget {
             Text(
               item.label,
               textAlign: TextAlign.center,
-              style: AppTextStyles.tabLabel.copyWith(
-                // .qk-tab-label: font-weight 500; .is-on: 600.
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                color: foreground,
-              ),
+              softWrap: false,
+              maxLines: 1,
+              textScaler: labelScaler,
+              style: _labelStyle(
+                context,
+                selected: selected,
+              ).copyWith(color: foreground),
             ),
           ],
         ),
@@ -138,6 +194,7 @@ class _Tab extends StatelessWidget {
       container: true,
       button: true,
       selected: selected,
+      inMutuallyExclusiveGroup: true,
       label: item.label,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,

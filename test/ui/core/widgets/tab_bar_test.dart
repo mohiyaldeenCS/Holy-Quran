@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart' hide Icon, TabBar;
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -26,9 +29,10 @@ Future<void> _pump(
   Widget bar, {
   double textScale = 1,
   double safeBottom = 0,
+  double width = 360,
 }) async {
   tester.view
-    ..physicalSize = const Size(360, 800)
+    ..physicalSize = Size(width, 800)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
@@ -213,6 +217,7 @@ void main() {
           isButton: true,
           hasSelectedState: true,
           isSelected: index == 2,
+          isInMutuallyExclusiveGroup: true,
           isFocusable: true,
           hasTapAction: true,
           hasFocusAction: true,
@@ -225,40 +230,105 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('every label stays on one line up to 150% on 360 wide', (
+  testWidgets('labels follow the text scale while every one fits', (
     tester,
   ) async {
-    // The widest label, the current tab's «المصحف», is 44.4 wide at 100% and
-    // a tab is 68.8 wide at 360: it fits up to a scale of 1.55.
-    for (final current in [0, 1, 2, 3, 4]) {
-      await _pump(tester, _live(initial: current), textScale: 1.5);
-      expect(tester.takeException(), isNull);
-      for (final item in _items) {
-        final height = tester.getSize(find.text(item.label)).height;
-        expect(height, closeTo(12 * 1.5 * 1.4, 1), reason: item.label);
+    for (final scale in [1.0, 1.5]) {
+      for (final current in [0, 1, 3]) {
+        await _pump(tester, _live(initial: current), textScale: scale);
+        expect(tester.takeException(), isNull);
+        for (final item in _items) {
+          expect(_labelScale(tester, item.label), scale, reason: item.label);
+          _expectOneLineInside(tester, item.label);
+        }
       }
     }
   });
 
-  testWidgets('lays out without overflow at 200% on 360 wide', (tester) async {
-    for (final current in [0, 3]) {
+  testWidgets('at 200% on 360 wide labels stop growing where they fit', (
+    tester,
+  ) async {
+    final scales = <double>{};
+    for (final current in [0, 1, 2, 3, 4]) {
       await _pump(tester, _live(initial: current), textScale: 2);
       expect(tester.takeException(), isNull);
-      final bar = tester.getRect(find.byType(TabBar));
-      expect(bar.width, 360);
+      expect(tester.getRect(find.byType(TabBar)).width, 360);
       final tabs = [
         for (final item in _items) tester.getRect(_tab(item.label)),
       ];
+      final widths = <double>[];
       for (final (index, item) in _items.indexed) {
-        final label = tester.getRect(find.text(item.label));
-        expect(tabs[index].contains(label.topLeft), isTrue, reason: item.label);
-        expect(
-          tabs[index].contains(label.bottomRight - const Offset(.01, .01)),
-          isTrue,
-          reason: item.label,
-        );
+        scales.add(_labelScale(tester, item.label));
+        _expectOneLineInside(tester, item.label);
+        widths.add(_labelWidth(tester, item.label));
         expect(tabs[index].height, tabs.first.height);
+        expect(tester.getSize(_pill(item.label).first), const Size(60, 32));
+        final icon = tester.widget<Icon>(
+          find.descendant(
+            of: _pill(item.label).first,
+            matching: find.byType(Icon),
+          ),
+        );
+        expect(icon.size, AppSizes.iconSize);
+      }
+      // The cap is the largest that fits: the widest label, «المصحف», fills
+      // its tab when it is current and drawn semibold.
+      if (current == 1) {
+        expect(widths.reduce(math.max), closeTo(tabs.first.width, .5));
       }
     }
+    expect(scales, hasLength(1), reason: 'the cap moves with the current tab');
+    expect(scales.single, greaterThan(1));
+    expect(scales.single, lessThan(2));
   });
+
+  testWidgets('200% applies in full where the labels fit, 600 wide', (
+    tester,
+  ) async {
+    await _pump(tester, _live(initial: 1), textScale: 2, width: 600);
+    expect(tester.takeException(), isNull);
+    for (final item in _items) {
+      expect(_labelScale(tester, item.label), 2, reason: item.label);
+      _expectOneLineInside(tester, item.label);
+    }
+  });
+
+  testWidgets('a scale below 1 is left as it is', (tester) async {
+    await _pump(tester, _live(), textScale: .85);
+    for (final item in _items) {
+      expect(_labelScale(tester, item.label), closeTo(.85, 1e-9));
+    }
+  });
+}
+
+double _labelScale(WidgetTester tester, String label) {
+  final paragraph = tester.renderObject<RenderParagraph>(find.text(label));
+  const size = 12.0;
+  return paragraph.textScaler.scale(size) / size;
+}
+
+double _labelWidth(WidgetTester tester, String label) => tester
+    .renderObject<RenderParagraph>(find.text(label))
+    .getMaxIntrinsicWidth(double.infinity);
+
+void _expectOneLineInside(WidgetTester tester, String label) {
+  final paragraph = tester.renderObject<RenderParagraph>(find.text(label));
+  final lines = paragraph
+      .getBoxesForSelection(
+        TextSelection(baseOffset: 0, extentOffset: label.length),
+      )
+      .map((box) => box.top)
+      .toSet();
+  expect(lines, hasLength(1), reason: label);
+  final tab = tester.getRect(_tab(label));
+  expect(
+    _labelWidth(tester, label),
+    lessThanOrEqualTo(tab.width),
+    reason: label,
+  );
+  final rect = tester.getRect(find.text(label));
+  expect(rect.left, greaterThanOrEqualTo(tab.left), reason: label);
+  expect(rect.right, lessThanOrEqualTo(tab.right), reason: label);
+  expect(rect.top, greaterThanOrEqualTo(tab.top), reason: label);
+  expect(rect.bottom, lessThanOrEqualTo(tab.bottom), reason: label);
 }
