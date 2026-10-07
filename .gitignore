@@ -49,6 +49,8 @@ ziydia_out/
 ziydia_out.zip
 ziydia_sample/
 ziydia_sample.zip
+ziydia_links/
+ziydia_links.zip
 # Downloaded source files (data/raw) and packs built from them (data/build)
 /data/raw/
 /data/build/
