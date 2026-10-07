@@ -116,6 +116,41 @@ Choices made by the lead:
 
 Pending (tasks T6 and the device run).
 
-## Device protocol
+## Device protocol (owner, Android, profile APK of D-069)
 
-Pending (task T7).
+The APK's launcher (`spike/main.dart`) opens the app, the component gallery and the
+three spike screens. Preparation: battery above 50%, battery saver off (note it if
+on), Wi-Fi on. Record the phone model, Android version, memory, the refresh-rate
+setting and the system font size. Run S1 before S5: S5's "Clear storage" step also
+deletes the S1 pack.
+
+1. **Prepare the text.** S1, "Prepare text". Wait for "Verified pack
+   spike-tanzil-uthmani v1: 114 surahs, 6236 ayat, text.sqlite efd4f7ed...". A red
+   message names only a step, a digest or an HTTP status: copy its words.
+2. **Integrity.** "Run integrity" (several minutes). Every problem count should be
+   0. "Copy JSON" and send it. Its fingerprints at 360 and 412 wide compare with CI.
+3. **Shaping by eye (Read).** Open surahs 1, 2 (top and bottom), 18 and 112 at 1.0x,
+   V1, and compare a few lines with a printed mushaf or tanzil.net: marks on the
+   right letters and not colliding; no empty boxes; ayah markers in order, right to
+   left, each after its ayah; the last line centred. Tap three or four words: the
+   highlight covers exactly the word and the address matches. At 2.0x the text
+   reflows with nothing cut off. In V2 the line breaks are those of V1 and the
+   outlined page-mark slots sit in the flow. Then set the phone's font size to the
+   largest: "System" shows about 2.00x and the text reflows. Screenshot anything
+   wrong, with the surah number, and no more text than the problem needs.
+4. **Text-size change.** Reader, surah 2, "Measure 1.0x to 2.0x", in V1 and in V2.
+   Copy the JSON each time.
+5. **Scroll test** (`NF-02`). Font size back to default. "Run scroll test" (the
+   longest surah, V1 then V2, three runs each at 1500 px/s); do not touch the screen.
+   Copy the JSON.
+6. **Cold start** (`NF-01`), ten runs. "Arm and exit" (the longest surah, its middle
+   ayah by default). Then Settings, Apps, holyquran, Force stop (needed: the audio
+   service can keep the process alive), and open the app from its icon. It opens on
+   "S1 cold start" with the steps in ms ending with `savedAyahShown`; check that the
+   armed ayah is at the top. Repeat ten times ("Exit for the next run", Force stop,
+   launch), then "Copy runs JSON" and "Disarm". Note whether the first run followed
+   an install or a reboot.
+
+Send: the JSON of steps 2, 4, 5 and 6; the screenshots and notes of step 3; the
+phone details above. Cold start restores in V1 only; a V2 restore needs the plan up
+to the saved page (finding 3) and is left to M1.2.
