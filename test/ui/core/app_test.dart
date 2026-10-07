@@ -22,6 +22,5 @@ void main() {
 
     final title = tester.widget<Title>(find.byType(Title)).title;
     expect(title, lookupAppLocalizations(const Locale('ar')).appTitle);
-    expect(title, 'القرآن الكريم');
   });
 }

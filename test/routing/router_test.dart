@@ -80,7 +80,7 @@ void main() {
     expect(router.state.uri.path, Routes.home);
   });
 
-  testWidgets('re-tapping the current tab stays on its initial route', (
+  testWidgets('tapping the current tab keeps its screen', (
     tester,
   ) async {
     final router = await _pumpApp(tester);

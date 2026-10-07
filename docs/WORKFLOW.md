@@ -128,7 +128,8 @@ brief or point to the file that has it.
   through the GitHub tools the session has, or ask the owner to open it from the
   branch.
 - CI (GitHub Actions) runs the format check, `flutter analyze` and `flutter test` on
-  every push and every pull request. A red run is fixed before anything else.
+  every pull request and every push to `main` (D-043). Open the pull request early, as
+  a draft, so that a milestone branch is checked from its first pushes. A red run is fixed before anything else.
 - Merge with a merge commit, so the task commits stay in the history.
 - At a phase gate, tag the merge commit: `phase-0-complete`, `phase-1-complete`.
 - Never force-push `main`, rewrite pushed history, or commit secrets, signing keys,

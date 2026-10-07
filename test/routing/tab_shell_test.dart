@@ -10,6 +10,7 @@ void main() {
 
   testWidgets('the tab bar is named for screen readers', (tester) async {
     final semantics = tester.ensureSemantics();
+    addTearDown(semantics.dispose);
     await tester.pumpWidget(QuranApp(router: createRouter()));
     await tester.pumpAndSettle();
 
@@ -27,19 +28,18 @@ void main() {
         reason: label,
       );
     }
-    semantics.dispose();
   });
 
   testWidgets('every tab has a labelled hit area of at least 48', (
     tester,
   ) async {
     final semantics = tester.ensureSemantics();
+    addTearDown(semantics.dispose);
     await tester.pumpWidget(QuranApp(router: createRouter()));
     await tester.pumpAndSettle();
 
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-    semantics.dispose();
   });
 }

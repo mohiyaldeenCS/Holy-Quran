@@ -62,7 +62,7 @@ flutter build apk --debug
 
 Before every commit run `dart format .`, `flutter analyze` and `flutter test`. CI
 (`.github/workflows/ci.yml`) runs the same checks, verifies that generated files are
-up to date, and builds a debug APK on every push and pull request.
+up to date, and builds a debug APK on every pull request and every push to `main`.
 
 ### Generate
 

@@ -83,7 +83,7 @@ official architecture skill).
 lib/
   main.dart                    bootstrap only
   config/                      dependency wiring, environment
-  routing/                     go_router configuration
+  routing/                     go_router configuration; the tab shell until M0.2
   domain/
     models/                    immutable, pure Dart
     use_cases/
@@ -115,7 +115,10 @@ data/                          ignored by Git: raw/ downloaded sources, build/ b
 design/                        the approved identity; reference only, never imported
 ```
 
-Generated Dart files end in `.g.dart`, are committed, and are never edited by hand.
+Generated Dart files end in `.g.dart`, are committed, and are never edited by hand. The
+one exception to the suffix is the localisation output of `flutter gen-l10n`,
+`lib/l10n/app_localizations*.dart`, whose names the tool fixes; it is committed and
+checked the same way.
 
 Features: `onboarding`, `home`, `mushaf` (reader), `index` (navigation), `listen`,
 `study` (tafsir, search, ayah sheet), `more` (bookmarks, notes, resources, settings,
@@ -387,14 +390,14 @@ maintained and supports the minimum OS versions, then record it in
 
 | Need | Candidate | Status |
 | --- | --- | --- |
-| Routing | `go_router` | Proposed (Flutter recommendation) |
+| Routing | `go_router` | Decided (D-047) |
 | Dependency injection | `provider` | Proposed |
 | User database | `drift` | Proposed |
 | Read-only pack databases | `sqlite3` | Proposed |
 | Audio | `just_audio`, `audio_service`, `audio_session` | Evaluate in Phase 0 |
 | Downloads | `background_downloader` | Evaluate in Phase 0 |
 | Hashing and signatures | `crypto`, `cryptography` | Proposed |
-| Localisation | `flutter_localizations`, `intl` | Standard |
+| Localisation | `flutter_localizations`, `intl` | Decided (D-047) |
 | SVG icons | `flutter_svg` | Proposed |
 | Immutable models | `freezed` | Optional; plain classes are fine for small models |
 
