@@ -136,13 +136,16 @@ deletes the S1 pack.
    highlight covers exactly the word and the address matches. At 2.0x the text
    reflows with nothing cut off. In V2 the line breaks are those of V1 and the
    outlined page-mark slots sit in the flow. Then set the phone's font size to the
-   largest: "System" shows about 2.00x and the text reflows. Screenshot anything
+   largest: the "System" chip gives the scale at 25 px (the Quran size) and at 14 px;
+   Android 14 and later scale large text less than small text, so the two differ.
+   Record both, and check that the text reflows. Screenshot anything
    wrong, with the surah number, and no more text than the problem needs.
 4. **Text-size change.** Reader, surah 2, "Measure 1.0x to 2.0x", in V1 and in V2.
    Copy the JSON each time.
 5. **Scroll test** (`NF-02`). Font size back to default. "Run scroll test" (the
    longest surah, V1 then V2, three runs each at 1500 px/s); do not touch the screen.
-   Copy the JSON.
+   Copy the JSON; each run gives fps and whether its frames could be limited to the
+   scroll window (`windowFiltered`).
 6. **Cold start** (`NF-01`), ten runs. "Arm and exit" (the longest surah, its middle
    ayah by default). Then Settings, Apps, holyquran, Force stop (needed: the audio
    service can keep the process alive), and open the app from its icon. It opens on
