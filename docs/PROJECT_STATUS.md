@@ -60,13 +60,15 @@ raw extraction output; signing keys. The 13 logo SVG files are in
 
 - **PRD** complete: 49 raw requirements analysed into 21 modules with IDs, acceptance
   criteria, five phases with gates, source registry, deferred features. Exported at
-  revision 129 to `docs/prd/PRD.ar.md`.
+  revision 145 to `docs/prd/PRD.ar.md`.
 - **Sources**: the owner holds written permissions for every source that needed one
   (D-012). Registry: 9 ready, 9 awaiting our own verification, 1 deferred.
 - **Identity** copied into `design/`. App fonts pinned and verified identical to the
   identity's (D-026). The rules for reproducing it are fixed (D-032).
-- **Zaydi Library**: category index of 39 books; book 183 extracted completely and
-  checked; structure of book 466 inspected (fixed sub-headings, including النزول).
+- **Zaydi Library**: category index of 39 books; the eight first-release books
+  extracted completely and checked (183, 471, 473, 514, 737, 165, 276, 440: about
+  6,500 pages; results in `docs/content/ZIYDIA_LIBRARY.md`); structure of book 466
+  inspected (fixed sub-headings, including النزول).
 - **Project foundation**: this document set, agents, skills. Reviewed twice by an
   independent agent; its findings were applied before the merge.
 - **M0.1 Repository and tooling** (pull request #2): environment recorded, Flutter
@@ -100,8 +102,8 @@ raw extraction output; signing keys. The 13 logo SVG files are in
 
 Nothing in stream A.
 
-Stream B: extraction of seven Zaydi-library books is waiting for the owner to run the
-tool (`docs/content/ZIYDIA_LIBRARY.md`).
+Stream B: the owner is extracting book 466 (التهذيب في التفسير, about 7,325 site
+pages). The review of `docs/CONTENT_PACKS.md` by the planning session has not started.
 
 ## Next actions — stream A (the implementing account)
 
@@ -132,17 +134,17 @@ tool (`docs/content/ZIYDIA_LIBRARY.md`).
 
 ## Next actions — stream B (planning session and the owner)
 
-1. Owner: run the extraction for the seven pending books and upload the result
-   (`docs/content/ZIYDIA_LIBRARY.md`). This is also the first test of multi-part
-   navigation in the tool.
-2. Owner: obtain the honorific glyph table from the site owner (O-07).
+1. Owner: finish extracting book 466 and upload the result.
+2. Owner: obtain the honorific glyph table from the site owner (O-07). It now has
+   eleven codes, not eight.
 3. Owner: choose the Phase 1 recitations (O-04), decide on the general tafsirs
    (O-06), name the proofreader of the Hafs text (O-16) and decide who keeps the
    pack-signing key (O-03). All four are needed inside Phase 0.
 4. Owner with the planning session: fill the rights register from the permission
    papers (B0.1, `docs/content/RIGHTS_REGISTER.md`).
-5. Planning session: check completeness of each extracted book; build the ayah linker
-   for book 183; prepare the reviewer's sample.
+5. Planning session: build the ayah linker for book 183, then for 514, 471 and 276,
+   which are marked the same way; inspect how 473, 165, 737 and 440 can be linked;
+   prepare the reviewer's sample.
 6. Planning session with the owner: the base pack (B0.2), KFGQPC assets (B0.3), the
    word index (B0.4), waqf-mark meanings (B0.8), acceptance data (B0.10), the pipeline
    (B0.11).
@@ -168,7 +170,7 @@ Open decisions that come later (full list in `docs/DECISIONS.md`):
 | O-06 | «هل تبقى التفاسير السبعة العامة (الميسر، المختصر، السعدي، الجلالين، البغوي، ابن كثير، الطبري) بجانب كتب المكتبة الزيدية؟» | Phase 0 (B0.7) |
 | O-03 | «حزم المحتوى تُوقَّع بمفتاح خاص. من يحتفظ بالمفتاح، وأين يجري التوقيع؟» | Phase 0 (B0.11, and the base pack before M1.2) |
 | O-16 | «من يدقّق نص حفص قبل اعتماده؟ الوثيقة تطلب حافظًا متقنًا. هل يتولاه القارئ المُجاز الذي ذكرتَه أم شخص آخر؟» | Gate 0 |
-| O-07 | «نحتاج من صاحب المكتبة الزيدية جدول رموز خط الموقع: ما العبارة التي يرسمها كل من @ # ÷ ø $ ~ & والخط العمودي؟» | Before any Zaydi-library book is shown |
+| O-07 | «نحتاج من صاحب المكتبة الزيدية جدول رموز خط الموقع: ما العبارة التي يرسمها كل من @ # ÷ ø $ ~ & ¥ ® ^ والخط العمودي؟» | Before any Zaydi-library book is shown |
 | O-17 | «في الوثيقة توصيتان لم تعتمدهما بعد ونراهما لازمتين للإصدار الأول: «أبلغ عن خطأ» من أي آية أو مادة، وإعداد أولي من ثلاث خطوات (وضع العرض، المستوى، التلاوة). هل تعتمدهما؟» | M1.1 |
 | O-08 | «أين تُستضاف حزم المحتوى للتجربة ثم للإطلاق؟ يكفي أي استضافة ملفات ثابتة عبر HTTPS.» | M1.4 for a test host; end of Phase 1 for launch |
 | O-14 | «تصنيف «تفسير» في العلامات ليس له شكل ولا لون في الهوية، ولا توجد لوحة ألوان للتصنيفات التي يضيفها المستخدم. ما الشكل واللون، وما الألوان المتاحة؟ وهل تبقى ألوان التصنيفات الأربعة ثابتة في كل السمات كما في الهوية؟» | M1.6 |
@@ -243,6 +245,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-10-07 | Planning session | Checked the owner's extraction of seven Zaydi-library books (471, 473, 514, 737, 165, 276, 440): all complete; multi-part navigation confirmed; three more honorific codes found; linking prospects noted per book. PRD §5.5 updated and re-exported at revision 145. | Pull request #5 |
 | 2026-10-07 | First implementing session (continued) | M0.3: plan in `docs/plans/M0.3.md`; pack format v1; addresses, `PackText`, manifest verification, read-only SQLite reader, text repository, integrity suite and guards; D-061 to D-067; code review applied. | Pull request #4 |
 | 2026-10-07 | First implementing session (continued) | M0.2: plan in `docs/plans/M0.2.md`; owner decided follow-system dark (D-050, D-053), the APK only by hand (D-049), the missing icons (D-051, D-052), tab label scaling (D-058); generator, themes, fonts, 13 widgets, gallery, 60 goldens via the CI `goldens` task, guards; code and identity reviews applied. | Pull request #3 |
 | 2026-10-07 | First implementing session | Read the documents; installed Flutter 3.44.7; recorded the environment; owner answered K1–K4, O-15 (D-050) and the APK question (D-049); fetched the 13 logo files and verified the identity copy against the live artifacts; M0.1: strict lints, Arabic five-tab shell, single ARB, CI with Android build, setup hook, README; `code-reviewer` findings applied. | Pull request #2 |

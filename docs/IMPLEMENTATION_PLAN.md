@@ -207,7 +207,7 @@ are the identity, not features, and need no source. Stop as soon as Gate 0 is me
 | B0.3 KFGQPC assets | Hafs text (update 2.0), page fonts and line layout for 1421H, checksums verified; a note in `docs/content/` with the download locations and checksums, so that spike S2 can fetch them |
 | B0.4 Word index | Tanzil words as the index, with the rule for mark-only tokens fixed; mapping tables to KFGQPC words, to the search forms and to timing data; zero unmapped words |
 | B0.5 Recitations | The list for Phase 1 (O-04), file sources, a rights record each, timing data, drift measured per recitation; a note in `docs/content/` with the download locations, so that spike S3 can fetch one recitation and its timing |
-| B0.6 Zaydi Library | Extraction of the seven pending books; approved honorific table; ayah linking for book 183; reviewer's sample — `docs/content/ZIYDIA_LIBRARY.md` |
+| B0.6 Zaydi Library | Extraction of the first-release books (done, 2026-10-07); approved honorific table; ayah linking for book 183; reviewer's sample — `docs/content/ZIYDIA_LIBRARY.md` |
 | B0.7 Tafsir packs | The tafsirs chosen for Phase 1 (O-06), each sampled against print |
 | B0.8 Waqf marks | Meanings of the marks transcribed from the Madinah mushaf's appendix and reviewed, and the list of marks checked against it (`WQ-02`). Not written from memory. Registry row 19 |
 | B0.9 Surah facts | Makki or Madani, ayah count and order from the source metadata (`RD-17`) |

@@ -58,7 +58,7 @@ For every page the tool writes one line in `pages.jsonl` (all fields are listed 
 | Category listing with pagination | Works: 39 books found on 4 pages (2026-10-06) |
 | Single-part book | Works: book 183 extracted completely, 339 pages |
 | Resume after interruption | Works: book 183 continued from page 30 |
-| Moving to the next part of a multi-part book | **Untested.** First real test is book 471 or 473. |
+| Moving to the next part of a multi-part book | Works: books 165, 471, 473 (two parts) and 514 (seven parts), 2026-10-07. The `part` field is one page late at each boundary; `page_label` is right. |
 | Scanned-PDF books | Produce empty pages. Seven such books are listed in `docs/content/ZIYDIA_LIBRARY.md`; do not fetch them. |
 
 If the tool prints `no text block found`, it saves `problem_page.html` in the book's
