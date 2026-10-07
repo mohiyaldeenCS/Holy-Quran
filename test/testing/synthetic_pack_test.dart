@@ -96,7 +96,39 @@ void main() {
       const text = 'ab \u{1F600} cd';
       expect(text.indexOf('cd'), 6);
       expect(text.runes.toList().indexOf('c'.runes.single), 5);
-      expect(const SyntheticAyah(text).spans, [(0, 2), (3, 5), (6, 8)]);
+      expect(const SyntheticAyah(text).spans, [(0, 2), (6, 8)]);
+      expect(const SyntheticAyah(text).markSpans, [
+        (afterWord: 1, start: 3, end: 5),
+      ]);
+    });
+  });
+
+  group('synthetic tokens', () {
+    test(
+      'a token with a Latin or Arabic letter is a word, any other a mark',
+      () {
+        const ayah = SyntheticAyah(
+          '\u{6D6} ab \u{6D7} \u{646}\u{640} \u{640} \u{E9}1 2 ',
+        );
+        expect(ayah.spans, [(2, 4), (7, 9), (12, 14)]);
+        expect(ayah.markSpans, [
+          (afterWord: 0, start: 0, end: 1),
+          (afterWord: 1, start: 5, end: 6),
+          (afterWord: 2, start: 10, end: 11),
+          (afterWord: 3, start: 15, end: 16),
+        ]);
+      },
+    );
+
+    test('given words come with no marks unless the marks are given', () {
+      const words = [(0, 1)];
+      expect(const SyntheticAyah('a \u{6D6}', words: words).markSpans, isEmpty);
+      const marks = [(afterWord: 1, start: 2, end: 3)];
+      expect(
+        const SyntheticAyah('a \u{6D6}', words: words, marks: marks).markSpans,
+        marks,
+      );
+      expect(const SyntheticAyah('a \u{6D6}', marks: []).spans, words);
     });
   });
 
@@ -131,11 +163,12 @@ void main() {
       expect(raw.encoding, 'UTF-8');
     });
 
-    test('has the five tables of the spec, all STRICT', () {
+    test('has the six tables of the spec, all STRICT', () {
       final tables = raw.tables();
       expect(tables.map((t) => t.name), [
         'ayah',
         'division',
+        'mark',
         'sajda',
         'surah',
         'word',
@@ -146,6 +179,7 @@ void main() {
         {
           'ayah': true,
           'division': true,
+          'mark': true,
           'sajda': true,
           'surah': false,
           'word': true,
@@ -175,6 +209,14 @@ void main() {
           'start_offset INTEGER NOT NULL',
           'end_offset INTEGER NOT NULL',
         ],
+        'mark': [
+          'surah INTEGER NOT NULL pk1',
+          'ayah INTEGER NOT NULL pk2',
+          'number INTEGER NOT NULL pk3',
+          'after_word INTEGER NOT NULL',
+          'start_offset INTEGER NOT NULL',
+          'end_offset INTEGER NOT NULL',
+        ],
         'division': [
           'kind TEXT NOT NULL pk1',
           'number INTEGER NOT NULL pk2',
@@ -196,7 +238,7 @@ void main() {
       );
       expect(raw.foreignKeys('surah'), isEmpty);
       expect(raw.foreignKeys('ayah'), {('ayah', 'surah')});
-      for (final table in ['word', 'division', 'sajda']) {
+      for (final table in ['word', 'mark', 'division', 'sajda']) {
         expect(raw.foreignKeys(table), {(table, 'ayah')});
       }
     });
@@ -258,8 +300,40 @@ void main() {
           expect(end, lessThanOrEqualTo(ayat[a].text.length));
         }
       }
-      expect(raw.words(2, 2).last, (3, 6, 8), reason: "'cd' after U+1F600");
+      expect(raw.words(2, 2).last, (2, 6, 8), reason: "'cd' after U+1F600");
       expect(raw.words(2, 3), [(1, 0, 9), (2, 10, 14), (3, 15, 21)]);
+    });
+
+    test('stores marks outside every word, each after the word before', () {
+      for (var s = 0; s < pack.surahs.length; s++) {
+        final ayat = pack.surahs[s].ayat;
+        for (var a = 0; a < ayat.length; a++) {
+          final marks = ayat[a].markSpans;
+          expect(raw.marks(s + 1, a + 1), [
+            for (var m = 0; m < marks.length; m++)
+              (m + 1, marks[m].afterWord, marks[m].start, marks[m].end),
+          ]);
+          final words = raw.words(s + 1, a + 1);
+          var end = 0;
+          for (final (_, afterWord, start, stop) in raw.marks(s + 1, a + 1)) {
+            expect(start, greaterThanOrEqualTo(end));
+            expect(stop, greaterThan(start));
+            expect(stop, lessThanOrEqualTo(ayat[a].text.length));
+            for (final (_, wordStart, wordEnd) in words) {
+              expect(stop <= wordStart || start >= wordEnd, isTrue);
+            }
+            expect(
+              afterWord,
+              words.where((w) => w.$3 <= start).length,
+              reason: '${s + 1}:${a + 1}',
+            );
+            end = stop;
+          }
+        }
+      }
+      expect(raw.marks(1, 2), [(1, 2, 12, 13), (2, 3, 18, 19), (3, 3, 20, 21)]);
+      expect(raw.marks(1, 3), [(1, 0, 0, 1)]);
+      expect(raw.marks(2, 2), [(1, 1, 3, 5)], reason: 'U+1F600 alone');
     });
 
     test('stores the divisions and sajdas given', () {
@@ -285,6 +359,36 @@ void main() {
       expect(texts.any((t) => t.contains(_arabicVectorAyah.trim())), isTrue);
       expect(pack.surahs.any((s) => s.basmala != null), isTrue);
       expect(pack.surahs.any((s) => s.basmala == null), isTrue);
+    });
+
+    test('has marks before, between and after words, one outside the BMP', () {
+      final ayat = [for (final surah in pack.surahs) ...surah.ayat];
+      final marks = [for (final ayah in ayat) ...ayah.markSpans];
+      expect(marks.any((m) => m.afterWord == 0), isTrue);
+      expect(
+        ayat.any(
+          (a) => a.markSpans.any(
+            (m) => m.afterWord > 0 && m.afterWord < a.spans.length,
+          ),
+        ),
+        isTrue,
+      );
+      expect(
+        ayat.any(
+          (a) =>
+              a.markSpans.where((m) => m.afterWord == a.spans.length).length >
+              1,
+        ),
+        isTrue,
+      );
+      expect(
+        ayat.any(
+          (a) => a.markSpans.any(
+            (m) => a.text.substring(m.start, m.end).runes.single > 0xFFFF,
+          ),
+        ),
+        isTrue,
+      );
     });
 
     test('writes a UTF-8 manifest without BOM that equals the map', () async {
@@ -335,6 +439,7 @@ void main() {
           'fetched_on',
           'file_sha256',
           'trust_grade',
+          'options',
           'licence',
         ]);
         expect(source['file_sha256'], matches(_hex));
@@ -346,6 +451,14 @@ void main() {
           'allows_export',
         ]);
       }
+      final options = (sources[0]! as Map)['options']! as Map;
+      expect(options, isNotEmpty);
+      expect(
+        options.values.every((v) => v is String || v is num || v is bool),
+        isTrue,
+      );
+      expect(options.values.map((v) => v.runtimeType).toSet(), hasLength(3));
+      expect((sources[1]! as Map)['options'], isNull);
     });
 
     test('lists the text file with its size and hash', () async {
@@ -373,6 +486,7 @@ void main() {
         'surahs': raw.count('surah'),
         'ayat': raw.count('ayah'),
         'words': raw.count('word'),
+        'marks': raw.count('mark'),
         'divisions': raw.divisionCounts(),
         'sajdas': raw.count('sajda'),
       };
@@ -422,6 +536,29 @@ void main() {
       await faulty.textFile.readAsBytes(),
       await clean.textFile.readAsBytes(),
     );
+
+    /// Every text, word and mark of [raw] is that of the clean pack, except
+    /// the marks of ayah [surah]:[ayah].
+    void expectOnlyAyahChanged(RawPack raw, int surah, int ayah) {
+      for (final s in raw.surahs()) {
+        for (final (number, bytes) in raw.ayat(s.number)) {
+          expect(
+            bytes,
+            utf8.encode(clean.surahs[s.number - 1].ayat[number - 1].text),
+          );
+          expect(
+            raw.words(s.number, number),
+            _rawWords(clean, s.number, number),
+          );
+          if (s.number != surah || number != ayah) {
+            expect(
+              raw.marks(s.number, number),
+              _rawMarks(clean, s.number, number),
+            );
+          }
+        }
+      }
+    }
 
     Future<void> expectListedHashIsTrue(SyntheticPack faulty) async {
       final file = _files(faulty.manifest);
@@ -615,6 +752,7 @@ void main() {
           {
             'ayah': true,
             'division': true,
+            'mark': true,
             'sajda': false,
             'surah': true,
             'word': true,
@@ -629,6 +767,46 @@ void main() {
           'files/0/sha256',
           'files/0/bytes',
         }, containsAll(_diff(faulty.manifest, clean.manifest)));
+      },
+      SyntheticFault.markOverlapsWord: (fault) async {
+        final faulty = await build(fault);
+        await expectListedHashIsTrue(faulty);
+        final raw = RawPack.open(faulty.textFile);
+        addTearDown(raw.close);
+        final (_, _, wordEnd) = _rawWords(clean, 1, 2)[1];
+        expect(raw.marks(1, 2), [
+          for (final (n, afterWord, start, end) in _rawMarks(clean, 1, 2))
+            (n, afterWord, n == 1 ? wordEnd - 1 : start, end),
+        ]);
+        expectOnlyAyahChanged(raw, 1, 2);
+        expect({
+          'files/0/sha256',
+          'files/0/bytes',
+        }, containsAll(_diff(faulty.manifest, clean.manifest)));
+      },
+      SyntheticFault.wrongAfterWord: (fault) async {
+        final faulty = await build(fault);
+        await expectListedHashIsTrue(faulty);
+        final raw = RawPack.open(faulty.textFile);
+        addTearDown(raw.close);
+        expect(raw.marks(1, 2), [
+          for (final (n, afterWord, start, end) in _rawMarks(clean, 1, 2))
+            (n, n == 1 ? afterWord + 1 : afterWord, start, end),
+        ]);
+        expectOnlyAyahChanged(raw, 1, 2);
+        expect({
+          'files/0/sha256',
+          'files/0/bytes',
+        }, containsAll(_diff(faulty.manifest, clean.manifest)));
+      },
+      SyntheticFault.wrongMarkCount: (fault) async {
+        final faulty = await build(fault);
+        await expectSameFile(faulty);
+        expect(_diff(faulty.manifest, clean.manifest), ['counts/marks']);
+        expect(
+          (faulty.manifest['counts']! as Map)['marks'],
+          (clean.counts['marks']! as int) + 1,
+        );
       },
     };
 
@@ -662,6 +840,15 @@ List<(int, int, int)> _rawWords(SyntheticPack pack, int surah, int ayah) {
   final raw = RawPack.open(pack.textFile);
   try {
     return raw.words(surah, ayah);
+  } finally {
+    raw.close();
+  }
+}
+
+List<(int, int, int, int)> _rawMarks(SyntheticPack pack, int surah, int ayah) {
+  final raw = RawPack.open(pack.textFile);
+  try {
+    return raw.marks(surah, ayah);
   } finally {
     raw.close();
   }

@@ -243,6 +243,21 @@ final class RawPack {
       (row.columnAt(0) as int, row.columnAt(1) as int, row.columnAt(2) as int),
   ];
 
+  /// `(number, after_word, start, end)` of each mark of an ayah, in order.
+  List<(int, int, int, int)> marks(int surah, int ayah) => [
+    for (final row in _db.select(
+      'SELECT number, after_word, start_offset, end_offset FROM mark '
+      'WHERE surah = ? AND ayah = ? ORDER BY number',
+      [surah, ayah],
+    ))
+      (
+        row.columnAt(0) as int,
+        row.columnAt(1) as int,
+        row.columnAt(2) as int,
+        row.columnAt(3) as int,
+      ),
+  ];
+
   /// `(kind, number, surah, ayah)` of every division.
   List<(String, int, int, int)> divisions() => [
     for (final row in _db.select(

@@ -13,28 +13,71 @@ const amiriQuranFontPath = 'assets/fonts/AmiriQuran-Regular.ttf';
 const textFileName = 'text.sqlite';
 const manifestFileName = 'manifest.json';
 
+/// A mark of a synthetic ayah: the number of the word it follows (0 before
+/// the first word) and its UTF-16 half-open span.
+typedef SyntheticMark = ({int afterWord, int start, int end});
+
 /// One synthetic ayah. Its text is never Quran text.
 final class SyntheticAyah {
-  const SyntheticAyah(this.text, {this.words});
+  const SyntheticAyah(this.text, {this.words, this.marks});
 
   final String text;
 
   /// UTF-16 half-open spans, when given.
   final List<(int, int)>? words;
 
-  /// [words], or else the tokens between single ASCII spaces: synthetic test
-  /// data only, never how the app finds words.
-  List<(int, int)> get spans => words ?? _spacedWords(text);
+  /// The marks, when given.
+  final List<SyntheticMark>? marks;
 
-  static List<(int, int)> _spacedWords(String text) {
-    final spans = <(int, int)>[];
+  /// [words], or else the tokens between single ASCII spaces that hold a
+  /// letter.
+  List<(int, int)> get spans =>
+      words ??
+      [
+        for (final (start, end, isWord) in _tokens(text))
+          if (isWord) (start, end),
+      ];
+
+  /// [marks], or else, when [words] is not given either, the tokens between
+  /// single ASCII spaces that hold no letter, each after the word before it.
+  List<SyntheticMark> get markSpans {
+    if (marks case final given?) return given;
+    if (words != null) return const [];
+    final found = <SyntheticMark>[];
+    var word = 0;
+    for (final (start, end, isWord) in _tokens(text)) {
+      if (isWord) {
+        word++;
+      } else {
+        found.add((afterWord: word, start: start, end: end));
+      }
+    }
+    return found;
+  }
+
+  /// Synthetic test data only, never how the app or the pipeline finds
+  /// words: a token holding a letter of [_isLetter] is a word, any other a
+  /// mark (D-078). Which tokens of a real pack are marks is the pipeline's
+  /// rule, from its own table of code points.
+  static List<(int, int, bool)> _tokens(String text) {
+    final tokens = <(int, int, bool)>[];
     var start = 0;
     for (final token in text.split(' ')) {
-      if (token.isNotEmpty) spans.add((start, start + token.length));
+      if (token.isNotEmpty) {
+        tokens.add((start, start + token.length, token.runes.any(_isLetter)));
+      }
       start += token.length + 1;
     }
-    return spans;
+    return tokens;
   }
+
+  /// The letters of the synthetic texts: ASCII and Latin-1 letters, and the
+  /// Arabic letters from hamza to yeh without the tatweel.
+  static bool _isLetter(int rune) =>
+      (rune >= 0x41 && rune <= 0x5A) ||
+      (rune >= 0x61 && rune <= 0x7A) ||
+      (rune >= 0xC0 && rune <= 0xFF && rune != 0xD7 && rune != 0xF7) ||
+      (rune >= 0x621 && rune <= 0x64A && rune != 0x640);
 }
 
 final class SyntheticSurah {
@@ -107,6 +150,17 @@ enum SyntheticFault {
 
   /// The `sajda` table is created without `STRICT`.
   nonStrictSchema,
+
+  /// The first mark that follows a word starts one code unit before that
+  /// word ends; the counts and every hash are consistent with it.
+  markOverlapsWord,
+
+  /// The first mark that follows a word names the word after it in
+  /// `after_word`; the counts and every hash are consistent with it.
+  wrongAfterWord,
+
+  /// `counts.marks` is one more than stored.
+  wrongMarkCount,
 }
 
 /// A built pack and what it truly holds. [manifest] is what the pack claims;
@@ -145,7 +199,9 @@ final class SyntheticPack {
 /// normalising, trimming or offset error: a precomposed and a decomposed
 /// e-acute, leading, trailing and double spaces, a character outside the BMP,
 /// an Arabic-script synthetic phrase, a word list with a non-space separator,
-/// and surahs with and without a basmala.
+/// and surahs with and without a basmala. Single code points stand alone as
+/// marks: between words, after the last word, before the first word, and
+/// one outside the BMP.
 const List<SyntheticSurah> defaultSyntheticSurahs = [
   SyntheticSurah(
     name: 'Synthetic surah one',
@@ -154,8 +210,8 @@ const List<SyntheticSurah> defaultSyntheticSurahs = [
     revelationOrder: 2,
     ayat: [
       SyntheticAyah('Synthetic ayah one'),
-      SyntheticAyah('Synthetic \u{E9} two'),
-      SyntheticAyah('Synthetic e\u{301} three'),
+      SyntheticAyah('Synthetic \u{E9} \u{6D6} two \u{6D7} \u{6E9}'),
+      SyntheticAyah('\u{6DA} Synthetic e\u{301} three'),
       SyntheticAyah(
         ' \u{646}\u{635} \u{62A}\u{62C}\u{631}\u{64A}\u{628}\u{64A}  ',
       ),
@@ -235,6 +291,17 @@ CREATE TABLE word (
   FOREIGN KEY (surah, ayah) REFERENCES ayah(surah, number)
 ) STRICT, WITHOUT ROWID''',
   '''
+CREATE TABLE mark (
+  surah        INTEGER NOT NULL,
+  ayah         INTEGER NOT NULL,
+  number       INTEGER NOT NULL,
+  after_word   INTEGER NOT NULL,
+  start_offset INTEGER NOT NULL,
+  end_offset   INTEGER NOT NULL,
+  PRIMARY KEY (surah, ayah, number),
+  FOREIGN KEY (surah, ayah) REFERENCES ayah(surah, number)
+) STRICT, WITHOUT ROWID''',
+  '''
 CREATE TABLE division (
   kind   TEXT NOT NULL CHECK (kind IN ('juz','hizb','rub','page')),
   number INTEGER NOT NULL,
@@ -266,6 +333,19 @@ Future<SyntheticPack> buildSyntheticPack(
   final stored = switch (fault) {
     SyntheticFault.leadingBom => _withLeadingBom(surahs),
     SyntheticFault.overlappingSpans => _withOverlappingSpans(surahs),
+    SyntheticFault.markOverlapsWord => _withFirstMarkAfterWord(
+      surahs,
+      (mark, words) => (
+        afterWord: mark.afterWord,
+        start: words[mark.afterWord - 1].$2 - 1,
+        end: mark.end,
+      ),
+    ),
+    SyntheticFault.wrongAfterWord => _withFirstMarkAfterWord(
+      surahs,
+      (mark, _) =>
+          (afterWord: mark.afterWord + 1, start: mark.start, end: mark.end),
+    ),
     _ => surahs,
   };
   final directory = await Directory(
@@ -292,6 +372,10 @@ Future<SyntheticPack> buildSyntheticPack(
     'words': stored.fold<int>(
       0,
       (n, s) => s.ayat.fold<int>(n, (m, a) => m + a.spans.length),
+    ),
+    'marks': stored.fold<int>(
+      0,
+      (n, s) => s.ayat.fold<int>(n, (m, a) => m + a.markSpans.length),
     ),
     'divisions': {
       for (final kind in _divisionKinds)
@@ -349,6 +433,10 @@ List<SyntheticSurah> _withLeadingBom(List<SyntheticSurah> surahs) {
     SyntheticAyah(
       '\u{FEFF}${ayah.text}',
       words: [for (final (start, end) in ayah.spans) (start + 1, end + 1)],
+      marks: [
+        for (final mark in ayah.markSpans)
+          (afterWord: mark.afterWord, start: mark.start + 1, end: mark.end + 1),
+      ],
     ),
   );
 }
@@ -361,26 +449,58 @@ List<SyntheticSurah> _withOverlappingSpans(List<SyntheticSurah> surahs) {
     SyntheticAyah(
       ayah.text,
       words: [(firstStart, firstEnd), (firstEnd - 1, secondEnd), ...rest],
+      marks: ayah.markSpans,
     ),
   );
+}
+
+/// [surahs] with the first mark that follows a word, in surah and ayah
+/// order, replaced by what [change] makes of it and the ayah's word spans.
+List<SyntheticSurah> _withFirstMarkAfterWord(
+  List<SyntheticSurah> surahs,
+  SyntheticMark Function(SyntheticMark mark, List<(int, int)> words) change,
+) {
+  for (final (s, surah) in surahs.indexed) {
+    for (final (a, ayah) in surah.ayat.indexed) {
+      final marks = [...ayah.markSpans];
+      final at = marks.indexWhere((mark) => mark.afterWord > 0);
+      if (at < 0) continue;
+      marks[at] = change(marks[at], ayah.spans);
+      return _withAyah(
+        surahs,
+        s,
+        a,
+        SyntheticAyah(ayah.text, words: ayah.spans, marks: marks),
+      );
+    }
+  }
+  throw StateError('No synthetic mark follows a word.');
 }
 
 List<SyntheticSurah> _withFirstAyah(
   List<SyntheticSurah> surahs,
   SyntheticAyah ayah,
-) {
-  final first = surahs[0];
-  return [
-    SyntheticSurah(
-      name: first.name,
-      basmala: first.basmala,
-      revelationPlace: first.revelationPlace,
-      revelationOrder: first.revelationOrder,
-      ayat: [ayah, ...first.ayat.skip(1)],
-    ),
-    ...surahs.skip(1),
-  ];
-}
+) => _withAyah(surahs, 0, 0, ayah);
+
+/// [surahs] with ayah [a] of surah [s], both counted from 0, replaced.
+List<SyntheticSurah> _withAyah(
+  List<SyntheticSurah> surahs,
+  int s,
+  int a,
+  SyntheticAyah ayah,
+) => [
+  for (final (index, surah) in surahs.indexed)
+    if (index != s)
+      surah
+    else
+      SyntheticSurah(
+        name: surah.name,
+        basmala: surah.basmala,
+        revelationPlace: surah.revelationPlace,
+        revelationOrder: surah.revelationOrder,
+        ayat: [...surah.ayat]..[a] = ayah,
+      ),
+];
 
 void _writeDatabase(
   File file,
@@ -447,6 +567,17 @@ void _writeDatabase(
             words[w].$2,
           ]);
         }
+        final marks = ayah.markSpans;
+        for (var m = 0; m < marks.length; m++) {
+          db.execute('INSERT INTO mark VALUES (?, ?, ?, ?, ?, ?)', [
+            s + 1,
+            a + 1,
+            m + 1,
+            marks[m].afterWord,
+            marks[m].start,
+            marks[m].end,
+          ]);
+        }
       }
     }
     for (final d in divisions) {
@@ -496,7 +627,14 @@ Map<String, Object?> _manifest({
   'riwaya': 'hafs',
   'edition': 'synthetic-edition',
   'font': {'family': 'Amiri Quran', 'version': '1.003', 'sha256': fontSha256},
-  'sources': [_source('text', 1), _source('edition_map', 4)],
+  'sources': [
+    _source('text', 1, {
+      'synthetic_type': 'synthetic',
+      'synthetic_marks': true,
+      'synthetic_level': 1,
+    }),
+    _source('edition_map', 4, null),
+  ],
   'files': [
     {'name': textFileName, 'sha256': textSha256, 'bytes': textBytes},
   ],
@@ -511,7 +649,11 @@ Map<String, Object?> _manifest({
   ],
 };
 
-Map<String, Object?> _source(String role, int registryRow) => {
+Map<String, Object?> _source(
+  String role,
+  int registryRow,
+  Map<String, Object>? options,
+) => {
   'role': role,
   'registry_row': registryRow,
   'name': 'Synthetic $role source',
@@ -521,6 +663,7 @@ Map<String, Object?> _source(String role, int registryRow) => {
   'fetched_on': '2026-01-01',
   'file_sha256': sha256.convert(utf8.encode('synthetic $role')).toString(),
   'trust_grade': 'A',
+  'options': options,
   'licence': {
     'text': null,
     'permission_ref': 'Synthetic permission $registryRow',
@@ -546,6 +689,9 @@ void _applyManifestFault(Map<String, Object?> manifest, SyntheticFault? fault) {
       file['name'] = '../$textFileName';
     case SyntheticFault.wrongFileSize:
       file['bytes'] = (file['bytes']! as int) + 1;
+    case SyntheticFault.wrongMarkCount:
+      final counts = manifest['counts']! as Map<String, Object?>;
+      counts['marks'] = (counts['marks']! as int) + 1;
     default:
   }
 }

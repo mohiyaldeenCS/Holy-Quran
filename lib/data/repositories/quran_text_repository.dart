@@ -1,4 +1,5 @@
 import '../../domain/models/edition_map.dart';
+import '../../domain/models/mark_span.dart';
 import '../../domain/models/pack_manifest.dart';
 import '../../domain/models/pack_text.dart';
 import '../../domain/models/quran_address.dart';
@@ -26,6 +27,11 @@ abstract interface class QuranTextRepository {
   /// The word spans of the ayah at [address], an ayah address. The spans of
   /// a surah are checked on its first read, like its digest.
   Future<Result<List<WordSpan>>> words(QuranAddress address);
+
+  /// The marks of the ayah at [address], an ayah address: the tokens with no
+  /// letter, such as pause marks, each outside every word span. They are
+  /// checked with the word spans on the surah's first read.
+  Future<Result<List<MarkSpan>>> marks(QuranAddress address);
 
   Future<Result<EditionMap>> editionMap();
 

@@ -312,6 +312,17 @@ const _schema = {
       'ayah INTEGER NOT NULL',
     ],
   ),
+  'mark': (
+    true,
+    [
+      'surah INTEGER NOT NULL pk1',
+      'ayah INTEGER NOT NULL pk2',
+      'number INTEGER NOT NULL pk3',
+      'after_word INTEGER NOT NULL',
+      'start_offset INTEGER NOT NULL',
+      'end_offset INTEGER NOT NULL',
+    ],
+  ),
   'sajda': (true, ['surah INTEGER NOT NULL pk1', 'ayah INTEGER NOT NULL pk2']),
   'surah': (
     false,

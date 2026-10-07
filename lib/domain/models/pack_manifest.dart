@@ -72,7 +72,7 @@ final class PackFont {
 }
 
 final class PackSource {
-  const PackSource({
+  PackSource({
     required this.role,
     required this.registryRow,
     required this.name,
@@ -82,8 +82,20 @@ final class PackSource {
     required this.fetchedOn,
     required this.fileSha256,
     required this.trustGrade,
+    required Map<String, Object>? options,
     required this.licence,
-  });
+  }) : options = options == null ? null : Map.unmodifiable(options) {
+    for (final MapEntry(:key, :value)
+        in (this.options ?? const <String, Object>{}).entries) {
+      if (value is! String && value is! num && value is! bool) {
+        throw ArgumentError.value(
+          value,
+          'options[$key]',
+          'is not a string, number or boolean',
+        );
+      }
+    }
+  }
 
   final SourceRole role;
   final int registryRow;
@@ -94,6 +106,11 @@ final class PackSource {
   final String fetchedOn;
   final String fileSha256;
   final TrustGrade trustGrade;
+
+  /// The choices the source file was produced with, as the source names
+  /// them: each value a [String], a [num] or a [bool]. Null when the source
+  /// offers none (D-077).
+  final Map<String, Object>? options;
   final PackLicence licence;
 }
 
@@ -130,6 +147,7 @@ final class PackCounts {
     required this.surahs,
     required this.ayat,
     required this.words,
+    required this.marks,
     required Map<Division, int> divisions,
     required this.sajdas,
   }) : divisions = Map.unmodifiable(divisions);
@@ -137,6 +155,7 @@ final class PackCounts {
   final int surahs;
   final int ayat;
   final int words;
+  final int marks;
   final Map<Division, int> divisions;
   final int sajdas;
 }

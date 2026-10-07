@@ -9,6 +9,7 @@ import 'package:holyquran/data/services/manifest_signature.dart';
 import 'package:holyquran/data/services/pack_database.dart';
 import 'package:holyquran/data/services/pack_file_service.dart';
 import 'package:holyquran/domain/models/edition_map.dart';
+import 'package:holyquran/domain/models/mark_span.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/pack_manifest.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
@@ -141,6 +142,29 @@ void main() {
       );
     });
 
+    test('gives marks, before, between and after words', () async {
+      expect(ok(await repository.marks(_at('hafs:1:2'))), const [
+        MarkSpan(number: 1, afterWord: 2, start: 12, end: 13),
+        MarkSpan(number: 2, afterWord: 3, start: 18, end: 19),
+        MarkSpan(number: 3, afterWord: 3, start: 20, end: 21),
+      ]);
+      expect(ok(await repository.marks(_at('hafs:1:3'))), const [
+        MarkSpan(number: 1, afterWord: 0, start: 0, end: 1),
+      ]);
+      expect(ok(await repository.marks(_at('hafs:2:2'))), const [
+        MarkSpan(number: 1, afterWord: 1, start: 3, end: 5),
+      ]);
+      expect(ok(await repository.marks(_at('hafs:1:1'))), isEmpty);
+      expect(
+        ok(await repository.words(_at('hafs:2:2'))),
+        const [
+          WordSpan(number: 1, start: 0, end: 2),
+          WordSpan(number: 2, start: 6, end: 8),
+        ],
+        reason: 'a mark is not a word',
+      );
+    });
+
     test('builds the edition map in its riwaya', () async {
       final map = ok(await repository.editionMap());
       expect(map.edition, 'synthetic-edition');
@@ -175,7 +199,7 @@ void main() {
         'hafs:2:3',
         'hafs:3:1',
         'hafs:1:1:3',
-        'hafs:2:2:3',
+        'hafs:2:2:2',
       ]) {
         expect(
           ok(await repository.contains(_at(address))),
@@ -188,7 +212,7 @@ void main() {
         'hafs:4:1',
         'hafs:2:4',
         'hafs:1:1:4',
-        'hafs:2:2:4',
+        'hafs:2:2:3',
         'warsh:1:1',
       ]) {
         expect(
@@ -220,6 +244,11 @@ void main() {
           notInPack,
           reason: address,
         );
+        expect(
+          await repository.marks(_at(address)),
+          notInPack,
+          reason: address,
+        );
       }
       expect(
         await repository.basmala(4),
@@ -245,6 +274,7 @@ void main() {
       expect(await repository.ayahText(_at('hafs:2:1')), disabled);
       expect(await repository.basmala(3), disabled);
       expect(await repository.words(_at('hafs:2:1')), disabled);
+      expect(await repository.marks(_at('hafs:2:2')), disabled);
       expect(await repository.surahs(), disabled);
       expect(await repository.editionMap(), disabled);
       expect(await repository.ayahText(_at('warsh:1:1')), disabled);
@@ -255,6 +285,7 @@ void main() {
     for (final (name, read) in [
       ('basmala', (PackQuranTextRepository r) => r.basmala(1)),
       ('words', (PackQuranTextRepository r) => r.words(_at('hafs:1:3'))),
+      ('marks', (PackQuranTextRepository r) => r.marks(_at('hafs:1:3'))),
     ]) {
       test('is caught by a first read of its $name', () async {
         final repository = unverified(
@@ -394,7 +425,7 @@ void main() {
       final pack = await buildSyntheticPack(root);
       final writable = sqlite3.open(pack.textFile.path);
       writable.execute(
-        'UPDATE word SET number = 5 WHERE surah = 2 AND ayah = 2 AND number = 3',
+        'UPDATE word SET number = 5 WHERE surah = 2 AND ayah = 2 AND number = 2',
       );
       writable.close();
       final repository = unverified(pack);
@@ -402,7 +433,7 @@ void main() {
         await repository.contains(_at('hafs:2:2:1')),
         fails<PackInconsistent>(
           (f) => f.reason,
-          'hafs:2:2: word 3 is numbered 5: [6, 8)',
+          'hafs:2:2: word 2 is numbered 5: [6, 8)',
         ),
       );
       expect(await repository.contains(_at('hafs:1:1')), fails<PackDisabled>());
@@ -423,6 +454,125 @@ void main() {
     });
   });
 
+  group('marks', () {
+    /// A pack whose ayah 2:2 has the [marks] given, its text and words
+    /// unchanged.
+    Future<PackQuranTextRepository> withMarks(List<SyntheticMark> marks) async {
+      final surahs = [...defaultSyntheticSurahs];
+      final second = surahs[1];
+      surahs[1] = SyntheticSurah(
+        name: second.name,
+        revelationPlace: second.revelationPlace,
+        revelationOrder: second.revelationOrder,
+        ayat: [
+          second.ayat[0],
+          SyntheticAyah(second.ayat[1].text, marks: marks),
+          second.ayat[2],
+        ],
+      );
+      return unverified(await buildSyntheticPack(root, surahs: surahs));
+    }
+
+    test('that are valid are given, also next to a word', () async {
+      final repository = await withMarks(const [
+        (afterWord: 1, start: 2, end: 3),
+        (afterWord: 1, start: 3, end: 5),
+      ]);
+      expect(ok(await repository.marks(_at('hafs:2:2'))), const [
+        MarkSpan(number: 1, afterWord: 1, start: 2, end: 3),
+        MarkSpan(number: 2, afterWord: 1, start: 3, end: 5),
+      ]);
+    });
+
+    final faults = {
+      'overlapping the word before': (
+        const [(afterWord: 1, start: 1, end: 5)],
+        'hafs:2:2: mark 1 overlaps the word before: [1, 5)',
+      ),
+      'inside a word': (
+        const [(afterWord: 1, start: 6, end: 7)],
+        'hafs:2:2: mark 1 overlaps the word before: [6, 7)',
+      ),
+      'overlapping the word after': (
+        const [(afterWord: 1, start: 3, end: 7)],
+        'hafs:2:2: word 2 overlaps the mark before: [6, 8)',
+      ),
+      'overlapping the mark before': (
+        const [
+          (afterWord: 1, start: 3, end: 5),
+          (afterWord: 1, start: 2, end: 3),
+        ],
+        'hafs:2:2: mark 2 overlaps the mark before: [2, 3)',
+      ),
+      'after the word before the one it names': (
+        const [(afterWord: 2, start: 3, end: 5)],
+        'hafs:2:2: mark 1 has after_word 2, not 1: [3, 5)',
+      ),
+      'naming no word where one precedes it': (
+        const [(afterWord: 0, start: 3, end: 5)],
+        'hafs:2:2: mark 1 has after_word 0, not 1: [3, 5)',
+      ),
+      'empty': (
+        const [(afterWord: 1, start: 5, end: 5)],
+        'hafs:2:2: mark 1 is empty or reversed: [5, 5)',
+      ),
+      'past the end of the ayah': (
+        const [(afterWord: 2, start: 8, end: 9)],
+        'hafs:2:2: mark 1 is outside the ayah or splits a character: [8, 9)',
+      ),
+      'splitting a surrogate pair': (
+        const [(afterWord: 1, start: 3, end: 4)],
+        'hafs:2:2: mark 1 is outside the ayah or splits a character: [3, 4)',
+      ),
+    };
+    for (final MapEntry(key: name, value: (marks, reason)) in faults.entries) {
+      test(
+        '$name fail the first read of the surah, then disable the pack',
+        () async {
+          final repository = await withMarks(marks);
+          expect(ok(await repository.marks(_at('hafs:1:2'))), hasLength(3));
+          expect(
+            await repository.ayahText(_at('hafs:2:1')),
+            fails<PackInconsistent>((f) => f.reason, reason),
+          );
+          expect(
+            await repository.marks(_at('hafs:1:2')),
+            fails<PackDisabled>(),
+          );
+        },
+      );
+    }
+
+    test('numbered with a gap fail', () async {
+      final pack = await buildSyntheticPack(root);
+      final writable = sqlite3.open(pack.textFile.path);
+      writable.execute(
+        'UPDATE mark SET number = 3 WHERE surah = 2 AND ayah = 2 AND number = 1',
+      );
+      writable.close();
+      expect(
+        await unverified(pack).marks(_at('hafs:2:2')),
+        fails<PackInconsistent>(
+          (f) => f.reason,
+          'hafs:2:2: mark 1 is numbered 3: [3, 5)',
+        ),
+      );
+    });
+
+    test('are checked by a first read of the words', () async {
+      final repository = unverified(
+        await buildSyntheticPack(root, fault: SyntheticFault.wrongAfterWord),
+      );
+      expect(
+        await repository.words(_at('hafs:1:1')),
+        fails<PackInconsistent>(
+          (f) => f.reason,
+          'hafs:1:2: mark 1 has after_word 3, not 2: [12, 13)',
+        ),
+      );
+    });
+  });
+
   group('counts that differ from the stored rows', () {
     test('fail the first read, then disable the pack', () async {
       final repository = unverified(
@@ -436,6 +586,19 @@ void main() {
         ),
       );
       expect(await repository.surahs(), fails<PackDisabled>());
+    });
+
+    test('of marks fail the first read', () async {
+      final repository = unverified(
+        await buildSyntheticPack(root, fault: SyntheticFault.wrongMarkCount),
+      );
+      expect(
+        await repository.marks(_at('hafs:1:2')),
+        fails<PackInconsistent>(
+          (f) => f.reason,
+          'counts.marks is 6; the pack holds 5',
+        ),
+      );
     });
 
     test('are checked even when only the edition map is read', () async {
@@ -645,6 +808,7 @@ void main() {
           for (var ayah = 1; ayah <= surah.ayahCount; ayah++) ...[
             await repository.ayahText(QuranAddress('hafs', surah.number, ayah)),
             await repository.words(QuranAddress('hafs', surah.number, ayah)),
+            await repository.marks(QuranAddress('hafs', surah.number, ayah)),
           ],
         ];
         for (final result in reads) {
@@ -722,6 +886,30 @@ void main() {
         ),
       ),
       SyntheticFault.nonStrictSchema: ('open', isA<UnsupportedPackFormat>()),
+      SyntheticFault.markOverlapsWord: (
+        'read',
+        isA<PackInconsistent>().having(
+          (f) => f.reason,
+          'reason',
+          'hafs:1:2: mark 1 overlaps the word before: [10, 13)',
+        ),
+      ),
+      SyntheticFault.wrongAfterWord: (
+        'read',
+        isA<PackInconsistent>().having(
+          (f) => f.reason,
+          'reason',
+          'hafs:1:2: mark 1 has after_word 3, not 2: [12, 13)',
+        ),
+      ),
+      SyntheticFault.wrongMarkCount: (
+        'read',
+        isA<PackInconsistent>().having(
+          (f) => f.reason,
+          'reason',
+          'counts.marks is 6; the pack holds 5',
+        ),
+      ),
     };
 
     test('every fault has an expected step and failure', () async {

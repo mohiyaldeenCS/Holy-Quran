@@ -143,6 +143,9 @@ void main() {
     SyntheticFault.wrongFileSize: ('verify', isA<FileHashMismatch>()),
     SyntheticFault.overlappingSpans: ('read', isA<PackInconsistent>()),
     SyntheticFault.nonStrictSchema: ('open', isA<UnsupportedPackFormat>()),
+    SyntheticFault.markOverlapsWord: ('read', isA<PackInconsistent>()),
+    SyntheticFault.wrongAfterWord: ('read', isA<PackInconsistent>()),
+    SyntheticFault.wrongMarkCount: ('read', isA<PackInconsistent>()),
   };
 
   test('every synthetic fault is listed', () {
