@@ -10,9 +10,9 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-07 |
 | Phase | 0 — Foundation. Gate 0 not met |
-| Stream A — app | M0.1 merged with one human check pending (pull request #2). Next milestone: **M0.2 Design-system foundation** |
+| Stream A — app | M0.1 merged with one human check pending (pull request #2). **M0.2 Design-system foundation** in progress (draft pull request #3) |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | None open. Start M0.2 on `feat/m0-2-design-system` from `main`, or on the branch the session is bound to (D-045) |
+| Working branch | `claude/great-hamilton-9n23mt`, restarted from `main` after pull request #2 (D-045) |
 | Last session | First implementing session: environment, kickoff answers, M0.1 (pull request #2) |
 
 ## What is in the repository
@@ -64,7 +64,15 @@ raw extraction output; signing keys. The 13 logo SVG files are in
 
 ## In progress
 
-Nothing in stream A.
+Stream A: M0.2, following `docs/plans/M0.2.md`, on `claude/great-hamilton-9n23mt`,
+draft pull request #3. Done and pushed, CI green: step 0 (fonts and OFL texts in
+`assets/`, dev packages, `ubuntu-24.04` as golden platform, `goldens.yml`); T1
+generator and its three outputs (D-054); T2 `ReadingTheme` and `ThemePreference`;
+T3a font loading in tests and font and import guards (type answers D-055); T3b
+literal, feature-number, type-rule and contrast guards; T4 themes, `QuranApp`
+theme wiring, motion constants, digit and ayah-count helpers. Next: T3c golden
+harness (`testing/golden.dart`), then T5a and T5b widgets, T6 `TabBar`, T7 gallery,
+then step 7 (run `goldens.yml`, reviews, documents, merge).
 
 Stream B: extraction of seven Zaydi-library books is waiting for the owner to run the
 tool (`docs/content/ZIYDIA_LIBRARY.md`).
