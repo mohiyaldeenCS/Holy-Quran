@@ -203,9 +203,13 @@ jobs:
           fi
 
       - name: Build the spike pack
+        env:
+          TANZIL_URL: ${{ inputs.tanzil_url }}
         run: |
+          set -o pipefail
           dart run spike/s1/tool/build_tanzil_pack.dart \
             --input data/raw/tanzil/quran-uthmani.xml --out data/build/spike \
+            --source-url "$TANZIL_URL" \
             | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Integrity suite on the spike pack
