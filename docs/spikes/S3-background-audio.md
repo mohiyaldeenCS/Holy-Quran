@@ -52,6 +52,9 @@ covers it), and everything on a device.
 - `AudioServiceActivity` supplies the Flutter engine, so the Dart isolate outlives
   the activity: after back and reopen the app keeps its state. Cold-start
   measurements (S1, NF-01) force-stop the app first.
+- From Android 15, an app that is neither in front nor running a foreground service
+  cannot take audio focus; with `androidStopForegroundOnPause` true, resuming after
+  a call may fail for that reason too. The call step records whether it resumes.
 - Notification and lock-screen commands look the same in the log; only headset
   presses are logged as clicks. The owner's notes tell them apart.
 

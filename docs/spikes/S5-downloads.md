@@ -88,8 +88,9 @@ builds the packs and freezes the screen for a few seconds). "Wi-Fi only" is on.
 6. **Corrupt file.** Clear storage. Tap "Corrupt next file" once, then "Download v1":
    rejected, fetched once more, `activated 1`. Tap it twice before "Update to v2":
    `not activated (verification)`, current stays 1.
-7. **Low space.** Tap "Space check above free" (the answer should be empty, not
-   "not implemented"), then "Update to v2" (clear storage first if v2 is installed):
+7. **Low space.** If v2 is installed, clear storage first (clearing afterwards would
+   undo the setting). Tap "Space check above free" (the answer should be empty, not
+   "not implemented"), then "Update to v2":
    after about 14 s, `not activated (insufficientSpace)`, current unchanged. Tap
    "Space check off".
 
