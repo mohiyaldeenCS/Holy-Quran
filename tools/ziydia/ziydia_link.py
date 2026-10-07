@@ -7,8 +7,9 @@ what the book itself prints: surah headings, ayah numbers in brackets after a
 quotation, and the numbers that open a commentary paragraph. Nothing is inferred
 from the wording of a quotation and no printed number is corrected. Every
 paragraph is carried in the output exactly as it stands in the `html` field of
-pages.jsonl; the only paragraphs left out are the rules of dashes that divide a
-page of book 514, and they are counted.
+pages.jsonl; the only paragraphs left out are the lines that divide a page (the
+rule of dashes of book 514, the line above the footnotes of book 473), and they
+are counted.
 
 Needs Python 3.8+ only. No extra packages.
 
@@ -18,13 +19,15 @@ USAGE
   py ziydia_link.py names 183 514          (surah names and ayah counts, as printed)
   py ziydia_link.py link 276 --surahs ziydia_links/surahs.json
   py ziydia_link.py link 471 --surahs ziydia_links/surahs.json
+  py ziydia_link.py link 473 --surahs ziydia_links/surahs.json
+  py ziydia_link.py link 440 --surahs ziydia_links/surahs.json
   py ziydia_link.py compare 183            (after linking 514; any linked book)
   py ziydia_link.py inspect 473            (markup inventory of any book)
 
   Options: --in DIR      folder written by ziydia_fetch.py   (default: ziydia_out)
            --out DIR     folder for the results              (default: ziydia_links)
-           --surahs FILE table written by "names". Needed by 276 and 471. With it,
-                         183 also flags a number beyond the end of its surah.
+           --surahs FILE table written by "names". Needed by 276, 471 and 440. With it,
+                         183 and 473 also flag a number beyond the end of its surah.
 
 OUTPUT (folder "ziydia_links/book_<id>"; it holds book text, keep it out of git)
   passages.jsonl  one passage per line: its surah, its ayah ranges, what the link
@@ -34,6 +37,8 @@ OUTPUT (folder "ziydia_links/book_<id>"; it holds book text, keep it out of git)
   review.html     every passage the linker marked as needing review
   compare.json    written by "compare": the passages whose quotation was not
   compare.html    found in the ayat they are linked to, as book 514 prints them
+
+Books with a profile: 183, 514, 276, 471, 473, 440.
 
 EXIT CODE
   0  done; report.json may still list points for review
@@ -78,6 +83,8 @@ NAMED_REF = re.compile(
     r"\[\s*([^\[\]:،٠-٩]+?)\s*[:،]?\s*(" + RANGE + r"(?:\s*،\s*" + RANGE + r")*)\s*،?\s*\]"
 )
 NAME_MARKS = re.compile("[ً-ْٰـ]")
+FOOTNOTE_MARK = re.compile(r"\}?\s*" + chr(0x2063) + r"?\(" + chr(0x2063) + "?(" + NUM + r")\)")
+FOOTNOTE_REF = re.compile(SURAH + r"\s+([^،]+?)\s*،\s*الآية\s*(" + RANGE + r")\s*\.?")
 
 # How each book prints its links. A book without a profile is not linked: run
 # "inspect" on it, study the result, then add a profile and its tests.
@@ -101,6 +108,18 @@ PROFILES = {
         "kind": "items",
         "item": r"\[(" + NUM + r")\]",
         "numbered_heading": r"\[(" + NUM + r")\s*-\s*(?:" + SURAH + r"\s+)?(.+?)\s*\]",
+    },
+    # Numbered questions, each a heading "N - ... {quotation}(k)?"; footnote k of
+    # the same page reads "سورة <name>، الآية N".
+    440: {
+        "kind": "footnote_references",
+        "question": r"(" + NUM + r")\s*-",
+    },
+    # "تفسير غريب سورة <name>" headings in the order 1, 114, 113 ... 2; the ayah
+    # number closes the quotation, inside it; footnotes below a line.
+    473: {
+        "kind": "inner_numbers",
+        "surahs": 114,
     },
     # Numbered questions "N -"; headings name the surah without its number.
     471: {
@@ -669,6 +688,170 @@ def check_commentary(result, ayat):
 
 
 # ----------------------------------------------------------------------------
+# Book 473: the surahs come in the order 1, then 114 down to 2, each under a
+# heading that holds the word for surah. A quotation closes with the number of
+# its ayah, printed inside it. Footnotes follow a line at the foot of the page.
+
+
+def above_and_below_the_line(page, result):
+    """The paragraphs of a page before its footnote line, and the footnotes after it.
+
+    The line itself, a paragraph that holds nothing else, is left out and counted.
+    """
+    body, footnotes, below = [], [], False
+    for paragraph in page:
+        if not below and "<hr" in paragraph.html:
+            below = True
+            if not plain(paragraph.html):
+                result.dropped.append(paragraph.html)
+                continue
+        (footnotes if below else body).append(paragraph)
+    return body, footnotes
+
+
+def keep_footnotes(footnotes, result):
+    if footnotes:
+        passage = result.add("footnote", None, [], "none")
+        for paragraph in footnotes:
+            result.put(passage, paragraph)
+
+
+def inner_numbers(inner):
+    """(words, ayah number) for each number printed inside one quotation."""
+    parts = re.split("(" + NUM + ")", plain(inner))
+    return [(parts[i], int(parts[i + 1])) for i in range(0, len(parts) - 1, 2)]
+
+
+def link_inner_numbers(book, profile, result, table):
+    order = [1] + list(range(profile["surahs"], 1, -1))
+    names = table["names"] if table else {}
+    surah = None
+    current = None
+    agree = unnumbered = 0
+    for page in book:
+        body, footnotes = above_and_below_the_line(page, result)
+        for paragraph in body:
+            html = paragraph.html
+            if HEADING_CLASS in html:
+                key = heading_key(html)
+                if SURAH in key:
+                    if len(result.surahs) == len(order):
+                        raise LinkError("page %d: one surah heading too many: %r" % (paragraph.where, key))
+                    surah = order[len(result.surahs)]
+                    name = key.split(SURAH, 1)[1].split(chr(0x2063))[0].strip(" :")
+                    result.surahs[surah] = {"name_in_book": name, "number": "by order"}
+                    known = names.get(name_key(name))
+                    agree += known == surah
+                    if known not in (None, surah):
+                        result.note("heading_name_is_another_surah_in_the_table", paragraph.where, key)
+                heading = result.add("heading", surah, [], "heading" if surah else "none", paragraph)
+                heading["heading"] = key
+                current = None
+                continue
+            basis = "heading" if surah else "none"
+            refs = [[n, n] for _, _, inner in quotations(html) for _, n in inner_numbers(inner)]
+            if refs and surah is not None:
+                current = result.add("passage", surah, refs, "heading+number", paragraph)
+                if any(b[0] < a[0] for a, b in zip(refs, refs[1:])):
+                    result.flag(current, "ayah_number_out_of_order")
+            elif is_ornament(html):
+                result.add("ornament", surah, [], basis, paragraph)
+            elif QUOTE_OPEN in html and surah is not None:
+                # It quotes something and prints no number for it.
+                current = result.add("unlinked", surah, [], basis, paragraph)
+                unnumbered += 1
+            elif current is not None:
+                result.put(current, paragraph, carried=current["kind"] == "passage")
+            else:
+                current = result.add("unlinked", surah, [], basis, paragraph)
+        keep_footnotes(footnotes, result)
+    if len(result.surahs) != len(order):
+        raise LinkError("found %d surah headings, expected %d" % (len(result.surahs), len(order)))
+    linked = [p for p in result.passages if p["kind"] == "passage"]
+    for number in result.surahs:
+        flag_order(result, [p for p in linked if p["surah"] == number])
+    for passage in linked:
+        flag_ranges(result, passage, table["ayat"] if table else None)
+    result.checks["headings_named_as_the_table_names_that_surah"] = agree
+    result.checks["passages_with_more_than_one_number"] = sum(1 for p in linked if len(p["refs"]) > 1)
+    result.checks["quotation_paragraphs_without_a_number"] = unnumbered
+
+
+# ----------------------------------------------------------------------------
+# Book 440: numbered questions. Each is a heading that quotes the words asked
+# about; a footnote mark follows the quotation, and that footnote, on the same
+# page, names the surah and the ayah.
+
+
+def read_footnote_reference(paragraph, number, footnotes, names, result):
+    """(surah, ayah ranges) that the footnote of a question's quotation gives."""
+    html = paragraph.html
+    mark = FOOTNOTE_MARK.match(plain(html[quotations(html)[0][1]:]))
+    if mark is None:
+        result.note("question_without_a_footnote_mark", paragraph.where, "question %d" % number)
+        return None, []
+    text = footnotes.get(int(mark.group(1)))
+    reference = FOOTNOTE_REF.fullmatch(text) if text is not None else None
+    if reference is None:
+        kind = "footnote_not_on_the_page" if text is None else "footnote_not_understood"
+        result.note(kind, paragraph.where, "question %d, footnote %s" % (number, mark.group(1)))
+        return None, []
+    surah = names.get(name_key(reference.group(1)))
+    if surah is None:
+        result.note("surah_name_not_in_the_table", paragraph.where, "question %d" % number)
+        return None, []
+    numbers = [int(n) for n in re.findall(NUM, reference.group(2))]
+    return surah, [[numbers[0], numbers[-1]]]
+
+
+def link_footnote_references(book, profile, result, table):
+    question_re = re.compile(profile["question"])
+    current = None
+    last = None
+    for page in book:
+        body, footnotes = above_and_below_the_line(page, result)
+        texts = {}
+        for paragraph in footnotes:
+            red = RED_START.match(paragraph.html)
+            mark = NUMBER_LIST.fullmatch(plain(red.group(1))) if red else None
+            if mark and "-" not in mark.group(1):
+                texts[int(mark.group(1))] = plain(paragraph.html)[len(plain(red.group(1))):].strip()
+        for paragraph in body:
+            html = paragraph.html
+            # A numbered heading with no quotation is a chapter of the introduction.
+            asks = HEADING_CLASS in html and QUOTE_OPEN in html
+            question = question_re.match(heading_key(html)) if asks else None
+            if question:
+                number = int(question.group(1))
+                if last is not None and number != last + 1:
+                    result.note("question_number_out_of_sequence", paragraph.where, "%d after %d" % (number, last))
+                last = number
+                surah, refs = read_footnote_reference(paragraph, number, texts, table["names"], result)
+                current = result.add(
+                    "passage" if refs else "unlinked", surah, refs, "footnote" if refs else "none", paragraph
+                )
+                current["item"] = number
+                if refs:
+                    flag_ranges(result, current, table["ayat"])
+                    inside = [n for _, n in inner_numbers(quotations(html)[0][2])]
+                    if inside and inside[-1] != refs[0][1]:
+                        result.flag(current, "number_in_the_quotation_differs_from_the_footnote")
+            elif HEADING_CLASS in html:
+                result.add("heading", None, [], "none", paragraph)["heading"] = heading_key(html)
+                current = None
+            elif is_ornament(html):
+                result.add("ornament", None, [], "none", paragraph)
+            else:
+                if current is None:
+                    current = result.add("unlinked", None, [], "none")
+                result.put(current, paragraph, carried="item" in current)
+        keep_footnotes(footnotes, result)
+    questions = [p for p in result.passages if "item" in p]
+    result.checks["questions"] = len(questions)
+    result.checks["questions_linked"] = sum(1 for p in questions if p["kind"] == "passage")
+
+
+# ----------------------------------------------------------------------------
 # Books 276 and 471: numbered items, each opening with a quotation followed by
 # "[<surah name>: N]".
 
@@ -826,8 +1009,12 @@ def run_link(book, in_dir, out_dir, table_path=None):
         link_bracket_numbers(paragraphs, profile, result, table)
     elif profile["kind"] == "text_and_commentary":
         TextAndCommentary(profile, result).link(paragraphs)
+    elif profile["kind"] == "inner_numbers":
+        link_inner_numbers(paragraphs, profile, result, table)
     elif table is None:
         raise LinkError("book %d needs --surahs (the table written by names)" % book)
+    elif profile["kind"] == "footnote_references":
+        link_footnote_references(paragraphs, profile, result, table)
     else:
         link_items(paragraphs, profile, result, table)
     finish(result, paragraphs)
@@ -1057,7 +1244,9 @@ def quotations_to_compare(passage, kind):
     """(quotation, ayah ranges) for each quotation a passage's links rest on."""
     opening = passage["paragraphs"][0]["html"]
     pairs = quotations_with_refs(opening)
-    if kind == "text_and_commentary":
+    if kind == "inner_numbers":
+        return [(words, [[n, n]]) for inner, _ in pairs for words, n in inner_numbers(inner)]
+    if kind in ("text_and_commentary", "footnote_references"):
         return [(pairs[0][0], passage["refs"])] if pairs else []
     if kind == "items":
         # Every quotation of the item up to its first reference; the reference
@@ -1236,6 +1425,10 @@ def main(argv):
             say("checks: %s" % json.dumps(result.checks, ensure_ascii=False))
             kinds = collections.Counter(note["kind"] for note in result.notes)
             say("notes: %s" % (dict(sorted(kinds.items())) or "none"))
+    except BrokenPipeError:
+        # Whoever was reading the output stopped reading; the run itself is sound.
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        return 0
     except (LinkError, OSError) as error:
         say("STOPPED: %s" % error)
         return 2

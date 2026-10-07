@@ -507,6 +507,204 @@ class TextAndCommentaryTest(LinkCase):
         self.assertEqual(kept, sorted(given))
 
 
+FOOT_LINE = '<p style="font-size: 0.8em;"><hr style="margin-top: 12px;"></p>'
+
+
+class InnerNumbersTest(LinkCase):
+    PROFILE = {"surahs": 3}
+    TABLE = {"names": {"الاولى": 1, "الثالثة": 3, "الثانية": 2}, "ayat": {"1": 7, "2": 10, "3": 5}}
+
+    def book(self, *extra):
+        return [
+            page(1, head("مقدمة التحقيق"), para("تمهيد")),
+            page(2, head("تفسير غريب سورة الأولى"),
+                 para(chr(0xFDFD)),
+                 para("ومعنى {" + quote("كلام ٢") + "}: كذا، قال الشاعر:"),
+                 para("بيت من الشعر" + chr(0x2063) + "<sup>(" + chr(0x2063) + "١)</sup>"),
+                 FOOT_LINE,
+                 para(red("(١)") + " في نسخة: كذا")),
+            page(3, head("تفسير غريب سورة: الثالثة" + chr(0x2063) + "(" + chr(0x2063) + "١)"),
+                 para("{" + quote("كلام") + "} بلا رقم"),
+                 para("تتمة"),
+                 head("[فصل في كذا]"),
+                 para("{" + quote("كلام ٤ كلام ٥ كلام") + "} و {" + quote("كلام ٥") + "}"),
+                 *extra),
+            page(4, head("تفسير غريب سورة الثانية"), para("{" + quote("كلام ٩") + "}")),
+        ]
+
+    def run_book(self, *extra, table=None):
+        return self.link(473, self.book(*extra), table=table, profile=self.PROFILE)
+
+    def test_surahs_come_first_then_from_the_last_back(self):
+        result = self.run_book(table=self.TABLE)
+        self.assertEqual(
+            [(p["kind"], p["surah"]) for p in result.passages],
+            [("heading", None), ("unlinked", None), ("heading", 1), ("unlinked", 1), ("passage", 1),
+             ("footnote", None), ("heading", 3), ("unlinked", 3), ("heading", 3), ("passage", 3),
+             ("heading", 2), ("passage", 2)],
+        )
+        self.assertEqual([p["refs"] for p in self.linked(result)],
+                         [[[2, 2]], [[4, 4], [5, 5], [5, 5]], [[9, 9]]])
+        self.assertEqual(result.surahs[3], {"name_in_book": "الثالثة", "number": "by order"})
+        self.assertEqual(result.checks, {
+            "headings_named_as_the_table_names_that_surah": 3,
+            "passages_with_more_than_one_number": 1,
+            "quotation_paragraphs_without_a_number": 1,
+        })
+        self.assertEqual(result.notes, [])
+
+    def test_paragraphs_without_a_quotation_follow_the_one_before(self):
+        result = self.run_book()
+        first = self.linked(result)[0]
+        self.assertEqual([e.get("carried", False) for e in first["paragraphs"]], [False, True])
+        unnumbered = result.passages[7]
+        self.assertEqual((unnumbered["basis"], len(unnumbered["paragraphs"])), ("heading", 2))
+        self.assertNotIn("carried", unnumbered["paragraphs"][1])
+
+    def test_footnotes_are_kept_apart_and_their_line_is_counted(self):
+        result = self.run_book()
+        self.assertEqual(result.counts["rules_dropped"], 1)
+        notes = [p for p in result.passages if p["kind"] == "footnote"]
+        self.assertEqual([len(p["paragraphs"]) for p in notes], [1])
+        self.assertEqual(notes[0]["paragraphs"][0]["site_page"], 2)
+
+    def test_number_in_a_footnote_links_nothing(self):
+        pages = self.book()
+        pages[1]["html"] += para("{" + quote("كلام ٧") + "}")
+        result = self.link(473, pages, profile=self.PROFILE)
+        self.assertEqual(len(self.linked(result)), 3)
+        self.assertEqual(len([p for p in result.passages if p["kind"] == "footnote"][0]["paragraphs"]), 2)
+
+    def test_line_without_footnotes_leaves_no_passage(self):
+        pages = self.book()
+        pages[3]["html"] += FOOT_LINE
+        result = self.link(473, pages, profile=self.PROFILE)
+        self.assertEqual(result.counts["rules_dropped"], 2)
+        self.assertEqual(self.kinds(result).count("footnote"), 1)
+        self.assertEqual([p["n"] for p in result.passages], list(range(1, len(result.passages) + 1)))
+
+    def test_heading_named_as_another_surah_is_noted(self):
+        table = dict(self.TABLE, names={"الاولى": 1, "الثالثة": 2})
+        result = self.run_book(table=table)
+        self.assertEqual(self.note_kinds(result), ["heading_name_is_another_surah_in_the_table"])
+        self.assertEqual(result.checks["headings_named_as_the_table_names_that_surah"], 1)
+        self.assertEqual(self.linked(result)[1]["surah"], 3)
+
+    def test_wrong_number_of_surah_headings_stops(self):
+        with self.assertRaises(z.LinkError):
+            self.link(473, self.book(), profile={"surahs": 4})
+        with self.assertRaises(z.LinkError):
+            self.link(473, self.book(), profile={"surahs": 2})
+
+    def test_flags(self):
+        result = self.run_book(para("{" + quote("كلام ٦") + "}"), table=self.TABLE)
+        self.assertEqual(self.linked(result)[2]["review"], ["ayah_beyond_the_end_of_the_surah"])
+        result = self.run_book(para("{" + quote("كلام ٥ كلام ٤") + "}"))
+        self.assertEqual(self.linked(result)[2]["review"], ["ayah_number_out_of_order"])
+        result = self.run_book(para("{" + quote("كلام ٥") + "}"), para("{" + quote("كلام ٣") + "}"))
+        self.assertEqual([p.get("review") for p in self.linked(result)[1:4]],
+                         [None, None, ["ayah_number_out_of_order"]])
+
+    def test_each_numbered_run_of_words_is_compared_with_its_ayah(self):
+        text = [page(1, head("سورة الأولى"), text_block(ONE, ar(1), TWO, ar(2), THREE, ar(3)), RULE,
+                     para(red("(%s)" % ar(1)) + " شرح"))]
+        self.link(514, text, profile={"surahs": 1})
+
+        def outcome(inner):
+            pages = [page(1, head("تفسير غريب سورة الأولى"), para("{" + quote(inner) + "}"))]
+            self.link(473, pages, profile={"surahs": 1})
+            counts = z.run_compare(473, self.out)
+            return [name for name in z.OUTCOMES if counts[name]]
+
+        self.assertEqual(outcome("%s %s %s %s ثم" % (ONE, ar(1), TWO, ar(2))), ["same"])
+        self.assertEqual(outcome("%s %s %s %s" % (ONE, ar(1), THREE, ar(2))), ["in_a_neighbouring_ayah"])
+        self.assertEqual(outcome("%s %s" % (THREE, ar(1))), ["elsewhere_in_the_surah"])
+
+
+def mark(number):
+    return chr(0x2063) + "(" + chr(0x2063) + ar(number) + ")"
+
+
+def footnote(number, text):
+    return '<p style="font-size: 0.8em;">' + red("(%s)" % ar(number)) + " " + text + "</p>"
+
+
+class FootnoteReferencesTest(LinkCase):
+    TABLE = {"names": {"الاولى": 1, "الثانية": 2}, "ayat": {"1": 7, "2": 10}}
+
+    def question(self, number, footnote_number=None, words=WORDS):
+        return head("%s - قال: أخبرني عن قوله: {%s}%s؟" % (
+            ar(number), quote(words), mark(footnote_number) if footnote_number else ""))
+
+    def book(self, *footnotes, question=None):
+        return [
+            page(1, head("١ - اسمه ونسبه"), para("ترجمة" + mark(1)), FOOT_LINE, footnote(1, "المصدر ١/ ٢.")),
+            page(2, question or self.question(1, 2), para("قال: نعم، أما سمعت قول الشاعر:"), para("بيت"),
+                 self.question(2, 3), para("جواب"),
+                 FOOT_LINE, footnote(1, "ديوانه ٣."), *footnotes),
+        ]
+
+    def run_book(self, *footnotes, **changes):
+        return self.link(440, self.book(*footnotes, **changes), table=self.TABLE)
+
+    def test_question_is_linked_by_the_footnote_of_its_quotation(self):
+        result = self.run_book(footnote(2, "سورة الثانية، الآية ٥."), footnote(3, "سورة الأولى، الآية ٣ - ٤."))
+        self.assertEqual(self.kinds(result),
+                         ["heading", "unlinked", "footnote", "passage", "passage", "footnote"])
+        first, second = self.linked(result)
+        self.assertEqual((first["surah"], first["refs"], first["basis"], first["item"]),
+                         (2, [[5, 5]], "footnote", 1))
+        self.assertEqual([e.get("carried", False) for e in first["paragraphs"]], [False, True, True])
+        self.assertEqual((second["surah"], second["refs"]), (1, [[3, 4]]))
+        self.assertEqual(result.checks, {"questions": 2, "questions_linked": 2})
+        self.assertEqual(result.counts["rules_dropped"], 2)
+        self.assertEqual(result.notes, [])
+        self.assertEqual(len(result.passages[-1]["paragraphs"]), 3)
+
+    def test_what_cannot_be_read_links_nothing_and_is_noted(self):
+        cases = [
+            ((footnote(3, "سورة الأولى، الآية ٣."),), "footnote_not_on_the_page"),
+            ((footnote(2, "سورة الأولى، الآية ٣، وسورة الثانية، الآية ٤."),), "footnote_not_understood"),
+            ((footnote(2, "انظر ديوانه."),), "footnote_not_understood"),
+            ((footnote(2, "سورة المجهولة، الآية ٣."),), "surah_name_not_in_the_table"),
+        ]
+        for footnotes, expected in cases:
+            result = self.run_book(*footnotes)
+            first = [p for p in result.passages if p.get("item") == 1][0]
+            self.assertEqual((first["kind"], first["surah"], first["refs"]), ("unlinked", None, []))
+            self.assertIn(expected, self.note_kinds(result))
+
+    def test_question_without_a_mark_is_noted(self):
+        result = self.run_book(question=self.question(1))
+        self.assertIn("question_without_a_footnote_mark", self.note_kinds(result))
+        self.assertEqual(result.checks["questions_linked"], 0)
+
+    def test_number_inside_the_quotation_must_agree_with_the_footnote(self):
+        agrees = self.run_book(footnote(2, "سورة الثانية، الآية ٥."),
+                               question=self.question(1, 2, WORDS + " ٥"))
+        self.assertNotIn("review", self.linked(agrees)[0])
+        differs = self.run_book(footnote(2, "سورة الثانية، الآية ٥."),
+                                question=self.question(1, 2, WORDS + " ٦"))
+        self.assertEqual(self.linked(differs)[0]["review"], ["number_in_the_quotation_differs_from_the_footnote"])
+
+    def test_ayah_beyond_the_surah_and_question_out_of_sequence(self):
+        result = self.run_book(footnote(2, "سورة الأولى، الآية ٨."), question=self.question(4, 2))
+        self.assertEqual(self.linked(result)[0]["review"], ["ayah_beyond_the_end_of_the_surah"])
+        self.assertIn("question_number_out_of_sequence", self.note_kinds(result))
+
+    def test_the_questions_quotation_is_compared(self):
+        text = [page(1, head("سورة الأولى"), text_block(ONE, ar(1), TWO, ar(2)), RULE,
+                     para(red("(%s)" % ar(1)) + " شرح"))]
+        self.link(514, text, profile={"surahs": 1})
+        self.link(440, [page(1, self.question(1, 1, TWO), FOOT_LINE, footnote(1, "سورة الأولى، الآية ٢."))],
+                  table=self.TABLE)
+        self.assertEqual(z.run_compare(440, self.out)["same"], 1)
+
+    def test_the_table_is_needed(self):
+        with self.assertRaises(z.LinkError):
+            self.link(440, self.book())
+
+
 class ItemsTest(LinkCase):
     TABLE = {"names": {"الاولى": 1, "الثانية": 2, "الثالثة": 3}, "ayat": {"1": 7, "2": 10, "3": 5}}
 
