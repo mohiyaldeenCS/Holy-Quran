@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
+import 'package:holyquran/ui/core/theme/tokens.g.dart';
 
 import 'page_blocks_v2.dart';
 import 'render_checks.dart';
@@ -267,6 +268,100 @@ void main() {
     }
   });
 
+  test('a centred last line that starts at a word shaped with the word '
+      'before it keeps that shaping, even when it is nearly full', () async {
+    // Amiri Quran shapes some words narrower after another word, across the
+    // space (a word-initial kaf by 0.24 em). A last line laid out on its own
+    // lost that context, grew, and wrapped: surah 24 of T6's full synthetic
+    // pack at 412 wide, 2.0x. Find a block here whose last line starts with
+    // such a word and is too full to fit without the context.
+    const scaler = TextScaler.noScaling;
+    double widthOf(String value) {
+      final painter = TextPainter(
+        text: TextSpan(text: value, style: quranPageStyle),
+        textDirection: TextDirection.rtl,
+        textScaler: scaler,
+      )..layout();
+      final width = painter.width;
+      painter.dispose();
+      return width;
+    }
+
+    SurahParagraph? plain;
+    for (var i = 0; i < long.ayat.length && plain == null; i++) {
+      final text = long.ayat[i].verbatim;
+      final words = long.words[i];
+      final ayah = QuranAddress(long.firstAyah.riwaya, 1, i + 1);
+      for (var k = 1; k < words.length && plain == null; k++) {
+        final word = text.substring(words[k].start, words[k].end);
+        final before = text.substring(words[k - 1].start, words[k].start);
+        final alone = widthOf(word);
+        if (widthOf(before + word) - widthOf(before) - alone > -3) continue;
+        for (var j = k - 1; j >= 0 && j >= k - 3 && plain == null; j--) {
+          final surah = SpikeSurahText(
+            firstAyah: ayah,
+            ayat: [long.ayat[i]],
+            words: [words],
+            basmala: null,
+            pageStarts: const {},
+          );
+          final content = SurahBlockContent(
+            firstAyah: ayah,
+            ayat: surah.ayat,
+            words: surah.words,
+            startOffset: words[j].start,
+          );
+          for (var width = 120.0; width <= 700 && plain == null; width += .25) {
+            final candidate = SurahParagraph(
+              content,
+              style: quranPageStyle,
+              textScaler: scaler,
+              markerSizes: [ayahMarkerSize(scaler, AppSizes.ayahMarker)],
+            )..layout(width);
+            final inContext = candidate
+                .boxesOf(QuranAddress(ayah.riwaya, 1, i + 1, words[k].number))
+                .single
+                .width;
+            final lone =
+                candidate.lineWidths().last.laidOut - inContext + alone;
+            if (candidate.lineCount > 1 &&
+                candidate.lineStartPositions.last ==
+                    (ayah: i + 1, offset: words[k].start) &&
+                lone > width) {
+              plain = candidate;
+            } else {
+              candidate.dispose();
+            }
+          }
+        }
+      }
+    }
+    expect(plain, isNotNull, reason: 'the pack holds such a block');
+    addTearDown(plain!.dispose);
+    final centred = SurahParagraph(
+      plain.content,
+      style: quranPageStyle,
+      textScaler: scaler,
+      markerSizes: [ayahMarkerSize(scaler, AppSizes.ayahMarker)],
+      centreLastLine: true,
+    )..layout(plain.width);
+    addTearDown(centred.dispose);
+    expect(centred.recoloured, isTrue);
+    expect(centred.lineStartPositions, plain.lineStartPositions);
+    final a = await _render(plain);
+    final b = await _render(centred);
+    // The band's middle rows: the line above reaches into its top rows.
+    final band = centred.lineBands.last;
+    final from = (band.top + band.height / 3).floor();
+    final to = (band.bottom - band.height / 6).floor();
+    final before = a.inkColumns(from, to);
+    final after = b.inkColumns(from, to);
+    final shift = centred.lastLineShift;
+    expect(after.$1, closeTo(before.$1 + shift, 1.5));
+    expect(after.$2, closeTo(before.$2 + shift, 1.5));
+    expect(after.$2 - after.$1, closeTo(before.$2 - before.$1, 1));
+  });
+
   test('ink on the rows at band edges is found', () async {
     final squeezed = surahParagraph(
       short,
@@ -375,11 +470,15 @@ int _bandOf(List<Rect> bands, Rect rect) =>
 // ascent passes the line's by about 2 px at 25 px.
 const int _overhang = 12;
 
+const int _margin = 16;
+
+/// Renders [paragraph] with [_margin] on each side, as glyphs may overhang
+/// the paragraph's edges.
 Future<_Image> _render(SurahParagraph paragraph) async {
-  final width = paragraph.width.ceil();
+  final width = paragraph.width.ceil() + 2 * _margin;
   final height = paragraph.height.ceil();
   final recorder = ui.PictureRecorder();
-  paragraph.paint(Canvas(recorder), Offset.zero);
+  paragraph.paint(Canvas(recorder), Offset(_margin.toDouble(), 0));
   final picture = recorder.endRecording();
   final image = await picture.toImage(width, height);
   final bytes = (await image.toByteData())!;
