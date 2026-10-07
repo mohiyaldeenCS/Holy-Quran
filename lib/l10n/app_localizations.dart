@@ -141,6 +141,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{count, plural, =1{آية واحدة} =2{آيتان} few{{digits} آيات} other{{digits} آية}}'**
   String ayahCount(int count, String digits);
+
+  /// Accessible name of an ayah-end marker, read by screen readers (AX-01). number is the ayah number, already written in Arabic-Indic digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'الآية {number}'**
+  String ayahMarkerLabel(String number);
+
+  /// The surah name inside the surah header, after the word for surah, as the identity's SurahHeader writes it. name is the surah's name without that word.
+  ///
+  /// In ar, this message translates to:
+  /// **'سورة {name}'**
+  String surahHeaderName(String name);
 }
 
 class _AppLocalizationsDelegate

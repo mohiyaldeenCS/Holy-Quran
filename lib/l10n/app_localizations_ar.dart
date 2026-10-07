@@ -41,4 +41,14 @@ class AppLocalizationsAr extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String ayahMarkerLabel(String number) {
+    return 'الآية $number';
+  }
+
+  @override
+  String surahHeaderName(String name) {
+    return 'سورة $name';
+  }
 }

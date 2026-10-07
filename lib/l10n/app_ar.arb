@@ -39,5 +39,23 @@
         "type": "String"
       }
     }
+  },
+  "ayahMarkerLabel": "الآية {number}",
+  "@ayahMarkerLabel": {
+    "description": "Accessible name of an ayah-end marker, read by screen readers (AX-01). number is the ayah number, already written in Arabic-Indic digits.",
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "surahHeaderName": "سورة {name}",
+  "@surahHeaderName": {
+    "description": "The surah name inside the surah header, after the word for surah, as the identity's SurahHeader writes it. name is the surah's name without that word.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }
