@@ -455,8 +455,42 @@ the first of them is needed:
 
 | Point | Needed by |
 | --- | --- |
-| **Icons the identity does not have.** The set has 26. The ayah toolbar alone needs copy and share, and Phase 1 also needs icons such as note, delete, tag, timer, queue and information. Compile the full list from the Phase 1 requirements in M0.2 and ask who draws them: the designer, or this project following the identity's icon rules, each shown to the owner before use | M0.2 for the list; M1.6 for the first use |
 | The category «تفسير» of `UD-01` has no shape or colour in the identity (`Tag` defines four: حفظ، مراجعة، دراسة، آيات مهمة); two of the four preview colours are raw ramp steps that do not follow the theme; and there is no palette for the colour of a user-made category | M1.6 |
-| Which theme "follow system dark" switches to and from | M0.2 |
 | The Mushaf board shows six waqf marks; `WQ-02` lists seven (it adds السكت). The list is checked against the mushaf's appendix in B0.8 | M1.6 |
-| Contrast below 4.5:1 in the identity's own values: the gold label of the continue-reading card, the number inside the filled ayah marker in sepia, and four values of three tajweed colours (see "Contrast") | M1.2 for the card; M1.10 for the marker; Phase 2 for tajweed |
+| Contrast below the required ratio in the identity's own values: the gold label of the continue-reading card, the number inside the filled ayah marker in sepia, six tajweed values, and the off track and knob of `Switch` (see "Contrast"; O-12) | M1.1 for the switch; M1.2 for the card; M1.10 for the marker; Phase 2 for tajweed |
+
+Settled in M0.2: "follow system dark" shows `night` while the system is dark, except
+that `contrast` stays (D-050, D-053); tab labels stop growing where they no longer fit
+(D-058).
+
+### Icons Phase 1 needs (compiled in M0.2 from PRD §7.4, §7.7 and the Phase 1 rows of §8)
+
+Shown to the owner on 2026-10-07. Drawn by this project on the identity's icon rules
+and approved by him one by one before use (D-051); words are used where the last
+column says so (D-052).
+
+| Need | Requirement | Covered by |
+| --- | --- | --- |
+| Play, bookmark, study in the ayah toolbar | §7.4, `AU-03`, `UD-01`, `ST-01` | `play`, `bookmark`, `study` |
+| Next and previous ayah | `AU-05`, `TF-03` | `next`, `previous` |
+| Sleep timer | `AU-07` | `night` (labelled «مؤقت النوم» in `MiniPlayer`) |
+| Repeat | `AU-09` | `repeat` |
+| Queue | `AU-17` | `index` (labelled «قائمة التشغيل» on the Screens2 board) |
+| Download, pause and cancel a download | `AU-13`, `OF-02`, `TF-06` | `download`, `pause`, `close` |
+| Downloaded | `OF-02` | `check` |
+| Integrity alert, low space, «تعذّر الاتصال» | §9.5, `OF-04`, `OF-05` | `alert` |
+| Back | pushed screens | `previous` (labelled «رجوع» on the boards) |
+| Close a sheet, clear the search field | §7.5, `SR-01` | `close` |
+| Search, sort, ayah context, open in the mushaf | `SR-01`, `SR-04`, `SR-05`, `NV-05` | `search`, `sort`, `context`, `mushaf` |
+| Night theme quick toggle | `RD-08` | `night` |
+| Tag | `UD-02` | The `Tag` component's shape; no icon |
+| Copy | §7.4, `SH-01`, `TF-10` | **New icon** (D-051) |
+| Share | §7.4, `SH-02`, `TF-10` | **New icon** (D-051) |
+| Information (source badge, sources row) | `LX-11`, `TF-05` | **New icon** (D-051) |
+| Note, and its margin indicator | `UD-04`, `UD-05`, `ST-01` | **New icon** (D-051) |
+| Delete | `UD-07` | **New icon** (D-051); undo is the word «تراجع» |
+| Stop | `AU-05` | **New icon** (D-051) |
+| Next and previous surah, in the full player | `AU-05` | **New icons**, two drawings for one need (D-051) |
+| Add to queue; update a pack; filter; save the share-card image; search history | `AU-17`, `OF-06`, `UD-03`, `SH-02`, `SR-10` | Words, no icon (D-052) |
+| Microphone | `SR-11`, deferred | Hidden (PRD §7.8) |
+

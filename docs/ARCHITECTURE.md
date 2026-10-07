@@ -83,7 +83,7 @@ official architecture skill).
 lib/
   main.dart                    bootstrap only
   config/                      dependency wiring, environment
-  routing/                     go_router configuration; the tab shell until M0.2
+  routing/                     go_router configuration
   domain/
     models/                    immutable, pure Dart
     use_cases/
@@ -96,6 +96,8 @@ lib/
       theme/                   tokens.g.dart and ramps.g.dart (generated), theme extensions
       widgets/                 the design-system components, with their metrics
       metrics/                 <screen>_metrics.dart: layout values read from a board
+      gallery/                 debug-only gallery of the design-system widgets
+      app.dart, tab_shell.dart the root widget and the five-tab shell
       l10n/                    digit and plural helpers
     features/
       <feature>/
