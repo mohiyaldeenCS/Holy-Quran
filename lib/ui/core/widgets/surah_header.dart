@@ -34,7 +34,7 @@ final class SurahHeader extends StatelessWidget {
     final star = StarOutline(size: large ? _largeStarSize : _starSize);
     final info = this.info;
     return Container(
-      padding: const EdgeInsets.all(_outerPadding),
+      padding: const EdgeInsets.all(AppSpacing.space1),
       decoration: BoxDecoration(
         border: Border.all(color: colors.ornament, width: _outerBorderWidth),
         borderRadius: BorderRadius.circular(_outerRadius),
@@ -91,10 +91,9 @@ final class SurahHeader extends StatelessWidget {
 }
 
 // .qk-surah-header: `border: 1.5px solid var(--ornament); border-radius:
-// 14px; padding: 4px`.
+// 14px; padding: 4px`; the padding is space-1.
 const double _outerBorderWidth = 1.5;
 const double _outerRadius = 14;
-const double _outerPadding = 4;
 
 // .qk-surah-header-inner: `border: 1px solid var(--ornament-soft);
 // border-radius: 10px; height: 56px`; .qk-surah-header-lg: `height: 64px`.

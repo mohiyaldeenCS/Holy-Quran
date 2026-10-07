@@ -49,12 +49,13 @@ final class QuranText extends StatelessWidget {
       style: _styleOf(size).copyWith(color: context.colors.quranInk),
       locale: _arabic,
     ),
+    // bundle.css: only .qk-quran-page justifies, .qk-quran-center centres.
     // The page size also centres its last line in the reference
     // (`text-align-last: center`); Flutter has no such option yet (S1, M1.2).
-    textAlign: switch (align) {
-      QuranTextAlign.justify => TextAlign.justify,
-      QuranTextAlign.center => TextAlign.center,
-      QuranTextAlign.start => TextAlign.start,
+    textAlign: switch ((align, size)) {
+      (QuranTextAlign.justify, QuranTextSize.page) => TextAlign.justify,
+      (QuranTextAlign.center, _) => TextAlign.center,
+      _ => TextAlign.start,
     },
     textDirection: TextDirection.rtl,
     locale: _arabic,

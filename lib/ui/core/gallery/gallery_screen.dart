@@ -29,8 +29,14 @@ const double _markMonoSize = 64;
 const double _lockupSize = 56;
 // Icon/preview.html: every icon at 28.
 const double _iconSampleSize = 28;
-// AyahMarker/preview.html: the numbers shown.
-const List<int> _ayahNumbers = [5, 42, 286];
+// AyahMarker/preview.html: the markers shown, in order.
+const List<({int number, bool playing, double size})> _ayahMarkers = [
+  (number: 5, playing: false, size: AppSizes.ayahMarker),
+  (number: 42, playing: false, size: AppSizes.ayahMarker),
+  (number: 255, playing: false, size: AppSizes.ayahMarker),
+  (number: 1, playing: true, size: AppSizes.ayahMarker),
+  (number: 286, playing: false, size: 36),
+];
 
 /// Debug-only review page: every M0.2 design-system widget, once in each
 /// reading theme, laid out as the identity's previews show them.
@@ -286,9 +292,8 @@ class _SectionsState extends State<_Sections> {
           _Section(
             title: l10n.gallerySectionAyahMarker,
             child: _row([
-              for (final playing in [false, true])
-                for (final number in _ayahNumbers)
-                  AyahMarker(number: number, playing: playing),
+              for (final (:number, :playing, :size) in _ayahMarkers)
+                AyahMarker(number: number, playing: playing, size: size),
             ]),
           ),
           _Section(

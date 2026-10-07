@@ -67,17 +67,39 @@ void main() {
     }
   });
 
-  testWidgets('is right to left and Arabic, aligned as asked', (tester) async {
-    for (final (align, textAlign) in [
-      (QuranTextAlign.justify, TextAlign.justify),
-      (QuranTextAlign.center, TextAlign.center),
-      (QuranTextAlign.start, TextAlign.start),
-    ]) {
-      await _pump(tester, QuranText(_sample, align: align));
-      final paragraph = _paragraph(tester);
-      expect(paragraph.textAlign, textAlign);
-      expect(paragraph.textDirection, TextDirection.rtl);
-      expect(paragraph.locale, const Locale('ar'));
+  testWidgets('is right to left and Arabic, aligned as the reference renders', (
+    tester,
+  ) async {
+    const expected = {
+      QuranTextSize.page: {
+        QuranTextAlign.justify: TextAlign.justify,
+        QuranTextAlign.center: TextAlign.center,
+        QuranTextAlign.start: TextAlign.start,
+      },
+      QuranTextSize.ayah: {
+        QuranTextAlign.justify: TextAlign.start,
+        QuranTextAlign.center: TextAlign.center,
+        QuranTextAlign.start: TextAlign.start,
+      },
+      QuranTextSize.focus: {
+        QuranTextAlign.justify: TextAlign.start,
+        QuranTextAlign.center: TextAlign.center,
+        QuranTextAlign.start: TextAlign.start,
+      },
+      QuranTextSize.compact: {
+        QuranTextAlign.justify: TextAlign.start,
+        QuranTextAlign.center: TextAlign.center,
+        QuranTextAlign.start: TextAlign.start,
+      },
+    };
+    for (final MapEntry(key: size, value: aligns) in expected.entries) {
+      for (final MapEntry(key: align, value: textAlign) in aligns.entries) {
+        await _pump(tester, QuranText(_sample, size: size, align: align));
+        final paragraph = _paragraph(tester);
+        expect(paragraph.textAlign, textAlign, reason: '$size $align');
+        expect(paragraph.textDirection, TextDirection.rtl);
+        expect(paragraph.locale, const Locale('ar'));
+      }
     }
   });
 
