@@ -127,9 +127,48 @@ Choices made by the lead:
 - M1.2 keeps recolouring, not clipping (finding 2), unless the real text shows no
   line leaving its band.
 
-## Measurements
+## Measurements on the real text (CI run 37597490592, `477c600`)
 
-Pending (tasks T6 and the device run).
+The whole spike pack, laid out on Linux (debug, informative timings) at 360 and 412
+wide, 1.0x and 2.0x, through the same code the device runs (`spike/s1/measure/`).
+The log and the results file hold numbers, `U+XXXX` and addresses only.
+
+- **Font coverage:** the text uses 71 code points; Amiri Quran maps every one. No
+  fallback font is needed.
+- **Tokens with no letter** under the spike's word rule (runs between U+0020):
+  4,578 of 82,011, of which 4,364 are a single combining mark. By code point:
+  U+06DA 1,972; U+06D6 1,682; U+06D7 603; U+06DE (So) 199; U+06D9 68; U+06D8 22;
+  U+06E9 (So) 15; U+06DB 12; U+06DC 5. These are the pause marks, the rub sign and
+  the sajda sign standing between spaces. Input to D-038 and to question P3 of
+  `docs/CONTENT_PACKS.md`: under the Tanzil text they are separate tokens, so the
+  word index must attach them to the word before (as D-038 proposes) or the pipeline
+  must store them as part of that word's span.
+- **A pause mark can start a line, cut off from its word.** The mark tokens get no
+  box of their own (Flutter draws a lone combining mark on the space), and the line
+  may break at the U+0020 before one, so the mark is drawn at the start of the next
+  line and the word before it gets a degenerate box. Letter words failing the hit
+  test: 28, 58, 41 and 54 at the four sizes, of which 28, 57, 41 and 54 sit next to a
+  mark token. **M1.2 must keep a word and its pause mark on one line** without
+  changing the text (no character may be replaced, so not by a no-break space): for
+  example by breaking lines itself at stored word boundaries. One failure at
+  360/2.0x is not explained by this and is being traced.
+- **Ink leaves the line band both ways on the real text:** at 360/1.0x 5,966 of
+  11,155 lines leave their band, 4,956 edges are crossed downward and 1,565 upward,
+  at most 10 px (19.5 px at 2.0x); the first line of 13 surahs reaches above its
+  block and the last line of 42 below. Clipping is ruled out; recolouring stays, and
+  blocks need margin above and below for the ink.
+- **Justification:** the widest stretch per word gap is 40 px at 360/1.0x (p99
+  14.7 px) and 24 px at 412/1.0x; at 2.0x a line can hold so few words that one gap
+  takes 213 px (surah 4 at 360). Whether that reads acceptably is for the device
+  review.
+- **V2 equals V1** in every surah at all four sizes. Line-start fingerprints over
+  all surahs, V1 = V2: 360/1.0x `1ca30ddfcea0f1df`, 360/2.0x `151d5e521cd5a8a5`,
+  412/1.0x `a21630b863841da0`, 412/2.0x `205138b245238b1b`. The device's integrity
+  step compares against these.
+- **Other checks pass on every surah:** markers and page marks in reading order,
+  slicing at stored offsets equal to the whole ayah, the last line centred.
+- Debug timings on the runner, totals over 114 surahs at 360/1.0x: V1 layout 3.3 s
+  (largest surah 209 ms), V2 plan 1.7 s, V2 blocks 1.9 s.
 
 ## Device protocol (owner, Android, profile APK of D-069)
 
