@@ -146,10 +146,11 @@ What they show:
   the Quran and ends with سورة البقرة, as its table of contents shows.
 - **Book 737 has no ayah numbers** after its quotations, and book 440 has one. They
   cannot be linked the way book 183 is; see "Linking commentary to ayat".
-- The last column counts bracketed references that hold one number. Book 183 has
-  2,901 in all: those 2,863, 37 ranges and one that is not a number. Most of the
-  references in books 514, 471 and 276 cite other ayat as evidence; they are not what
-  links a passage.
+- The last column counts bracketed references. For book 183 it gives those that hold
+  one number; the book has 2,901 in all: those 2,863, 37 ranges and one that is not a
+  number. For the other books it counts every reference, ranges included. Most of
+  the references in books 514, 471 and 276 cite other ayat as evidence; they are not
+  what links a passage.
 
 Open question for the owner: do the seven general tafsirs listed in PRD §8.8
 (الميسر، المختصر، السعدي، الجلالين، البغوي، ابن كثير، الطبري) stay alongside these?
@@ -381,14 +382,15 @@ compared with this one:
 
 **What an independent check covered.** A reviewing agent wrote its own parsing code,
 applied the rules above to every paragraph of the four books, and found no difference
-from the tool's output in kind, surah, ayah ranges, basis or carried mark; it found
-the output paragraphs equal to the input paragraphs page by page; and it reproduced
+from the tool's output in kind, surah, ayah ranges, basis, carried mark or review
+flags; it found the output paragraphs equal to the input paragraphs page by page,
+apart from the 3,780 rules of book 514; and it reproduced
 the comparison with ayah texts it assembled separately. That shows the tool does
 what its rules say. It does not show that the rules give the right ayah: only the
 comparison and the reviewer speak to that. It also measured how often a confirmed
 quotation matches ayat it is not linked to: under 0.1% in book 183 and about 0.3% in
-book 514. Its findings on the tool were applied in two rounds; the figures in this
-section were produced after the second round, and it verified those of the first.
+book 514. Its findings on the tool were applied in two rounds; it then verified every
+figure in this section on the final output, whose SHA-256 values are the four above.
 Nothing has been compared with a printed copy.
 
 **Book 183.** 114 headings numbered 1 to 114. A paragraph with a bracketed number is
@@ -415,19 +417,21 @@ no number anywhere, 5 lie under the two ranges printed backwards, and 4 lie behi
 numbers that the comparison finds one digit off. The passage before each gap is
 flagged, because its unnumbered paragraphs may belong to those ayat. Commentary
 before the first number of a surah (35 surahs) is linked to the surah only. Among the
-29 not confirmed are those 4 numbers, which the linker had already flagged, and 24
-whose quotation is found nowhere in the surah as worded. In 19 of the 24 nine tenths
+29 not confirmed are those 4 numbers, which the linker had already flagged, one
+quotation found in the ayah next to its own, and 24 whose quotation is found nowhere
+in the surah as worded. In 19 of the 24 nine tenths
 of the quotation's letters do stand, in order, in the ayat it is linked to: the
 wording differs slightly from the text printed above the rule. The religious
 reviewer says why, and what the app shows when a commentary quotes an ayah otherwise
 than the text above it.
 
 **Books 276 and 471.** An item is linked by the first reference of its own paragraph,
-and the paragraphs up to the next item go with it. A link rests on two statements
+and the paragraphs up to the next item or heading go with it. A link rests on two statements
 when the reference names the surah of the heading above it (117 items in 276, 297 in
 471), and on the reference alone otherwise. The other items have no ayah: items
 without a reference (21 and 46), references in a form the tool does not read (0 and
-7), and surah names with a misprint, which are never guessed (2 and 6). Of these, 10
+7), and surah names that are not in the table, which are never guessed (2 and 6; all
+are misprints as far as seen). Of these, 10
 in 276 and 54 in 471 stay linked to the surah of their heading; 13 and 5 have no
 surah either. A paragraph carried after an item that opens with a quotation and a
 reference of its own flags the item (3 in 276, 10 in 471), since it may be a unit the
@@ -445,8 +449,9 @@ the book's own numbered headings, and each is noted.
 
 - **Review.** Nothing above has been seen by a reviewer. For each book: the religious
   reviewer marks `sample.html`; every passage in `review.html` and `compare.html` is
-  checked against the printed copy. A link that is flagged or not confirmed stays out
-  of a pack until it is cleared (D-082).
+  checked against the printed copy. A link that is flagged, or that the check did
+  not confirm, stays out of a pack until it is cleared (D-082). Most of the 166
+  flags of book 183 are confirmed by the check, so clearing them should be quick.
 - **Corrections.** Where the reviewer finds a printed number wrong, the correction is
   recorded in a reviewed file that names the passage, the printed number and the
   right one, and is applied by a tested step. That step is not written yet.

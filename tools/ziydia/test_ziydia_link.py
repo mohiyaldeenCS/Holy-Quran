@@ -153,8 +153,19 @@ class ReadingTest(unittest.TestCase):
 
     def test_quotation_is_read_to_its_own_closing_tag(self):
         nested = "قبل <span>داخل</span> بعد"
-        html = para("{" + quote("أول") + "} ثم {" + quote(nested) + "}" + ref("٧") + " و {" + z.QUOTE_OPEN + "ثالث")
+        html = para("{" + quote("أول") + "} ثم {" + quote(nested) + "}" + ref("٧"))
         self.assertEqual(z.quotations_with_refs(html), [("أول", None), (nested, "[٧]")])
+
+    def test_quotation_that_is_not_closed_stops(self):
+        with self.assertRaises(z.LinkError):
+            z.quotations(para("{" + quote("أول") + "} ثم {" + z.QUOTE_OPEN + "ثان"))
+
+    def test_text_paragraph_is_quotation_only(self):
+        self.assertEqual(z.text_numbers(para("{" + quote("أ ١ ب") + "}")), ([1], True))
+        self.assertEqual(z.text_numbers(para("{" + quote("أ ١") + "} {" + quote("ب ٢") + "}")), ([1, 2], False))
+        for other in (para("{" + quote("أ ١") + "} شرح"), para("قال {" + quote("أ ١") + "}"),
+                      para("{" + quote("أ ١") + "} و {" + quote("ب ٢") + "}"), para("شرح")):
+            self.assertIsNone(z.text_numbers(other))
 
     def test_ornament_is_a_line_of_asterisks_and_nothing_else(self):
         self.assertTrue(z.is_ornament(para("* * *")))
@@ -370,6 +381,11 @@ class TextAndCommentaryTest(LinkCase):
         result = self.link(514, pages, profile=self.PROFILE)
         self.assertEqual(self.linked(result)[1]["refs"], [[2, 3]])
         self.assertEqual(self.linked(result)[1]["paragraphs"][0]["html"], joined)
+
+    def test_asterisk_line_in_the_commentary_is_kept_apart(self):
+        result = self.run_book(extra_first=[para("* * *"), para("تتمة")])
+        self.assertEqual(self.kinds(result).count("ornament"), 1)
+        self.assertEqual(self.linked(result)[1]["paragraphs"][-1]["html"], para("تتمة"))
 
     def test_only_the_first_rule_of_a_page_is_left_out(self):
         result = self.run_book(extra_first=[RULE])
@@ -693,6 +709,11 @@ class CompareTest(LinkCase):
             self.assertEqual(counts["in_a_neighbouring_ayah"], 1)
             self.assertEqual(len(report["not_confirmed"]), 1)
 
+    def test_quotation_without_a_number_beside_a_numbered_one_is_not_compared(self):
+        body = para("{" + quote("زغفطص كمبلد") + "} وهو كقوله {" + quote(TWO) + "}" + ref("٢"))
+        counts, report = self.compare(183, body)
+        self.assertEqual((counts["same"], report["not_confirmed"]), (1, []))
+
     def test_number_printed_twice_in_the_text_keeps_both_runs_of_words(self):
         passages = [{"kind": "text", "surah": 1, "paragraphs": [
             {"html": text_block(ONE, ar(1), TWO, ar(1))}]}]
@@ -818,6 +839,27 @@ class OutputTest(LinkCase):
         self.assertIn("part 1, printed page 11 (site page 1)", review)
         with open(os.path.join(folder, "sample.html"), encoding="utf-8") as handle:
             self.assertEqual(handle.read().count("<section>"), 0)
+
+    def test_inspect_counts_headings_too_and_prints_every_code(self):
+        codes = "".join(code(chr(0x41 + i)) for i in range(14))
+        pages = [page(1, head("١ - سؤال عن {" + quote("نص ٣") + "} " + code("#")),
+                      para("جواب " + codes + " {" + quote() + "}" + ref("الأولى: ٢")))]
+        self.write_book(440, pages)
+        lines = []
+        saved, z.say = z.say, lines.append
+        self.addCleanup(setattr, z, "say", saved)
+        z.run_inspect(440, self.inp)
+        report = "\n".join(lines)
+        self.assertIn("quotations 2 (1 of them in headings), with a number inside 1", report)
+        self.assertIn("U+0023 x1", report)
+        self.assertEqual(report.count(" x1"), 15)
+        self.assertIn("('[W: N]', 1)", report)
+
+    def test_mistyped_input_folder_leaves_earlier_results_alone(self):
+        self.link(183, self.pages())
+        with self.assertRaises(z.LinkError):
+            z.run_link(183, os.path.join(self.inp, "nowhere"), self.out)
+        self.assertEqual(len(os.listdir(os.path.join(self.out, "book_183"))), 4)
 
     def test_stopped_run_leaves_no_earlier_result_behind(self):
         self.link(183, self.pages())

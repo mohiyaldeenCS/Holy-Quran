@@ -157,7 +157,7 @@ def quotations(html):
                 found.append((at, end, html[at + len(QUOTE_OPEN):edge.start()]))
                 break
         if end is None:
-            break
+            raise LinkError("a quotation span is not closed: %r" % plain(html)[:40])
         at = html.find(QUOTE_OPEN, end)
     return found
 
@@ -812,11 +812,11 @@ def run_link(book, in_dir, out_dir, table_path=None):
         raise LinkError("book %d has no profile; run inspect on it first" % book)
     book_dir = os.path.join(in_dir, "book_%d" % book)
     folder = os.path.join(out_dir, "book_%d" % book)
+    pages, done = load_pages(book_dir)
     for name in RESULT_FILES:
         # A run that stops must not leave an earlier run's files to be taken for its own.
         if os.path.isfile(os.path.join(folder, name)):
             os.remove(os.path.join(folder, name))
-    pages, done = load_pages(book_dir)
     paragraphs, page_refs = read_book(pages)
     result = Result(book, profile["kind"], page_refs)
     if not done:

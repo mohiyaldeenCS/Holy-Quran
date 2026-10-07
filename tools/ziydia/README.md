@@ -80,7 +80,8 @@ results so far are in `docs/content/ZIYDIA_LIBRARY.md`, "Linking commentary to a
 In short: a link rests only on what the book prints (surah headings and ayah
 numbers); no number is corrected; every paragraph is carried unchanged, except the
 rules of dashes of book 514, which are counted; a surprise in the structure stops the
-run.
+run (in books 276 and 471 a heading that cannot be read is noted instead, because
+many of their headings are not surah headings).
 
 - Python 3.8+, standard library only. It reads `ziydia_out/` and never opens the site.
 - Books with a profile: 183, 514, 276, 471. Any other book: `inspect` only.
@@ -111,8 +112,8 @@ Options: `--in DIR` (default `ziydia_out`), `--out DIR` (default `ziydia_links`)
 
 Exit code 0 means done, with points for review listed in `report.json`. Exit code 2
 means stopped: a wrong command line, a missing or unreadable input, or a book that
-broke a rule of its profile. `link` removes the book's earlier results before it
-starts, so a stopped run leaves none behind.
+broke a rule of its profile. Once `link` has found the book's pages it removes the
+book's earlier results, so a stopped run leaves none behind.
 
 ## What a line of `passages.jsonl` holds
 
@@ -132,9 +133,8 @@ starts, so a stopped run leaves none behind.
 
 | Flag | Meaning |
 | --- | --- |
-| `ayah_number_out_of_order` | The number is lower than the one before it, or it is the one before a step back |
+| `ayah_number_out_of_order` | The number is lower than the one before it, or it is the one before a step back. In book 183 also when the numbers of one paragraph go back |
 | `range_is_not_valid` | The printed range ends before it starts, or starts at zero |
-| `ayah_number_out_of_order` in book 183 | Also set when the numbers of one paragraph go back |
 | `ayah_beyond_the_end_of_the_surah` | The number is higher than the last ayah number of its surah in book 514 |
 | `numbers_are_not_a_range` | Book 514: a paragraph opens with three or more numbers that do not follow one another |
 | `the_ayat_after_it_have_no_number` | Book 514: the next ayah or ayat are opened by no number, so the unnumbered paragraphs of this passage may belong to them |
