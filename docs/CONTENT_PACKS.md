@@ -181,7 +181,9 @@ And for offsets: in `'ab \u{1F600} cd'` the word `cd` starts at UTF-16 offset 6
 2. Parse the manifest strictly.
 3. For each file: size, then SHA-256.
 4. Open read-only and immutable; check the header bytes, `application_id`,
-   `user_version`, and that the tables and columns are those above and `STRICT`.
+   `user_version`, and that the tables and columns are exactly those above, in
+   order, with their types and `NOT NULL`, `STRICT`, and with no hidden or generated
+   column (read through `pragma_table_list` and `pragma_table_xinfo`).
 5. On the first read in a session, compare the row counts with `counts` and check
    that numbering is contiguous and every division and sajda points at an ayah.
 6. The first time a surah is read in a session, compare its digest with

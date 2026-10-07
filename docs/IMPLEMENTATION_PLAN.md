@@ -149,14 +149,22 @@ run in CI.
 
 ### M0.3 Domain core and pack reader
 
-- [ ] `QuranAddress` and `QuranRange` with parsing, printing, ordering and tests.
+- [x] `QuranAddress` and `QuranRange` with parsing, printing, ordering and tests.
 - [ ] `docs/CONTENT_PACKS.md`: the pack format, reviewed by the planning session.
-- [ ] `PackManifest` and pack verification (SHA-256; signature once D-024 is settled),
-      tested with a synthetic pack.
-- [ ] Read-only text repository and edition-map lookups.
-- [ ] The mechanism that keeps pack text untouched (`PackText`, proposed in
-      `docs/ARCHITECTURE.md`), decided and recorded.
-- [ ] The integrity suite of PRD §9.4, ready to run against the real base pack.
+      Written (format v1, D-064); the review, with questions P1–P7, is pending.
+- [x] `PackManifest` and pack verification (SHA-256; signature once D-024 is settled),
+      tested with a synthetic pack. The signature is a seam that reports "not
+      checked" (D-065).
+- [x] Read-only text repository and edition-map lookups.
+- [x] The mechanism that keeps pack text untouched (`PackText`, proposed in
+      `docs/ARCHITECTURE.md`), decided and recorded (D-062).
+- [x] The integrity suite of PRD §9.4, ready to run against the real base pack
+      (D-067). It has run on synthetic packs only.
+
+Done in pull request #4 (D-061 to D-067). Pending: the planning session's review of
+`docs/CONTENT_PACKS.md`, and the suite on the real base pack (B0.2). "Shows text"
+is proven by the display test, which pumps `QuranText` with every ayah read through
+the data layer; no screen reads a pack before M1.2.
 
 Done when: the app shows text from the synthetic pack through `QuranText`, the
 integrity suite passes on it, and nothing in `lib/` can write to a pack.
