@@ -14,13 +14,14 @@ permissions:
   contents: read
 
 env:
-  # Pinned by D-040; also in .claude/hooks/session-start.sh.
+  # Pinned by D-040; also in goldens.yml and .claude/hooks/session-start.sh.
   FLUTTER_VERSION: 3.44.7
 
 jobs:
   check:
     name: Format, analyze, test
-    runs-on: ubuntu-latest
+    # The golden platform (docs/DESIGN_SYSTEM.md, "Type"): goldens are made and compared here.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -51,12 +52,21 @@ jobs:
       - name: Test
         run: flutter test
 
+      - name: Keep golden failure images
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-failures
+          path: test/**/failures/
+          if-no-files-found: ignore
+          retention-days: 7
+
   android:
     name: Build Android (debug APK)
     # Started by hand only, when an APK is wanted for a device (D-049).
     if: github.event_name == 'workflow_dispatch'
     needs: check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4

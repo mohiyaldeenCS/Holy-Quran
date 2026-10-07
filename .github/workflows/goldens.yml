@@ -1,0 +1,51 @@
+name: Update goldens
+
+# Started by hand on a branch. Creates or updates the golden images on the golden
+# platform and commits them to that branch (docs/DESIGN_SYSTEM.md, "Type").
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Milestone or requirement ID for the commit message, e.g. M0.2
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  # Pinned by D-040; also in ci.yml and .claude/hooks/session-start.sh.
+  FLUTTER_VERSION: 3.44.7
+
+jobs:
+  update:
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Update golden images
+        run: flutter test --tags golden --update-goldens
+
+      - name: Commit changed images
+        env:
+          SCOPE: ${{ inputs.scope }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- ':(glob)test/**/goldens/*.png'
+          if git diff --cached --quiet; then
+            echo "No golden images changed."
+            exit 0
+          fi
+          git commit -m "test(ds): update golden images ($SCOPE)" -m "Generated on ubuntu-24.04 by $RUN_URL"
+          git push

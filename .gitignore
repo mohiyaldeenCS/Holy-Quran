@@ -73,3 +73,6 @@ __pycache__/
 
 # Identity previews rebuilt by design/preview/build.py
 /design/preview/out/
+
+# Golden test failure images written by flutter test
+**/failures/
