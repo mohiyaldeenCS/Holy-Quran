@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -19,6 +20,8 @@ const _fontAsset = 'assets/fonts/AmiriQuran-Regular.ttf';
 
 /// The largest file accepted; the Uthmani XML is a few megabytes.
 const _maxBytes = 32 * 1024 * 1024;
+
+const _connectionTimeout = Duration(seconds: 20);
 
 /// On the device: fetches the Tanzil XML from `--dart-define
 /// SPIKE_TANZIL_URL`, refuses it unless its SHA-256 is `SPIKE_TANZIL_SHA256`,
@@ -47,7 +50,8 @@ Future<String> prepareDeviceTanzilPack() async {
 /// earlier spike pack there, verifies the result with
 /// [LocalPackRepository.verify] and requires its text.sqlite to have the
 /// SHA-256 [expectedPackSha256]; text.sqlite holds no date, so the fetch
-/// date does not change it.
+/// date does not change it. The fetch gives up after [timeout] in all, or
+/// when no connection is made within 20 seconds.
 ///
 /// Every refusal is a [StateError], or the reader's [FormatException],
 /// naming digests, addresses or an exception type only; no other
@@ -59,6 +63,7 @@ Future<String> fetchTanzilPack({
   required Directory root,
   required Uint8List fontBytes,
   DateTime? now,
+  Duration timeout = const Duration(minutes: 3),
 }) async {
   for (final hash in [expectedSha256, expectedPackSha256]) {
     if (!_hex.hasMatch(hash)) {
@@ -67,7 +72,7 @@ Future<String> fetchTanzilPack({
   }
   var step = 'fetching';
   try {
-    final bytes = await _fetch(url);
+    final bytes = await _fetch(url, timeout);
     final found = sha256.convert(bytes).toString();
     if (found != expectedSha256) {
       throw StateError('the file has SHA-256 $found, not $expectedSha256');
@@ -119,23 +124,54 @@ Future<String> fetchTanzilPack({
 
 final _hex = RegExp(r'^[0-9a-f]{64}$');
 
-Future<Uint8List> _fetch(Uri url) async {
-  final client = HttpClient();
+/// The file's own bytes: identity encoding is asked for, and a gzip answer
+/// is uncompressed here, so the SHA-256 pin is checked on the file either
+/// way; any other encoding is refused. At most [_maxBytes] are accepted
+/// after uncompressing. After [timeout] the connection is closed and a
+/// [TimeoutException] thrown.
+Future<Uint8List> _fetch(Uri url, Duration timeout) async {
+  final client = HttpClient()
+    ..connectionTimeout = _connectionTimeout
+    ..autoUncompress = false;
+  var timedOut = false;
+  final timer = Timer(timeout, () {
+    timedOut = true;
+    client.close(force: true);
+  });
   try {
-    final response = await (await client.getUrl(url)).close();
+    final request = await client.getUrl(url);
+    request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
+    final response = await request.close();
     if (response.statusCode != HttpStatus.ok) {
       await response.drain<void>();
       throw StateError('the server answered ${response.statusCode}');
     }
+    final encoding = response.headers
+        .value(HttpHeaders.contentEncodingHeader)
+        ?.trim()
+        .toLowerCase();
+    if (encoding != null && encoding != 'identity' && encoding != 'gzip') {
+      await response.drain<void>();
+      throw StateError(
+        'the server sent a Content-Encoding other than identity or gzip',
+      );
+    }
+    final body = encoding == 'gzip'
+        ? response.transform(gzip.decoder)
+        : response;
     final out = BytesBuilder(copy: false);
-    await for (final chunk in response) {
+    await for (final chunk in body) {
       out.add(chunk);
       if (out.length > _maxBytes) {
         throw StateError('the file is larger than $_maxBytes bytes');
       }
     }
     return out.takeBytes();
+  } on Object {
+    if (timedOut) throw TimeoutException(null, timeout);
+    rethrow;
   } finally {
+    timer.cancel();
     client.close(force: true);
   }
 }

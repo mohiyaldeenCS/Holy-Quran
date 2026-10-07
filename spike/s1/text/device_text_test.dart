@@ -23,6 +23,7 @@ void main() {
   final digest = sha256.convert(bytes).toString();
   final font = File(amiriQuranFontPath).readAsBytesSync();
   late String packDigest;
+  final acceptEncodings = <String?>[];
 
   setUpAll(() async {
     root = await Directory.systemTemp.createTemp('spike_device_text');
@@ -44,12 +45,33 @@ void main() {
         .toString();
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((request) async {
-      if (request.uri.path == '/quran.xml') {
-        request.response.add(bytes);
-      } else {
-        request.response.statusCode = HttpStatus.notFound;
+      final response = request.response;
+      switch (request.uri.path) {
+        case '/quran.xml':
+          acceptEncodings.add(
+            request.headers.value(HttpHeaders.acceptEncodingHeader),
+          );
+          response.add(bytes);
+        case '/gzip.xml':
+          response
+            ..headers.set(HttpHeaders.contentEncodingHeader, 'gzip')
+            ..add(gzip.encode(bytes));
+        case '/br.xml':
+          response
+            ..headers.set(HttpHeaders.contentEncodingHeader, 'br')
+            ..add(bytes);
+        case '/silent.xml':
+          return;
+        case '/stalled.xml':
+          response
+            ..contentLength = bytes.length
+            ..add(bytes.sublist(0, 100));
+          await response.flush();
+          return;
+        default:
+          response.statusCode = HttpStatus.notFound;
       }
-      await request.response.close();
+      await response.close();
     });
   });
   tearDownAll(() async {
@@ -65,6 +87,7 @@ void main() {
     String? sha,
     String? packSha,
     Uri? at,
+    Duration timeout = const Duration(minutes: 3),
   }) => HttpOverrides.runWithHttpOverrides(
     () => fetchTanzilPack(
       url: at ?? url(path),
@@ -73,6 +96,7 @@ void main() {
       root: into,
       fontBytes: Uint8List.fromList(font),
       now: DateTime.utc(2026, 1, 2),
+      timeout: timeout,
     ),
     _RealHttp(),
   );
@@ -168,4 +192,55 @@ void main() {
       ),
     );
   });
+
+  test('asks for identity encoding', () async {
+    acceptEncodings.clear();
+    await fetch(Directory('${root.path}/identity'));
+    expect(acceptEncodings, ['identity']);
+  });
+
+  test('uncompresses a gzip answer to the same pack', () async {
+    final pack = await fetch(Directory('${root.path}/gzip'), path: '/gzip.xml');
+    final manifest = await File('$pack/manifest.json').readAsString();
+    expect(manifest, contains('"file_sha256": "$digest"'));
+    expect(
+      sha256.convert(await File('$pack/text.sqlite').readAsBytes()).toString(),
+      packDigest,
+    );
+  });
+
+  test('refuses an encoding other than identity or gzip', () async {
+    final into = Directory('${root.path}/br');
+    await expectLater(
+      fetch(into, path: '/br.xml'),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          'the server sent a Content-Encoding other than identity or gzip',
+        ),
+      ),
+    );
+    expect(into.existsSync(), isFalse);
+  });
+
+  for (final (what, path) in [
+    ('a server that never answers', '/silent.xml'),
+    ('a body that stops', '/stalled.xml'),
+  ]) {
+    test('gives up on $what', () async {
+      final into = Directory('${root.path}/timeout $path');
+      await expectLater(
+        fetch(into, path: path, timeout: const Duration(seconds: 1)),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'fetching: TimeoutException',
+          ),
+        ),
+      );
+      expect(into.existsSync(), isFalse);
+    });
+  }
 }
