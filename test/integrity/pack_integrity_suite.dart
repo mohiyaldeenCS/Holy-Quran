@@ -25,6 +25,7 @@ import '../../testing/golden.dart';
 import '../../testing/packs/raw_pack.dart';
 import '../../testing/packs/synthetic_pack.dart'
     show amiriQuranFontPath, textFileName;
+import 'unicode_categories.dart';
 
 // The PRD section 9.4 integrity suite for one text pack (D-067). Every
 // expected value comes from the pack's manifest; no count of surahs or ayat is
@@ -129,8 +130,13 @@ final packChecks = <String, PackCheck>{
       digestProblems,
   'gives every name, basmala and ayah as its stored bytes': storedTextProblems,
   'stores no text that begins with EF BB BF': bomProblems,
-  'has word spans in bounds and in order that rejoin to the ayah':
-      wordSpanProblemsOfPack,
+  'reads the options of every source as manifest.json gives them':
+      sourceOptionsProblems,
+  'has word and mark spans in bounds and in order that rejoin to the ayah':
+      spanProblemsOfPack,
+  'has only the separator U+0020 outside its word and mark spans':
+      gapProblemsOfPack,
+  'has a letter in every word and none in any mark': letterProblemsOfPack,
   'has divisions and sajdas that refer to its ayat': referenceProblems,
   'names the pinned Amiri Quran font file': fontProblems,
 };
@@ -445,6 +451,7 @@ Future<List<String>> countProblems(PackUnderTest pack) async {
     'the sum of surah.ayah_count',
   );
   expectCount('words', counts.words, raw.count('word'), 'the file');
+  expectCount('marks', counts.marks, raw.count('mark'), 'the file');
   final divisions = raw.divisionCounts();
   for (final division in Division.values) {
     expectCount(
@@ -489,6 +496,84 @@ Future<List<String>> countProblems(PackUnderTest pack) async {
       );
     }
     expectCount('sajdas', counts.sajdas, map.sajdas.length, 'the edition map');
+  }
+  if (await _spanCounts(pack, repository, problems) case (
+    final words,
+    final marks,
+  )) {
+    expectCount('words', counts.words, words, 'the repository');
+    expectCount('marks', counts.marks, marks, 'the repository');
+  }
+  return problems;
+}
+
+/// The words and marks the repository gives over every stored ayah, or null
+/// after the first read that fails.
+Future<(int, int)?> _spanCounts(
+  PackUnderTest pack,
+  PackQuranTextRepository repository,
+  List<String> problems,
+) async {
+  var words = 0;
+  var marks = 0;
+  for (final surah in pack.raw.surahs()) {
+    for (final (number, _) in pack.raw.ayat(surah.number)) {
+      final address = QuranAddress(repository.riwaya, surah.number, number);
+      final w = _value(await repository.words(address), problems, '$address');
+      if (w == null) return null;
+      final m = _value(await repository.marks(address), problems, '$address');
+      if (m == null) return null;
+      words += w.length;
+      marks += m.length;
+    }
+  }
+  return (words, marks);
+}
+
+/// Each source's `options`, as the manifest parser gives them, against the
+/// value manifest.json holds: null or an object of strings, numbers and
+/// booleans.
+Future<List<String>> sourceOptionsProblems(PackUnderTest pack) async {
+  final json =
+      jsonDecode(await File('${pack.directory}/manifest.json').readAsString())
+          as Map<String, Object?>;
+  return optionsProblems([
+    for (final source in pack.manifest.sources) source.options,
+  ], json['sources']);
+}
+
+/// The problems of the parsed [options] against the `sources` array
+/// [sources] of manifest.json. Names fields, never values.
+List<String> optionsProblems(
+  List<Map<String, Object>?> options,
+  Object? sources,
+) {
+  if (sources is! List<Object?> || sources.length != options.length) {
+    return ['manifest.json does not list ${options.length} sources'];
+  }
+  final problems = <String>[];
+  for (final (index, parsed) in options.indexed) {
+    final where = 'sources[$index].options';
+    final source = sources[index];
+    if (source is! Map<String, Object?> || !source.containsKey('options')) {
+      problems.add('$where is missing from manifest.json');
+      continue;
+    }
+    final given = source['options'];
+    if (given == null && parsed == null) continue;
+    if (given is! Map<String, Object?> ||
+        parsed == null ||
+        given.length != parsed.length) {
+      problems.add('$where is not read as manifest.json gives it');
+      continue;
+    }
+    for (final MapEntry(:key, :value) in given.entries) {
+      if (value is! String && value is! num && value is! bool) {
+        problems.add('$where[$key] is not a string, number or boolean');
+      } else if (parsed[key] != value) {
+        problems.add('$where[$key] is not read as manifest.json gives it');
+      }
+    }
   }
   return problems;
 }
@@ -583,40 +668,77 @@ Future<List<String>> bomProblems(PackUnderTest pack) async {
   ];
 }
 
+/// A word `(number, start, end)` and a mark `(number, after_word, start,
+/// end)` as [RawPack] gives them, in UTF-16 code units.
+typedef StoredWord = (int, int, int);
+typedef StoredMark = (int, int, int, int);
+
 /// The spans are checked twice: as the file stores them, so that the check
 /// does not depend on the production path accepting the pack, and as the
 /// repository gives them.
-Future<List<String>> wordSpanProblemsOfPack(PackUnderTest pack) async {
+Future<List<String>> spanProblemsOfPack(PackUnderTest pack) async {
   final problems = <String>[];
   final repository = pack.openRepository();
-  for (final surah in pack.raw.surahs()) {
-    for (final (number, bytes) in pack.raw.ayat(surah.number)) {
-      final address = QuranAddress(repository.riwaya, surah.number, number);
-      final stored = pack.raw.words(surah.number, number);
-      problems.addAll(
-        wordSpanProblems('$address', _decodedKeepingBom(bytes), stored),
-      );
-      final text = _value(
-        await repository.ayahText(address),
-        problems,
-        '$address',
-      );
-      final spans = _value(
-        await repository.words(address),
-        problems,
-        '$address words',
-      );
-      if (text == null || spans == null) continue;
-      final words = [for (final s in spans) (s.number, s.start, s.end)];
-      if ('$words' != '$stored') {
-        problems.add(
-          '$address: the repository gives other spans than the file',
-        );
-      }
-      problems.addAll(wordSpanProblems('$address', text.verbatim, words));
+  for (final (address, text, storedWords, storedMarks) in _storedAyat(pack)) {
+    final where = '$address';
+    problems.addAll(spanProblems(where, text, storedWords, storedMarks));
+    final verbatim = _value(
+      await repository.ayahText(address),
+      problems,
+      where,
+    );
+    final words = _value(
+      await repository.words(address),
+      problems,
+      '$where words',
+    );
+    final marks = _value(
+      await repository.marks(address),
+      problems,
+      '$where marks',
+    );
+    if (verbatim == null || words == null || marks == null) continue;
+    final wordRows = [for (final w in words) (w.number, w.start, w.end)];
+    final markRows = [
+      for (final m in marks) (m.number, m.afterWord, m.start, m.end),
+    ];
+    if ('$wordRows' != '$storedWords') {
+      problems.add('$where: the repository gives other words than the file');
     }
+    if ('$markRows' != '$storedMarks') {
+      problems.add('$where: the repository gives other marks than the file');
+    }
+    problems.addAll(spanProblems(where, verbatim.verbatim, wordRows, markRows));
   }
   return problems;
+}
+
+Future<List<String>> gapProblemsOfPack(PackUnderTest pack) async => [
+  for (final (address, text, words, marks) in _storedAyat(pack))
+    ...gapProblems('$address', text, words, marks),
+];
+
+Future<List<String>> letterProblemsOfPack(PackUnderTest pack) async => [
+  for (final (address, text, words, marks) in _storedAyat(pack))
+    ...letterProblems('$address', text, words, marks),
+];
+
+/// Every stored ayah with its address, its text decoded from the stored
+/// bytes, and its stored words and marks.
+Iterable<(QuranAddress, String, List<StoredWord>, List<StoredMark>)>
+_storedAyat(PackUnderTest pack) sync* {
+  final raw = pack.raw;
+  final riwaya = pack.manifest.riwaya ?? fail('The manifest has no riwaya.');
+  for (final surah in raw.surahs()) {
+    for (final (number, bytes) in raw.ayat(surah.number)) {
+      yield (
+        QuranAddress(riwaya, surah.number, number),
+        _decodedKeepingBom(bytes),
+        raw.words(surah.number, number),
+        raw.marks(surah.number, number),
+      );
+    }
+  }
 }
 
 /// [bytes] decoded as UTF-8 with a leading U+FEFF kept, which Dart's decoder
@@ -631,31 +753,56 @@ String _decodedKeepingBom(List<int> bytes) {
   return bom ? '\u{FEFF}$text' : text;
 }
 
-/// The problems of the word spans [words], `(number, start, end)` in UTF-16
-/// code units, of the ayah [text]. The ayah is rejoined from its slices and
-/// the gaps the text itself has between them; nothing is added.
-List<String> wordSpanProblems(
+/// The problems of the word and mark spans of the ayah [text], taken together
+/// (docs/CONTENT_PACKS.md, "Word and mark offsets"): each kind numbered 1 to
+/// n, every span non-empty, within the ayah, on no surrogate pair and after
+/// the span before, and each mark's after_word the number of words before
+/// it. The ayah is rejoined from the slices and the gaps the text itself has
+/// between them; nothing is added.
+List<String> spanProblems(
   String where,
   String text,
-  List<(int, int, int)> words,
+  List<StoredWord> words,
+  List<StoredMark> marks,
 ) {
-  final problems = <String>[];
+  final problems = <String>[
+    for (final (index, (number, _, _)) in words.indexed)
+      if (number != index + 1) '$where: word ${index + 1} is numbered $number',
+    for (final (index, (number, _, _, _)) in marks.indexed)
+      if (number != index + 1) '$where: mark ${index + 1} is numbered $number',
+  ];
   final pieces = <String>[];
   var previousEnd = 0;
-  for (final (index, (number, start, end)) in words.indexed) {
-    if (number != index + 1) {
-      problems.add('$where: word ${index + 1} is numbered $number');
+  var w = 0;
+  var m = 0;
+  while (w < words.length || m < marks.length) {
+    final isWord =
+        m == marks.length || (w < words.length && words[w].$2 <= marks[m].$3);
+    final (kind, number, start, end) = isWord
+        ? ('word', words[w].$1, words[w].$2, words[w].$3)
+        : ('mark', marks[m].$1, marks[m].$3, marks[m].$4);
+    if (!isWord && marks[m].$2 != w) {
+      problems.add(
+        '$where: mark $number has after_word ${marks[m].$2}, not $w',
+      );
+    }
+    if (isWord) {
+      w++;
+    } else {
+      m++;
     }
     if (start < previousEnd || start >= end || end > text.length) {
       problems.add(
-        '$where:$number: span [$start, $end) is not after the previous word, '
-        'not empty and within ${text.length} code units',
+        '$where: $kind $number span [$start, $end) is not after the span '
+        'before, not empty and within ${text.length} code units',
       );
       continue;
     }
     for (final offset in [start, end]) {
       if (_splitsSurrogatePair(text, offset)) {
-        problems.add('$where:$number: offset $offset splits a surrogate pair');
+        problems.add(
+          '$where: $kind $number offset $offset splits a surrogate pair',
+        );
       }
     }
     pieces
@@ -669,6 +816,102 @@ List<String> wordSpanProblems(
     problems.add('$where: the slices and gaps do not rejoin to the ayah');
   }
   return problems;
+}
+
+/// The separator of the text source between tokens (docs/CONTENT_PACKS.md,
+/// "Word and mark offsets": what lies between spans is the source's own
+/// separator).
+const separator = 0x20;
+
+/// Each run of code units of [text] that no word or mark covers, and that
+/// holds anything but [separator]: by its offsets and its first other code
+/// point. With every word holding a letter and every mark none, this proves
+/// that no letter lies outside both.
+List<String> gapProblems(
+  String where,
+  String text,
+  List<StoredWord> words,
+  List<StoredMark> marks,
+) {
+  final covered = List.filled(text.length, false);
+  for (final (start, end) in [
+    for (final (_, start, end) in words) (start, end),
+    for (final (_, _, start, end) in marks) (start, end),
+  ]) {
+    for (var i = start < 0 ? 0 : start; i < end && i < text.length; i++) {
+      covered[i] = true;
+    }
+  }
+  final problems = <String>[];
+  var i = 0;
+  while (i < text.length) {
+    if (covered[i]) {
+      i++;
+      continue;
+    }
+    final gapStart = i;
+    int? other;
+    while (i < text.length && !covered[i]) {
+      if (other == null && text.codeUnitAt(i) != separator) other = i;
+      i++;
+    }
+    if (other != null) {
+      problems.add(
+        '$where: the gap [$gapStart, $i) holds '
+        '${codePointName(_codePointAt(text, other))} at offset $other',
+      );
+    }
+  }
+  return problems;
+}
+
+/// A word that holds no letter of [isLetter], and a mark that holds one, by
+/// its span and, for a mark, its first letter. Spans out of bounds are left
+/// to [spanProblems].
+List<String> letterProblems(
+  String where,
+  String text,
+  List<StoredWord> words,
+  List<StoredMark> marks,
+) {
+  bool inBounds(int start, int end) =>
+      0 <= start && start < end && end <= text.length;
+  int? firstLetter(int start, int end) {
+    for (var i = start; i < end; i++) {
+      if (isLetter(_codePointAt(text, i))) return i;
+    }
+    return null;
+  }
+
+  final problems = [
+    for (final (number, start, end) in words)
+      if (inBounds(start, end) && firstLetter(start, end) == null)
+        '$where: word $number [$start, $end) holds no letter',
+  ];
+  for (final (number, _, start, end) in marks) {
+    if (!inBounds(start, end)) continue;
+    if (firstLetter(start, end) case final at?) {
+      final letter = codePointName(_codePointAt(text, at));
+      problems.add(
+        '$where: mark $number [$start, $end) holds the letter $letter at '
+        'offset $at',
+      );
+    }
+  }
+  return problems;
+}
+
+/// The code point at UTF-16 [offset] of [text]: a whole surrogate pair when
+/// one starts there, else the code unit.
+int _codePointAt(String text, int offset) {
+  final unit = text.codeUnitAt(offset);
+  if ((unit & 0xFC00) == 0xD800 && offset + 1 < text.length) {
+    final low = text.codeUnitAt(offset + 1);
+    if ((low & 0xFC00) == 0xDC00) {
+      return 0x10000 + ((unit & 0x3FF) << 10) + (low & 0x3FF);
+    }
+  }
+  return unit;
 }
 
 bool _splitsSurrogatePair(String text, int offset) =>

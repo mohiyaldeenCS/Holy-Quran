@@ -84,6 +84,9 @@ Future<_Outcome> _readThrough(SyntheticPack pack) async {
       if (await repository.words(address) case Failure(:final error)) {
         return failed(error);
       }
+      if (await repository.marks(address) case Failure(:final error)) {
+        return failed(error);
+      }
     }
   }
   if (await repository.editionMap() case Failure(:final error)) {
@@ -193,6 +196,7 @@ void main() {
             reason: '$address',
           );
           expect(await repository.words(address), disabled, reason: '$address');
+          expect(await repository.marks(address), disabled, reason: '$address');
           expect(
             await repository.contains(address),
             disabled,
