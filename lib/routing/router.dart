@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:holyquran/routing/routes.dart';
+import 'package:holyquran/ui/core/gallery/gallery_screen.dart';
 import 'package:holyquran/ui/core/tab_shell.dart';
 import 'package:holyquran/ui/features/home/views/home_screen.dart';
 import 'package:holyquran/ui/features/listen/views/listen_screen.dart';
@@ -57,5 +59,11 @@ GoRouter createRouter() => GoRouter(
         ),
       ],
     ),
+    // The gallery is a review tool, not part of the product.
+    if (kDebugMode)
+      GoRoute(
+        path: Routes.gallery,
+        builder: (context, state) => const GalleryScreen(),
+      ),
   ],
 );
