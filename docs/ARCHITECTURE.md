@@ -172,7 +172,7 @@ Guard tests in `test/guards/` enforce these.
 | `QuranRange` | Start and end address in the same riwaya and granularity (D-063). |
 | `EditionMap` | Page, juz, hizb, rub and sajda lookups for the reference edition. |
 | `PackManifest`, `VerifiedPack` | The fields of PRD §9.2 (`docs/CONTENT_PACKS.md`); a pack whose signature, files and hashes passed (D-065). |
-| `SurahInfo`, `WordSpan` | Surah metadata from the pack; a word's half-open UTF-16 offsets into its ayah. |
+| `SurahInfo`, `WordSpan`, `MarkSpan` | Surah metadata from the pack; a word's, or a mark's, half-open UTF-16 offsets into its ayah. A mark (a pause or sajda sign standing as its own token) is not a word and lies outside every word span; it records the word it follows (D-078, D-083). |
 | `PackFailure` | Sealed: every way a pack is refused or disabled. Returned in a `Result` (D-066). |
 | `PackText` | **Decided** (D-062). An opaque wrapper for any string read from a text pack. It has no method that transforms it. See "Keeping pack text untouched". |
 | `PlaybackPlan` | Ordered timed segments with repeats and silences (PRD §8.3). Pure Dart, tested without audio. |

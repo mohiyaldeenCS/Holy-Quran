@@ -141,6 +141,12 @@ raw extraction output; signing keys. The 13 logo SVG files are in
   updated and re-exported at revision 147. An independent agent reviewed the tool in
   two rounds and its findings were applied; what it verified, and what it did not, is
   stated in `docs/content/ZIYDIA_LIBRARY.md`, "Results".
+- **Pack format review applied** (pull request #9, D-083): the `mark` table with
+  `counts.marks` and `sources[].options` of D-077 are in `docs/CONTENT_PACKS.md`, the
+  manifest parser, `PackDatabase`, the text repository (`MarkSpan`; word and mark
+  spans checked together on a surah's first read), the synthetic pack builder and
+  the integrity suite (marks, gaps made only of U+0020, words with a letter and marks
+  without one, options).
 
 ## In progress
 
@@ -162,29 +168,23 @@ pages). Nothing else is open in stream B.
    and settle D-073 to D-075 (`docs/plans/M0.4.md`, "Decisions"), on a short docs
    branch. If the APK fails on the device, revert the cleanup commit on the session
    branch, fix, and rebuild with the `spike-apk` task (D-068).
-4. Read "Review by the planning session" in `docs/CONTENT_PACKS.md` (D-077). It
-   answers P1 to P7 and the question of `docs/plans/M0.4.md` about the Tanzil file
-   (D-079: the default file without rub-el-hizb signs). Apply its two changes to the
-   format text, the manifest parser, `PackDatabase`, the synthetic pack builder and
-   the integrity suite: the `mark` table with `counts.marks` (D-078), and
-   `sources[].options`. Rewrite the sections of the format they touch; say so here if
-   either change is not acceptable as written.
-5. Decision numbers: D-068 to D-075 are yours (pull request #6 and its plan); stream
-   B took D-076 to D-082. See `docs/WORKFLOW.md`, "Two sessions at once".
-6. Then **M0.4 part 2**: S7 (gestures, needs only S1) and S4 (home-screen widget,
+4. Decision numbers: before taking one, fetch `main` and every open pull request and
+   take the number after the highest found (D-076). Stream A holds D-068 to D-075 and
+   D-083; stream B D-076 to D-082.
+5. Then **M0.4 part 2**: S7 (gestures, needs only S1) and S4 (home-screen widget,
    for Phase 2) with the same spike folder (D-068). S2, S6 and the S3 highlight part
    wait for B0.3, packs and B0.5. With the spike code restored for part 2, run the S1
    real-text task once more on the D-079 file (`rub=false`), as the planning session
    asked, for the code-point and mark-token lists.
-7. Golden images: after a push that adds or changes a golden test, start CI by hand
+6. Golden images: after a push that adds or changes a golden test, start CI by hand
    on the branch with the task `goldens` (Actions → CI → Run workflow, or the API),
    pull the commit it pushes, and push again so the pull request is checked
    (D-056, D-059). Off `ubuntu-24.04` run `flutter test --exclude-tags golden test
    tools/gen/test`.
-8. Draw the eight new icons of D-051 on the identity's icon rules and show each to
+7. Draw the eight new icons of D-051 on the identity's icon rules and show each to
    the owner before M1.6 needs them; add them to the generator's input only after he
    approves.
-9. If M0.4 is finished before Gate 0 is met, continue with **M0.5**, not with
+8. If M0.4 is finished before Gate 0 is met, continue with **M0.5**, not with
    Phase 1.
 
 ## Next actions — stream B (planning session and the owner)
@@ -312,6 +312,7 @@ Newest first. One line per session.
 | 2026-10-07 | Planning session | Built and tested the ayah linker for books 183, 514, 276 and 471, with a check of every link against the text printed in book 514; recounted the honorific codes (sixteen); D-081, D-082; PRD re-exported at revision 147; two rounds of independent review applied. | Pull request #8 |
 | 2026-10-07 | Planning session | Reviewed pack format v1 and answered P1–P7 and stream A's question about the Tanzil file; D-076 to D-080; a rule for two sessions working at once in `docs/WORKFLOW.md`. | Pull request #7 |
 | 2026-10-07 | Planning session | Checked the owner's extraction of seven Zaydi-library books (471, 473, 514, 737, 165, 276, 440): all complete; multi-part navigation confirmed; three more honorific codes found; linking prospects noted per book. PRD §5.5 updated and re-exported at revision 145. | Pull request #5 |
+| 2026-10-07 | First implementing session (continued) | Applied the planning session's pack format review: mark table, counts.marks, source options, integrity checks for marks (D-083). | Pull request #9 |
 | 2026-10-07 | First implementing session (continued) | M0.4 part 1: plan; owner answers D-068 to D-071; S1 text path on the real Tanzil text in CI, surah-mode rendering and measurements; S5 downloads; S3 playback; spike APK; two code reviews applied; spike code removed before merge. | Pull request #6 |
 | 2026-10-07 | First implementing session (continued) | M0.3: plan in `docs/plans/M0.3.md`; pack format v1; addresses, `PackText`, manifest verification, read-only SQLite reader, text repository, integrity suite and guards; D-061 to D-067; code review applied. | Pull request #4 |
 | 2026-10-07 | First implementing session (continued) | M0.2: plan in `docs/plans/M0.2.md`; owner decided follow-system dark (D-050, D-053), the APK only by hand (D-049), the missing icons (D-051, D-052), tab label scaling (D-058); generator, themes, fonts, 13 widgets, gallery, 60 goldens via the CI `goldens` task, guards; code and identity reviews applied. | Pull request #3 |
