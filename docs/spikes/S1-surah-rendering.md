@@ -73,18 +73,30 @@ Findings:
    in logical order. A test pins the engine behaviour so a fix is noticed.
    Consequence for D-071: **a page mark must fit within a marker's advance** (gap,
    marker, gap: 40.6 px at 1.0x).
-2. **Glyph ink crosses line-band edges** (Amiri Quran's ascent plus descent is
-   2.45 em, above the 2.3 line height): on synthetic text 492 of 1,315 edges at 1.0x
-   and 496 of 3,001 at 2.0x. So the last line cannot be centred by clipping and
-   shifting its band. Instead, from the cut on, the text is drawn in transparent ink
-   (colour does not change layout) and the centred last line is drawn from its own
-   paragraph. Clipping stays an option if the real text shows no crossings (T6).
-3. **Blocks per page range (V2)** reproduce the whole-surah (V1) line breaks exactly
-   at 320, 360 and 412 wide, 1.0x and 2.0x, with and without page marks: each block
-   starts where V1's line holding its page mark starts, which may be mid-ayah at a
-   stored word offset. Cutting naively at page boundaries would add a line break at
-   each one and break the flowing text of D-071. Restoring a saved position needs
-   the plan up to that page (layout only).
+2. **Glyph ink leaves its line band, downward only.** Amiri Quran's ascent plus
+   descent is 2.45 em, above the 2.3 line height. Measured by drawing every third
+   line in turn, so ink outside a band is counted against its own line (`bandInk`,
+   `c4d9a7b`): on the full-size synthetic text at 360 wide, 2,790 of 22,175 lines
+   (1.0x) and 3,552 of 50,161 (2.0x) leave their band, in 111 of 114 surahs, all
+   downward (descenders into the line below), at most 7.5 px of a 58 px band (15 px
+   of 115 at 2.0x); none upward. An earlier two-row count overstated this. So the
+   last line cannot be centred, nor V2's hidden lines cut, by clipping a band: the
+   descenders of the line above would be cut or moved. Instead the text from the cut
+   on is drawn in transparent ink (colour does not change layout).
+3. **Amiri Quran shapes a word differently after the word before it** (across the
+   U+0020): a word-initial kaf (U+0643) is about 0.24 em narrower after a word than
+   alone, and some words starting with U+062A, U+0629 or U+062B are 1 to 2 px
+   narrower. So no line or block may be laid out without the text before it. The
+   centred last line is drawn from a second copy of the whole paragraph with the
+   text before the cut transparent (`134aad0`, which fixed a last line that wrapped
+   when laid out alone), and each V2 block lays out one V1 line before its first
+   shown line, hidden (`c4d9a7b`). With that, V2 reproduces V1's line breaks at 320,
+   360 and 412 wide, 1.0x and 2.0x, and a word at a block start has V1's width within
+   0.01 px (a test finds such a word: 100.33 px with the lead-in, 106.43 px without).
+   Each block starts where V1's line holding its page mark starts, which may be
+   mid-ayah at a stored word offset; cutting naively at page boundaries would add a
+   line break at each one and break the flowing text of D-071. Restoring a saved
+   position needs the plan up to that page (layout only).
 4. **Page marks** sit inline before the ayah, so text flows past them (D-071).
    Margin marks (`RD-02`) can be placed with `topOf(ayah)`.
 5. Marker vertical position: baseline minus half the x-height (OS/2 sxHeight
@@ -95,6 +107,9 @@ Findings:
    paragraph directly and binary-searching line numbers fixed it.
 
 Debug figures on Linux at 360 wide, informative only (runs vary 2 to 5 times):
+
+Figures from before `134aad0`; centring now lays a block out two or three times, and
+a reviewer measured about 300 ms for V1 at both scales afterwards.
 
 | | 1.0x | 2.0x |
 | --- | --- | --- |
@@ -109,8 +124,8 @@ Choices made by the lead:
   the paragraph. Shown to the owner with the device APK.
 - A page that begins at a surah's first ayah gets no inline mark: there is no
   boundary inside the text (the surah header precedes it).
-- Whether M1.2 keeps recolouring or uses clipping is decided after T6 measures ink
-  at band edges on the real text.
+- M1.2 keeps recolouring, not clipping (finding 2), unless the real text shows no
+  line leaving its band.
 
 ## Measurements
 
