@@ -350,6 +350,7 @@ test fails on any new shortfall and also when one of these changes:
 | `tj-ghunna` on `ground`: paper 4.43, sepia 3.85. `tj-iqlab` sepia 4.22. `tj-madd-wajib` sepia 3.99 | 3.85 to 4.43 | Below 4.5. Quran text is 25 px or larger, which WCAG counts as large text (3:1), but neither `AX-03` nor the identity makes that distinction. Open with the owner (O-12); needed before Phase 2 |
 | `tj-*` on `surface`, in the tajweed key: sepia `tj-ghunna` 4.24, sepia `tj-madd-wajib` 4.39; every other theme passes (paper's lowest is `tj-ghunna` at 4.79) | 4.24 and 4.39 | Same question, Phase 2 |
 | `line` on `ground` and `surface`: the off track of `Switch` (`.qk-switch`), a control boundary that WCAG 2.2 1.4.11 holds to 3:1. Paper 1.35 and 1.45, night 1.54 and 1.36, sepia 1.31 and 1.45 | 1.31 to 1.54 | Below 3:1. Found in M0.2; added to O-12. The widget reproduces the reference meanwhile |
+| `surface` on `line`: the off knob of `Switch` (`.qk-switch-knob` on the off track). Paper 1.45, night 1.36, sepia 1.45 | 1.36 to 1.45 | Same as the off track; part of O-12 |
 
 The list is a starting point. When a widget is built, every text colour it draws on
 every background it sits on is added to the test (PRD §8.20 asks for an automatic

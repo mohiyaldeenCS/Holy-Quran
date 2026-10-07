@@ -47,8 +47,10 @@ final Map<String, _Pick> _colours = {
   'emerald-700': (_) => Ramps.emerald700,
   'emerald-950': (_) => Ramps.emerald950,
   'gold-100': (_) => Ramps.gold100,
+  'gold-400': (_) => Ramps.gold400,
   'gold-text-strong': (_) => Ramps.goldTextStrong,
   'paper-100': (_) => Ramps.paper100,
+  'night-ink': (_) => AppColors.night.ink,
 };
 
 enum _Use { text, nonText }
@@ -110,6 +112,15 @@ final List<_Pair> _pairs = [
   ..._each(['paper-100'], ['emerald-700'], _Use.text),
   // Switch off track (WCAG 1.4.11).
   ..._each(['line'], ['ground', 'surface'], _Use.nonText),
+  // Switch knob when off, on its track.
+  ..._each(['surface'], ['line'], _Use.nonText),
+  // Tint IconButton: the icon on its sunk disc.
+  ..._each(['primary'], ['surface-sunk'], _Use.nonText),
+  // Mark graphics. The paper mark (ornament, brand-ink on ground) and the
+  // emerald book (paper-100 on emerald-700) are covered above, the latter at
+  // the stricter text threshold.
+  ..._each(['gold-400'], ['emerald-700', 'emerald-950'], _Use.nonText),
+  ..._each(['night-ink'], ['emerald-950'], _Use.nonText),
 ];
 
 /// Known shortfalls with their documented ratios, keyed `theme: fg on bg`.
@@ -133,6 +144,10 @@ const Map<String, double> _exceptions = {
   'night: line on surface': 1.36,
   'sepia: line on ground': 1.31,
   'sepia: line on surface': 1.45,
+  // Switch knob when off (WCAG 1.4.11), the same colours as the off track.
+  'paper: surface on line': 1.45,
+  'night: surface on line': 1.36,
+  'sepia: surface on line': 1.45,
 };
 
 double _threshold(String theme, _Use use) => switch (use) {
