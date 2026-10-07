@@ -59,6 +59,16 @@ void main() {
   setUp(() async => root = await Directory.systemTemp.createTemp('s1_measure'));
   tearDown(() => root.delete(recursive: true));
 
+  test('a word with no letter is one whose code points are all known and '
+      'none a letter', () {
+    expect(isLetterless([0x06DE]), isTrue);
+    expect(isLetterless([0x0651, 0x064E]), isTrue);
+    expect(isLetterless(const []), isTrue);
+    expect(isLetterless([0x0628, 0x0651]), isFalse);
+    expect(isLetterless([0x0640]), isFalse, reason: 'tatweel is Lm');
+    expect(isLetterless([0x06DE, 0x1F600]), isFalse, reason: 'unclassified');
+  });
+
   test('the category table agrees with what the generator writes', () {
     for (final c in SyntheticArabicScript.letters) {
       expect(generalCategory(c), 'Lo', reason: codePointName(c));
@@ -113,7 +123,9 @@ void main() {
     expect(first['slicedAyat'], 12);
     expect(first['fingerprint'], matches(RegExp(r'^[0-9a-f]{64}$')));
     final ink = first['ink']! as Map<String, Object?>;
-    expect(ink['edges'], (first['lines']! as int) - 1);
+    expect(ink['lines'], first['lines']);
+    expect(ink['edges'], hasLength((first['lines']! as int) - 1));
+    expect(ink.keys, containsAll(['linesLeaving', 'maxReach', 'ms']));
     final stretch = first['stretch']! as Map<String, Object?>;
     expect(stretch['max'], greaterThanOrEqualTo(stretch['p99']! as double));
     expect(
@@ -124,6 +136,10 @@ void main() {
     final second = surahs.last['runs']! as List<Map<String, Object?>>;
     expect(second.single['v2'], isNull, reason: 'one ayah, no page inside');
     expect(results['summary'], contains('360/1.0x'));
+    final summary = summaryLines(results);
+    expect(summary.length, lessThan(150));
+    expect(summary.join('\n').runes.where((c) => c > 0x7E), isEmpty);
+    expect(summary, contains(startsWith('360/1.0x: ')));
   });
 
   test('a code point the font lacks and tokens without a letter are found, '
@@ -186,6 +202,23 @@ void main() {
       },
     ]);
     expect(jsonEncode(m.results).runes.where((c) => c > 0x7E), isEmpty);
+    final layout =
+        ((m.results['surahs']! as List<Map<String, Object?>>).single['runs']!
+                as List<Map<String, Object?>>)
+            .single;
+    final hit = layout['hit']! as Map<String, Object?>;
+    expect(hit['letterlessWords'], 4, reason: 'U+1F600 is unclassified');
+    expect(
+      m.problemCounts[ProblemKind.hitRoundTrip],
+      hit['letterProblems'],
+      reason: 'only words with a letter fail',
+    );
+    expect(
+      hit['letterlessKinds'],
+      {'noBox': 2},
+      reason: 'combining marks alone get no box (Flutter 3.44.7)',
+    );
+    expect(hit['letterlessExamples'], ['hafs:1:2:3', 'hafs:1:2:4']);
   });
 
   test('the long surah of the render tests, V2 included, at one width and '

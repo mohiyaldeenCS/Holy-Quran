@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -87,6 +88,15 @@ String codePointName(int c) =>
 typedef CheckResult = ({
   Map<String, Object?> json,
   Map<ProblemKind, List<String>> problems,
+});
+
+/// What [measureSurahLayout] found, with the stretch of every line for
+/// percentiles over many surahs.
+typedef SurahLayoutResult = ({
+  Map<String, Object?> json,
+  Map<ProblemKind, List<String>> problems,
+  List<double> stretch,
+  List<double> perGap,
 });
 
 /// (a) Every code point of every surah name, basmala and ayah is mapped by
@@ -238,18 +248,129 @@ Map<String, Object?> markOnlyTokens(List<SpikeSurahText> surahs) {
   };
 }
 
+/// Whether a word of [codePoints] has no letter: every code point is in
+/// the category table and none is a letter. An empty word has none.
+bool isLetterless(Iterable<int> codePoints) => codePoints.every((c) {
+  final category = generalCategory(c);
+  return category != null && !category.startsWith('L');
+});
+
+/// The words of [surah] with no letter ([isLetterless]).
+Set<QuranAddress> letterlessWords(SpikeSurahText surah) => {
+  for (final (i, ayah) in surah.ayat.indexed)
+    for (final span in surah.words[i])
+      if (isLetterless(ayah.verbatim.substring(span.start, span.end).runes))
+        QuranAddress(
+          surah.firstAyah.riwaya,
+          surah.firstAyah.surah,
+          surah.firstAyah.ayah + i,
+          span.number,
+        ),
+};
+
+/// The kind of a problem of `hitRoundTripProblems`, which reads
+/// `<address>: <what>`, and the address it names and the one it hit.
+({QuranAddress address, String kind, QuranAddress? hit}) _hitProblem(
+  String problem,
+) {
+  final colon = problem.indexOf(': ');
+  final address = QuranAddress.parse(problem.substring(0, colon));
+  final what = problem.substring(colon + 2);
+  const hits = 'centre hits ';
+  if (what.startsWith(hits)) {
+    final target = what.substring(hits.length);
+    return target == 'null'
+        ? (address: address, kind: 'centreHitsNull', hit: null)
+        : (
+            address: address,
+            kind: 'centreHitsOther',
+            hit: QuranAddress.parse(target),
+          );
+  }
+  final kind = switch (what) {
+    'no box' => 'noBox',
+    'empty' => 'empty',
+    'outside its line band' => 'outsideBand',
+    'outside the width' => 'outsideWidth',
+    _ when what.startsWith('on ') => 'onSeveralLines',
+    _ => 'other',
+  };
+  return (address: address, kind: kind, hit: null);
+}
+
+/// The hit round trip problems of words with a letter, which fail a run,
+/// and those of words without one, counted by kind (D-038).
+({List<String> letter, Map<String, Object?> json}) _splitHits(
+  List<String> problems,
+  Set<QuranAddress> letterless,
+) {
+  final letter = <String>[];
+  final letterKinds = <String, int>{};
+  final letterlessKinds = <String, int>{};
+  final letterlessWithProblem = <QuranAddress>{};
+  var hitsLetterless = 0;
+  final hitsLetterlessAt = <String>[];
+  final letterWords = <QuranAddress>{};
+  final besideLetterless = <QuranAddress>{};
+  for (final problem in problems) {
+    final found = _hitProblem(problem);
+    if (letterless.contains(found.address)) {
+      letterlessKinds[found.kind] = (letterlessKinds[found.kind] ?? 0) + 1;
+      letterlessWithProblem.add(found.address);
+      continue;
+    }
+    letter.add(problem);
+    letterKinds[found.kind] = (letterKinds[found.kind] ?? 0) + 1;
+    final a = found.address;
+    letterWords.add(a);
+    for (final next in [a.word! - 1, a.word! + 1]) {
+      if (next >= 1 &&
+          letterless.contains(QuranAddress(a.riwaya, a.surah, a.ayah, next))) {
+        besideLetterless.add(a);
+      }
+    }
+    if (found.hit case final hit? when letterless.contains(hit)) {
+      hitsLetterless++;
+      if (hitsLetterlessAt.length < 5) hitsLetterlessAt.add('${found.address}');
+    }
+  }
+  return (
+    letter: letter,
+    json: {
+      'letterProblems': letter.length,
+      'letterKinds': letterKinds,
+      'letterWordsWithProblem': letterWords.length,
+      'letterWordsBesideLetterless': besideLetterless.length,
+      'letterHitsLetterless': hitsLetterless,
+      'letterHitsLetterlessAt': hitsLetterlessAt,
+      'letterlessWords': letterless.length,
+      'letterlessWithProblem': letterlessWithProblem.length,
+      'letterlessProblems': letterlessKinds.values.fold<int>(
+        0,
+        (a, b) => a + b,
+      ),
+      'letterlessKinds': letterlessKinds,
+      'letterlessExamples': [
+        for (final a in letterlessWithProblem.take(3)) '$a',
+      ],
+    },
+  );
+}
+
 /// (c) [surah] laid out [width] wide at [scale]: V1 with page marks, its
 /// hit round trip, mark order, stretch, line-start fingerprint and layout
 /// time; the same layout uncentred for the ink at band edges; V2's plan and
 /// whether its blocks break as V1 does, for a surah with a page mark; and
 /// every ayah alone, sliced at its stored offsets, against itself whole.
-Future<CheckResult> measureSurahLayout(
+/// Hit round trip problems of words without a letter are counted, not
+/// failed on.
+Future<SurahLayoutResult> measureSurahLayout(
   SpikeSurahText surah, {
   required double width,
   required double scale,
 }) async {
   final scaler = TextScaler.linear(scale);
-  final where = '${width.toInt()}/${scale}x';
+  final where = _config(width, scale);
   final clock = Stopwatch()..start();
 
   // A centring that fails is a problem; the other checks then run on the
@@ -274,7 +395,8 @@ Future<CheckResult> measureSurahLayout(
     );
   }
   final v1Ms = _ms(clock);
-  final hit = hitRoundTripProblems(v1);
+  final hits = _splitHits(hitRoundTripProblems(v1), letterlessWords(surah));
+  final hit = hits.letter;
   final order = markOrderProblems(v1);
   final starts = v1.lineStartPositions;
   final stretch = lineStretch(v1);
@@ -290,7 +412,7 @@ Future<CheckResult> measureSurahLayout(
     pageMarkSize: measurePageMark,
     centreLastLine: false,
   );
-  final ink = await bandEdgeInk(plain, pixelRatio: inkPixelRatio);
+  final ink = await bandInk(plain, pixelRatio: inkPixelRatio);
   plain.dispose();
   final inkMs = _ms(clock);
 
@@ -353,17 +475,9 @@ Future<CheckResult> measureSurahLayout(
         'perGapP99': _p99(perGap),
         'oneWordLines': stretch.where((s) => s.words <= 1).length,
       },
-      'ink': {
-        'edges': ink.length,
-        'touched': ink.where((e) => e.above > 0 || e.below > 0).length,
-        'crossed': ink.where((e) => e.above > 0 && e.below > 0).length,
-        'maxRowPixels': ink.fold(
-          0,
-          (n, e) => math.max(n, math.max(e.above, e.below)),
-        ),
-        'ms': inkMs,
-      },
+      'ink': {...bandInkJson(ink), 'ms': inkMs},
       'v2': v2,
+      'hit': hits.json,
       'slicedAyat': sliced,
       'slicingMs': slicingMs,
       'problems': {
@@ -380,6 +494,8 @@ Future<CheckResult> measureSurahLayout(
       ProblemKind.markOrder: [for (final p in order) '$where $p'],
       ProblemKind.slicing: [for (final p in slicing) '$where $p'],
     },
+    stretch: [for (final s in stretch) s.stretch],
+    perGap: perGap,
   );
 }
 
@@ -456,6 +572,7 @@ final class TextPackMeasurement {
 
     final perSurah = <Map<String, Object?>>[];
     results['surahs'] = perSurah;
+    final stretch = <String, ({List<double> lines, List<double> gaps})>{};
     for (final surah in whole.surahs) {
       final number = surah.firstAyah.surah;
       if (surahNumbers != null && !surahNumbers.contains(number)) continue;
@@ -470,12 +587,18 @@ final class TextPackMeasurement {
             );
             _add(run.problems);
             runs.add(run.json);
+            final all = stretch.putIfAbsent(
+              _config(width, scale),
+              () => (lines: [], gaps: []),
+            );
+            all.lines.addAll(run.stretch);
+            all.gaps.addAll(run.perGap);
           } on Object catch (e) {
             // The spike's own errors hold no text; another's might.
             final why = e is StateError ? e.message : '${e.runtimeType}';
             _add({
               ProblemKind.layout: [
-                '${width.toInt()}/${scale}x $number: stopped: $why',
+                '${_config(width, scale)} $number: stopped: $why',
               ],
             });
           }
@@ -490,7 +613,7 @@ final class TextPackMeasurement {
       });
       progress?.call(number);
     }
-    results['summary'] = _summary(perSurah, widths, scales);
+    results['summary'] = _summary(perSurah, widths, scales, stretch);
     results['problemCounts'] = {
       for (final MapEntry(:key, :value) in problemCounts.entries)
         key.name: value,
@@ -499,10 +622,13 @@ final class TextPackMeasurement {
   }
 }
 
+String _config(double width, double scale) => '${width.toInt()}/${scale}x';
+
 Map<String, Object?> _summary(
   List<Map<String, Object?>> surahs,
   List<double> widths,
   List<double> scales,
+  Map<String, ({List<double> lines, List<double> gaps})> stretch,
 ) {
   final out = <String, Object?>{};
   for (final width in widths) {
@@ -542,8 +668,53 @@ Map<String, Object?> _summary(
             (surah: r.surah, v2: v2),
       ];
       final stretchMax = widest('stretch', 'max');
+      final inkReach = widest('ink', 'maxReach');
+      Map<String, Object?> inkOf(Map<String, Object?> run) =>
+          run['ink']! as Map<String, Object?>;
+      int edgesCrossed(String way) => runs.fold(
+        0,
+        (n, r) =>
+            n +
+            (inkOf(r.run)['edges']! as List<Object?>)
+                .where((e) => ((e! as Map<String, Object?>)[way]! as int) > 0)
+                .length,
+      );
+      int surahsWith(String key) =>
+          runs.where((r) => (inkOf(r.run)[key]! as int) > 0).length;
       final perGapMax = widest('stretch', 'perGapMax');
-      out['${width.toInt()}/${scale}x'] = {
+      final config = _config(width, scale);
+      int total(String key) =>
+          runs.fold(0, (n, r) => n + ((r.run[key] as int?) ?? 0));
+      int v2Total(String key) => v2.fold(0, (n, e) => n + (e.v2[key]! as int));
+      Map<String, int> kinds(String key) {
+        final out = <String, int>{};
+        for (final r in runs) {
+          final hit = r.run['hit']! as Map<String, Object?>;
+          for (final MapEntry(key: kind, :value)
+              in (hit[key]! as Map<String, int>).entries) {
+            out[kind] = (out[kind] ?? 0) + value;
+          }
+        }
+        return out;
+      }
+
+      String fingerprintOverAll(bool flow) => sha256
+          .convert(
+            utf8.encode(
+              [
+                for (final r in runs)
+                  switch (r.run['v2']) {
+                    final Map<String, Object?> v2 when flow =>
+                      v2['fingerprint'],
+                    _ => r.run['fingerprint'],
+                  },
+              ].join(','),
+            ),
+          )
+          .toString()
+          .substring(0, 16);
+
+      out[config] = {
         'lines': runs.fold(0, (n, r) => n + (r.run['lines']! as int)),
         'v1LayoutMsTotal': runs.fold(
           0,
@@ -562,15 +733,38 @@ Map<String, Object?> _summary(
         'stretchMaxSurah': stretchMax?.surah,
         'stretchPerGapMax': perGapMax?.value,
         'stretchPerGapMaxSurah': perGapMax?.surah,
-        'inkEdges': sum('ink', 'edges'),
-        'inkTouched': sum('ink', 'touched'),
-        'inkCrossed': sum('ink', 'crossed'),
-        'surahsWithInkCrossing': [
-          for (final r in runs)
-            if (((r.run['ink']! as Map<String, Object?>)['crossed']! as int) >
-                0)
-              r.surah,
-        ].length,
+        'inkLines': sum('ink', 'lines'),
+        'inkLinesLeaving': sum('ink', 'linesLeaving'),
+        'inkEdgesDown': edgesCrossed('down'),
+        'inkEdgesUp': edgesCrossed('up'),
+        'inkMaxReach': inkReach == null ? null : _round(inkReach.value * 1.0),
+        'inkMaxReachSurah': inkReach?.surah,
+        'inkSurahsLeaving': surahsWith('linesLeaving'),
+        'inkSurahsAboveFirst': surahsWith('aboveFirst'),
+        'inkSurahsBelowLast': surahsWith('belowLast'),
+        'stretchP99': _p99(stretch[config]?.lines ?? const []),
+        'stretchPerGapP99': _p99(stretch[config]?.gaps ?? const []),
+        'inkMsTotal': runs.fold(
+          0,
+          (n, r) => n + ((r.run['ink']! as Map<String, Object?>)['ms']! as int),
+        ),
+        'v2PlanMsTotal': v2Total('planMs'),
+        'v2BlockLayoutMsTotal': v2Total('blockLayoutMs'),
+        'slicingMsTotal': total('slicingMs'),
+        'hitLetterProblems': sum('hit', 'letterProblems'),
+        'hitLetterKinds': kinds('letterKinds'),
+        'hitLetterWords': sum('hit', 'letterWordsWithProblem'),
+        'hitLetterWordsBesideLetterless': sum(
+          'hit',
+          'letterWordsBesideLetterless',
+        ),
+        'hitLetterHitsLetterless': sum('hit', 'letterHitsLetterless'),
+        'letterlessWords': sum('hit', 'letterlessWords'),
+        'letterlessWithProblem': sum('hit', 'letterlessWithProblem'),
+        'hitLetterlessProblems': sum('hit', 'letterlessProblems'),
+        'hitLetterlessKinds': kinds('letterlessKinds'),
+        'fingerprintAll': fingerprintOverAll(false),
+        'v2FingerprintAll': fingerprintOverAll(true),
       };
     }
   }
@@ -619,4 +813,106 @@ double? _max(Iterable<double> values) =>
 double? _p99(Iterable<double> values) {
   if (values.isEmpty) return null;
   return _round(nearestRank(values.toList()..sort(), 0.99));
+}
+
+/// [results] of [TextPackMeasurement.run] as a few dozen lines of numbers,
+/// digests, U+XXXX code points and counts, for a log.
+List<String> summaryLines(Map<String, Object?> results) {
+  Map<String, Object?> map(Object? value) => value! as Map<String, Object?>;
+  String counts(Object? kinds) {
+    final entries = map(kinds).entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    return entries.isEmpty
+        ? 'none'
+        : entries.map((e) => '${e.key} ${e.value}').join(', ');
+  }
+
+  final pack = map(results['pack']);
+  final cmap = map(results['cmap']);
+  final tokens = map(results['markOnlyTokens']);
+  final missing = cmap['missing']! as List<Map<String, Object?>>;
+  final groups = tokens['groups']! as List<Map<String, Object?>>;
+  const shownGroups = 40;
+  final lines = <String>[];
+  void line(String text) => lines.add(text);
+  line(
+    'pack ${pack['id']} ${pack['version']}: surahs ${pack['surahs']}, ayat '
+    '${pack['ayat']}, words ${pack['words']}; text.sqlite '
+    '${(pack['textSqliteSha256']! as String).substring(0, 16)}',
+  );
+  line(
+    'mode ${results['mode']} on ${results['platform']}, elapsed '
+    '${results['elapsedMs']} ms, read ${results['readMs']} ms',
+  );
+  line('problems: ${counts(results['problemCounts'])}');
+  final absent = missing.map((m) => '${m['codePoint']} x${m['count']}');
+  line(
+    'cmap: ${cmap['codePointsUsed']} code points used, the font maps '
+    '${cmap['fontCodePoints']}, font is the pack font '
+    '${cmap['fontIsThePacksFont']}; missing: '
+    '${absent.isEmpty ? 'none' : absent.join(', ')}',
+  );
+  line(
+    'words ${tokens['tokens']}: empty ${tokens['empty']}, without a letter '
+    '${tokens['noLetter']} (marks only ${tokens['marksOnly']}), '
+    'unclassified ${tokens['unclassifiedTokens']} '
+    '(${counts(tokens['unclassifiedCodePoints'])})',
+  );
+  line(
+    'groups without a letter: ${groups.length} (code points / categories '
+    '/ count)',
+  );
+  for (final g in groups.take(shownGroups)) {
+    line(
+      '  ${(g['codePoints']! as List<Object?>).join(' ')} / '
+      '${(g['categories']! as List<Object?>).join(' ')} / ${g['count']}',
+    );
+  }
+  if (groups.length > shownGroups) {
+    line('  and ${groups.length - shownGroups} more groups');
+  }
+  for (final MapEntry(key: config, :value) in map(results['summary']).entries) {
+    final s = map(value);
+    final differ = s['v2DifferFromV1']! as List<Object?>;
+    line('$config: ${s['lines']} lines');
+    line(
+      '  hit, words with a letter: ${s['hitLetterProblems']} problems '
+      '(${counts(s['hitLetterKinds'])}) on ${s['hitLetterWords']} words, '
+      '${s['hitLetterWordsBesideLetterless']} of them next to a word '
+      'without a letter; centre hitting a word without a letter '
+      '${s['hitLetterHitsLetterless']}',
+    );
+    line(
+      '  hit, words without a letter: ${s['letterlessWords']} words, '
+      '${s['letterlessWithProblem']} with a problem, '
+      '${s['hitLetterlessProblems']} problems '
+      '(${counts(s['hitLetterlessKinds'])})',
+    );
+    line(
+      '  ink at ${inkPixelRatio}x px: lines ${s['inkLines']}, leaving their '
+      'band ${s['inkLinesLeaving']}; edges crossed downward '
+      '${s['inkEdgesDown']}, upward ${s['inkEdgesUp']}; max reach '
+      '${s['inkMaxReach']} px (surah ${s['inkMaxReachSurah']}); surahs with '
+      'a line leaving ${s['inkSurahsLeaving']}, first line above '
+      '${s['inkSurahsAboveFirst']}, last line below '
+      '${s['inkSurahsBelowLast']}',
+    );
+    line(
+      '  stretch px: max ${s['stretchMax']} (surah ${s['stretchMaxSurah']}), '
+      'p99 ${s['stretchP99']}; per gap max ${s['stretchPerGapMax']} '
+      '(surah ${s['stretchPerGapMaxSurah']}), p99 ${s['stretchPerGapP99']}',
+    );
+    line(
+      '  ms: V1 ${s['v1LayoutMsTotal']} (max ${s['v1LayoutMsMax']}, surah '
+      '${s['v1LayoutMsMaxSurah']}), V2 plan ${s['v2PlanMsTotal']} (max '
+      '${s['v2PlanMsMax']}), V2 blocks ${s['v2BlockLayoutMsTotal']}, ink '
+      '${s['inkMsTotal']}, slicing ${s['slicingMsTotal']}',
+    );
+    line(
+      '  V2 differs from V1 in ${differ.length} surahs'
+      '${differ.isEmpty ? '' : ': ${differ.take(10).join(' ')}'}; '
+      'fingerprints V1 ${s['fingerprintAll']} V2 ${s['v2FingerprintAll']}',
+    );
+  }
+  return lines;
 }

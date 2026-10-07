@@ -60,20 +60,7 @@ void main() {
             text?.close();
             _write(measurement.results);
           }
-          final results = measurement.results;
-          _log('elapsed ${results['elapsedMs']} ms');
-          _log('problems ${jsonEncode(results['problemCounts'])}');
-          _log('summary ${jsonEncode(results['summary'])}');
-          final tokens = results['markOnlyTokens']! as Map<String, Object?>;
-          _log(
-            'tokens ${tokens['tokens']}, without a letter '
-            '${tokens['noLetter']}, marks only ${tokens['marksOnly']}, '
-            'unclassified ${tokens['unclassifiedTokens']}',
-          );
-          for (final group
-              in (tokens['groups']! as List<Map<String, Object?>>)) {
-            _log('  ${group['codePoints']} ${group['count']}');
-          }
+          summaryLines(measurement.results).forEach(_log);
         },
       );
 
