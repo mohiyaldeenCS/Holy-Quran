@@ -20,7 +20,7 @@ The Tanzil file (registry row 1) is fetched only on the CI runner (task
 | --- | --- |
 | URL | `https://tanzil.net/pub/download/index.php?quranType=uthmani&outType=xml&marks=true&sajdah=true&rub=true&agree=true` |
 | Options | Uthmani, XML, pause marks on, sajda signs on, rub-el-hizb signs on (as in the URL; whether these are the site's defaults is not checked) |
-| Fetched | 2026-10-07, CI run 52 (`581fdf7`) |
+| Fetched | 2026-10-07, CI run 52 (`581fdf7`); again in run 59 (`e8f48f1`, after the review fixes) with the expected SHA-256 pinned |
 | SHA-256 | `33f4113df84c1bab0ee2eb69616139fda619bdd56fc163a72532daaf0431bf57` |
 | Read | 114 surahs, 6,236 ayat; 82,011 words as runs between U+0020 (spike rule only; B0.4 and D-038 decide the real one) |
 | Spike pack | `text.sqlite` `efd4f7ed49a685cdb341cbecae385ade60d16d2506bbdd1dc43ff86385171fc5`; divisions synthetic (a juz every 200 ayat and so on), flagged as such |
@@ -41,6 +41,11 @@ The app's integrity suite ran on the spike pack through the production path:
 - division references;
 - the pinned font;
 - `QuranText` drawing the stored bytes of every ayah and basmala.
+
+Run 59 rebuilt the pack after the review fixes (values checked against their full
+quoted source range, the notice checked for Tanzil and version 1.1): `text.sqlite`,
+the manifest and all 114 surah digests came out byte-identical to run 52, and the
+suite passed again.
 
 So the M0.3 reader and `QuranText` carry the whole Hafs text unchanged, as far as
 Linux layout and bytes can show. Shaping is judged on screen (below).
