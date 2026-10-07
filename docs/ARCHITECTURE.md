@@ -396,9 +396,9 @@ maintained and supports the minimum OS versions, then record it in
 | Read-only pack databases | `sqlite3` | Proposed |
 | Audio | `just_audio`, `audio_service`, `audio_session` | Evaluate in Phase 0 |
 | Downloads | `background_downloader` | Evaluate in Phase 0 |
-| Hashing and signatures | `crypto`, `cryptography` | Proposed |
+| Hashing and signatures | `crypto` (dev dependency since M0.2, D-054), `cryptography` | Proposed |
 | Localisation | `flutter_localizations`, `intl` | Decided (D-047) |
-| SVG icons | `flutter_svg` | Proposed |
+| SVG icons | none: generated `Path` code (D-054) | Decided |
 | Immutable models | `freezed` | Optional; plain classes are fine for small models |
 
 ## Privacy and security

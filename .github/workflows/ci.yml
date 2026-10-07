@@ -50,7 +50,7 @@ jobs:
         run: flutter analyze
 
       - name: Test
-        run: flutter test
+        run: flutter test test tools/gen/test
 
       - name: Keep golden failure images
         if: failure()

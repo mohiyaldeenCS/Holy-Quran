@@ -1,0 +1,7 @@
+# tools/gen/lib is the generator's own code, not the package's lib/, so the
+# relative imports into it are intended.
+include: ../../analysis_options.yaml
+
+linter:
+  rules:
+    avoid_relative_lib_imports: false

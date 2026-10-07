@@ -56,7 +56,8 @@ flutter pub get                                      # also generates lib/l10n/a
 flutter run                                          # on an Android device or emulator
 dart format --output=none --set-exit-if-changed .    # format check, as in CI
 flutter analyze
-flutter test
+flutter test test tools/gen/test                     # app and generator tests
+flutter test --exclude-tags golden test tools/gen/test   # off the golden platform
 flutter build apk --debug
 ```
 
@@ -71,9 +72,10 @@ the run as `holyquran-debug-apk` (D-049).
 | What | Command | Output (committed) |
 | --- | --- | --- |
 | UI strings | `flutter gen-l10n` (also run by `flutter pub get`) | `lib/l10n/app_localizations.dart`, `lib/l10n/app_localizations_ar.dart`, from `lib/l10n/app_ar.arb` |
+| Design tokens and icons | `dart run tools/gen/bin/generate.dart` (`--check` only verifies) | `lib/ui/core/theme/tokens.g.dart`, `lib/ui/core/theme/ramps.g.dart`, `lib/ui/core/widgets/icon_paths.g.dart`, from `design/design-system/tokens.json` and the `ICONS` map; see `tools/gen/README.md` |
 
-Generated files are never edited by hand: change the input and regenerate. The token
-and icon generators of `tools/gen/` arrive with milestone M0.2.
+Generated files are never edited by hand: change the input and regenerate. A test
+(`tools/gen/test/generator_test.dart`) fails when the committed output is stale.
 
 ### Platforms
 
