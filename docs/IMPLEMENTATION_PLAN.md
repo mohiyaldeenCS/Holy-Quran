@@ -203,6 +203,10 @@ and doors, the reader's player bar, the share cards), each with its golden tests
 its entries in the contrast test, shown in the gallery with synthetic content. They
 are the identity, not features, and need no source. Stop as soon as Gate 0 is met.
 
+Amended by D-088: `Match` and `ContextSheet` move to M1.2, M1.3 and M1.8, the copy
+sheet to M1.6; `ContinueListeningRow` and `Splash` are added. Plan in
+`docs/plans/M0.5.md`.
+
 ### Phase 0 — stream B
 
 | Task | Output |
