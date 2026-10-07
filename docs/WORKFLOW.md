@@ -144,6 +144,20 @@ number, so that `main` is correct the moment the merge lands. The `session-hando
 line: a session that stops without updating and pushing the status file has not
 finished.
 
+## Two sessions at once
+
+The implementing session (stream A) and the planning session (stream B) work at the
+same time, each on its own branch, and talk only through this repository.
+
+- A question for the other session is written where the work is: under "Questions"
+  in the milestone plan, or in the document being reviewed. The other session answers
+  in a change to that document and says so in the status file.
+- Before taking a decision number, fetch `main` and every open pull request, and take
+  the number after the highest found in any `docs/DECISIONS.md` or reserved in an
+  open plan (D-076).
+- Before the last commit of a branch, merge `main` into it if `main` has moved, so
+  that the status file and the decisions keep what the other session wrote.
+
 ## Documents
 
 | File | Holds | Changes when |
