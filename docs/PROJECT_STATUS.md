@@ -12,8 +12,8 @@ corrected first.
 | Phase | 0 — Foundation. Gate 0 not met |
 | Stream A — app | M0.1, M0.2 and M0.3 merged, with human checks pending (pull requests #2, #3 and #4). **M0.4 part 1** merged as partial (pull request #6): spikes S1, S5 and the S3 playback part are done on Linux and await the owner's device run. Next: M0.4 part 2 (S4, S7), then M0.5 |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | None open. Start the next part from `main` (on the branch the session is bound to, D-045) |
-| Last session | Implementing session: M0.1 to M0.3 and M0.4 part 1 (pull requests #2, #3, #4 and #6). Planning session: pack format review (#7) and the ayah linker for four Zaydi-library books (#8) |
+| Working branch | `claude/great-hamilton-9n23mt`, draft pull request #10 (**M0.5**), opened by the implementing session before it reached its usage limit on 2026-10-07. Done there: the plan `docs/plans/M0.5.md`, D-084 to D-089, and step 0b (contrast pairs). Not started: step 0a (foundations) and steps A to G (the widgets). The status file on that branch does not mention M0.5 yet (noted by the planning session from Git) |
+| Last session | Planning session: ayah linking of books 473 and 440 (pull request #11). Before it, implementing session: M0.4 part 1 (#6), the pack format changes (#9), and the start of M0.5 (#10, draft) |
 
 ## What is in the repository
 
@@ -51,7 +51,7 @@ corrected first.
   and Dart skills, the SessionStart hook. `.mcp.json` — the Dart and Flutter MCP
   server.
 - `tools/ziydia/` — the extraction tool for the Zaydi Library, and the ayah linker
-  `ziydia_link.py` with its tests (107, run by hand: Python, no Flutter).
+  `ziydia_link.py` with its tests (135, run by hand: Python, no Flutter).
 
 Not in the repository: any content pack; any Quran text as data (the PRD and the
 design files show a few sample words and ayat as illustration, never to be copied);
@@ -62,7 +62,7 @@ raw extraction output; signing keys. The 13 logo SVG files are in
 
 - **PRD** complete: 49 raw requirements analysed into 21 modules with IDs, acceptance
   criteria, five phases with gates, source registry, deferred features. Exported at
-  revision 147 to `docs/prd/PRD.ar.md`.
+  revision 151 to `docs/prd/PRD.ar.md`.
 - **Sources**: the owner holds written permissions for every source that needed one
   (D-012). Registry: 9 ready, 9 awaiting our own verification, 1 deferred.
 - **Identity** copied into `design/`. App fonts pinned and verified identical to the
@@ -135,8 +135,8 @@ raw extraction output; signing keys. The 13 logo SVG files are in
   (D-081, D-082). 183: 2,721 linked passages, 2,647 confirmed by the check. 514:
   5,488 and 5,306. 276: 123 of 146 items, 116 confirmed. 471: 302 of 361 items, 291
   confirmed; much of that book can be linked to a surah only. Partial: no link has
-  been seen by a reviewer or compared with a printed copy; books 473, 165, 737 and
-  440 are not linked; the step that applies a reviewer's corrections is not written.
+  been seen by a reviewer or compared with a printed copy; the step that applies a
+  reviewer's corrections is not written.
   The honorific codes were recounted from their markup: sixteen, not eleven. PRD §5.5
   updated and re-exported at revision 147. An independent agent reviewed the tool in
   two rounds and its findings were applied; what it verified, and what it did not, is
@@ -147,6 +147,15 @@ raw extraction output; signing keys. The 13 logo SVG files are in
   spans checked together on a surah's first read), the synthetic pack builder and
   the integrity suite (marks, gaps made only of U+0020, words with a letter and marks
   without one, options).
+
+- **Books 473 and 440 linked** (pull request #11, D-090). 473: 2,443 linked
+  passages, 2,357 confirmed by the check; the surah comes from the book's own order
+  (1, then 114 down to 2), and nearly half of its explanations print no ayah number
+  and stay linked to the surah only. 440: 244 of 250 questions linked by the footnote
+  that names the surah and ayah, 200 confirmed (37 quotations are too short to
+  compare). Books 737 and 165 get no profile: from what they print they cannot be
+  linked to ayat. An independent agent checked both profiles; what it verified is in
+  `docs/content/ZIYDIA_LIBRARY.md`, "Results". PRD §5.5 re-exported at revision 151.
 
 ## In progress
 
@@ -170,7 +179,7 @@ pages). Nothing else is open in stream B.
    branch, fix, and rebuild with the `spike-apk` task (D-068).
 4. Decision numbers: before taking one, fetch `main` and every open pull request and
    take the number after the highest found (D-076). Stream A holds D-068 to D-075 and
-   D-083; stream B D-076 to D-082.
+   D-083 to D-089; stream B D-076 to D-082 and D-090.
 5. Then **M0.4 part 2**: S7 (gestures, needs only S1) and S4 (home-screen widget,
    for Phase 2) with the same spike folder (D-068). S2, S6 and the S3 highlight part
    wait for B0.3, packs and B0.5. With the spike code restored for part 2, run the S1
@@ -198,13 +207,13 @@ pages). Nothing else is open in stream B.
    pack-signing key (O-03). All four are needed inside Phase 0.
 4. Owner with the planning session: fill the rights register from the permission
    papers (B0.1, `docs/content/RIGHTS_REGISTER.md`).
-5. Owner: give the religious reviewer the linking pages of books 183, 514, 276 and
-   471 (`sample.html`, `review.html` and `compare.html` of each, sent to the owner on
-   2026-10-07 and rebuilt by the commands in `tools/ziydia/README.md`). He marks the
-   sample, and checks every passage of the other two pages against the printed copy.
-   He also says whether he accepts the rule of D-082.
-   Planning session: write profiles for books 473, 165, 737 and 440 where what they
-   print allows it; write the step that applies the reviewer's corrections; rerun
+5. Owner: give the religious reviewer the linking pages of books 183, 514, 276,
+   471, 473 and 440 (`sample.html`, `review.html` and `compare.html` of each, sent to
+   the owner on 2026-10-07 and rebuilt by the commands in `tools/ziydia/README.md`).
+   He marks the sample, and checks every passage of the other two pages against the
+   printed copy. He also says whether he accepts the rule of D-082, and whether an
+   index of the ayat that book 165 cites is wanted (D-090).
+   Planning session: write the step that applies the reviewer's corrections; rerun
    `compare` against the base pack when B0.2 builds it.
 6. Planning session with the owner: the base pack (B0.2), KFGQPC assets (B0.3), the
    word index (B0.4), waqf-mark meanings (B0.8), acceptance data (B0.10), the pipeline
@@ -309,6 +318,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-10-07 | Planning session | Linked books 473 (surahs in the book's own order, ayah numbers inside quotations) and 440 (footnotes that name the surah and ayah); found that 737 and 165 cannot be linked to ayat from what they print; D-090; independent review applied; PRD at revision 151. Recorded from Git where the implementing session stopped (draft pull request #10). | Pull request #11 |
 | 2026-10-07 | Planning session | Built and tested the ayah linker for books 183, 514, 276 and 471, with a check of every link against the text printed in book 514; recounted the honorific codes (sixteen); D-081, D-082; PRD re-exported at revision 147; two rounds of independent review applied. | Pull request #8 |
 | 2026-10-07 | Planning session | Reviewed pack format v1 and answered P1–P7 and stream A's question about the Tanzil file; D-076 to D-080; a rule for two sessions working at once in `docs/WORKFLOW.md`. | Pull request #7 |
 | 2026-10-07 | Planning session | Checked the owner's extraction of seven Zaydi-library books (471, 473, 514, 737, 165, 276, 440): all complete; multi-part navigation confirmed; three more honorific codes found; linking prospects noted per book. PRD §5.5 updated and re-exported at revision 145. | Pull request #5 |
