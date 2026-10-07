@@ -79,22 +79,35 @@ Source of the TTF files: <https://github.com/google/fonts> at
 Amiri Quran 1.003 is pinned on purpose. The Quran text and its font are one pair: do
 not upgrade or swap the font without re-running the full text rendering checks.
 
-### Not in this folder yet
+### Icons and logo files
 
-The 26 icon SVGs and 13 logo SVGs (`api/assets/Icons.md`, `api/assets/Logos.md`) live in
-the artifact's asset store, which the planning session could not reach.
-
-- **Icons:** not needed as files. Generate them from the `ICONS` map in
-  `components/src/index.jsx`; do not redraw them.
+- **Icons:** the 26 icon SVGs (`api/assets/Icons.md`) are not copied as files.
+  Generate them from the `ICONS` map in `components/src/index.jsx`; do not redraw
+  them.
 - **Mark:** the geometry is in `Mark` and `StarOutline` in the same file.
-- **Logo files:** five marks (`mark-*.svg`), three lockups (`lockup-*.svg`) and five
-  app icons (`app-icon*.svg`). They are needed for the launcher icon and the native
-  launch screen. If the Artifact tool is available in your session, fetch the 13
-  files with the ids listed in `api/assets/Logos.md` and commit them to
-  `design-system/assets/Logos/`. Otherwise ask the owner to export them from the
-  design-system artifact. As a last resort the same drawings are inline SVG on the
-  Logo board (`identity-boards/Logo.dc.html`): the mark and the four app-icon
-  variants.
+- **Logo files:** the 13 files of `api/assets/Logos.md` are in
+  `design-system/assets/Logos/`: five marks (`mark-*.svg`), three lockups
+  (`lockup-*.svg`) and five app icons (`app-icon*.svg`). They were fetched unchanged
+  from the design-system artifact's asset store on 2026-10-07; each SHA-256 below
+  equals the one the asset store reports. They are needed for the launcher icon and
+  the native launch screen (M1.11). Inside the app the mark is drawn by the `Mark`
+  widget, not from these files.
+
+| File | Asset id | SHA-256 |
+| --- | --- | --- |
+| `mark-paper.svg` | `6b1dd023714028303033eade5421c585` | `0273354ffa30090da03dff445542a31a5ce6381e37b80771f3137dcb12308711` |
+| `mark-emerald.svg` | `6991cfbef1568e596f545ec366e17703` | `c26dcbb48dbed887b7c7f3595e86dab5821b68647fe038862c0798e745e7391c` |
+| `mark-dark.svg` | `adbbc5f2345b418e1beda3ea106ca06d` | `d48a748ea857e06659bd9e4d71355ab4af316eaad3e05211535d1206b9e636e6` |
+| `mark-mono.svg` | `ba06b08e8a989b140e0f1466ce8b781d` | `012b52a30fae1ec61681e390a8866da73b522e86e7d6676be04c1d37c17cf955` |
+| `mark-24.svg` | `18790f0be8f1d49760999ae44ecb790b` | `8c1487a90498e46206c64391ec385c4733f9e3a618975689f04d93bcc22c84af` |
+| `lockup-horizontal.svg` | `d140cbc7605bb1ee556aad963c9c9599` | `28a6b62164c689b722251e742a5de3bce750eda428742fa6bcff6d6bedc0f626` |
+| `lockup-horizontal-emerald.svg` | `e1d8a676aa38c239f85b80e8f68411f4` | `cc5b75f6124cef80314fcaf05ccce81d87414c86f03f093bb015815c0e1d3e14` |
+| `lockup-vertical.svg` | `2fc97c889662e10eab381d4b81b7f83a` | `d3ebab38baa116a49748a905dcebc2286d57fe11168c4ecf7bce216e6a354a08` |
+| `app-icon.svg` | `5ae503f18e4b20ff795eff879acc02ed` | `ba564365a1ccb436d4e5a548a596af23beea24b6e8c568cf0b19b9297c722ed0` |
+| `app-icon-light.svg` | `6de8cfc5d35198634e7cbcb32cc1937c` | `f6441e8d252a0ae90f7a6229908a0bc2fd19a6e0823b68dd208fc2ce473c68c6` |
+| `app-icon-dark.svg` | `5ea18fe1d366be1f339bf3b8d606f80c` | `84bc8e7e7a3dd2a8585df38ddbce1ac29f8c7e58034bc1cf678bde62a1d22b3c` |
+| `app-icon-mono.svg` | `5884a17db989a0ad3bcae360135be17d` | `182f26ec93f7bb75dc1c7b4412e67940555ae86b7ad527a5b077938d64f6ed74` |
+| `app-icon-fullbleed.svg` | `5e92aea1d5b257d31cdd5d1dc106d1f6` | `1ca8495d481dc107b0fe0c86841fe4e390c48fa1ae74ce44edda00d8eec39b9c` |
 
 ## `identity-boards/`
 

@@ -32,7 +32,8 @@ corrected first.
 
 Not in the repository: any content pack; any Quran text as data (the PRD and the
 design files show a few sample words and ayat as illustration, never to be copied);
-raw extraction output; the 13 logo SVG files; a CI workflow; signing keys.
+raw extraction output; signing keys. The 13 logo SVG files were added on 2026-10-07
+(`design/design-system/assets/Logos/`, hashes in `design/README.md`).
 
 ## Done
 
@@ -68,9 +69,6 @@ tool (`docs/content/ZIYDIA_LIBRARY.md`).
 5. Then **M0.2**, **M0.3**, **M0.4**, one at a time. Spikes S1, S5 and the playback
    part of S3 need nothing from stream B. If they are finished before Gate 0 is met,
    continue with **M0.5**, not with Phase 1.
-6. If the Artifact tool is available in your session, fetch the 13 logo files as
-   `design/README.md` describes. If not, ask the owner to export them. They are
-   needed by M1.11, not before.
 
 ## Next actions — stream B (planning session and the owner)
 
