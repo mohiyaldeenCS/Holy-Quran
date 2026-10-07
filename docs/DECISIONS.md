@@ -58,6 +58,12 @@ goes against the proposal, the new line records what replaced it.
 | D-037 | 2026-10-07 | Proposed | Display text is never folded. Search matches source-provided search forms stored in the pack; only the query, and at most a rebuildable app-side index built from those forms, pass through one fold function. | `SR-03`, PRD §9.6. Whether the index is needed is decided in M1.8 against the golden query set. |
 | D-038 | 2026-10-07 | Proposed | In the word index a token made only of marks is not a word; it stays attached to the word before it. | In the Tanzil text a pause mark stands as a token of its own. To be verified and fixed in B0.4 against the timing data. |
 | D-039 | 2026-10-07 | Decided | Nothing is committed to `main` directly. The last commit of a milestone branch carries the status file as it should read after the merge. A milestone may merge with named human checks pending; a phase gate may not. | Keeps `main` correct at every merge without a follow-up commit; keeps reviewer and device checks visible. `docs/WORKFLOW.md`. |
+| D-040 | 2026-10-07 | Decided | Flutter is pinned to 3.44.7 stable (framework `84fc5cbb22`, Dart 3.12.2), the version `flutter create` recorded in `.metadata`. CI and the cloud-session setup script install exactly this version. | One toolchain for every account and machine. Upgrading is its own change with its own entry. |
+| D-041 | 2026-10-07 | Decided | The six platform folders created by `flutter create` stay (`android`, `ios`, `web`, `linux`, `macos`, `windows`). Only Android and iOS are built, tested in CI or released. Supersedes D-028. | Owner's answer to K2 (O-05). The scope stays Android and iOS (PRD §2.5); the other folders are not maintained. |
+| D-042 | 2026-10-07 | Decided | iOS builds are deferred to near the end of Phase 1. Development and testing run on Android. Closes O-10. | Owner's answer to K3. Consequence (`docs/IMPLEMENTATION_PLAN.md`, "Gate 0 and iOS"): Gate 0 needs a separate, explicit owner decision to close on Android measurements with the iOS ones owed; that question is put to him when the gate is reached. |
+| D-043 | 2026-10-07 | Decided | GitHub Actions runs the format check, `flutter analyze`, `flutter test` and a debug Android build on every push and every pull request. Supersedes D-029. | Owner's answer to K4. |
+| D-044 | 2026-10-07 | Decided | The application id stays the placeholder `com.example.holyquran` for now. O-01 stays open and must be answered before the first store upload. | Owner's answer to K1. Nothing is published before then, so the placeholder costs nothing yet. |
+| D-045 | 2026-10-07 | Decided | A cloud session may be bound to a branch name it cannot change (for example `claude/<name>`). The milestone is then developed on that branch instead of the `feat/m0-…` name, and the status file names the branch actually used. | The M0.1 session was bound to `claude/great-hamilton-9n23mt`. Branch names are a convention; the history and the pull request are what matter. |
 
 ## Open decisions
 
@@ -65,16 +71,14 @@ Tracked with their owner-facing wording in `docs/PROJECT_STATUS.md`.
 
 | ID | Needed by | Question |
 | --- | --- | --- |
-| O-01 | M0.1; at the latest before the first store build | Application id (Android) and bundle id (iOS), and the publisher name. The repo currently has the placeholder `com.example.holyquran`. An id cannot be changed after publishing. |
+| O-01 | Before the first store upload (D-044) | Application id (Android) and bundle id (iOS), and the publisher name. The repo currently has the placeholder `com.example.holyquran`. An id cannot be changed after publishing. |
 | O-02 | End of Phase 0 | Minimum OS versions. PRD recommends Android 8.0 and iOS 15. |
 | O-03 | Phase 0: B0.11 and the base pack of B0.2, before M1.2 | Custody of the pack-signing key (D-024). |
 | O-04 | Phase 0, task B0.5 | Recitations for Phase 1 (PRD suggests at least five, two with word timing), the source of their files, and what each permission allows for hosting and offline download. |
-| O-05 | M0.1 | Keep or remove the non-mobile platform folders (D-028). |
 | O-06 | Phase 0, task B0.7 | Whether the seven general tafsirs of PRD §8.8 stay next to the Zaydi-library books. |
 | O-07 | Before any Zaydi-library book is shown | The honorific glyph table of the site's font, from the site owner. |
 | O-08 | M1.4 for a test host; end of Phase 1 for launch | Where content packs are hosted (HTTPS static hosting is enough). |
 | O-09 | Phase 2 | Backend service for accounts and sync. |
-| O-10 | M0.1 | How iOS builds are made: the owner's Mac, a macOS CI runner, or deferred. |
 | O-11 | M1.11 | Developer accounts on the two stores, and who holds the app-signing keys. |
 | O-12 | M1.2 for the card label; M1.10 for the marker; before Phase 2 for tajweed | Places in the identity that fall below the 4.5:1 of `AX-03`: the gold label of the continue-reading card and the gold reference line of the emerald share card (3.9:1); the ayah number inside the filled marker in sepia (3.1:1); four values of three tajweed colours (3.85 to 4.43:1, above the 3:1 that WCAG AA asks of large text). Accept them as they are, or have the designer change the values. |
 | O-13 | M0.2 for the list; M1.6 for first use | Icons Phase 1 needs that the identity's 26 do not include: who draws them. |

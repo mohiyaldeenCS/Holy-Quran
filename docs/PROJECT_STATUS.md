@@ -10,10 +10,10 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-07 |
 | Phase | 0 — Foundation. Gate 0 not met |
-| Stream A — app | Not started. Next milestone: **M0.1 Repository and tooling** |
+| Stream A — app | **M0.1 Repository and tooling** in progress |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | None open. Start `feat/m0-1-tooling` from `main` |
-| Last session | Planning session: project foundation, merged by pull request #1 |
+| Working branch | `claude/great-hamilton-9n23mt` (M0.1; the session was bound to this name, D-045) |
+| Last session | First implementing session: environment, kickoff answers, M0.1 |
 
 ## What is in the repository
 
@@ -50,7 +50,8 @@ raw extraction output; the 13 logo SVG files; a CI workflow; signing keys.
 
 ## In progress
 
-Nothing in stream A.
+Stream A: M0.1 on `claude/great-hamilton-9n23mt`. Done so far: environment recorded,
+kickoff questions answered and recorded (D-040 to D-045).
 
 Stream B: extraction of seven Zaydi-library books is waiting for the owner to run the
 tool (`docs/content/ZIYDIA_LIBRARY.md`).
@@ -92,19 +93,15 @@ tool (`docs/content/ZIYDIA_LIBRARY.md`).
 
 ## Waiting on the owner
 
-Kickoff questions for the implementing session to ask first:
-
-| ID | Question, as it should be put to him | Recommendation | Needed by |
-| --- | --- | --- | --- |
-| K1 (O-01) | «معرّف التطبيق في المتجرين (مثل com.اسمك.quran) واسم الناشر الذي سيظهر للمستخدمين. المعرّف لا يمكن تغييره بعد النشر، والمستودع فيه الآن معرّف مؤقت com.example.holyquran.» | Decide now; if he has no name yet, keep the placeholder and change it before the first store upload | M0.1 |
-| K2 (O-05) | «مشروع Flutter أُنشئ بست منصات. النطاق المعتمد Android وiOS فقط. هل أحذف مجلدات web وlinux وmacos وwindows؟» | Remove all four. Keep `windows` only if he wants to preview the app on his Windows PC without an emulator | M0.1 |
-| K3 (O-10) | «بناء نسخة iOS يحتاج جهاز Mac. هل لديك Mac، أم نعتمد على GitHub Actions لبناء iOS، أم نؤجل تجربة iOS إلى قرب نهاية المرحلة 1؟» | Develop and test on Android now; run an iOS build on a macOS CI runner at the end of each milestone, so problems surface early. macOS runners use up the free minutes much faster than Linux ones, so not on every push | M0.1 |
-| K4 (D-029) | «هل أفعّل GitHub Actions ليفحص كل تغيير آليًا (التنسيق والتحليل والاختبارات)؟ في المستودعات الخاصة له حصة دقائق مجانية شهرية.» | Yes | M0.1 |
+Kickoff questions K1–K4 were answered on 2026-10-07 (D-041 to D-044): keep the
+placeholder application id for now (O-01 stays open, below); keep all six platform
+folders; defer iOS builds to near the end of Phase 1; enable CI.
 
 Open decisions that come later (full list in `docs/DECISIONS.md`):
 
 | ID | Question, as it should be put to him | Needed by |
 | --- | --- | --- |
+| O-01 | «معرّف التطبيق في المتجرين (مثل com.اسمك.quran) واسم الناشر الذي سيظهر للمستخدمين. المعرّف لا يمكن تغييره بعد النشر.» | Before the first store upload |
 | O-04 | «ما التلاوات التي تريدها في الإصدار الأول (خمس على الأقل، اثنتان منها بتوقيت كلمات)، ومن أين نأخذ ملفاتها، وهل يجيز إذن كل منها التنزيل دون اتصال والاستضافة على خادمك؟» | Phase 0 (B0.5) |
 | O-06 | «هل تبقى التفاسير السبعة العامة (الميسر، المختصر، السعدي، الجلالين، البغوي، ابن كثير، الطبري) بجانب كتب المكتبة الزيدية؟» | Phase 0 (B0.7) |
 | O-03 | «حزم المحتوى تُوقَّع بمفتاح خاص. من يحتفظ بالمفتاح، وأين يجري التوقيع؟» | Phase 0 (B0.11, and the base pack before M1.2) |
@@ -134,7 +131,7 @@ listed here when a milestone merges with them open.
 | Where | State |
 | --- | --- |
 | Planning session (cloud) | No Flutter SDK. Network policy blocks `pub.dev`, `storage.googleapis.com`, `dl.google.com` and Maven, so Flutter cannot be installed or run there. Public GitHub repositories are readable with `git`. `gh` works through the REST API only. The artifact asset store is unreachable. Nothing in this repository was compiled or run by that session. |
-| Implementing session | **To be recorded by the first implementing session.** |
+| Implementing session, 2026-10-07 (cloud) | Ubuntu 24.04.5 LTS, x86_64, 4 cores, 15 GB. No Flutter preinstalled: Flutter **3.44.7** stable (framework `84fc5cbb22`, engine `69c8c61792`, Dart 3.12.2) installed from `storage.googleapis.com` into `~/sdk/flutter` and linked into `/usr/local/bin`; this is the pinned version (D-040). `pub.dev`, `storage.googleapis.com`, Maven Central and Google Maven are reachable; `dl.google.com` is blocked, so there is **no Android SDK**, no emulator and no device: the app cannot be built or launched for Android here, only analysed and tested (CI builds the APK). `flutter doctor`: Flutter OK; Android toolchain missing; Chrome missing; Linux toolchain lacks GTK. No macOS. Java 21 present. `git` 2.43 works; `gh` 2.89 is installed but its token is invalid, so GitHub is reached through the session's GitHub tools. The Dart MCP server failed to connect at session start (`dart` was not on the PATH); it is not waiting for approval. |
 
 ## Risks being watched
 
