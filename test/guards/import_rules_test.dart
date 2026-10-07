@@ -18,12 +18,22 @@ const _nonPlugins = [
 
 /// The only files that may reach a raw colour ramp (docs/DESIGN_SYSTEM.md,
 /// "Colour"): fixed brand surfaces, and the gallery's preview backdrops.
+/// The M0.5 entries are planned (docs/plans/M0.5.md) and may not exist yet.
 const _rampImporters = {
   'lib/ui/core/widgets/mark.dart',
   'lib/ui/core/widgets/lockup.dart',
   'lib/ui/core/widgets/button.dart',
   'lib/ui/core/widgets/ayah_marker.dart',
+  'lib/ui/core/widgets/quran_text.dart',
+  'lib/ui/core/widgets/progress_bar.dart',
+  'lib/ui/core/widgets/mini_player.dart',
+  'lib/ui/core/widgets/continue_card.dart',
+  'lib/ui/core/widgets/reader_player_bar.dart',
+  'lib/ui/core/widgets/share_card.dart',
+  'lib/ui/core/widgets/home_header.dart',
+  'lib/ui/core/widgets/splash.dart',
   'lib/ui/core/gallery/gallery_screen.dart',
+  'lib/ui/core/gallery/sections/controls_gallery.dart',
 };
 
 const _databasePackages = [
