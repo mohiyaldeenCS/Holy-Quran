@@ -22,8 +22,13 @@ on:
         required: false
         default: https://tanzil.net/pub/download/index.php?quranType=uthmani&outType=xml&marks=true&sajdah=true&rub=true&agree=true
       tanzil_sha256:
-        description: Expected SHA-256 of that file; empty to only report it
+        description: Expected SHA-256 of that file (docs/spikes/S1-surah-rendering.md); empty to only report it
         required: false
+        default: 33f4113df84c1bab0ee2eb69616139fda619bdd56fc163a72532daaf0431bf57
+      tanzil_pack_sha256:
+        description: Expected SHA-256 of the spike pack's text.sqlite, checked on the device (spike-apk)
+        required: false
+        default: efd4f7ed49a685cdb341cbecae385ade60d16d2506bbdd1dc43ff86385171fc5
 
 concurrency:
   group: ci-${{ github.ref }}-${{ inputs.task || 'check' }}
@@ -187,7 +192,7 @@ jobs:
           EXPECTED: ${{ inputs.tanzil_sha256 }}
         run: |
           mkdir -p data/raw/tanzil
-          curl -fsSL --retry 3 -o data/raw/tanzil/quran-uthmani.xml "$TANZIL_URL"
+          curl -fsSL --proto '=https' --max-filesize 33554432 --retry 3 -o data/raw/tanzil/quran-uthmani.xml "$TANZIL_URL"
           actual=$(sha256sum data/raw/tanzil/quran-uthmani.xml | cut -d' ' -f1)
           bytes=$(stat -c %s data/raw/tanzil/quran-uthmani.xml)
           {
@@ -256,10 +261,12 @@ jobs:
         env:
           TANZIL_URL: ${{ inputs.tanzil_url }}
           TANZIL_SHA256: ${{ inputs.tanzil_sha256 }}
+          TANZIL_PACK_SHA256: ${{ inputs.tanzil_pack_sha256 }}
         run: >-
           flutter build apk --profile -t spike/main.dart
           "--dart-define=SPIKE_TANZIL_URL=$TANZIL_URL"
           "--dart-define=SPIKE_TANZIL_SHA256=$TANZIL_SHA256"
+          "--dart-define=SPIKE_TANZIL_PACK_SHA256=$TANZIL_PACK_SHA256"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

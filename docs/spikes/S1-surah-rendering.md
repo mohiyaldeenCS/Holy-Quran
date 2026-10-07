@@ -19,7 +19,7 @@ The Tanzil file (registry row 1) is fetched only on the CI runner (task
 | | |
 | --- | --- |
 | URL | `https://tanzil.net/pub/download/index.php?quranType=uthmani&outType=xml&marks=true&sajdah=true&rub=true&agree=true` |
-| Options | Uthmani, XML, pause marks on, sajda signs on, rub-el-hizb signs on (the site's defaults) |
+| Options | Uthmani, XML, pause marks on, sajda signs on, rub-el-hizb signs on (as in the URL; whether these are the site's defaults is not checked) |
 | Fetched | 2026-10-07, CI run 52 (`581fdf7`) |
 | SHA-256 | `33f4113df84c1bab0ee2eb69616139fda619bdd56fc163a72532daaf0431bf57` |
 | Read | 114 surahs, 6,236 ayat; 82,011 words as runs between U+0020 (spike rule only; B0.4 and D-038 decide the real one) |
