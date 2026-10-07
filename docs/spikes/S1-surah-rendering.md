@@ -150,8 +150,13 @@ The log and the results file hold numbers, `U+XXXX` and addresses only.
   test: 28, 58, 41 and 54 at the four sizes, of which 28, 57, 41 and 54 sit next to a
   mark token. **M1.2 must keep a word and its pause mark on one line** without
   changing the text (no character may be replaced, so not by a no-break space): for
-  example by breaking lines itself at stored word boundaries. One failure at
-  360/2.0x is not explained by this and is being traced.
+  example by breaking lines itself at stored word boundaries. Counted directly in
+  run 37602553400 (`be7aed9`): lines that start with a mark token, 102 (in 40
+  surahs) at 360/1.0x, 189 (50) at 360/2.0x, 106 (43) at 412/1.0x, 179 (52) at
+  412/2.0x. Every letter-word hit failure but one sits beside such a mark; the one
+  left, `hafs:52:43:4` at 360/2.0x only, has the same signature (an empty box at a
+  line edge) and was not traced further: the spike's hit-testing is replaced in
+  M1.2, which re-runs this check. The task stays red on it.
 - **Ink leaves the line band both ways on the real text:** at 360/1.0x 5,966 of
   11,155 lines leave their band, 4,956 edges are crossed downward and 1,565 upward,
   at most 10 px (19.5 px at 2.0x); the first line of 13 surahs reaches above its
