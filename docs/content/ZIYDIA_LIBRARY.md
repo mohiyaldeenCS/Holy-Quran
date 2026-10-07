@@ -98,13 +98,13 @@ and easy to link to an ayah. The list was shown to the owner on 2026-10-06; he a
 | ID | Book | Serves | Extraction |
 | --- | --- | --- | --- |
 | 183 | تفسير غريب القرآن — الإمام زيد بن علي | Word meanings (LX-06) | Complete, checked |
-| 471 | تفسير الإمام الهادي يحيى بن الحسين | Tafsir (TF) | Pending |
-| 473 | تفسير غريب القرآن — الإمام المهدي العياني | Word meanings and tafsir | Pending |
-| 514 | التيسير في التفسير — بدر الدين بن أمير الدين | Tafsir (TF) | Pending |
-| 737 | شافي العليل في شرح الخمسمائة آية | Ayat al-ahkam | Pending |
-| 165 | الناسخ والمنسوخ من القرآن الكريم — عبد الله بن الحسين الرسي | Abrogation | Pending |
-| 276 | التبيان في الناسخ والمنسوخ — ابن أبي النجم | Abrogation | Pending |
-| 440 | مسائل نافع بن الأزرق | Rare words with poetic evidence | Pending |
+| 471 | تفسير الإمام الهادي يحيى بن الحسين | Tafsir (TF) | Complete, checked |
+| 473 | تفسير غريب القرآن — الإمام المهدي العياني | Word meanings and tafsir | Complete, checked |
+| 514 | التيسير في التفسير — بدر الدين بن أمير الدين | Tafsir (TF) | Complete, checked |
+| 737 | شافي العليل في شرح الخمسمائة آية | Ayat al-ahkam | Complete, checked |
+| 165 | الناسخ والمنسوخ من القرآن الكريم — عبد الله بن الحسين الرسي | Abrogation | Complete, checked |
+| 276 | التبيان في الناسخ والمنسوخ — ابن أبي النجم | Abrogation | Complete, checked |
+| 440 | مسائل نافع بن الأزرق | Rare words with poetic evidence | Complete, checked |
 
 In Phase 1 every approved book is offered as a tafsir pack read by ayah
 (`TF-01`…`TF-08`): its passage where it has one, and the fixed sentence of the `TF`
@@ -113,12 +113,39 @@ come when the PRD phases them: word meanings in the word sheet with `LX-06` and 
 al-nuzul with `TF-09`, both in Phase 2. The tafsir milestone M1.7 therefore needs
 task B0.6 as well as B0.7.
 
-The seven pending books are about 6,300 site pages, roughly six hours of extraction:
+### Extraction results
 
-```
-py ziydia_fetch.py books 471 473 737 165 276 440 514
-py ziydia_fetch.py pack
-```
+The owner extracted the seven remaining books on 2026-10-07; the planning session
+checked the upload the same day. All eight first-release books are now complete.
+
+| ID | Pages saved | Parts | Printed pages covered | Printed pages the site does not carry | Ayah numbers after quotations |
+| --- | --- | --- | --- | --- | --- |
+| 183 | 339 | 1 | 3, then 76 onwards | The editor's introduction; two single pages (178, 314) | 2,863 |
+| 471 | 596 | 2 | Part 1: 1, then 121–452. Part 2: 7–459 | The editor's introduction (2–120); 2 or 3 pages at the end of most surahs | 610 |
+| 473 | 836 | 2 | Part 1: 3–558. Part 2: 5–296 | Pages 83–91 (the manuscript plates); 4 single pages | 114 |
+| 514 | 3,908 | 7 | Part 1: 1, then 23–609. Parts 2–7 from page 3 | Pages 2–22 of part 1; about 165 single pages across the parts | 3,829 |
+| 737 | 350 | 1 | 1–356 | 6 single pages | None |
+| 165 | 162 | 2 | 3–171 | Pages 34–38 (the manuscript plates); 2 single pages | 156 |
+| 276 | 135 | 1 | 1, then 33–166 | The editor's introduction (2–32) | 211 |
+| 440 | 163 | 1 | 3–167 | 2 single pages | 1 |
+
+What the checks covered, for each book: `state.json` says done; page records run
+1, 2, 3… with no repeat; site page numbers only increase; printed page numbers only
+increase within a part; no page has empty text; no page holds U+FFFD.
+
+What they show:
+
+- **Nothing was lost in fetching.** The tool follows the site's own "next" link, so a
+  site page number that is skipped is one the site does not have.
+- **Skipped printed pages** fall where a printed book has blank or picture pages:
+  after the short last page of a chapter, at part title pages, and at the plates of
+  manuscripts. The longer runs at the start are the editors' introductions, which the
+  site does not publish. This reading comes from the pattern, not from the printed
+  copies; the reviewer confirms it on a sample when each book is reviewed.
+- **Book 473 runs backwards through the mushaf**: it begins with the last parts of
+  the Quran and ends with سورة البقرة, as its table of contents shows.
+- **Book 737 has no ayah numbers** after its quotations, and book 440 has one. They
+  cannot be linked the way book 183 is; see "Linking commentary to ayat".
 
 Open question for the owner: do the seven general tafsirs listed in PRD §8.8
 (الميسر، المختصر، السعدي، الجلالين، البغوي، ابن كثير، الطبري) stay alongside these?
@@ -152,7 +179,7 @@ general asbab al-nuzul.
 | --- | --- |
 | Book page | `/book/{id}` — JSON-LD with name, author, genre, date added; a card with publisher, edition, page count |
 | Reader | `/book/{id}/read` redirects to `/book/{id}/page/1` (or `/page/1/{part}`) |
-| A page | `/book/{id}/page/{n}/{part}`; `n` appears to run on across parts (the contents of the 10-part book 466 reach 7325) — confirm on the first multi-part extraction |
+| A page | `/book/{id}/page/{n}/{part}`; `n` runs on across parts, with numbers skipped where the site has no page (confirmed on books 165, 471, 473 and 514) |
 | Start of a part | `/book/{id}/p/0/{part}` |
 | Text | `<div id="bookContent" class="reader-text book-content">` |
 | Chapter title | `.reader-chapter__title` |
@@ -228,9 +255,14 @@ typed Quran text).
    characters. Eight were seen in book 183: `@` (264 times, almost always after
    «زيد بن علي»), `#` (43), `÷` (35, after the Prophet's name), `ø` (16, after the
    name of God), `$` (14), `~` (7), `&` (2), `|` (2). `*` is an ordinary section
-   separator. The meaning of each code must come from the site owner or be confirmed
-   by the religious reviewer; some follow singular, dual and plural names, so
-   context alone is not enough. Until the table is approved, no book is shown.
+   separator. The seven books extracted on 2026-10-07 use the same eight and add
+   three: `¥` (46 times across them), `®` (19) and `^` (4, in book 737). Counts in
+   those seven books together: `÷` 2,772, `#` 2,530, `ø` 1,655, `@` 422, `~` 392,
+   `$` 266, `|` 149. Whether `=` (20) and `×` (3) are codes or ordinary characters is
+   to be checked in context. The meaning of each code must come from the site owner
+   or be confirmed by the religious reviewer; some follow singular, dual and plural
+   names, so context alone is not enough. Until the table is approved, no book is
+   shown.
 2. **Quran quotations inside commentary.** They are part of the book's text, written
    in the book's own orthography. Per `TF-08` they are displayed in the UI font as
    part of the source and are never treated as reference Quran text. The reference
@@ -238,8 +270,10 @@ typed Quran text).
 3. **Missing pages.** Editors' introductions are not published on the site (book 183
    jumps from printed page 3 to 76). In book 183 two single printed pages are absent
    (178 and 314); compare with the printed copy.
-4. **Multi-part navigation** in the tool is untested until book 471 or 473 (two
-   parts each) is extracted.
+4. **The `part` field at a part boundary.** Multi-part navigation works (books 165,
+   471, 473 and the seven-part 514). The `part` field of a record is one page late
+   at each boundary: the first page of a new part still carries the old part's
+   number. `page_label` is right; take the part from it.
 5. **Printed-edition rights.** Every book is a modern critical edition or a
    contemporary work. The basis for use is the site owner's signed permission held by
    the product owner; publisher, edition and editor are shown in the source badge and
@@ -260,6 +294,17 @@ number (2,863 positions). The linker reads the `html` field and must:
 5. Produce a report the religious reviewer signs for a sample.
 
 Each other book needs its own inspection first; structure differs between books.
+From the counts in "Extraction results":
+
+- **514, 471 and 276** carry a bracketed ayah number after their quotations, as book
+  183 does, and in-text chapter headings. The same kind of linker should serve them.
+- **473 and 165** carry numbers after only some quotations. What the unnumbered
+  quotations are is to be inspected.
+- **737 and 440** carry none. Book 737 is ordered by surah, with a heading per surah;
+  book 440 is a numbered list of questions. Linking them to ayat needs another
+  basis, such as an index in the book itself. Matching a quotation's wording against
+  the Quran text is not that basis unless the reviewer approves the method and
+  checks every link, because a quotation is the book's own orthography.
 
 ## Before a book is shown in the app
 
