@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holyquran/domain/models/quran_address.dart';
 
 import '../../../testing/packs/synthetic_pack.dart' show amiriQuranFontPath;
 import '../render/synthetic_surah_pack.dart';
@@ -219,6 +221,78 @@ void main() {
       reason: 'combining marks alone get no box (Flutter 3.44.7)',
     );
     expect(hit['letterlessExamples'], ['hafs:1:2:3', 'hafs:1:2:4']);
+  });
+
+  test('hit problems split into words without a letter, words beside one '
+      'that starts a line, and the rest', () {
+    QuranAddress at(int ayah, int word) => QuranAddress('hafs', 1, ayah, word);
+    final split = splitHitProblems(
+      [
+        '${at(1, 3)}: no box',
+        '${at(1, 2)}: empty',
+        '${at(1, 2)}: centre hits null',
+        '${at(2, 1)}: centre hits ${at(2, 2)}',
+        '${at(2, 4)}: outside its line band',
+      ],
+      {at(1, 3), at(2, 2)},
+      {at(1, 3)},
+    );
+    expect(split.letter, [
+      '${at(2, 1)}: centre hits ${at(2, 2)}',
+      '${at(2, 4)}: outside its line band',
+    ]);
+    expect(split.json['letterProblems'], 4);
+    expect(split.json['hitBesideLineStartMark'], 2);
+    expect(split.json['hitBesideLineStartMarkWords'], 1);
+    expect(split.json['hitBesideLineStartMarkKinds'], {
+      'empty': 1,
+      'centreHitsNull': 1,
+    });
+    expect(split.json['unexplainedKinds'], {
+      'centreHitsOther': 1,
+      'outsideBand': 1,
+    });
+    expect(split.json['unexplained'], [
+      'hafs:1:2:1 centreHitsOther',
+      'hafs:1:2:4 outsideBand',
+    ]);
+    expect(split.json['letterWordsBesideLetterless'], 2);
+    expect(split.json['letterHitsLetterless'], 1);
+    expect(split.json['letterlessKinds'], {'noBox': 1});
+  });
+
+  test('lines that start with a lone mark are counted, and no word with a '
+      'letter fails beside one', () async {
+    final nonsense = SyntheticArabicScript(17);
+    final lengths = Random(17);
+    final run = await _measure(root, [
+      (
+        name: nonsense.word(),
+        bismillah: null,
+        ayat: [
+          for (var a = 0; a < 200; a++)
+            [
+              nonsense.phrase(4 + lengths.nextInt(12)),
+              String.fromCharCode(0x06D6 + a % 7),
+            ].join(' '),
+        ],
+      ),
+    ]);
+    final m = run.measurement;
+    final layout =
+        ((m.results['surahs']! as List<Map<String, Object?>>).single['runs']!
+                as List<Map<String, Object?>>)
+            .single;
+    final breaks = layout['lineBreaks']! as Map<String, Object?>;
+    final hit = layout['hit']! as Map<String, Object?>;
+    expect(breaks['startsWithLetterless'], greaterThan(0));
+    expect(breaks['endsBeforeLetterless'], breaks['startsWithLetterless']);
+    expect(hit['letterlessWords'], 200);
+    expect(hit['unexplainedProblems'], 0);
+    expect(m.problemCounts[ProblemKind.hitRoundTrip], 0);
+    final summary = summaryLines(m.results);
+    expect(summary, contains(startsWith('  lines starting with a word')));
+    expect(summary.join('\n').runes.where((c) => c > 0x7E), isEmpty);
   });
 
   test('the long surah of the render tests, V2 included, at one width and '

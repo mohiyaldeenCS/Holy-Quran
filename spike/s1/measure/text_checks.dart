@@ -298,12 +298,59 @@ Set<QuranAddress> letterlessWords(SpikeSurahText surah) => {
   return (address: address, kind: kind, hit: null);
 }
 
-/// The hit round trip problems of words with a letter, which fail a run,
-/// and those of words without one, counted by kind (D-038).
-({List<String> letter, Map<String, Object?> json}) _splitHits(
-  List<String> problems,
+/// The words without a letter that start a line of [starts], and how many
+/// lines end right before a word without a letter: where a pause mark is
+/// separated from the word it follows.
+({Set<QuranAddress> startMarks, int endsBefore}) _breaksAtLetterless(
+  SpikeSurahText surah,
+  List<LineStart> starts,
   Set<QuranAddress> letterless,
 ) {
+  final startMarks = <QuranAddress>{};
+  var endsBefore = 0;
+  for (final (k, start) in starts.indexed) {
+    final i = start.ayah - surah.firstAyah.ayah;
+    final words = surah.words[i];
+    if (words.isEmpty) continue;
+    QuranAddress word(int number) => QuranAddress(
+      surah.firstAyah.riwaya,
+      surah.firstAyah.surah,
+      start.ayah,
+      number,
+    );
+    for (final span in words) {
+      if (span.start == start.offset &&
+          letterless.contains(word(span.number))) {
+        startMarks.add(word(span.number));
+      }
+    }
+    if (k == 0 || start.offset <= 0) continue;
+    final before = words.lastWhere(
+      (w) => w.start < start.offset,
+      orElse: () => words.first,
+    );
+    if (before.start < start.offset &&
+        letterless.contains(word(before.number + 1))) {
+      endsBefore++;
+    }
+  }
+  return (startMarks: startMarks, endsBefore: endsBefore);
+}
+
+/// The hit round trip problems of words without a letter, counted by kind
+/// (D-038); of words with a letter beside one that starts a line
+/// ([lineStartMarks]), counted as explained by that line break; and the
+/// rest, which fail a run.
+({List<String> letter, Map<String, Object?> json}) splitHitProblems(
+  List<String> problems,
+  Set<QuranAddress> letterless,
+  Set<QuranAddress> lineStartMarks,
+) {
+  final explainedKinds = <String, int>{};
+  final explainedWords = <QuranAddress>{};
+  final unexplainedKinds = <String, int>{};
+  final unexplained = <String>[];
+  var letterProblems = 0;
   final letter = <String>[];
   final letterKinds = <String, int>{};
   final letterlessKinds = <String, int>{};
@@ -319,15 +366,24 @@ Set<QuranAddress> letterlessWords(SpikeSurahText surah) => {
       letterlessWithProblem.add(found.address);
       continue;
     }
-    letter.add(problem);
+    letterProblems++;
     letterKinds[found.kind] = (letterKinds[found.kind] ?? 0) + 1;
     final a = found.address;
     letterWords.add(a);
+    var besideLineStart = false;
     for (final next in [a.word! - 1, a.word! + 1]) {
-      if (next >= 1 &&
-          letterless.contains(QuranAddress(a.riwaya, a.surah, a.ayah, next))) {
-        besideLetterless.add(a);
-      }
+      if (next < 1) continue;
+      final neighbour = QuranAddress(a.riwaya, a.surah, a.ayah, next);
+      if (letterless.contains(neighbour)) besideLetterless.add(a);
+      if (lineStartMarks.contains(neighbour)) besideLineStart = true;
+    }
+    if (besideLineStart) {
+      explainedKinds[found.kind] = (explainedKinds[found.kind] ?? 0) + 1;
+      explainedWords.add(a);
+    } else {
+      letter.add(problem);
+      unexplainedKinds[found.kind] = (unexplainedKinds[found.kind] ?? 0) + 1;
+      if (unexplained.length < 20) unexplained.add('$a ${found.kind}');
     }
     if (found.hit case final hit? when letterless.contains(hit)) {
       hitsLetterless++;
@@ -337,8 +393,17 @@ Set<QuranAddress> letterlessWords(SpikeSurahText surah) => {
   return (
     letter: letter,
     json: {
-      'letterProblems': letter.length,
+      'letterProblems': letterProblems,
       'letterKinds': letterKinds,
+      'hitBesideLineStartMark': explainedKinds.values.fold<int>(
+        0,
+        (a, b) => a + b,
+      ),
+      'hitBesideLineStartMarkWords': explainedWords.length,
+      'hitBesideLineStartMarkKinds': explainedKinds,
+      'unexplainedProblems': letter.length,
+      'unexplainedKinds': unexplainedKinds,
+      'unexplained': unexplained,
       'letterWordsWithProblem': letterWords.length,
       'letterWordsBesideLetterless': besideLetterless.length,
       'letterHitsLetterless': hitsLetterless,
@@ -395,7 +460,13 @@ Future<SurahLayoutResult> measureSurahLayout(
     );
   }
   final v1Ms = _ms(clock);
-  final hits = _splitHits(hitRoundTripProblems(v1), letterlessWords(surah));
+  final letterless = letterlessWords(surah);
+  final breaks = _breaksAtLetterless(surah, v1.lineStartPositions, letterless);
+  final hits = splitHitProblems(
+    hitRoundTripProblems(v1),
+    letterless,
+    breaks.startMarks,
+  );
   final hit = hits.letter;
   final order = markOrderProblems(v1);
   final starts = v1.lineStartPositions;
@@ -478,6 +549,10 @@ Future<SurahLayoutResult> measureSurahLayout(
       'ink': {...bandInkJson(ink), 'ms': inkMs},
       'v2': v2,
       'hit': hits.json,
+      'lineBreaks': {
+        'startsWithLetterless': breaks.startMarks.length,
+        'endsBeforeLetterless': breaks.endsBefore,
+      },
       'slicedAyat': sliced,
       'slicingMs': slicingMs,
       'problems': {
@@ -679,6 +754,11 @@ Map<String, Object?> _summary(
                 .where((e) => ((e! as Map<String, Object?>)[way]! as int) > 0)
                 .length,
       );
+      List<int> surahsWithBreaks(String key) => [
+        for (final r in runs)
+          if (((r.run['lineBreaks']! as Map<String, Object?>)[key]! as int) > 0)
+            r.surah,
+      ];
       int surahsWith(String key) =>
           runs.where((r) => (inkOf(r.run)[key]! as int) > 0).length;
       final perGapMax = widest('stretch', 'perGapMax');
@@ -759,6 +839,32 @@ Map<String, Object?> _summary(
           'letterWordsBesideLetterless',
         ),
         'hitLetterHitsLetterless': sum('hit', 'letterHitsLetterless'),
+        'hitBesideLineStartMark': sum('hit', 'hitBesideLineStartMark'),
+        'hitBesideLineStartMarkWords': sum(
+          'hit',
+          'hitBesideLineStartMarkWords',
+        ),
+        'hitUnexplained': sum('hit', 'unexplainedProblems'),
+        'hitUnexplainedKinds': kinds('unexplainedKinds'),
+        'hitUnexplainedFirst': [
+          for (final r in runs)
+            ...((r.run['hit']! as Map<String, Object?>)['unexplained']!
+                as List<Object?>),
+        ].take(20).toList(),
+        'linesStartingWithLetterless': sum(
+          'lineBreaks',
+          'startsWithLetterless',
+        ),
+        'linesStartingWithLetterlessSurahs': surahsWithBreaks(
+          'startsWithLetterless',
+        ),
+        'linesEndingBeforeLetterless': sum(
+          'lineBreaks',
+          'endsBeforeLetterless',
+        ),
+        'linesEndingBeforeLetterlessSurahs': surahsWithBreaks(
+          'endsBeforeLetterless',
+        ),
         'letterlessWords': sum('hit', 'letterlessWords'),
         'letterlessWithProblem': sum('hit', 'letterlessWithProblem'),
         'hitLetterlessProblems': sum('hit', 'letterlessProblems'),
@@ -881,6 +987,27 @@ List<String> summaryLines(Map<String, Object?> results) {
       '${s['hitLetterWordsBesideLetterless']} of them next to a word '
       'without a letter; centre hitting a word without a letter '
       '${s['hitLetterHitsLetterless']}',
+    );
+    line(
+      '  explained (beside a word without a letter that starts a line): '
+      '${s['hitBesideLineStartMark']} problems on '
+      '${s['hitBesideLineStartMarkWords']} words; unexplained '
+      '${s['hitUnexplained']} (${counts(s['hitUnexplainedKinds'])})',
+    );
+    for (final problem in s['hitUnexplainedFirst']! as List<Object?>) {
+      line('    unexplained $problem');
+    }
+    final starting = s['linesStartingWithLetterlessSurahs']! as List<int>;
+    final ending = s['linesEndingBeforeLetterlessSurahs']! as List<int>;
+    line(
+      '  lines starting with a word without a letter: '
+      '${s['linesStartingWithLetterless']} in ${starting.length} surahs: '
+      '${starting.join(' ')}',
+    );
+    line(
+      '  lines ending right before a word without a letter: '
+      '${s['linesEndingBeforeLetterless']} in ${ending.length} surahs'
+      '${listEquals(ending, starting) ? ' (the same surahs)' : ': ${ending.join(' ')}'}',
     );
     line(
       '  hit, words without a letter: ${s['letterlessWords']} words, '
