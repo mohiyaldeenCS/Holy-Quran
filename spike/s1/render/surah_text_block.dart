@@ -36,6 +36,7 @@ final class SurahTextBlock extends MultiChildRenderObjectWidget {
     Map<QuranAddress, Widget> pageMarks = const {},
     this.wordColours = const {},
     this.maxLines,
+    this.leadInLines = 0,
     super.key,
   }) : pageMarkAyat = (pageMarks.keys.toList()..sort()),
        super(
@@ -61,6 +62,10 @@ final class SurahTextBlock extends MultiChildRenderObjectWidget {
   final Map<QuranAddress, Color> wordColours;
   final int? maxLines;
 
+  /// Lines laid out before the shown ones and hidden: the end of the block
+  /// before, so that the first shown words keep their shaping.
+  final int leadInLines;
+
   SurahBlockContent get _content => SurahBlockContent(
     firstAyah: firstAyah,
     ayat: ayat,
@@ -81,6 +86,7 @@ final class SurahTextBlock extends MultiChildRenderObjectWidget {
         highlighted: highlighted,
         centreLastLine: centreLastLine,
         maxLines: maxLines,
+        leadInLines: leadInLines,
         onWordTap: onWordTap,
       );
 
@@ -96,6 +102,7 @@ final class SurahTextBlock extends MultiChildRenderObjectWidget {
     ..highlighted = highlighted
     ..centreLastLine = centreLastLine
     ..maxLines = maxLines
+    ..leadInLines = leadInLines
     ..onWordTap = onWordTap;
 
   static TextStyle _styleOf(BuildContext context) =>
@@ -120,6 +127,7 @@ final class RenderSurahTextBlock extends RenderBox
     required this._highlighted,
     required this._centreLastLine,
     required this._maxLines,
+    required this._leadInLines,
     required this._onWordTap,
   }) {
     _tap = TapGestureRecognizer(debugOwner: this)..onTapUp = _tapped;
@@ -175,6 +183,13 @@ final class RenderSurahTextBlock extends RenderBox
   set maxLines(int? value) {
     if (value == _maxLines) return;
     _maxLines = value;
+    _relayout();
+  }
+
+  int _leadInLines;
+  set leadInLines(int value) {
+    if (value == _leadInLines) return;
+    _leadInLines = value;
     _relayout();
   }
 
@@ -257,6 +272,7 @@ final class RenderSurahTextBlock extends RenderBox
     pageMarkSizes: sizes.sublist(_content.length),
     centreLastLine: _centreLastLine,
     maxLines: _maxLines,
+    leadInLines: _leadInLines,
   );
 
   bool _shows(RenderBox child) {

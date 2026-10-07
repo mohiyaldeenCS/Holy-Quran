@@ -114,44 +114,43 @@ final class SurahBlockContent {
 }
 
 /// The spans of [text] from [from] on, cut only at stored word offsets and
-/// at [hideFrom] and [hideBefore]. With no [colours] and nothing hidden the
-/// text is one span. With [colours] it is cut at every stored word offset,
-/// each word and each stretch between words its own span, and words
-/// numbered in [colours] take that colour. The text from [hideFrom] on, and
-/// before [hideBefore], both stored word starts, is drawn in [hidden]. The
-/// slices joined in order are the text from [from].
+/// at the ends of the [hidden] ranges. With no [colours] and nothing hidden
+/// the text is one span. With [colours] it is cut at every stored word
+/// offset, each word and each stretch between words its own span, and words
+/// numbered in [colours] take that colour. Text inside a [hidden] range,
+/// half-open UTF-16 offsets that start and end on stored word starts or the
+/// text's ends, is drawn in [hiddenColour]. The slices joined in order are
+/// the text from [from].
 List<InlineSpan> ayahTextSpans(
   PackText text,
   List<WordSpan> words, {
   int from = 0,
   Map<int, Color> colours = const {},
-  int? hideFrom,
-  int? hideBefore,
-  Color? hidden,
+  List<(int, int)> hidden = const [],
+  Color? hiddenColour,
 }) {
   final value = text.verbatim;
   if (from == value.length) return const [];
-  if (colours.isEmpty && hideFrom == null && hideBefore == null) {
+  if (colours.isEmpty && hidden.isEmpty) {
     return [TextSpan(text: from == 0 ? value : value.substring(from))];
   }
-  bool inside(int? cut) => cut != null && cut > from && cut < value.length;
   final cuts = <int>{
     from,
     value.length,
     if (colours.isNotEmpty)
       for (final word in words)
         if (word.start >= from) ...[word.start, word.end],
-    if (inside(hideFrom)) hideFrom!,
-    if (inside(hideBefore)) hideBefore!,
+    for (final (start, end) in hidden)
+      for (final cut in [start, end])
+        if (cut > from && cut < value.length) cut,
   }.toList()..sort();
   final coloured = {
     for (final word in words)
       if (colours[word.number] case final colour?) word.start: (word, colour),
   };
   TextStyle? styleOf(int start, int end) {
-    if ((hideFrom != null && start >= hideFrom) ||
-        (hideBefore != null && start < hideBefore)) {
-      return TextStyle(color: hidden);
+    if (hidden.any((range) => range.$1 <= start && start < range.$2)) {
+      return TextStyle(color: hiddenColour);
     }
     return switch (coloured[start]) {
       (final WordSpan word, final Color colour) when word.end == end =>
@@ -174,8 +173,8 @@ List<InlineSpan> ayahTextSpans(
 Size ayahMarkerSize(TextScaler scaler, double diameter) =>
     Size.square(scaler.scale(diameter));
 
-/// How a block hides its lines after [SurahParagraph.maxLines] and moves its
-/// centred last line.
+/// How a block hides its lead-in lines and those after
+/// [SurahParagraph.maxLines], and moves its centred last line.
 enum BandCut {
   /// The text from the cut on is drawn transparent; a centred last line is
   /// drawn from a second copy of the paragraph in which everything else is
@@ -251,11 +250,15 @@ final class SurahParagraph {
     List<Size> pageMarkSizes = const [],
     this.centreLastLine = false,
     this.maxLines,
+    this.leadInLines = 0,
     this.cut = BandCut.recolour,
   }) : _style = style,
        _textScaler = textScaler,
        _hidden = (style.color ?? (throw ArgumentError('style has no colour')))
            .withValues(alpha: 0) {
+    if (leadInLines > 0 && content.basmala != null) {
+      throw ArgumentError('a block with a lead-in has no basmala');
+    }
     final marks = content.pageMarkIndices;
     if (markerSizes.length != content.length ||
         pageMarkSizes.length != marks.length) {
@@ -309,9 +312,16 @@ final class SurahParagraph {
   final SurahBlockContent content;
   final bool centreLastLine;
 
-  /// Lines after this many are laid out but neither painted nor hit; a
-  /// block that continues in the next one ends on a full, justified line.
+  /// Lines after this many shown lines are laid out but neither painted nor
+  /// hit; a block that continues in the next one ends on a full, justified
+  /// line.
   final int? maxLines;
+
+  /// Lines laid out before the shown ones and neither painted nor hit: the
+  /// end of the block before, so that the first shown words are shaped
+  /// with the words before them as in one paragraph. Amiri Quran shapes a
+  /// word differently after another word, across the space.
+  final int leadInLines;
   final BandCut cut;
 
   final TextStyle _style;
@@ -334,20 +344,22 @@ final class SurahParagraph {
 
   double _width = 0;
   double _bodyTop = 0;
+  double _dy = 0;
   double _shift = 0;
   int? _cutLine;
   bool _recoloured = false;
+  int _first = 0;
   List<ui.LineMetrics> _metrics = const [];
   final _tops = <double>[];
   final _bottoms = <double>[];
   List<int> _lineStarts = const [];
-  int _visible = 0;
+  int _end = 0;
   List<Rect>? _slots;
 
-  /// The paragraph's spans, with the text from [hideFrom] on, or before
-  /// [hideBefore], drawn transparent; both are paragraph offsets of a
-  /// segment start or a stored word start.
-  TextSpan _spans({int? hideFrom, int? hideBefore}) => TextSpan(
+  /// The paragraph's spans, with the text in the [hidden] ranges of
+  /// paragraph offsets drawn transparent; each range starts and ends on a
+  /// segment boundary or a stored word start.
+  TextSpan _spans([List<(int, int)> hidden = const []]) => TextSpan(
     style: _style,
     locale: _arabic,
     children: [
@@ -358,9 +370,12 @@ final class SurahParagraph {
             content.words[segment.ayah],
             from: content.baseOf(segment.ayah),
             colours: _coloursOf(segment.ayah),
-            hideFrom: _localCut(segment, hideFrom),
-            hideBefore: _localCut(segment, hideBefore),
-            hidden: _hidden,
+            hidden: [
+              for (final (start, end) in hidden)
+                if (start < segment.end && end > segment.start)
+                  (_localCut(segment, start), _localCut(segment, end)),
+            ],
+            hiddenColour: _hidden,
           )
         else
           _placeholderSpan,
@@ -369,9 +384,18 @@ final class SurahParagraph {
 
   /// [cut], a paragraph offset, as an offset into [text]'s ayah, held to
   /// the segment's ends.
-  int? _localCut(_Segment text, int? cut) => cut == null
-      ? null
-      : _local(text, math.min(math.max(cut, text.start), text.end));
+  int _localCut(_Segment text, int cut) =>
+      _local(text, math.min(math.max(cut, text.start), text.end));
+
+  /// Whether text may be cut at paragraph offset [offset]: a segment
+  /// boundary or a stored word start.
+  bool _sliceable(int offset) {
+    final segment = _segmentAt(offset);
+    if (segment == null || segment.kind != _Kind.text) return true;
+    if (offset == segment.start) return true;
+    final local = _local(segment, offset);
+    return content.words[segment.ayah].any((w) => w.start == local);
+  }
 
   int _local(_Segment text, int offset) =>
       content.baseOf(text.ayah) + offset - text.start;
@@ -406,22 +430,27 @@ final class SurahParagraph {
       _tops.add(k == 0 ? 0 : _bottoms[k - 1]);
       _bottoms.add(line.baseline + line.descent);
     }
-    _visible = math.min(_metrics.length, maxLines ?? _metrics.length);
+    final lines = _metrics.length;
+    _first = math.min(leadInLines, lines);
+    _end = math.min(lines, _first + (maxLines ?? lines));
+    _dy = _bodyTop - (_first < lines ? _tops[_first] : 0);
     _lineStarts = _findLineStarts();
     _slots = null;
     _shift = 0;
     _cutLine = null;
-    if (_visible < _metrics.length) {
-      _cutLine = _visible;
-    } else if (centreLastLine && _metrics.isNotEmpty) {
+    if (_end < lines) {
+      _cutLine = _end;
+    } else if (centreLastLine && lines > _first) {
       // The line ends with the last marker's slot, whose trailing gap is
       // not ink: centre what is drawn.
       final last = _metrics.last;
       _shift = (width - last.width - _gap) / 2 - last.left;
-      if (_shift != 0) _cutLine = _metrics.length - 1;
+      if (_shift != 0) _cutLine = lines - 1;
     }
     _recoloured = false;
-    if (cut == BandCut.recolour && _cutLine != null) _recolour(_cutLine!);
+    if (cut == BandCut.recolour && (_cutLine != null || _first > 0)) {
+      _recolour();
+    }
   }
 
   ui.Paragraph _build(
@@ -441,31 +470,62 @@ final class SurahParagraph {
     return builder.build()..layout(ui.ParagraphConstraints(width: _width));
   }
 
-  /// Lays the body out again with the text from line [line] on drawn
-  /// transparent and, when centring, a copy in which only that line shows. The cut must fall on a stored word start, a marker or a
-  /// page mark; elsewhere the block falls back to [BandCut.clip].
-  void _recolour(int line) {
-    final from = _lineStarts[line];
-    final segment = _segmentAt(from)!;
-    if (segment.kind == _Kind.text && from != segment.start) {
-      final local = _local(segment, from);
-      if (!content.words[segment.ayah].any((w) => w.start == local)) return;
+  /// Lays the body out again with the lead-in and the text from the cut
+  /// line on drawn transparent and, when centring, a copy in which only the
+  /// last line shows. Every cut must fall on a stored word start, a marker
+  /// or a page mark; elsewhere the block falls back to [BandCut.clip].
+  void _recolour() {
+    final before = _first > 0 ? _lineStarts[_first] : null;
+    final from = _cutLine == null ? null : _lineStarts[_cutLine!];
+    if ((before != null && !_sliceable(before)) ||
+        (from != null && !_sliceable(from))) {
+      return;
     }
     _body!.dispose();
-    _body = _build(_spans(hideFrom: from), TextAlign.justify, _dimensions);
-    if (!listEquals(_findLineStarts(), _lineStarts)) {
-      throw StateError('recolouring changed the line breaks');
-    }
-    _recoloured = true;
-    if (_shift == 0) return;
-    final last = _lastLine = _build(
-      _spans(hideBefore: from),
+    _body = _build(
+      _spans([
+        if (before != null) (0, before),
+        if (from != null) (from, _length),
+      ]),
       TextAlign.justify,
       _dimensions,
     );
-    if (!listEquals(_findLineStarts(last), _lineStarts)) {
+    _expectSameLines(_body!);
+    _recoloured = true;
+    if (_shift == 0) return;
+    _lastLine = _build(_spans([(0, from!)]), TextAlign.justify, _dimensions);
+    _expectSameLines(_lastLine!);
+  }
+
+  void _expectSameLines(ui.Paragraph paragraph) {
+    if (!listEquals(_findLineStarts(paragraph), _lineStarts)) {
       throw StateError('recolouring changed the line breaks');
     }
+  }
+
+  /// The ayat as laid out, every line in place in body coordinates, with
+  /// only the lines for which [shown] holds visible: what the band ink check
+  /// draws. The caller disposes it. Throws a [StateError] when a line starts
+  /// inside a word.
+  ui.Paragraph paragraphShowing(bool Function(int line) shown) {
+    final lines = _metrics.length;
+    final hidden = <(int, int)>[];
+    for (var k = 0; k < lines; k++) {
+      if (shown(k)) continue;
+      final start = _lineStarts[k];
+      final end = k + 1 < lines ? _lineStarts[k + 1] : _length;
+      if (!_sliceable(start) || !_sliceable(end)) {
+        throw StateError('line $k starts or ends inside a word');
+      }
+      if (hidden.isNotEmpty && hidden.last.$2 == start) {
+        hidden.last = (hidden.last.$1, end);
+      } else {
+        hidden.add((start, end));
+      }
+    }
+    final paragraph = _build(_spans(hidden), TextAlign.justify, _dimensions);
+    _expectSameLines(paragraph);
+    return paragraph;
   }
 
   /// The first offset of each line: for line k, the least offset after the
@@ -507,15 +567,20 @@ final class SurahParagraph {
 
   double get width => _width;
 
-  /// The block's height: the basmala and the visible lines.
-  double get height => _bodyTop + (_visible == 0 ? 0 : _bottoms[_visible - 1]);
+  /// The block's height: the basmala and the shown lines.
+  double get height => _end > _first ? _dy + _bottoms[_end - 1] : _bodyTop;
 
-  /// Where the ayat begin, below the basmala.
-  double get bodyTop => _bodyTop;
+  /// Where the body's origin lies in block coordinates: below the basmala,
+  /// and above the block by the lead-in's height.
+  double get bodyTop => _dy;
 
   int get lineCount => _metrics.length;
 
-  int get visibleLineCount => _visible;
+  int get visibleLineCount => _end - _first;
+
+  /// The body lines shown, from [firstShownLine] on; lines before it are the
+  /// lead-in.
+  int get firstShownLine => _first;
 
   /// How far the last line was moved to centre it; 0 when it was not.
   double get lastLineShift => _shift;
@@ -526,8 +591,8 @@ final class SurahParagraph {
   /// The visible lines' bands in block coordinates. They tile the body:
   /// each runs from the bottom of the one above to its own descent.
   List<Rect> get lineBands => [
-    for (var k = 0; k < _visible; k++)
-      Rect.fromLTRB(0, _bodyTop + _tops[k], _width, _bodyTop + _bottoms[k]),
+    for (var k = _first; k < _end; k++)
+      Rect.fromLTRB(0, _dy + _tops[k], _width, _dy + _bottoms[k]),
   ];
 
   /// The widths of the visible lines as laid out, and as they would be
@@ -540,13 +605,13 @@ final class SurahParagraph {
       throw StateError('alignment changed the line count');
     }
     return [
-      for (var k = 0; k < _visible; k++)
+      for (var k = _first; k < _end; k++)
         (laidOut: _metrics[k].width, natural: natural[k].width),
     ];
   }
 
   /// Paragraph offsets of the visible lines' first characters.
-  List<int> get lineStarts => _lineStarts.sublist(0, _visible);
+  List<int> get lineStarts => _lineStarts.sublist(_first, _end);
 
   List<LineStart> get lineStartPositions => [
     for (final start in lineStarts) _positionOf(start),
@@ -580,8 +645,10 @@ final class SurahParagraph {
   /// The word or ayah marker at [point], in block coordinates; null over a
   /// space, a page mark, the basmala or a hidden line.
   QuranAddress? hit(Offset point) {
-    final y = point.dy - _bodyTop;
-    if (_visible == 0 || y < 0 || y >= _bottoms[_visible - 1]) return null;
+    final y = point.dy - _dy;
+    if (_end == _first || y < _tops[_first] || y >= _bottoms[_end - 1]) {
+      return null;
+    }
     if (point.dx < 0 || point.dx > _width) return null;
     final line = _lineAtY(y);
     final probe = Offset(point.dx - _shiftOf(line), y);
@@ -661,7 +728,7 @@ final class SurahParagraph {
     if (index == null || (index == 0 && content.startOffset != 0)) return null;
     final first = _textOf[index] ?? _placeholders[_markerAt[index]!].segment;
     final line = _lineOfOffset(first.start);
-    return line < _visible ? _bodyTop + _tops[line] : null;
+    return line >= _first && line < _end ? _dy + _tops[line] : null;
   }
 
   /// Where the marker of the ayah at [index] is drawn, in block coordinates.
@@ -671,34 +738,35 @@ final class SurahParagraph {
   Rect pageMarkRect(int index) => _placed(_childRect(_pageMarkAt[index]!));
 
   /// Whether [rect], in block coordinates, lies on a visible line.
-  bool isVisible(Rect rect) =>
-      _visible == _metrics.length ||
-      rect.center.dy - _bodyTop < _bottoms[_visible - 1];
+  bool isVisible(Rect rect) {
+    final y = rect.center.dy - _dy;
+    return (_first == 0 || y >= _tops[_first]) &&
+        (_end == _metrics.length || y < _bottoms[_end - 1]);
+  }
 
   void paint(Canvas canvas, Offset offset) {
     if (_basmala case final basmala?) canvas.drawParagraph(basmala, offset);
     final body = _body!;
-    final origin = offset.translate(0, _bodyTop);
+    final origin = offset.translate(0, _dy);
     final line = _cutLine;
-    if (line == null || _recoloured) {
+    if ((line == null && _first == 0) || _recoloured) {
       canvas.drawParagraph(body, origin);
       if (_lastLine case final last?) {
         canvas.drawParagraph(last, origin.translate(_shift, 0));
       }
       return;
     }
-    final edge = _tops[line];
+    final top = _first > 0 ? _tops[_first] : -_far;
+    final edge = line == null ? _far : _tops[line];
     canvas
       ..save()
-      ..clipRect(Rect.fromLTRB(-_far, -_far, _far, edge).shift(origin));
-    canvas
+      ..clipRect(Rect.fromLTRB(-_far, top, _far, edge).shift(origin))
       ..drawParagraph(body, origin)
       ..restore();
     if (_shift != 0) {
       canvas
         ..save()
-        ..clipRect(Rect.fromLTRB(-_far, edge, _far, _far).shift(origin));
-      canvas
+        ..clipRect(Rect.fromLTRB(-_far, edge, _far, _far).shift(origin))
         ..drawParagraph(body, origin.translate(_shift, 0))
         ..restore();
     }
@@ -794,7 +862,7 @@ final class SurahParagraph {
     final byLine = <int, Rect>{};
     for (final box in boxes) {
       final line = _lineOfBox(box);
-      if (line >= _visible) continue;
+      if (line < _first || line >= _end) continue;
       final rect = Rect.fromLTRB(
         math.max(box.left, 0),
         box.top,
@@ -805,12 +873,12 @@ final class SurahParagraph {
     }
     return [
       for (final line in byLine.keys.toList()..sort())
-        byLine[line]!.shift(Offset(_shiftOf(line), _bodyTop)),
+        byLine[line]!.shift(Offset(_shiftOf(line), _dy)),
     ];
   }
 
   Rect _placed(Rect raw) =>
-      raw.shift(Offset(_shiftOf(_lineAtY(raw.center.dy)), _bodyTop));
+      raw.shift(Offset(_shiftOf(_lineAtY(raw.center.dy)), _dy));
 
   double _shiftOf(int line) => line == _metrics.length - 1 ? _shift : 0;
 

@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:crypto/crypto.dart';
@@ -263,7 +265,10 @@ List<({int line, double stretch, int words})> lineStretch(
   for (var i = 0; i < content.length; i++) {
     final ayah = content.ayahAt(i).ayah;
     for (final word in content.words[i]) {
-      if (word.start < content.baseOf(i)) continue;
+      if (word.start < content.baseOf(i) ||
+          !_notAfter(starts.first, ayah, word.start)) {
+        continue;
+      }
       while (line + 1 < starts.length &&
           _notAfter(starts[line + 1], ayah, word.start)) {
         line++;
@@ -285,10 +290,10 @@ bool _notAfter(LineStart start, int ayah, int offset) =>
     start.ayah < ayah || (start.ayah == ayah && start.offset <= offset);
 
 /// Ink on the two pixel rows either side of each edge between line bands,
-/// with the text drawn as laid out at [pixelRatio]. Zero everywhere means no
-/// glyph crosses a band edge, so a band can be clipped and repainted moved
-/// ([BandCut.clip]) without cutting a glyph. [paragraph] must show and
-/// draw every line in place: laid out without centring or [maxLines].
+/// with the text drawn as laid out at [pixelRatio]. It cannot tell which
+/// line the ink belongs to; [bandInk] can, and supersedes it. [paragraph]
+/// must show and draw every line in place: laid out without centring or
+/// [maxLines].
 Future<List<({int edge, int above, int below})>> bandEdgeInk(
   SurahParagraph paragraph, {
   double pixelRatio = 1,
@@ -327,6 +332,9 @@ Future<List<({int edge, int above, int below})>> bandEdgeInk(
 // one image of its whole height.
 const int _tileRows = 2048;
 
+// The alpha byte of an RGBA pixel read as one little-endian word.
+const int _alpha = 0xFF000000;
+
 /// The number of pixels with any ink on each of [rowCount] rows from
 /// [firstRow], the body drawn at [pixelRatio].
 Future<List<int>> _inkPerRow(
@@ -362,3 +370,156 @@ Future<List<int>> _inkPerRow(
   }
   return ink;
 }
+
+/// One line's ink outside its band: pixels and the farthest reach, in
+/// logical px, above and below.
+typedef LineInk = ({
+  int line,
+  int above,
+  int below,
+  double reachUp,
+  double reachDown,
+});
+
+/// Where ink leaves its line's band, by line and by edge. [edges] holds,
+/// for the edge above line `edge`, the pixels of the line above that cross
+/// it downward ([LineInk.below] of that line), of the line below that cross
+/// it upward, and the farther reach of the two.
+typedef BandInk = ({
+  int lines,
+  int linesLeaving,
+  double maxReach,
+  int aboveFirst,
+  int belowLast,
+  List<({int edge, int down, int up, double reach})> edges,
+  List<LineInk> perLine,
+});
+
+/// Which line's ink leaves its band, and how far: the clipping of
+/// [BandCut.clip] is safe only where no line's ink does.
+///
+/// The text is drawn three times, each time with only the lines k for
+/// which k mod 3 is one value visible and the others transparent (colour
+/// does not change layout). The pixels with ink in the bands next to line
+/// k are then line k's, as long as no ink reaches past a whole band, which
+/// [BandInk.maxReach] shows. Two passes would not do: in the band between
+/// lines k and k + 2 their ink could not be told apart. [paragraph] must
+/// show every line: no lead-in or [SurahParagraph.maxLines].
+Future<BandInk> bandInk(
+  SurahParagraph paragraph, {
+  double pixelRatio = 1,
+}) async {
+  if (paragraph.firstShownLine != 0 ||
+      paragraph.visibleLineCount != paragraph.lineCount) {
+    throw ArgumentError('the paragraph does not show every line');
+  }
+  final bands = [
+    for (final band in paragraph.lineBands)
+      band.shift(Offset(0, -paragraph.bodyTop)),
+  ];
+  final lines = bands.length;
+  if (lines == 0) {
+    return (
+      lines: 0,
+      linesLeaving: 0,
+      maxReach: 0.0,
+      aboveFirst: 0,
+      belowLast: 0,
+      edges: const <({int edge, int down, int up, double reach})>[],
+      perLine: const <LineInk>[],
+    );
+  }
+  final tallest = bands.map((b) => b.height).reduce(math.max);
+  final margin = (tallest * pixelRatio).ceil();
+  final width = (paragraph.width * pixelRatio).ceil() + 2 * margin;
+  final rows = (bands.last.bottom * pixelRatio).ceil() + 2 * margin;
+  final perLine = List<LineInk?>.filled(lines, null);
+  for (var pass = 0; pass < 3; pass++) {
+    final drawn = paragraph.paragraphShowing((k) => k % 3 == pass);
+    final ink = Int32List(rows);
+    for (var first = 0; first < rows; first += _tileRows) {
+      final count = math.min(_tileRows, rows - first);
+      final recorder = ui.PictureRecorder();
+      Canvas(recorder)
+        ..translate(margin.toDouble(), (margin - first).toDouble())
+        ..scale(pixelRatio)
+        ..drawParagraph(drawn, Offset.zero);
+      final picture = recorder.endRecording();
+      final image = await picture.toImage(width, count);
+      final pixels = (await image.toByteData())!.buffer.asUint32List();
+      image.dispose();
+      picture.dispose();
+      for (var y = 0; y < count; y++) {
+        var n = 0;
+        for (var i = y * width, end = i + width; i < end; i++) {
+          if (pixels[i] & _alpha != 0) n++;
+        }
+        ink[first + y] = n;
+      }
+    }
+    drawn.dispose();
+    for (var k = pass; k < lines; k += 3) {
+      // Rows from the band above to the band below, in pixels from the
+      // body's top; the first and last lines reach into the margins.
+      final top = bands[k].top * pixelRatio;
+      final bottom = bands[k].bottom * pixelRatio;
+      final from = k > 0 ? bands[k - 1].top * pixelRatio : -margin.toDouble();
+      final to = k + 1 < lines
+          ? bands[k + 1].bottom * pixelRatio
+          : (rows - margin).toDouble();
+      var above = 0;
+      var below = 0;
+      var reachUp = 0.0;
+      var reachDown = 0.0;
+      for (var y = from.floor(); y < to.ceil(); y++) {
+        final n = ink[y + margin];
+        if (n == 0) continue;
+        if (y + 1 <= top) {
+          above += n;
+          reachUp = math.max(reachUp, (top - y) / pixelRatio);
+        } else if (y >= bottom) {
+          below += n;
+          reachDown = math.max(reachDown, (y + 1 - bottom) / pixelRatio);
+        }
+      }
+      perLine[k] = (
+        line: k,
+        above: above,
+        below: below,
+        reachUp: reachUp,
+        reachDown: reachDown,
+      );
+    }
+  }
+  final all = [for (final line in perLine) line!];
+  return (
+    lines: lines,
+    linesLeaving: all.where((l) => l.above > 0 || l.below > 0).length,
+    maxReach: all.map((l) => math.max(l.reachUp, l.reachDown)).reduce(math.max),
+    aboveFirst: all.first.above,
+    belowLast: all.last.below,
+    edges: [
+      for (var k = 1; k < lines; k++)
+        (
+          edge: k,
+          down: all[k - 1].below,
+          up: all[k].above,
+          reach: math.max(all[k - 1].reachDown, all[k].reachUp),
+        ),
+    ],
+    perLine: all,
+  );
+}
+
+/// [ink] as JSON: numbers, lists and maps only.
+Map<String, Object> bandInkJson(BandInk ink) => {
+  'lines': ink.lines,
+  'linesLeaving': ink.linesLeaving,
+  'maxReach': ink.maxReach,
+  'aboveFirst': ink.aboveFirst,
+  'belowLast': ink.belowLast,
+  'edges': [
+    for (final e in ink.edges)
+      {'edge': e.edge, 'down': e.down, 'up': e.up, 'reach': e.reach},
+  ],
+};

@@ -112,7 +112,8 @@ void main() {
         }
       });
 
-      test('V2 blocks break every line as V1 does ($where)', () {
+      test('V2 blocks break every line and shape every first-line word as V1 '
+          'does ($where)', () {
         for (final mark in [_pageMark, null]) {
           final v1 = surahParagraph(
             long,
@@ -132,11 +133,136 @@ void main() {
             greaterThan(long.pageStarts.length ~/ 2),
             reason: 'about one block per page',
           );
+          expect(planner.blocksWithoutLeadIn, 0);
+          var words = 0;
+          for (final (k, block) in planner.all.indexed) {
+            final v2 = planner.paragraphFor(block);
+            final first = v2.lineBands.first;
+            final content = v2.content;
+            for (var i = 0; i < content.length; i++) {
+              final ayah = content.ayahAt(i);
+              for (final span in content.words[i]) {
+                final word = QuranAddress(
+                  ayah.riwaya,
+                  ayah.surah,
+                  ayah.ayah,
+                  span.number,
+                );
+                final boxes = v2.boxesOf(word);
+                if (boxes.isEmpty || !first.contains(boxes.first.center)) {
+                  continue;
+                }
+                words++;
+                expect(
+                  boxes.single.width,
+                  moreOrLessEquals(v1.boxesOf(word).single.width, epsilon: .01),
+                  reason: 'block $k, $word shaped as in V1',
+                );
+              }
+            }
+            v2.dispose();
+          }
+          expect(words, greaterThan(planner.all.length ~/ 2));
           v1.dispose();
         }
       });
     }
   }
+
+  test('a V2 block whose first line starts at a word shaped with the word '
+      'before it shows that word as V1 does', () {
+    // Amiri Quran shapes some words narrower after another word (a
+    // word-initial kaf by 0.24 em). Find a width at which a V1 line starts
+    // with such a word and an ayah begins on that line, start a page there,
+    // and compare the block's first word with V1's and with a block cut at
+    // that word without a lead-in.
+    const scaler = TextScaler.noScaling;
+    final surah = SpikeSurahText(
+      firstAyah: long.firstAyah,
+      ayat: long.ayat.sublist(0, 170),
+      words: long.words.sublist(0, 170),
+      basmala: long.basmala,
+      pageStarts: const {},
+    );
+    double alone(String value) {
+      final painter = TextPainter(
+        text: TextSpan(text: value, style: quranPageStyle),
+        textDirection: TextDirection.rtl,
+      )..layout();
+      final width = painter.width;
+      painter.dispose();
+      return width;
+    }
+
+    QuranAddress at(int ayah, [int? word]) =>
+        QuranAddress(long.firstAyah.riwaya, long.firstAyah.surah, ayah, word);
+
+    for (var width = 300.0; width <= 420; width += 2) {
+      final v1 = surahParagraph(
+        surah,
+        width: width,
+        textScaler: scaler,
+        centreLastLine: false,
+      );
+      final starts = v1.lineStartPositions;
+      for (var line = 1; line + 1 < starts.length; line++) {
+        final (:ayah, :offset) = starts[line];
+        final words = surah.words[ayah - 1];
+        final span = words.where((w) => w.start == offset).firstOrNull;
+        if (span == null || span.number == 1) continue;
+        final text = surah.ayat[ayah - 1].verbatim;
+        final inV1 = v1.boxesOf(at(ayah, span.number)).single.width;
+        if (alone(text.substring(span.start, span.end)) - inV1 < 3) continue;
+        final page = ayah + 1;
+        if (page > surah.ayat.length || v1.lineOfAyah(page - 1) != line) {
+          continue;
+        }
+        final planner = SurahFlowPlanner(
+          surah: SpikeSurahText(
+            firstAyah: surah.firstAyah,
+            ayat: surah.ayat,
+            words: surah.words,
+            basmala: surah.basmala,
+            pageStarts: {at(page): 1},
+          ),
+          width: width,
+          textScaler: scaler,
+        );
+        expect(flowLineStarts(planner), starts);
+        expect(planner.blocksWithoutLeadIn, 0);
+        final block = planner.all[1];
+        expect(block.leadIn, greaterThan(0));
+        final v2 = planner.paragraphFor(block);
+        expect(v2.lineStartPositions.first, starts[line]);
+        expect(
+          v2.boxesOf(at(ayah, span.number)).single.width,
+          moreOrLessEquals(inV1, epsilon: .01),
+        );
+        v2.dispose();
+        final cut = SurahParagraph(
+          SurahBlockContent(
+            firstAyah: at(ayah),
+            ayat: [surah.ayat[ayah - 1]],
+            words: [words],
+            startOffset: offset,
+          ),
+          style: quranPageStyle,
+          textScaler: scaler,
+          markerSizes: [ayahMarkerSize(scaler, AppSizes.ayahMarker)],
+        )..layout(width);
+        expect(
+          cut.boxesOf(at(ayah, span.number)).single.width - inV1,
+          greaterThan(3),
+          reason: 'without a lead-in the word is shaped on its own',
+        );
+        cut.dispose();
+        v1.dispose();
+        return;
+      }
+      v1.dispose();
+    }
+    fail('no width puts such a word at a line start with an ayah after it');
+  });
 
   test('page marks sit inside the line, with text on both sides', () {
     for (final scale in _scales) {
@@ -361,6 +487,106 @@ void main() {
     expect(after.$2, closeTo(before.$2 + shift, 1.5));
     expect(after.$2 - after.$1, closeTo(before.$2 - before.$1, 1));
   });
+
+  test(
+    'ink outside its band is attributed to its own line',
+    timeout: const Timeout(Duration(minutes: 5)),
+    () async {
+      Future<(int, int)> alone(SurahParagraph paragraph, int line) async {
+        // Line [line] drawn by itself: its pixels above and below its band.
+        final band = paragraph.lineBands[line].shift(
+          Offset(0, -paragraph.bodyTop),
+        );
+        final drawn = paragraph.paragraphShowing((k) => k == line);
+        final margin = band.height.ceil();
+        final width = paragraph.width.ceil() + 2 * margin;
+        final height = (band.bottom + band.height).ceil() + 2 * margin;
+        final recorder = ui.PictureRecorder();
+        Canvas(
+          recorder,
+        ).drawParagraph(drawn, Offset(margin.toDouble(), margin.toDouble()));
+        final picture = recorder.endRecording();
+        final image = await picture.toImage(width, height);
+        final bytes = (await image.toByteData())!;
+        image.dispose();
+        picture.dispose();
+        drawn.dispose();
+        var above = 0;
+        var below = 0;
+        for (var row = 0; row < height; row++) {
+          final y = row - margin;
+          for (var x = 0; x < width; x++) {
+            if (bytes.getUint8((row * width + x) * 4 + 3) == 0) continue;
+            if (y + 1 <= band.top) above++;
+            if (y >= band.bottom) below++;
+          }
+        }
+        return (above, below);
+      }
+
+      for (final height in [1.0, 2.3]) {
+        final paragraph = surahParagraph(
+          short,
+          width: 360,
+          textScaler: TextScaler.noScaling,
+          centreLastLine: false,
+          style: quranPageStyle.copyWith(height: height),
+        );
+        addTearDown(paragraph.dispose);
+        final ink = await bandInk(paragraph);
+        expect(ink.lines, paragraph.lineCount);
+        expect(ink.edges, hasLength(paragraph.lineCount - 1));
+        for (final line in ink.perLine) {
+          final (above, below) = await alone(paragraph, line.line);
+          expect(line.above, above, reason: 'line ${line.line} at $height');
+          expect(line.below, below, reason: 'line ${line.line} at $height');
+        }
+        if (height == 1) {
+          expect(ink.linesLeaving, ink.lines, reason: 'every line overflows');
+          expect(ink.edges.every((e) => e.down > 0 || e.up > 0), isTrue);
+        }
+      }
+
+      final roomy = surahParagraph(
+        long,
+        width: 360,
+        textScaler: TextScaler.noScaling,
+        centreLastLine: false,
+        style: quranPageStyle.copyWith(height: 4),
+      );
+      addTearDown(roomy.dispose);
+      final none = await bandInk(roomy, pixelRatio: 2);
+      expect(none.linesLeaving, 0, reason: 'leading 4.0 leaves room');
+      expect(none.maxReach, 0);
+      expect(bandInkJson(none)['edges'], hasLength(roomy.lineCount - 1));
+
+      for (final scale in _scales) {
+        final paragraph = surahParagraph(
+          long,
+          width: 360,
+          textScaler: TextScaler.linear(scale),
+          centreLastLine: false,
+        );
+        addTearDown(paragraph.dispose);
+        final ink = await bandInk(paragraph, pixelRatio: 2);
+        final band = paragraph.lineBands.first.height;
+        expect(ink.maxReach, lessThan(band), reason: 'within one band');
+        final down = ink.edges.where((e) => e.down > 0).length;
+        final up = ink.edges.where((e) => e.up > 0).length;
+        final both = ink.edges.where((e) => e.down > 0 && e.up > 0).length;
+        // ignore: avoid_print
+        print(
+          'band ink at ${scale}x, 25 / 2.3, 2 px per px, 360 wide: '
+          '${ink.linesLeaving} of ${ink.lines} lines leave their band; of '
+          '${ink.edges.length} edges $down crossed downward by the line above, '
+          '$up upward by the line below, $both both; reach up to '
+          '${ink.maxReach.toStringAsFixed(1)} px of a '
+          '${band.toStringAsFixed(1)} px band; above the first line '
+          '${ink.aboveFirst} px, below the last ${ink.belowLast} px',
+        );
+      }
+    },
+  );
 
   test('ink on the rows at band edges is found', () async {
     final squeezed = surahParagraph(
