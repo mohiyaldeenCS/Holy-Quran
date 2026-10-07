@@ -62,7 +62,9 @@ flutter build apk --debug
 
 Before every commit run `dart format .`, `flutter analyze` and `flutter test`. CI
 (`.github/workflows/ci.yml`) runs the same checks, verifies that generated files are
-up to date, and builds a debug APK on every pull request and every push to `main`.
+up to date, on every pull request and every push to `main`. A debug APK is built only
+when the workflow is started by hand (Actions → CI → Run workflow); it is attached to
+the run as `holyquran-debug-apk` (D-049).
 
 ### Generate
 

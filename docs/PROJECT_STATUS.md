@@ -57,7 +57,7 @@ raw extraction output; signing keys. The 13 logo SVG files are in
   independent agent; its findings were applied before the merge.
 - **M0.1 Repository and tooling** (pull request #2): environment recorded, Flutter
   pinned, kickoff answers applied (D-040 to D-045), strict lints, the Arabic
-  five-tab shell, single ARB file, CI with an Android debug build, README, cloud
+  five-tab shell, single ARB file, CI (Android build by hand, D-049), README, cloud
   setup hook. Logo files fetched from the identity artifact; the repository's copy of
   the identity verified byte-identical to the live artifacts. Pending: launch on an
   Android device (below).
@@ -92,8 +92,9 @@ tool (`docs/content/ZIYDIA_LIBRARY.md`).
       `test/routing/router_test.dart`.
    7. Gallery, goldens through a manually started CI workflow, contrast and guard
       tests.
-4. Before building the follow-system option, put O-15 to the owner. Compile the list
-   of icons Phase 1 needs beyond the 26 and put O-13 to him (both in "Waiting on the
+4. The follow-system option is decided (D-050): `night` while the system is dark,
+   the user's chosen theme otherwise. Compile the list of icons Phase 1 needs beyond
+   the 26 and show it to the owner, then put O-13 (who draws them) to him (in "Waiting on the
    owner").
 5. Then **M0.3** and **M0.4**, one at a time. Spikes S1, S5 and the playback part of
    S3 need nothing from stream B. If they are finished before Gate 0 is met, continue
@@ -136,7 +137,6 @@ Open decisions that come later (full list in `docs/DECISIONS.md`):
 | O-07 | «نحتاج من صاحب المكتبة الزيدية جدول رموز خط الموقع: ما العبارة التي يرسمها كل من @ # ÷ ø $ ~ & والخط العمودي؟» | Before any Zaydi-library book is shown |
 | O-13 | «الهوية فيها 26 أيقونة، وتنقصها أيقونات تحتاجها المرحلة 1 مثل النسخ والمشاركة والملاحظة والحذف. من يرسمها: المصمم، أم أرسمها على قواعد أيقونات الهوية وأعرضها عليك قبل اعتمادها؟» | M0.2 for the full list; M1.6 for first use |
 | O-02 | «أدنى إصدار ندعمه من Android وiOS؟ توصية الوثيقة: Android 8.0 وiOS 15.» | End of Phase 0 |
-| O-15 | «خيار «اتبع وضع النظام الداكن»: هل يبدّل بين سمة الليل والسمة الفاتحة التي اختارها المستخدم؟» | M0.2 |
 | O-17 | «في الوثيقة توصيتان لم تعتمدهما بعد ونراهما لازمتين للإصدار الأول: «أبلغ عن خطأ» من أي آية أو مادة، وإعداد أولي من ثلاث خطوات (وضع العرض، المستوى، التلاوة). هل تعتمدهما؟» | M1.1 |
 | O-08 | «أين تُستضاف حزم المحتوى للتجربة ثم للإطلاق؟ يكفي أي استضافة ملفات ثابتة عبر HTTPS.» | M1.4 for a test host; end of Phase 1 for launch |
 | O-14 | «تصنيف «تفسير» في العلامات ليس له شكل ولا لون في الهوية، ولا توجد لوحة ألوان للتصنيفات التي يضيفها المستخدم. ما الشكل واللون، وما الألوان المتاحة؟ وهل تبقى ألوان التصنيفات الأربعة ثابتة في كل السمات كما في الهوية؟» | M1.6 |
@@ -152,7 +152,7 @@ Permission conditions to confirm with him when each is first needed are listed i
 
 | Milestone | Check | Who | How |
 | --- | --- | --- | --- |
-| M0.1 | The shell launches on Android: the app opens in Arabic, right to left, on الرئيسية, and the five tabs switch | Owner, or a session with an Android SDK and emulator | Run `flutter run` on a device, or install the debug APK from a CI run. No session so far has had an Android SDK. CI builds the APK, which proves only that it compiles |
+| M0.1 | The shell launches on Android: the app opens in Arabic, right to left, on الرئيسية, and the five tabs switch | Owner, or a session with an Android SDK and emulator | Owner's choice (D-049): once, at the end of Phase 0 or when he wants to try it, start the CI workflow by hand (Actions → CI → Run workflow) and install the `holyquran-debug-apk` it attaches; or `flutter run` on a device. No session so far has had an Android SDK |
 
 ## Environment
 
@@ -196,6 +196,6 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
-| 2026-10-07 | First implementing session | Read the documents; installed Flutter 3.44.7; recorded the environment; owner answered K1–K4; fetched the 13 logo files and verified the identity copy against the live artifacts; M0.1: strict lints, Arabic five-tab shell, single ARB, CI with Android build, setup hook, README; `code-reviewer` findings applied. | Pull request #2 |
+| 2026-10-07 | First implementing session | Read the documents; installed Flutter 3.44.7; recorded the environment; owner answered K1–K4, O-15 (D-050) and the APK question (D-049); fetched the 13 logo files and verified the identity copy against the live artifacts; M0.1: strict lints, Arabic five-tab shell, single ARB, CI with Android build, setup hook, README; `code-reviewer` findings applied. | Pull request #2 |
 | 2026-10-07 | Planning session | Updated the PRD to revision 129 (sources ready, decisions, Zaydi-library section, section order fixed, registry row 19, new open points). Added the project foundation: PRD export, architecture, plan, design-system mapping, sources, rights register, decisions, workflow, identity files with verified fonts and a preview script, agents, skills, MCP configuration, extraction tool. No application code. | Pull request #1 |
 | 2026-10-06 | Owner's other account | `flutter create` skeleton committed. | `664e167` |

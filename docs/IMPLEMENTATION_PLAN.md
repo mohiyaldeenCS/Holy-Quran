@@ -135,7 +135,7 @@ Android. State in the status file whether an iOS build could be tried.
       contrast test with the pairs, thresholds and known exceptions of that document
       (`AX-03`); the guards against design numbers in feature code and against
       importing the ramps outside `lib/ui/core/`.
-- [ ] The owner's answer on the follow-system option (O-15), before it is built.
+- [x] The owner's answer on the follow-system option (O-15): D-050.
 - [ ] The list of icons Phase 1 needs beyond the identity's 26, compiled from PRD §8,
       and the owner's decision on who draws them (`docs/DESIGN_SYSTEM.md`, "Open
       design points").

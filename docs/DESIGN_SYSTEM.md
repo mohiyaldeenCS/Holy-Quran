@@ -147,7 +147,7 @@ primary button is emerald on paper and sepia and gold in night: use `primary` an
 `RD-08` asks for an option to follow the system's dark mode. The identity does not say
 which theme that maps to. The reading taken here: when the option is on, the app
 shows `night` while the system is dark and the user's chosen light theme otherwise.
-Confirm it with the owner when the settings screen is built.
+The owner confirmed it on 2026-10-07 (D-050).
 
 ### Type
 
