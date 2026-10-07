@@ -4,4 +4,7 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- M0.4 spike S5 (D-068, D-069): cleartext HTTP to the in-app loopback
+         pack server, profile builds only. Removed with the spike code. -->
+    <application android:networkSecurityConfig="@xml/spike_network_security"/>
 </manifest>
