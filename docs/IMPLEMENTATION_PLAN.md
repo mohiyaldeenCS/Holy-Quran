@@ -171,9 +171,9 @@ integrity suite passes on it, and nothing in `lib/` can write to a pack.
 
 ### M0.4 Spikes
 
-Short experiments with measurements. Spike code lives on `spike/*` branches, which
-are pushed and never merged. Each result is a page in `docs/spikes/`, committed on the
-milestone branch `feat/m0-4-spikes` and merged like any other work; where a result
+Short experiments with measurements. Spike code lives in `spike/` on the milestone
+branch and is deleted before the merge (D-068). Each result is a page in
+`docs/spikes/`, committed on the milestone branch and merged like any other work; where a result
 settles something it also gets an entry in `docs/DECISIONS.md`.
 
 | Spike | Question | Feeds | Needs |
