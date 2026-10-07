@@ -80,12 +80,12 @@ and editor are part of the credit line.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | تفسير غريب القرآن — الإمام زيد بن علي (183) | Zaydi Library | الدار العالمية، الأولى، 1412 هـ - 1992 م | Under the site-wide record above | Complete, checked | No | Linked by the tool, not reviewed | Open |
 | تفسير الإمام الهادي يحيى بن الحسين (471) | Zaydi Library | See the library notes | Under the site-wide record above | Complete, checked | No | Partly linked by the tool, not reviewed | Open |
-| تفسير غريب القرآن — الإمام المهدي العياني (473) | Zaydi Library | See the library notes | Under the site-wide record above | Complete, checked | No | No | Open |
+| تفسير غريب القرآن — الإمام المهدي العياني (473) | Zaydi Library | See the library notes | Under the site-wide record above | Complete, checked | No | Partly linked by the tool, not reviewed | Open |
 | التيسير في التفسير (514) | Zaydi Library | See the library notes | Under the site-wide record above | Complete, checked | No | Linked by the tool, not reviewed | Open |
 | شافي العليل في شرح الخمسمائة آية (737) | Zaydi Library | Not stated on the site | Under the site-wide record above | Complete, checked | No | No | Open |
 | الناسخ والمنسوخ من القرآن الكريم (165) | Zaydi Library | See the library notes | Under the site-wide record above | Complete, checked | No | No | Open |
 | التبيان في الناسخ والمنسوخ (276) | Zaydi Library | See the library notes | Under the site-wide record above | Complete, checked | No | Partly linked by the tool, not reviewed | Open |
-| مسائل نافع بن الأزرق (440) | Zaydi Library | See the library notes | Under the site-wide record above | Complete, checked | No | No | Open |
+| مسائل نافع بن الأزرق (440) | Zaydi Library | See the library notes | Under the site-wide record above | Complete, checked | No | Linked by the tool, not reviewed | Open |
 
 The general tafsirs of PRD §8.8 are added here if the owner keeps them (O-06).
 
@@ -93,5 +93,6 @@ The general tafsirs of PRD §8.8 are added here if the owner keeps them (O-06).
 
 | Date | Change |
 | --- | --- |
+| 2026-10-07 | Ayah linking built for books 473 and 440 as well. Books 737 and 165 cannot be linked to ayat from what they print. No link has been reviewed. |
 | 2026-10-07 | Ayah linking built for books 183, 514, 276 and 471 (`docs/content/ZIYDIA_LIBRARY.md`). No link has been reviewed. |
 | 2026-10-07 | Register created with what is known. No permission paper has been read by the planning session; every permission-based record is open. |
