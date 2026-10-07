@@ -1,7 +1,7 @@
 import 'package:go_router/go_router.dart';
 
 import 'package:holyquran/routing/routes.dart';
-import 'package:holyquran/routing/tab_shell.dart';
+import 'package:holyquran/ui/core/tab_shell.dart';
 import 'package:holyquran/ui/features/home/views/home_screen.dart';
 import 'package:holyquran/ui/features/listen/views/listen_screen.dart';
 import 'package:holyquran/ui/features/more/views/more_screen.dart';
