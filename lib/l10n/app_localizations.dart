@@ -135,6 +135,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'التنقل الرئيسي'**
   String get mainNavigationLabel;
+
+  /// A count of ayat, such as a surah's length. count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{آية واحدة} =2{آيتان} few{{digits} آيات} other{{digits} آية}}'**
+  String ayahCount(int count, String digits);
 }
 
 class _AppLocalizationsDelegate

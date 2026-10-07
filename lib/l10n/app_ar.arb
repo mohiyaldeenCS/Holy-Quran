@@ -27,5 +27,17 @@
   "mainNavigationLabel": "التنقل الرئيسي",
   "@mainNavigationLabel": {
     "description": "Accessible name of the main tab bar, read by screen readers."
+  },
+  "ayahCount": "{count, plural, =1{آية واحدة} =2{آيتان} few{{digits} آيات} other{{digits} آية}}",
+  "@ayahCount": {
+    "description": "A count of ayat, such as a surah's length. count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "digits": {
+        "type": "String"
+      }
+    }
   }
 }

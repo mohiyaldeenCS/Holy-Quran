@@ -28,4 +28,17 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get mainNavigationLabel => 'التنقل الرئيسي';
+
+  @override
+  String ayahCount(int count, String digits) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$digits آية',
+      few: '$digits آيات',
+      two: 'آيتان',
+      one: 'آية واحدة',
+    );
+    return '$_temp0';
+  }
 }
