@@ -29,6 +29,9 @@ The Tanzil file (registry row 1) is fetched only on the CI runner (task
 The strict reader accepted the file as published: its closed set of elements and
 attributes, one notice comment, no entities or CDATA. The planning session decides
 which variant B0.2 uses; if it differs, the run is repeated with that URL.
+D-079 (proposed) since picks the default file without rub-el-hizb signs, so the
+199 U+06DE tokens below would not be in the base pack; the findings do not depend
+on them. The real-text task exists only at the commits that hold the spike code.
 
 The app's integrity suite ran on the spike pack through the production path:
 79 tests passed (one skipped: no pack under `assets/packs/`). It covers:
