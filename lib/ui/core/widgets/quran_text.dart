@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 
@@ -23,11 +24,11 @@ enum QuranTextAlign { justify, center, start }
 
 /// The only container for Quran text.
 ///
-/// [text] is drawn exactly as given: it comes from a verified pack and is
-/// never trimmed, joined, split or changed here. It is set in the Quran font
-/// alone, in `quran-ink`, right to left, with no weight, slant, spacing,
-/// decoration or shadow, whatever the surrounding text style or the system's
-/// bold-text setting.
+/// [text] is a [PackText] read from a verified pack; its [PackText.verbatim]
+/// is drawn exactly as given, never trimmed, joined, split or changed here.
+/// It is set in the Quran font alone, in `quran-ink`, right to left, with no
+/// weight, slant, spacing, decoration or shadow, whatever the surrounding text
+/// style or the system's bold-text setting.
 final class QuranText extends StatelessWidget {
   const QuranText(
     this.text, {
@@ -36,7 +37,7 @@ final class QuranText extends StatelessWidget {
     super.key,
   });
 
-  final String text;
+  final PackText text;
   final QuranTextSize size;
   final QuranTextAlign align;
 
@@ -45,7 +46,7 @@ final class QuranText extends StatelessWidget {
     // RichText rather than Text: Text merges the ambient style and the
     // system's bold-text setting into its style, and neither may reach here.
     text: TextSpan(
-      text: text,
+      text: text.verbatim,
       style: _styleOf(size).copyWith(color: context.colors.quranInk),
       locale: _arabic,
     ),

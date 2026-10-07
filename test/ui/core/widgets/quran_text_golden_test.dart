@@ -4,13 +4,16 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/ui/core/widgets/quran_text.dart';
 
 import '../../../../testing/golden.dart';
 
 // Synthetic, never Quran text.
-const _sample = 'نص تجريبي للاختبار';
-const _long = 'نص تجريبي للاختبار يمتد على أكثر من سطر واحد ليظهر الضبط';
+const _sample = PackText.fromPack('نص تجريبي للاختبار');
+const _long = PackText.fromPack(
+  'نص تجريبي للاختبار يمتد على أكثر من سطر واحد ليظهر الضبط',
+);
 
 void main() {
   testWidgets('QuranText sizes and alignments', (tester) async {
