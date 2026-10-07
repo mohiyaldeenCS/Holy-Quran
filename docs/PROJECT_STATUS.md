@@ -10,10 +10,10 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-07 |
 | Phase | 0 — Foundation. Gate 0 not met |
-| Stream A — app | M0.1 and M0.2 merged, with human checks pending (pull requests #2 and #3). Next milestone: **M0.3 Domain core and pack reader** |
+| Stream A — app | M0.1, M0.2 and M0.3 merged, with human checks pending (pull requests #2, #3 and #4). Next milestone: **M0.4 Spikes** |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | None open. Start M0.3 from `main` (on the branch the session is bound to, D-045) |
-| Last session | First implementing session: environment, kickoff answers, M0.1 and M0.2 (pull requests #2 and #3) |
+| Working branch | None open. Start M0.4 from `main` (on the branch the session is bound to, D-045) |
+| Last session | First implementing session: environment, kickoff answers, M0.1, M0.2 and M0.3 (pull requests #2, #3 and #4) |
 
 ## What is in the repository
 
@@ -24,15 +24,22 @@ corrected first.
   themes, follow-system dark), `lib/ui/core/widgets/` (13 design-system widgets and
   the generated icon paths), `lib/ui/core/tab_shell.dart` with the identity's
   `TabBar`, a debug-only gallery at `/gallery` (More tab, debug builds),
-  `lib/ui/core/l10n/` (Arabic-Indic digits, ayah count), `lib/domain/models/`
-  (`ReadingTheme`, `ThemePreference`), `lib/l10n/app_ar.arb`. Fonts and OFL texts in
-  `assets/`. About 720 tests: unit, widget, guards (fonts, imports, literals, design
-  numbers, type rules, contrast) and 60 golden images made on `ubuntu-24.04`. No
-  content pack, data layer or feature yet.
+  `lib/ui/core/l10n/` (Arabic-Indic digits, ayah count), `lib/l10n/app_ar.arb`.
+  Fonts and OFL texts in `assets/`.
+- The domain core and pack reader (M0.3): `lib/domain/models/` (addresses, ranges,
+  `PackText`, manifest, verified pack, surah info, word spans, edition map, pack
+  failures, reading theme), `lib/utils/result.dart`, and `lib/data/` (manifest
+  parser, signature seam, file service, the read-only `PackDatabase`, the pack and
+  text repositories). Synthetic pack builder and independent reader in
+  `testing/packs/`. The integrity suite in `test/integrity/`.
+- About 1,070 tests: unit, widget, integrity, guards (fonts, imports, literals,
+  design numbers, type rules, contrast, pack text, pack writes) and 60 golden images
+  made on `ubuntu-24.04`. No content pack or feature yet.
 - Tooling: strict `analysis_options.yaml` (D-046); CI in `.github/workflows/ci.yml`
   (D-043), with hand-started tasks `apk` (D-049) and `goldens` (D-056, D-059); the
   token and icon generator `tools/gen/` (D-054); the cloud-session setup hook
-  `.claude/hooks/session-start.sh` (D-048). The M0.2 plan is in `docs/plans/M0.2.md`.
+  `.claude/hooks/session-start.sh` (D-048). Milestone plans in `docs/plans/`. The
+  pack format, version 1, in `docs/CONTENT_PACKS.md` (D-064).
 - `docs/` — PRD export, plan, architecture, design-system mapping, sources, rights
   register, decisions, workflow, Zaydi-library notes, the prompts for starting a
   session.
@@ -74,7 +81,20 @@ raw extraction output; signing keys. The 13 logo SVG files are in
   platform, contrast and code guards; owner decisions D-050 to D-053 and D-058;
   engineering decisions D-054 to D-057, D-059, D-060. Reviewed by `code-reviewer`
   and `identity-auditor`, findings applied. Partial: the page size of `QuranText`
-  does not centre its last line (S1, M1.2). Pending: the human checks below.
+  does not centre its last line (S1, M1.2). The owner saw the gallery images in the
+  four themes and approved them as matching the identity on 2026-10-07. Pending: the
+  device checks below.
+- **M0.3 Domain core and pack reader** (pull request #4): `QuranAddress` and
+  `QuranRange` (D-063); pack format v1 in `docs/CONTENT_PACKS.md` (D-064); manifest
+  parsing and verification with SHA-256, the signature as a seam that reports "not
+  checked" (D-065); one read-only, immutable SQLite file per pack through `sqlite3`
+  (D-061); `PackText` with its guards, replacing D-036 (D-062); `Result` and the
+  sealed pack failures (D-066); the integrity suite on three targets (D-067).
+  `QuranText` takes `PackText`; a display test proves that every ayah of a synthetic
+  pack reaches it byte for byte. Golden images unchanged. Reviewed by
+  `code-reviewer`; its findings were applied (schema check on open, word-span
+  checks, pack location, source rules) or carried to M1.2, M1.4 and M1.5
+  (`docs/plans/M0.3.md`). Pending: the checks below.
 
 ## In progress
 
@@ -92,13 +112,13 @@ tool (`docs/content/ZIYDIA_LIBRARY.md`).
 2. Check the environment (`flutter --version` should print 3.44.7; the SessionStart
    hook installs it in cloud sessions). If the machine differs from "Environment"
    below, record it.
-3. Start **M0.3 Domain core and pack reader** (`docs/IMPLEMENTATION_PLAN.md`): plan
-   with `flutter-architect` and keep the plan in `docs/plans/M0.3.md`; open the pull
-   request early as a draft (CI runs only on pull requests and `main`). It needs no
-   content: tests use synthetic packs whose text is plainly not Quran text. It
-   writes `docs/CONTENT_PACKS.md` for the planning session to review, decides
-   `PackText` (D-036), and turns `QuranText`'s input into `PackText`. Signing waits
-   on O-03; build SHA-256 verification now.
+3. Start **M0.4 Spikes** (`docs/IMPLEMENTATION_PLAN.md`): plan with
+   `flutter-architect` and keep the plan in `docs/plans/M0.4.md`. S1, S5 and the
+   playback part of S3 need nothing from stream B. The plan says spike code lives on
+   `spike/*` branches that are never merged; a session bound to one branch (D-045)
+   cannot push those, so settle where spike code lives first and record it. S1 needs
+   the Tanzil file downloaded into the ignored `data/raw/`, never committed, with its
+   SHA-256 on the spike page.
 4. Golden images: after a push that adds or changes a golden test, start CI by hand
    on the branch with the task `goldens` (Actions → CI → Run workflow, or the API),
    pull the commit it pushes, and push again so the pull request is checked
@@ -107,9 +127,8 @@ tool (`docs/content/ZIYDIA_LIBRARY.md`).
 5. Draw the eight new icons of D-051 on the identity's icon rules and show each to
    the owner before M1.6 needs them; add them to the generator's input only after he
    approves.
-6. Then **M0.4** (spikes S1, S5 and the playback part of S3 need nothing from stream
-   B). If M0.3 and M0.4 are finished before Gate 0 is met, continue with **M0.5**,
-   not with Phase 1.
+6. If M0.4 is finished before Gate 0 is met, continue with **M0.5**, not with
+   Phase 1.
 
 ## Next actions — stream B (planning session and the owner)
 
@@ -127,8 +146,12 @@ tool (`docs/content/ZIYDIA_LIBRARY.md`).
 6. Planning session with the owner: the base pack (B0.2), KFGQPC assets (B0.3), the
    word index (B0.4), waqf-mark meanings (B0.8), acceptance data (B0.10), the pipeline
    (B0.11).
-7. Planning session: review `docs/CONTENT_PACKS.md` when stream A opens its pull
-   request for M0.3.
+7. Planning session: review `docs/CONTENT_PACKS.md` (format v1, merged with
+   pull request #4) and answer its questions P1–P7 and the signing note. Changes go
+   into a new version of that file.
+8. Planning session: run the app's integrity suite on the base pack when B0.2
+   builds it: `flutter test test/integrity
+   --dart-define=HOLYQURAN_PACK_DIR=<pack-id>/<version>` (D-067).
 
 ## Waiting on the owner
 
@@ -163,9 +186,10 @@ Permission conditions to confirm with him when each is first needed are listed i
 | Milestone | Check | Who | How |
 | --- | --- | --- | --- |
 | M0.1 | The shell launches on Android: the app opens in Arabic, right to left, on الرئيسية, and the five tabs switch | Owner, or a session with an Android SDK and emulator | Owner's choice (D-049): once, at the end of Phase 0 or when he wants to try it, start the CI workflow by hand (Actions → CI → Run workflow) and install the `holyquran-debug-apk` it attaches; or `flutter run` on a device. No session so far has had an Android SDK |
-| M0.2 | The owner has seen the design-system screenshots | Owner | The gallery golden images `test/ui/core/gallery/goldens/gallery_<theme>.png`, sent to him in the session of 2026-10-07; his confirmation is recorded here |
-| M0.2 | The gallery matches the component previews (`design/preview/`) and the System, Colors and Type boards | Owner or a reviewer with a browser | Build the previews (`python3 design/preview/build.py`) and compare with the gallery images or the gallery in a debug build. The identity auditor compared the code and images with the sources and found no visual deviation; no browser comparison has been made |
 | M0.2 | Screen reader (TalkBack), keyboard focus ring, the system bold-text setting and 200% text on a real device, for the M0.2 widgets | Owner, on a device | With the debug APK (CI task `apk`): open More → «معرض المكوّنات» |
+| M0.3 | Review of `docs/CONTENT_PACKS.md`, questions P1–P7 | Planning session | Read the file; answer in a change to it |
+| M0.3 | The integrity suite passes on the real base pack | Planning session, when B0.2 delivers it | The command in stream B's next actions |
+| M0.3 | The Android build links the bundled SQLite of `sqlite3` (its build hook) | CI | The hand-started `apk` task, with the final APK (D-049) |
 
 ## Environment
 
@@ -183,6 +207,7 @@ Permission conditions to confirm with him when each is first needed are listed i
 - Zaydi-library text needs an approved honorific table and reviewed ayah linking.
 - Rendering fidelity of the Quran fonts in Flutter is unproven until spikes S1 and S2.
 - Eight icons are still to be drawn and approved before M1.6 (D-051).
+- No pack can ship until a real signature verifier and key exist (D-065, O-03).
 - iOS builds are deferred to near the end of Phase 1 (D-042), while Gate 0 asks for
   measurements on both systems. Closing Gate 0 on Android measurements alone needs
   the owner's explicit decision (`docs/IMPLEMENTATION_PLAN.md`, "Gate 0 and iOS").
@@ -219,6 +244,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-10-07 | First implementing session (continued) | M0.3: plan in `docs/plans/M0.3.md`; pack format v1; addresses, `PackText`, manifest verification, read-only SQLite reader, text repository, integrity suite and guards; D-061 to D-067; code review applied. | Pull request #4 |
 | 2026-10-07 | First implementing session (continued) | M0.2: plan in `docs/plans/M0.2.md`; owner decided follow-system dark (D-050, D-053), the APK only by hand (D-049), the missing icons (D-051, D-052), tab label scaling (D-058); generator, themes, fonts, 13 widgets, gallery, 60 goldens via the CI `goldens` task, guards; code and identity reviews applied. | Pull request #3 |
 | 2026-10-07 | First implementing session | Read the documents; installed Flutter 3.44.7; recorded the environment; owner answered K1–K4, O-15 (D-050) and the APK question (D-049); fetched the 13 logo files and verified the identity copy against the live artifacts; M0.1: strict lints, Arabic five-tab shell, single ARB, CI with Android build, setup hook, README; `code-reviewer` findings applied. | Pull request #2 |
 | 2026-10-07 | Planning session | Updated the PRD to revision 129 (sources ready, decisions, Zaydi-library section, section order fixed, registry row 19, new open points). Added the project foundation: PRD export, architecture, plan, design-system mapping, sources, rights register, decisions, workflow, identity files with verified fonts and a preview script, agents, skills, MCP configuration, extraction tool. No application code. | Pull request #1 |

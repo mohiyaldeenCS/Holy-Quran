@@ -32,6 +32,9 @@ const _databasePackages = [
   'package:sqflite',
 ];
 
+/// Libraries the domain may not import: it is pure Dart (docs/ARCHITECTURE.md).
+const _platformLibraries = {'dart:ui', 'dart:io', 'dart:isolate', 'dart:ffi'};
+
 final _directive = RegExp(r'^\s*(?:import|export)\s+([^;]+);', multiLine: true);
 final _quoted = RegExp('''['"]([^'"]+)['"]''');
 final _feature = RegExp(r'^lib/ui/features/([^/]+)/');
@@ -68,7 +71,7 @@ Iterable<String> _rulesBroken(String path, String uri) sync* {
   }
   if (path.startsWith('lib/domain/') &&
       (uri.startsWith('package:flutter') ||
-          uri == 'dart:ui' ||
+          _platformLibraries.contains(uri) ||
           uri.startsWith('lib/data/') ||
           uri.startsWith('lib/ui/'))) {
     yield 'domain';
@@ -137,6 +140,33 @@ import 'c.dart';
           'lib/domain/models/a.dart: dart:ui (domain)',
           'lib/domain/models/a.dart: lib/data/repositories/b.dart (domain)',
           'lib/domain/models/a.dart: lib/ui/core/app.dart (domain)',
+        ],
+      );
+    });
+
+    test('dart:io, dart:isolate or dart:ffi imported by the domain', () {
+      const model = 'lib/domain/models/a.dart';
+      expect(
+        _violations({
+          model: '''
+import 'dart:io';
+import 'dart:isolate';
+export 'dart:ffi';
+import 'dart:typed_data';
+import 'dart:convert';
+import 'stub.dart' if (dart.library.io) 'dart:io';
+''',
+          'lib/data/services/s.dart': '''
+import 'dart:io';
+import 'dart:isolate';
+import 'dart:ffi';
+''',
+        }),
+        [
+          '$model: dart:io (domain)',
+          '$model: dart:isolate (domain)',
+          '$model: dart:ffi (domain)',
+          '$model: dart:io (domain)',
         ],
       );
     });

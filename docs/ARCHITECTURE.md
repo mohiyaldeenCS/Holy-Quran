@@ -134,10 +134,13 @@ sits at the mirrored path with `_test.dart`.
 
 ### Import rules
 
-- `lib/domain` imports no Flutter package and nothing from `lib/data` or `lib/ui`.
+- `lib/domain` imports no Flutter package, no `dart:io`, `dart:isolate` or `dart:ffi`,
+  and nothing from `lib/data` or `lib/ui`.
 - `lib/ui` imports `lib/domain` and repository interfaces; never `lib/data/services`,
   `dart:io` or a database package.
 - Only `lib/data/services` imports plugins.
+- Only `lib/data/services/pack_database.dart` imports `sqlite3`, and it opens every
+  pack read-only and immutable (D-061).
 - Feature folders do not import each other; shared widgets live in `ui/core/widgets`.
 - Only `lib/ui/core` imports the generated colour ramps (`ramps.g.dart`).
 
@@ -165,11 +168,13 @@ Guard tests in `test/guards/` enforce these.
 
 | Type | Notes |
 | --- | --- |
-| `QuranAddress` | `riwaya`, `surah`, `ayah`, optional `word`. Parses and prints the canonical form. Validated against the installed pack's counts, not against constants in code. |
-| `QuranRange` | Start and end address in the same riwaya. |
+| `QuranAddress` | `riwaya`, `surah`, `ayah`, optional `word`. Parses and prints the canonical form (D-063). Validated against the installed pack's counts, not against constants in code. |
+| `QuranRange` | Start and end address in the same riwaya and granularity (D-063). |
 | `EditionMap` | Page, juz, hizb, rub and sajda lookups for the reference edition. |
-| `PackManifest` | The fields of PRD §9.2. |
-| `PackText` | **Proposed.** An opaque wrapper for any string read from a text pack. It has no method that transforms it. See "Keeping pack text untouched". |
+| `PackManifest`, `VerifiedPack` | The fields of PRD §9.2 (`docs/CONTENT_PACKS.md`); a pack whose signature, files and hashes passed (D-065). |
+| `SurahInfo`, `WordSpan` | Surah metadata from the pack; a word's half-open UTF-16 offsets into its ayah. |
+| `PackFailure` | Sealed: every way a pack is refused or disabled. Returned in a `Result` (D-066). |
+| `PackText` | **Decided** (D-062). An opaque wrapper for any string read from a text pack. It has no method that transforms it. See "Keeping pack text untouched". |
 | `PlaybackPlan` | Ordered timed segments with repeats and silences (PRD §8.3). Pure Dart, tested without audio. |
 
 Surah names, ayah counts and every other fact about the Quran come from the pack.
@@ -196,7 +201,8 @@ Rules, all from PRD §9:
 - A text pack names its font; the text is never drawn with another font.
 - The manifest is signed; the public key ships in the app. **Proposed**: Ed25519.
   Who holds the private key and where signing runs is an open decision (D-024). The
-  private key never enters this repository.
+  private key never enters this repository. Until then the check is a seam that
+  reports "not checked", and no pack ships (D-065).
 - Verify signature and SHA-256 at build, after download and before activation. On the
   first run after install or update verify the whole base pack; when a surah is
   opened verify that surah's hash once per session. On failure show the integrity
@@ -211,17 +217,19 @@ Rules, all from PRD §9:
 
 ### Who defines the format
 
-Storage is **Proposed** as one read-only SQLite database per pack, with full-text
-search for the base pack and tafsir packs (PRD §10.8).
+Storage is one read-only SQLite database per pack, opened immutable through the
+`sqlite3` package (D-061); full-text search for the base pack and tafsir packs comes
+with M1.8 (PRD §10.8).
 
-- The format is specified in `docs/CONTENT_PACKS.md`. Stream A writes it in M0.3,
-  because the reader defines what it can read; the planning session reviews it in the
-  pull request.
+- The format is specified in `docs/CONTENT_PACKS.md` (version 1, D-064). Stream A
+  wrote it in M0.3, because the reader defines what it can read; the planning session
+  reviews it in the pull request.
 - The pipeline that produces packs lives in `tools/packs/` and belongs to stream B.
   **Proposed**: Python 3 with the standard library, so that the owner can run it on
   his computer as he runs the extraction tool; signing is one separate step.
 - The two sides meet only through that document and through packs. A pack is
-  accepted when the app's verification and the integrity suite pass on it.
+  accepted when the app's verification and the integrity suite pass on it
+  (`--dart-define=HOLYQURAN_PACK_DIR`, D-067).
 - Until a real pack exists, tests build synthetic packs whose text is plainly not
   Quran text.
 
@@ -255,12 +263,13 @@ Not allowed: normalising, trimming, replacing, changing case, splitting on space
 characters in app code, joining words with a separator of the app's own, re-encoding,
 attaching or cutting the basmala by string operations, keeping a modified copy.
 
-**Proposed** mechanism, decided in M0.3: pack strings travel as `PackText`. Only the
-listed sinks read its raw value: the `QuranText` widget, the copy and share
-formatter, the export writer. The check of PRD §9.4 ("no normalisation on text
+Mechanism, decided in M0.3 (D-062): pack strings travel as `PackText`. Only the
+listed sinks read its raw value: the `QuranText` widget today, and the copy and share
+formatter and the export writer when they exist. The check of PRD §9.4 ("no normalisation on text
 fields, with every code change") is then a test that fails when anything else
-unwraps a `PackText` or imports a normalisation API. Searching the code with `grep`
-is a self-check for the author, not that test.
+unwraps a `PackText` or imports a normalisation API (`test/guards/pack_text_guard_test.dart`).
+Pack text is decoded as strict UTF-8 and a leading U+FEFF is refused, because Dart's
+decoders drop it silently.
 
 This byte-exact rule is about the Quran text. Other sources are converted by the
 pipeline with documented, table-driven, tested steps where their format requires it,
@@ -395,10 +404,11 @@ maintained and supports the minimum OS versions, then record it in
 | Routing | `go_router` | Decided (D-047) |
 | Dependency injection | `provider` | Proposed |
 | User database | `drift` | Proposed |
-| Read-only pack databases | `sqlite3` | Proposed |
+| Read-only pack databases | `sqlite3` (bundled SQLite) | Decided (D-061) |
 | Audio | `just_audio`, `audio_service`, `audio_session` | Evaluate in Phase 0 |
 | Downloads | `background_downloader` | Evaluate in Phase 0 |
-| Hashing and signatures | `crypto` (dev dependency since M0.2, D-054), `cryptography` | Proposed |
+| Hashing | `crypto` (run time since M0.3) | Decided (D-066) |
+| Signatures | `cryptography` | Proposed, after D-024 |
 | Localisation | `flutter_localizations`, `intl` | Decided (D-047) |
 | SVG icons | none: generated `Path` code (D-054) | Decided |
 | Immutable models | `freezed` | Optional; plain classes are fine for small models |

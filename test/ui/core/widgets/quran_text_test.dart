@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/quran_text.dart';
@@ -11,6 +12,7 @@ import '../../../../testing/golden.dart';
 // Synthetic, never Quran text. Spaces at both ends and a double space inside
 // would be lost to any trimming or normalising.
 const _sample = ' نص تجريبي  للاختبار ';
+const _packSample = PackText.fromPack(_sample);
 
 Future<void> _pump(WidgetTester tester, Widget child) =>
     tester.pumpWidget(goldenApp(ReadingTheme.paper, child));
@@ -22,11 +24,11 @@ TextStyle _style(WidgetTester tester) => _paragraph(tester).text.style!;
 
 void main() {
   testWidgets('draws exactly the string it was given', (tester) async {
-    final text = String.fromCharCodes(_sample.codeUnits);
-    await _pump(tester, QuranText(text));
+    final packText = PackText.fromPack(String.fromCharCodes(_sample.codeUnits));
+    await _pump(tester, QuranText(packText));
 
     final span = _paragraph(tester).text as TextSpan;
-    expect(identical(span.text, text), isTrue);
+    expect(identical(span.text, packText.verbatim), isTrue);
     expect(span.text, _sample);
     expect(span.children, isNull);
     expect(_paragraph(tester).text.toPlainText(), _sample);
@@ -35,7 +37,7 @@ void main() {
   testWidgets('uses the Quran font with no fallback, in quran-ink', (
     tester,
   ) async {
-    await _pump(tester, const QuranText(_sample));
+    await _pump(tester, const QuranText(_packSample));
 
     final style = _style(tester);
     expect(style.fontFamily, AppFonts.quran);
@@ -53,7 +55,7 @@ void main() {
       QuranTextSize.compact: (size: 22.0, height: 2.2),
     };
     for (final MapEntry(key: size, value: metric) in expected.entries) {
-      await _pump(tester, QuranText(_sample, size: size));
+      await _pump(tester, QuranText(_packSample, size: size));
       final style = _style(tester);
       expect(style.fontSize, metric.size, reason: '$size');
       expect(style.height, metric.height, reason: '$size');
@@ -94,7 +96,7 @@ void main() {
     };
     for (final MapEntry(key: size, value: aligns) in expected.entries) {
       for (final MapEntry(key: align, value: textAlign) in aligns.entries) {
-        await _pump(tester, QuranText(_sample, size: size, align: align));
+        await _pump(tester, QuranText(_packSample, size: size, align: align));
         final paragraph = _paragraph(tester);
         expect(paragraph.textAlign, textAlign, reason: '$size $align');
         expect(paragraph.textDirection, TextDirection.rtl);
@@ -120,7 +122,7 @@ void main() {
               shadows: [Shadow(blurRadius: 2)],
               fontFamilyFallback: [AppFonts.sans],
             ),
-            child: QuranText(_sample),
+            child: QuranText(_packSample),
           ),
         ),
       ),
@@ -138,7 +140,7 @@ void main() {
   testWidgets('follows the system text scale', (tester) async {
     tester.platformDispatcher.textScaleFactorTestValue = 2;
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-    await _pump(tester, const QuranText(_sample));
+    await _pump(tester, const QuranText(_packSample));
 
     expect(_paragraph(tester).textScaler.scale(25), 50);
   });
@@ -156,7 +158,10 @@ void main() {
     for (final size in QuranTextSize.values) {
       await _pump(
         tester,
-        QuranText(List.filled(6, _sample).join(), size: size),
+        QuranText(
+          PackText.fromPack(List.filled(6, _sample).join()),
+          size: size,
+        ),
       );
       expect(tester.takeException(), isNull, reason: '$size');
       expect(tester.getSize(find.byType(RichText)).width, lessThan(361));
@@ -165,7 +170,7 @@ void main() {
 
   testWidgets('is read by screen readers as its text', (tester) async {
     final handle = tester.ensureSemantics();
-    await _pump(tester, const QuranText(_sample));
+    await _pump(tester, const QuranText(_packSample));
 
     expect(find.bySemanticsLabel(_sample), findsOneWidget);
     handle.dispose();

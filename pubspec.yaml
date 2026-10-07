@@ -7,15 +7,16 @@ environment:
   sdk: ^3.12.2
 
 dependencies:
+  crypto: ^3.0.7
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
   go_router: ^18.0.2
   intl: any
+  sqlite3: ^3.5.2
 
 dev_dependencies:
-  crypto: ^3.0.7
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter

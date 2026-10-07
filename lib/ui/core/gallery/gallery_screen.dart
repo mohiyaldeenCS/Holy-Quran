@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' hide Icon, IconButton, Switch, TabBar;
 
+import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/app_theme.dart';
@@ -285,7 +286,7 @@ class _SectionsState extends State<_Sections> {
               spacing: AppSpacing.space3,
               children: [
                 for (final size in QuranTextSize.values)
-                  QuranText(l10n.sampleText, size: size),
+                  QuranText(PackText.fromPack(l10n.sampleText), size: size),
               ],
             ),
           ),
