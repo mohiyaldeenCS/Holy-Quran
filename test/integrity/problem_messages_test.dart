@@ -9,6 +9,7 @@ import 'package:holyquran/utils/result.dart';
 import '../../testing/packs/raw_pack.dart';
 import '../../testing/packs/synthetic_pack.dart';
 import 'pack_integrity_suite.dart';
+import 'synthetic_surahs.dart';
 
 // The integrity suite runs on the real text in CI, so no message it prints
 // may hold a stored text: only addresses, offsets, lengths, digests and code
@@ -41,15 +42,18 @@ List<List<int>> _storedValues(SyntheticPack pack) {
   return values;
 }
 
-/// The word slices of the pack that hold a non-ASCII character.
-List<String> _nonAsciiWords(SyntheticPack pack) => [
+/// The word and mark slices of the pack that hold a non-ASCII character.
+List<String> _nonAsciiSlices(SyntheticPack pack) => [
   for (final surah in pack.surahs)
     for (final ayah in surah.ayat)
-      for (final (start, end) in ayah.spans)
+      for (final (start, end) in [
+        ...ayah.spans,
+        for (final mark in ayah.markSpans) (mark.start, mark.end),
+      ])
         if (start >= 0 && end <= ayah.text.length && start < end)
-          if (ayah.text.substring(start, end) case final word
-              when word.codeUnits.any((u) => u > 0x7E))
-            word,
+          if (ayah.text.substring(start, end) case final slice
+              when slice.codeUnits.any((u) => u > 0x7E))
+            slice,
 ];
 
 final _numberRun = RegExp(r'\d+(?:\s*,\s*\d+)+');
@@ -140,7 +144,7 @@ void main() {
 
   void expectNoLeaks(SyntheticPack pack, List<String> messages) {
     final values = _storedValues(pack);
-    final words = _nonAsciiWords(pack);
+    final words = _nonAsciiSlices(pack);
     final leaks = [
       for (final (index, message) in messages.indexed)
         for (final leak in _leaks(message, values, words))
@@ -168,6 +172,11 @@ void main() {
       _leaks('surah 2: ayat numbered (1, 2, 3, 5), not 1 to 4', values, words),
       isEmpty,
     );
+  });
+
+  test('the checks find nothing in a pack without a fault', () async {
+    final pack = await buildSyntheticPack(root, id: 'fault-${builds++}');
+    expect(await messagesOf(pack), isEmpty);
   });
 
   for (final fault in SyntheticFault.values) {
@@ -218,6 +227,58 @@ void main() {
     );
     final messages = await messagesOf(pack);
     expect(messages, isNotEmpty);
+    expectNoLeaks(pack, messages);
+  });
+
+  test('the checks name no stored text of a pack with letters between or in '
+      'marks, a word without a letter, marks out of place, or spans that '
+      'are not whole tokens', () async {
+    final pack = await buildSyntheticPack(
+      root,
+      id: 'fault-${builds++}',
+      surahs: withAyat(defaultSyntheticSurahs, 3, const [
+        SyntheticAyah('\u{646}\u{635} \u{62A}\u{62C}', words: [(0, 2)]),
+        SyntheticAyah(
+          '\u{646}\u{635} \u{62A}\u{62C}',
+          words: [(0, 2)],
+          marks: [(afterWord: 1, start: 3, end: 5)],
+        ),
+        SyntheticAyah('\u{646}\u{635} \u{6D6}\u{6D7}', words: [(0, 2), (3, 5)]),
+        SyntheticAyah(
+          '\u{646} \u{1F600} \u{6D6}',
+          words: [(0, 1)],
+          marks: [
+            (afterWord: 0, start: 2, end: 3),
+            (afterWord: 1, start: 2, end: 6),
+          ],
+        ),
+        SyntheticAyah(
+          '\u{646}\u{635} \u{6D6}',
+          words: [(0, 2)],
+          marks: [(afterWord: 1, start: 2, end: 4)],
+        ),
+        SyntheticAyah('\u{646}\u{635} \u{62A}\u{62C}', words: [(0, 5)]),
+        SyntheticAyah(
+          '\u{646}\u{635}\u{6D6}',
+          words: [(0, 2)],
+          marks: [(afterWord: 1, start: 2, end: 3)],
+        ),
+      ]),
+    );
+    final messages = await messagesOf(pack);
+    for (final kind in [
+      'the gap',
+      'holds the letter',
+      'holds no letter',
+      'has after_word',
+      'splits a surrogate pair',
+      'span [',
+      'holds the separator',
+      'does not start a token',
+      'does not end a token',
+    ]) {
+      expect(messages, anyElement(contains(kind)), reason: kind);
+    }
     expectNoLeaks(pack, messages);
   });
 

@@ -128,8 +128,34 @@ void main() {
           );
         }
       }
-      expect(db.words(2, 2).last, (number: 3, start: 6, end: 8));
+      expect(db.words(2, 2).last, (number: 2, start: 6, end: 8));
       expect(db.words(1, 9), isEmpty);
+    });
+
+    test('marks as stored, with the word each follows', () {
+      final stored = raw(pack);
+      for (final (s, surah) in pack.surahs.indexed) {
+        for (final (a, ayah) in surah.ayat.indexed) {
+          expect(db.marks(s + 1, a + 1), [
+            for (final (n, afterWord, start, end) in stored.marks(s + 1, a + 1))
+              (number: n, afterWord: afterWord, start: start, end: end),
+          ]);
+          expect(db.marks(s + 1, a + 1), [
+            for (final (index, mark) in ayah.markSpans.indexed)
+              (
+                number: index + 1,
+                afterWord: mark.afterWord,
+                start: mark.start,
+                end: mark.end,
+              ),
+          ]);
+        }
+      }
+      expect(db.marks(1, 2).map((m) => m.afterWord), [2, 3, 3]);
+      expect(db.marks(1, 3), [(number: 1, afterWord: 0, start: 0, end: 1)]);
+      expect(db.marks(2, 2), [(number: 1, afterWord: 1, start: 3, end: 5)]);
+      expect(db.marks(1, 1), isEmpty);
+      expect(db.marks(1, 9), isEmpty);
     });
 
     test('divisions and sajdas', () {
@@ -153,6 +179,8 @@ void main() {
       expect(counts.surahs, pack.counts['surahs']);
       expect(counts.ayat, pack.counts['ayat']);
       expect(counts.words, pack.counts['words']);
+      expect(counts.marks, pack.counts['marks']);
+      expect(counts.marks, 5);
       expect(counts.divisions, {
         for (final MapEntry(:key, :value)
             in (pack.counts['divisions']! as Map<String, Object?>).entries)
@@ -446,6 +474,39 @@ void main() {
       );
     });
 
+    const markColumns =
+        'surah INTEGER NOT NULL, ayah INTEGER NOT NULL, '
+        'number INTEGER NOT NULL, after_word INTEGER NOT NULL, '
+        'start_offset INTEGER NOT NULL, end_offset INTEGER NOT NULL';
+    const markKey = 'PRIMARY KEY (surah, ayah, number)';
+    const markVariants = {
+      'a mark table that is missing': null,
+      'a mark table that has a rowid': '($markColumns, $markKey) STRICT',
+      'a mark table whose after_word may be null':
+          '(surah INTEGER NOT NULL, ayah INTEGER NOT NULL, '
+          'number INTEGER NOT NULL, after_word INTEGER, '
+          'start_offset INTEGER NOT NULL, end_offset INTEGER NOT NULL, '
+          '$markKey) STRICT, WITHOUT ROWID',
+      'a mark table with its offsets before after_word':
+          '(surah INTEGER NOT NULL, ayah INTEGER NOT NULL, '
+          'number INTEGER NOT NULL, start_offset INTEGER NOT NULL, '
+          'end_offset INTEGER NOT NULL, after_word INTEGER NOT NULL, '
+          '$markKey) STRICT, WITHOUT ROWID',
+      'a mark table keyed without its number':
+          '($markColumns, PRIMARY KEY (surah, ayah, after_word)) '
+          'STRICT, WITHOUT ROWID',
+    };
+    for (final MapEntry(key: name, value: definition) in markVariants.entries) {
+      test(name, () async {
+        expectRefused(
+          await changed([
+            'DROP TABLE mark',
+            if (definition != null) 'CREATE TABLE mark $definition',
+          ]),
+        );
+      });
+    }
+
     test('and accepts the schema rebuilt exactly', () async {
       const division =
           '(kind TEXT NOT NULL, number INTEGER NOT NULL, '
@@ -456,10 +517,13 @@ void main() {
         'CREATE TABLE sajda ($sajda, $key) STRICT, WITHOUT ROWID',
         'DROP TABLE division',
         'CREATE TABLE division $division',
+        'DROP TABLE mark',
+        'CREATE TABLE mark ($markColumns, $markKey) STRICT, WITHOUT ROWID',
       ]);
       final db = open(pack);
       expect(db.sajdas(), isEmpty);
       expect(db.divisions(), isEmpty);
+      expect(db.marks(1, 2), isEmpty);
     });
   });
 
@@ -513,7 +577,8 @@ void main() {
         for (var ayah = 1; ayah <= surah.ayahCount; ayah++) {
           db
             ..ayahText(surah.number, ayah)
-            ..words(surah.number, ayah);
+            ..words(surah.number, ayah)
+            ..marks(surah.number, ayah);
         }
       }
       db

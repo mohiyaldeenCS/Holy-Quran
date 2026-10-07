@@ -81,6 +81,9 @@ void main() {
     expect(first.fetchedOn, source['fetched_on']);
     expect(first.fileSha256, source['file_sha256']);
     expect(first.trustGrade, TrustGrade.a);
+    expect(first.options, source['options']);
+    expect(first.options, isNotEmpty);
+    expect(manifest.sources[1].options, isNull);
     expect(first.licence.text, isNull);
     expect(first.licence.permissionRef, 'Synthetic permission 1');
     expect(first.licence.notice, isNull);
@@ -96,6 +99,8 @@ void main() {
     expect(manifest.counts.surahs, 3);
     expect(manifest.counts.ayat, 8);
     expect(manifest.counts.words, (valid['counts']! as Json)['words']);
+    expect(manifest.counts.marks, (valid['counts']! as Json)['marks']);
+    expect(manifest.counts.marks, greaterThan(0));
     expect(manifest.counts.divisions, {
       Division.juz: 2,
       Division.hizb: 4,
@@ -215,12 +220,15 @@ void main() {
     });
   });
 
+  // The names inside `options` are the source's own, so the walk stops at
+  // `options`; its rules are tested on their own below.
   group('every field', () {
     final paths = <List<Object>>[];
     final objects = <List<Object>>[];
 
     setUpAll(() {
       void walk(Object? node, List<Object> at) {
+        if (at.isNotEmpty && at.last == 'options') return;
         switch (node) {
           case final Json map:
             objects.add(at);
@@ -271,6 +279,7 @@ void main() {
             nullable.contains(path.last)) {
           continue;
         }
+        if (path.length == 3 && path.last == 'options') continue;
         final json = copy();
         json.set(path, null);
         expect(parse(json), expected(path), reason: path.join('.'));
@@ -384,6 +393,101 @@ void main() {
         'Synthetic licence',
       );
     });
+  });
+
+  group('options', () {
+    final options = ['sources', 0, 'options'];
+
+    test('may be null, or names with scalar values', () {
+      final withNull = parse(edited((json) => json.set(options, null)));
+      expect((withNull as Ok<PackManifest>).value.sources[0].options, isNull);
+      final given = <String, Object?>{
+        'Synthetic Name': 'synthetic',
+        'synthetic empty value': '',
+        'synthetic-count': 0,
+        'synthetic ratio': -0.25,
+        'synthetic flag': false,
+      };
+      final parsed = parse(edited((json) => json.set(options, given)));
+      expect((parsed as Ok<PackManifest>).value.sources[0].options, given);
+    });
+
+    test('refuse an empty object: no choices is null', () {
+      expect(
+        parse(edited((json) => json.set(options, <String, Object?>{}))),
+        unreadableBecause('manifest.sources[0].options is empty; use null'),
+      );
+      expect(
+        parse(
+          edited(
+            (json) => json.at(['sources', 1])['options'] = <String, Object?>{},
+          ),
+        ),
+        unreadableBecause('manifest.sources[1].options is empty; use null'),
+      );
+    });
+
+    test('refuse an empty option name', () {
+      expect(
+        parse(edited((json) => json.at(options)[''] = 'synthetic')),
+        unreadableBecause(
+          'manifest.sources[0].options has an empty option name',
+        ),
+      );
+    });
+
+    test('refuse a value that is an object, a list or null', () {
+      for (final value in [
+        <String, Object?>{'synthetic': 1},
+        <Object?>['synthetic'],
+        <Object?>[],
+        null,
+      ]) {
+        expect(
+          parse(edited((json) => json.at(options)['synthetic_option'] = value)),
+          unreadableBecause(
+            'manifest.sources[0].options.synthetic_option is not a string, '
+            'number or boolean',
+          ),
+          reason: '$value',
+        );
+      }
+    });
+
+    test('must be an object or null', () {
+      for (final value in ['synthetic', 1, true, <Object?>[]]) {
+        expect(
+          parse(edited((json) => json.set(options, value))),
+          unreadableBecause(
+            'manifest.sources[0].options is not an object or null',
+          ),
+          reason: '$value',
+        );
+      }
+    });
+
+    test('are required in every source', () {
+      expect(
+        parse(edited((json) => json.at(['sources', 1]).remove('options'))),
+        unreadableBecause('manifest.sources[1] lacks field options'),
+      );
+    });
+  });
+
+  test('counts.marks is a required count', () {
+    expect(
+      parse(edited((json) => json.at(['counts']).remove('marks'))),
+      unreadableBecause('manifest.counts lacks field marks'),
+    );
+    for (final value in [-1, 1.0, '1', null]) {
+      expect(
+        parse(edited((json) => json.at(['counts'])['marks'] = value)),
+        unreadable,
+        reason: '$value',
+      );
+    }
+    final none = parse(edited((json) => json.at(['counts'])['marks'] = 0));
+    expect((none as Ok<PackManifest>).value.counts.marks, 0);
   });
 
   test('trust grades are A, B or C', () {
@@ -518,6 +622,7 @@ void main() {
     for (final path in [
       ['counts', 'ayat'],
       ['counts', 'words'],
+      ['counts', 'marks'],
       ['counts', 'sajdas'],
       ['counts', 'divisions', 'page'],
       ['files', 0, 'bytes'],

@@ -1,4 +1,5 @@
 import '../../domain/models/edition_map.dart';
+import '../../domain/models/mark_span.dart';
 import '../../domain/models/pack_failure.dart';
 import '../../domain/models/pack_manifest.dart';
 import '../../domain/models/pack_text.dart';
@@ -17,10 +18,10 @@ import 'quran_text_repository.dart';
 /// Before the first read, the database's rows are compared with the
 /// manifest's counts. Before the first read of a surah, its digest is
 /// compared with the manifest, each of its texts is decoded and the word
-/// spans of each ayah are checked. Any of these failing, or a text the
-/// database refuses, fails that call and disables the pack: every later call
-/// fails with [PackDisabled]. A count, numbering, reference or span that is
-/// wrong is a [PackInconsistent].
+/// and mark spans of each ayah are checked together. Any of these failing,
+/// or a text the database refuses, fails that call and disables the pack:
+/// every later call fails with [PackDisabled]. A count, numbering, reference
+/// or span that is wrong is a [PackInconsistent].
 ///
 /// The reads are synchronous inside; the interface is asynchronous so that
 /// they can move to an isolate without changing it.
@@ -108,6 +109,21 @@ final class PackQuranTextRepository implements QuranTextRepository {
   });
 
   @override
+  Future<Result<List<MarkSpan>>> marks(QuranAddress address) async => _read(() {
+    _expectAyah(address);
+    _verifySurah(address.surah);
+    return [
+      for (final mark in _database.marks(address.surah, address.ayah))
+        MarkSpan(
+          number: mark.number,
+          afterWord: mark.afterWord,
+          start: mark.start,
+          end: mark.end,
+        ),
+    ];
+  });
+
+  @override
   Future<Result<EditionMap>> editionMap() async =>
       _read(() => _editionMap ??= _buildEditionMap());
 
@@ -171,6 +187,7 @@ final class PackQuranTextRepository implements QuranTextRepository {
       surahs.fold(0, (sum, surah) => sum + surah.ayahCount),
     );
     expect('words', counts.words, rows.words);
+    expect('marks', counts.marks, rows.marks);
     for (final division in Division.values) {
       expect(
         'divisions.${division.name}',
@@ -206,44 +223,70 @@ final class PackQuranTextRepository implements QuranTextRepository {
     }
     _database.basmala(surah);
     for (var ayah = 1; ayah <= _surahList()[surah - 1].ayahCount; ayah++) {
-      _checkWords(
+      _checkSpans(
         QuranAddress(riwaya, surah, ayah),
         _database.ayahText(surah, ayah) ?? (throw _missingAyah(surah, ayah)),
         _database.words(surah, ayah),
+        _database.marks(surah, ayah),
       );
     }
     _verifiedSurahs.add(surah);
   }
 
-  /// Words numbered from 1, each span non-empty, after the span before and
-  /// on character boundaries within the ayah.
-  void _checkWords(QuranAddress ayah, PackText text, List<WordRow> words) {
-    var previousEnd = 0;
-    for (final (index, word) in words.indexed) {
-      if (_spanProblem(index + 1, word, previousEnd, text)
-          case final problem?) {
-        throw PackInconsistent(
-          _id,
-          '$ayah: $problem: [${word.start}, ${word.end})',
-        );
+  /// The words and marks of an ayah, merged in text order: each kind
+  /// numbered from 1, every span non-empty, on character boundaries within
+  /// the ayah and after the span before it, and every mark after the word
+  /// its after_word names (D-078).
+  void _checkSpans(
+    QuranAddress ayah,
+    PackText text,
+    List<WordRow> words,
+    List<MarkRow> marks,
+  ) {
+    var previous = (kind: 'word', end: 0);
+    var w = 0;
+    var m = 0;
+    while (w < words.length || m < marks.length) {
+      final isWord =
+          m == marks.length ||
+          (w < words.length && words[w].start <= marks[m].start);
+      final (kind, expected, number, start, end) = isWord
+          ? ('word', w + 1, words[w].number, words[w].start, words[w].end)
+          : ('mark', m + 1, marks[m].number, marks[m].start, marks[m].end);
+      final problem =
+          _spanProblem(kind, expected, number, start, end, text, previous) ??
+          (isWord || marks[m].afterWord == w
+              ? null
+              : 'mark $number has after_word ${marks[m].afterWord}, not $w');
+      if (problem != null) {
+        throw PackInconsistent(_id, '$ayah: $problem: [$start, $end)');
       }
-      previousEnd = word.end;
+      previous = (kind: kind, end: end);
+      if (isWord) {
+        w++;
+      } else {
+        m++;
+      }
     }
   }
 
   static String? _spanProblem(
+    String kind,
     int expected,
-    WordRow word,
-    int previousEnd,
+    int number,
+    int start,
+    int end,
     PackText text,
+    ({String kind, int end}) previous,
   ) {
-    final (:number, :start, :end) = word;
-    if (number != expected) return 'word $expected is numbered $number';
-    if (start >= end) return 'word $number is empty or reversed';
+    if (number != expected) return '$kind $expected is numbered $number';
+    if (start >= end) return '$kind $number is empty or reversed';
     if (!text.isSliceBoundary(start) || !text.isSliceBoundary(end)) {
-      return 'word $number is outside the ayah or splits a character';
+      return '$kind $number is outside the ayah or splits a character';
     }
-    if (start < previousEnd) return 'word $number overlaps the word before';
+    if (start < previous.end) {
+      return '$kind $number overlaps the ${previous.kind} before';
+    }
     return null;
   }
 

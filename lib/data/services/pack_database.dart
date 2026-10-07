@@ -17,11 +17,16 @@ typedef DivisionRow = ({Division kind, int number, int surah, int ayah});
 /// checked against the ayah.
 typedef WordRow = ({int number, int start, int end});
 
+/// A mark of an ayah, as stored: offsets in UTF-16 code units and the word
+/// it follows, not yet checked against the ayah or its words.
+typedef MarkRow = ({int number, int afterWord, int start, int end});
+
 /// The number of rows of each table of a text pack.
 typedef PackRowCounts = ({
   int surahs,
   int ayat,
   int words,
+  int marks,
   Map<Division, int> divisions,
   int sajdas,
 });
@@ -111,6 +116,17 @@ final class PackDatabase {
         ('surah', 'INTEGER', true, 1),
         ('ayah', 'INTEGER', true, 2),
         ('number', 'INTEGER', true, 3),
+        ('start_offset', 'INTEGER', true, 0),
+        ('end_offset', 'INTEGER', true, 0),
+      ],
+    ),
+    'mark': (
+      true,
+      [
+        ('surah', 'INTEGER', true, 1),
+        ('ayah', 'INTEGER', true, 2),
+        ('number', 'INTEGER', true, 3),
+        ('after_word', 'INTEGER', true, 0),
         ('start_offset', 'INTEGER', true, 0),
         ('end_offset', 'INTEGER', true, 0),
       ],
@@ -258,6 +274,21 @@ final class PackDatabase {
       ),
   ];
 
+  /// The marks of an ayah, by number; empty when there is no such ayah.
+  List<MarkRow> marks(int surah, int ayah) => [
+    for (final row in _select(
+      'SELECT number, after_word, start_offset, end_offset FROM mark '
+      'WHERE surah = ? AND ayah = ? ORDER BY number',
+      [surah, ayah],
+    ))
+      (
+        number: row.columnAt(0) as int,
+        afterWord: row.columnAt(1) as int,
+        start: row.columnAt(2) as int,
+        end: row.columnAt(3) as int,
+      ),
+  ];
+
   /// Every division unit, by kind and number.
   List<DivisionRow> divisions() => [
     for (final row in _select(
@@ -289,6 +320,7 @@ final class PackDatabase {
     surahs: _integer('SELECT count(*) FROM surah'),
     ayat: _integer('SELECT count(*) FROM ayah'),
     words: _integer('SELECT count(*) FROM word'),
+    marks: _integer('SELECT count(*) FROM mark'),
     divisions: {
       for (final division in Division.values)
         division: _integer('SELECT count(*) FROM division WHERE kind = ?', [

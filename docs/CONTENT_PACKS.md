@@ -41,13 +41,14 @@ apply. Unknown fields are rejected.
     {"role": "text", "registry_row": 1, "name": "<name>", "publisher": "<body>",
      "url": "<url>", "version": "<source version>", "fetched_on": "YYYY-MM-DD",
      "file_sha256": "<hex>", "trust_grade": "A",
+     "options": {"<option name>": "<value>"},
      "licence": {"text": "<licence text or null>", "permission_ref": "<reference or null>",
                  "notice": "<notice the licence requires, or null>", "allows_export": true}},
     {"role": "edition_map", "registry_row": 4, "...": "same fields"}
   ],
   "files": [{"name": "text.sqlite", "sha256": "<hex>", "bytes": 0}],
   "surah_sha256": {"1": "<hex>", "2": "<hex>"},
-  "counts": {"surahs": 0, "ayat": 0, "words": 0,
+  "counts": {"surahs": 0, "ayat": 0, "words": 0, "marks": 0,
              "divisions": {"juz": 0, "hizb": 0, "rub": 0, "page": 0}, "sajdas": 0},
   "reviews": [{"reviewer": "<name or role>", "date": "YYYY-MM-DD", "scope": "<what was reviewed>"}]
 }
@@ -67,6 +68,11 @@ Rules:
   `edition_map`; a text pack has at least one `text` source. Every licence has a
   non-null `text` or `permission_ref`, so no content is shown without a source and a
   permission (PRD §9.1).
+- `options` holds the choices the source file was produced with (on Tanzil's
+  download page: the text type and whether pause marks, sajda signs and other signs
+  are included), with names and values as the source gives them. Values are strings,
+  numbers or booleans; names are not empty. It is `null` when the source offers no
+  choices (D-077); an empty object is refused.
 - `id` and `version` equal the names of the two directories the pack sits in
   (`<pack-id>/<version>/`), so a manifest cannot be moved under another pack or
   version.
@@ -107,7 +113,18 @@ CREATE TABLE ayah (
 CREATE TABLE word (
   surah        INTEGER NOT NULL,
   ayah         INTEGER NOT NULL,
-  number       INTEGER NOT NULL,                  -- 1..n per ayah, contiguous (D-038 decides mark-only tokens)
+  number       INTEGER NOT NULL,                  -- 1..n per ayah, contiguous; a token with no letter is a mark, not a word (D-078)
+  start_offset INTEGER NOT NULL,                  -- UTF-16 code units into ayah.text, half-open
+  end_offset   INTEGER NOT NULL,
+  PRIMARY KEY (surah, ayah, number),
+  FOREIGN KEY (surah, ayah) REFERENCES ayah(surah, number)
+) STRICT, WITHOUT ROWID;
+
+CREATE TABLE mark (
+  surah        INTEGER NOT NULL,
+  ayah         INTEGER NOT NULL,
+  number       INTEGER NOT NULL,                  -- 1..n per ayah, contiguous, in text order
+  after_word   INTEGER NOT NULL,                  -- number of the word it follows; 0 when it precedes the first word
   start_offset INTEGER NOT NULL,                  -- UTF-16 code units into ayah.text, half-open
   end_offset   INTEGER NOT NULL,
   PRIMARY KEY (surah, ayah, number),
@@ -131,15 +148,28 @@ CREATE TABLE sajda (
 ) STRICT, WITHOUT ROWID;
 ```
 
-### Word offsets
+### Word and mark offsets
+
+The tokens of an ayah are separated by U+0020 only. A word is a token that holds at
+least one letter, a code point of Unicode general category L (Lu, Ll, Lt, Lm or Lo,
+so the tatweel U+0640 and the small waw and yeh U+06E5 and U+06E6 count); a token
+with none (a pause mark, a sajda sign) is a mark (D-078). A mark has
+no word number and lies outside every word span, so highlighting a spoken word does
+not colour the mark after it. `counts.words` and `counts.marks` are the row counts of
+`word` and `mark`. Which mark it is, is its slice; meanings come from their own
+source (registry row 19), keyed by that slice.
 
 Offsets are UTF-16 code units, because Flutter's text spans, hit testing and glyph
 boxes all count in them, so the app slices with no conversion. In Python:
 `len(s[:i].encode('utf-16-le')) // 2` for code-point index `i`.
 
-Spans of one ayah are ordered, do not overlap and lie within the ayah. What lies
-between them is the source's own separator. The ayah reassembled from its spans and
-the gaps between them is identical to the stored ayah; the integrity suite checks it.
+Each word or mark span is exactly one token: it holds no U+0020, and the code unit
+before it and the one at its end are U+0020 or the ayah's edge. So the spans of one
+ayah, taken together, are ordered, do not overlap, lie within the ayah, and nothing
+but U+0020 lies outside them; a source whose text uses any other separator is
+refused by the pipeline, never rewritten. A mark's `after_word` is the number of
+the last word before it (0 when no word precedes it). The integrity suite checks
+all of this for every ayah.
 
 ### Surah digest
 
@@ -188,7 +218,8 @@ And for offsets: in `'ab \u{1F600} cd'` the word `cd` starts at UTF-16 offset 6
    that numbering is contiguous and every division and sajda points at an ayah.
 6. The first time a surah is read in a session, compare its digest with
    `surah_sha256`, decode every text of the surah as strict UTF-8, and check its word
-   spans (ordered, not overlapping, within the ayah).
+   and mark spans together (ordered, not overlapping, within the ayah, no offset
+   inside a surrogate pair, each mark's `after_word` the last word before it).
 
 Any failure in steps 5 and 6 disables the pack for the session (`PackInconsistent`,
 `SurahHashMismatch`, `TextEncodingRejected`) and no text from it is shown. The app
@@ -212,6 +243,10 @@ against the source (PRD §9.4) and the signature binds. No count of surahs or ay
 written in Dart.
 
 ## Review by the planning session, 2026-10-07
+
+Applied by stream A in the follow-up to M0.3 (D-083): the sections above now
+include the `mark` table, `counts.marks` and `sources[].options`, and the app reads
+and checks them. The review is kept as written.
 
 Format v1 was read against PRD §9 and §10 and against what stream B knows of the
 sources. It is accepted, with the two changes under "Changes requested". The text of

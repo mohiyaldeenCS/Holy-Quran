@@ -144,6 +144,7 @@ PackSource _source(_Object json) {
     'fetched_on',
     'file_sha256',
     'trust_grade',
+    'options',
     'licence',
   });
   return PackSource(
@@ -165,8 +166,21 @@ PackSource _source(_Object json) {
       'C' => TrustGrade.c,
       _ => throw _Invalid('${json.path}.trust_grade is not A, B or C'),
     },
+    options: _options(json.nullableObject('options')),
     licence: _licence(json.object('licence')),
   );
+}
+
+/// Null when the source offers no choices; an empty object or an empty
+/// option name is refused, so that "no choices" has one spelling.
+Map<String, Object>? _options(_Object? json) {
+  if (json == null) return null;
+  final options = json.scalars();
+  if (options.isEmpty) throw _Invalid('${json.path} is empty; use null');
+  if (options.containsKey('')) {
+    throw _Invalid('${json.path} has an empty option name');
+  }
+  return options;
 }
 
 PackLicence _licence(_Object json) {
@@ -207,13 +221,21 @@ Map<int, String> _surahSha256(_Object json, int surahs) {
 }
 
 PackCounts _counts(_Object json) {
-  json.expectKeys(const {'surahs', 'ayat', 'words', 'divisions', 'sajdas'});
+  json.expectKeys(const {
+    'surahs',
+    'ayat',
+    'words',
+    'marks',
+    'divisions',
+    'sajdas',
+  });
   final divisions = json.object('divisions')
     ..expectKeys({for (final division in Division.values) division.name});
   return PackCounts(
     surahs: json.count('surahs'),
     ayat: json.count('ayat'),
     words: json.count('words'),
+    marks: json.count('marks'),
     divisions: {
       for (final division in Division.values)
         division: divisions.count(division.name),
@@ -307,6 +329,23 @@ final class _Object {
 
   _Object object(String key) =>
       _Object(_field<Map<String, Object?>>(key, 'an object'), '$path.$key');
+
+  _Object? nullableObject(String key) =>
+      switch (_field<Map<String, Object?>?>(key, 'an object or null')) {
+        final map? => _Object(map, '$path.$key'),
+        null => null,
+      };
+
+  /// Every field, each a string, a number or a boolean.
+  Map<String, Object> scalars() => {
+    for (final MapEntry(:key, :value) in _map.entries)
+      key: switch (value) {
+        final String value => value,
+        final num value => value,
+        final bool value => value,
+        _ => throw _Invalid('$path.$key is not a string, number or boolean'),
+      },
+  };
 
   List<_Object> objects(String key) => [
     for (final (index, item) in _field<List<Object?>>(key, 'a list').indexed)
