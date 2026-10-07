@@ -13,7 +13,7 @@ corrected first.
 | Stream A — app | M0.1, M0.2 and M0.3 merged, with human checks pending (pull requests #2, #3 and #4). Next milestone: **M0.4 Spikes** |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | None open. Start M0.4 from `main` (on the branch the session is bound to, D-045) |
-| Last session | First implementing session: environment, kickoff answers, M0.1, M0.2 and M0.3 (pull requests #2, #3 and #4) |
+| Last session | Planning session: review of the pack format (pull request #7). The implementing session has M0.4 part 1 open as draft pull request #6 |
 
 ## What is in the repository
 
@@ -39,7 +39,8 @@ corrected first.
   (D-043), with hand-started tasks `apk` (D-049) and `goldens` (D-056, D-059); the
   token and icon generator `tools/gen/` (D-054); the cloud-session setup hook
   `.claude/hooks/session-start.sh` (D-048). Milestone plans in `docs/plans/`. The
-  pack format, version 1, in `docs/CONTENT_PACKS.md` (D-064).
+  pack format, version 1, in `docs/CONTENT_PACKS.md` (D-064), with the planning
+  session's review and the two changes it asks for (D-077).
 - `docs/` — PRD export, plan, architecture, design-system mapping, sources, rights
   register, decisions, workflow, Zaydi-library notes, the prompts for starting a
   session.
@@ -98,12 +99,20 @@ raw extraction output; signing keys. The 13 logo SVG files are in
   checks, pack location, source rules) or carried to M1.2, M1.4 and M1.5
   (`docs/plans/M0.3.md`). Pending: the checks below.
 
+- **Pack format reviewed by the planning session** (pull request #7): format
+  version 1 accepted with two changes for stream A to apply, a `mark` table and
+  `sources[].options` (D-077); P1 to P7 answered in `docs/CONTENT_PACKS.md`; the word
+  and mark rule (D-078), the Tanzil file of the base pack (D-079) and a signature
+  scheme (D-080) proposed. The answers that rest on the published structure of the
+  Tanzil and KFGQPC files, not on the files themselves, are marked so; the pipeline
+  checks them in B0.2.
+
 ## In progress
 
 Nothing in stream A.
 
 Stream B: the owner is extracting book 466 (التهذيب في التفسير, about 7,325 site
-pages). The review of `docs/CONTENT_PACKS.md` by the planning session has not started.
+pages). The planning session is building the ayah linker for the Zaydi-library books.
 
 ## Next actions — stream A (the implementing account)
 
@@ -131,6 +140,15 @@ pages). The review of `docs/CONTENT_PACKS.md` by the planning session has not st
    approves.
 6. If M0.4 is finished before Gate 0 is met, continue with **M0.5**, not with
    Phase 1.
+7. Read "Review by the planning session" in `docs/CONTENT_PACKS.md` (D-077). It
+   answers P1 to P7 and the question of `docs/plans/M0.4.md` about the Tanzil file
+   (D-079: the default file without rub-el-hizb signs). Apply its two changes to the
+   format text, the manifest parser, `PackDatabase`, the synthetic pack builder and
+   the integrity suite: the `mark` table with `counts.marks` (D-078), and
+   `sources[].options`. Rewrite the sections of the format they touch; say so here if
+   either change is not acceptable as written.
+8. Decision numbers: D-068 to D-075 are yours (pull request #6 and its plan); stream
+   B took D-076 to D-080. See `docs/WORKFLOW.md`, "Two sessions at once".
 
 ## Next actions — stream B (planning session and the owner)
 
@@ -148,10 +166,7 @@ pages). The review of `docs/CONTENT_PACKS.md` by the planning session has not st
 6. Planning session with the owner: the base pack (B0.2), KFGQPC assets (B0.3), the
    word index (B0.4), waqf-mark meanings (B0.8), acceptance data (B0.10), the pipeline
    (B0.11).
-7. Planning session: review `docs/CONTENT_PACKS.md` (format v1, merged with
-   pull request #4) and answer its questions P1–P7 and the signing note. Changes go
-   into a new version of that file.
-8. Planning session: run the app's integrity suite on the base pack when B0.2
+7. Planning session: run the app's integrity suite on the base pack when B0.2
    builds it: `flutter test test/integrity
    --dart-define=HOLYQURAN_PACK_DIR=<pack-id>/<version>` (D-067).
 
@@ -189,7 +204,6 @@ Permission conditions to confirm with him when each is first needed are listed i
 | --- | --- | --- | --- |
 | M0.1 | The shell launches on Android: the app opens in Arabic, right to left, on الرئيسية, and the five tabs switch | Owner, or a session with an Android SDK and emulator | Owner's choice (D-049): once, at the end of Phase 0 or when he wants to try it, start the CI workflow by hand (Actions → CI → Run workflow) and install the `holyquran-debug-apk` it attaches; or `flutter run` on a device. No session so far has had an Android SDK |
 | M0.2 | Screen reader (TalkBack), keyboard focus ring, the system bold-text setting and 200% text on a real device, for the M0.2 widgets | Owner, on a device | With the debug APK (CI task `apk`): open More → «معرض المكوّنات» |
-| M0.3 | Review of `docs/CONTENT_PACKS.md`, questions P1–P7 | Planning session | Read the file; answer in a change to it |
 | M0.3 | The integrity suite passes on the real base pack | Planning session, when B0.2 delivers it | The command in stream B's next actions |
 | M0.3 | The Android build links the bundled SQLite of `sqlite3` (its build hook) | CI | The hand-started `apk` task, with the final APK (D-049) |
 
@@ -246,6 +260,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-10-07 | Planning session | Reviewed pack format v1 and answered P1–P7 and stream A's question about the Tanzil file; D-076 to D-080; a rule for two sessions working at once in `docs/WORKFLOW.md`. | Pull request #7 |
 | 2026-10-07 | Planning session | Checked the owner's extraction of seven Zaydi-library books (471, 473, 514, 737, 165, 276, 440): all complete; multi-part navigation confirmed; three more honorific codes found; linking prospects noted per book. PRD §5.5 updated and re-exported at revision 145. | Pull request #5 |
 | 2026-10-07 | First implementing session (continued) | M0.3: plan in `docs/plans/M0.3.md`; pack format v1; addresses, `PackText`, manifest verification, read-only SQLite reader, text repository, integrity suite and guards; D-061 to D-067; code review applied. | Pull request #4 |
 | 2026-10-07 | First implementing session (continued) | M0.2: plan in `docs/plans/M0.2.md`; owner decided follow-system dark (D-050, D-053), the APK only by hand (D-049), the missing icons (D-051, D-052), tab label scaling (D-058); generator, themes, fonts, 13 widgets, gallery, 60 goldens via the CI `goldens` task, guards; code and identity reviews applied. | Pull request #3 |

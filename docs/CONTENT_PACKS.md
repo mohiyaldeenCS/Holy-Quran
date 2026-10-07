@@ -269,8 +269,8 @@ has been built or released under it.
 
 ### Which Tanzil file the base pack uses
 
-Asked by stream A in `docs/plans/M0.4.md` (pull request #6). Proposed, and settled in B0.2 with the
-proofreader (O-16):
+Asked by stream A in `docs/plans/M0.4.md` (pull request #6). Proposed, and settled
+in B0.2 with the proofreader (O-16):
 
 | | |
 | --- | --- |
