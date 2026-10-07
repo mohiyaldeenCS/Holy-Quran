@@ -173,7 +173,9 @@ pages). Nothing else is open in stream B.
    B took D-076 to D-082. See `docs/WORKFLOW.md`, "Two sessions at once".
 6. Then **M0.4 part 2**: S7 (gestures, needs only S1) and S4 (home-screen widget,
    for Phase 2) with the same spike folder (D-068). S2, S6 and the S3 highlight part
-   wait for B0.3, packs and B0.5.
+   wait for B0.3, packs and B0.5. With the spike code restored for part 2, run the S1
+   real-text task once more on the D-079 file (`rub=false`), as the planning session
+   asked, for the code-point and mark-token lists.
 7. Golden images: after a push that adds or changes a golden test, start CI by hand
    on the branch with the task `goldens` (Actions → CI → Run workflow, or the API),
    pull the commit it pushes, and push again so the pull request is checked
