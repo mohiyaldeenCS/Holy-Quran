@@ -158,6 +158,7 @@ finished.
 | `docs/content/` | Rights register; notes on preparing each source | Content work advances |
 | `docs/DECISIONS.md` | Decisions with reasons | Any decision |
 | `docs/spikes/` | Results of experiments | A spike ends |
+| `docs/plans/` | The architect's plan for a milestone, trimmed by the lead, so that another session can continue it | A milestone starts; the plan changes |
 
 ## Language
 
