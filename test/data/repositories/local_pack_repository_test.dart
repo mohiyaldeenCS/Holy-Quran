@@ -45,6 +45,31 @@ final class _FailingFiles extends PackFileService {
       path.endsWith(failing) ? _fail(path) : super.sizeOf(path);
 }
 
+/// Reads like [PackFileService] and records each call, in order.
+final class _SpyFiles extends PackFileService {
+  _SpyFiles();
+
+  final calls = <String>[];
+
+  @override
+  Future<Uint8List?> readIfExists(String path) {
+    calls.add('readIfExists ${path.split('/').last}');
+    return super.readIfExists(path);
+  }
+
+  @override
+  Future<int?> sizeOf(String path) {
+    calls.add('sizeOf ${path.split('/').last}');
+    return super.sizeOf(path);
+  }
+
+  @override
+  Future<String?> sha256Of(String path) {
+    calls.add('sha256Of ${path.split('/').last}');
+    return super.sha256Of(path);
+  }
+}
+
 void main() {
   late Directory root;
 
@@ -175,6 +200,30 @@ void main() {
       );
     });
 
+    test('a manifest whose id and version do not name its directory', () async {
+      for (final (index, place) in [
+        'synthetic-moved/2',
+        'synthetic-other/1',
+        'synthetic-moved/01',
+      ].indexed) {
+        final pack = await buildSyntheticPack(
+          Directory('${root.path}/$index'),
+          id: 'synthetic-moved',
+        );
+        final moved = Directory('${root.path}/$index/$place');
+        await moved.parent.create(recursive: true);
+        await pack.directory.rename(moved.path);
+        expect(
+          await repository().verify(moved.path),
+          fails<ManifestUnreadable>((f) => (f.pack, f.reason), (
+            moved.path,
+            'id and version are synthetic-moved/1; the pack sits in $place',
+          )),
+          reason: place,
+        );
+      }
+    });
+
     test('a data file that cannot be read', () async {
       final pack = await buildSyntheticPack(root);
       expect(
@@ -186,6 +235,47 @@ void main() {
     });
   });
 
+  test('resolves a relative directory against the working directory', () async {
+    final pack = await buildSyntheticPack(root);
+    final previous = Directory.current;
+    addTearDown(() => Directory.current = previous);
+    Directory.current = pack.directory;
+    expect(await repository().verify('.'), isA<Ok<VerifiedPack>>());
+    Directory.current = pack.directory.parent;
+    expect(await repository().verify('1/'), isA<Ok<VerifiedPack>>());
+  });
+
+  group('checks each file', () {
+    test('by size, then by hash', () async {
+      final pack = await buildSyntheticPack(root);
+      final files = _SpyFiles();
+      expect(
+        await repository(files: files).verify(pack.directory.path),
+        isA<Ok<VerifiedPack>>(),
+      );
+      expect(files.calls, [
+        'readIfExists manifest.json',
+        'readIfExists manifest.json.sig',
+        'sizeOf $textFileName',
+        'sha256Of $textFileName',
+      ]);
+    });
+
+    test('without hashing a file whose size differs', () async {
+      final pack = await buildSyntheticPack(
+        root,
+        fault: SyntheticFault.wrongFileSize,
+      );
+      final files = _SpyFiles();
+      expect(
+        await repository(files: files).verify(pack.directory.path),
+        fails<FileHashMismatch>(),
+      );
+      expect(files.calls, contains('sizeOf $textFileName'));
+      expect(files.calls.where((call) => call.startsWith('sha256Of')), isEmpty);
+    });
+  });
+
   test('passes the faults found only once the file is open', () async {
     for (final fault in [
       SyntheticFault.wrongSurahHash,
@@ -194,6 +284,8 @@ void main() {
       SyntheticFault.walHeader,
       SyntheticFault.wrongApplicationId,
       SyntheticFault.wrongUserVersion,
+      SyntheticFault.overlappingSpans,
+      SyntheticFault.nonStrictSchema,
     ]) {
       final pack = await buildSyntheticPack(
         Directory('${root.path}/${fault.name}'),

@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import '../../domain/models/edition_map.dart';
 import '../../domain/models/pack_failure.dart';
 import '../../domain/models/pack_manifest.dart';
@@ -18,10 +16,11 @@ import 'quran_text_repository.dart';
 ///
 /// Before the first read, the database's rows are compared with the
 /// manifest's counts. Before the first read of a surah, its digest is
-/// compared with the manifest and each of its texts is decoded. Any of these
-/// failing, or a text the database refuses, fails that call and disables the
-/// pack: every later call fails with [PackDisabled]. A count, numbering or
-/// reference that differs is a [PackInconsistent].
+/// compared with the manifest, each of its texts is decoded and the word
+/// spans of each ayah are checked. Any of these failing, or a text the
+/// database refuses, fails that call and disables the pack: every later call
+/// fails with [PackDisabled]. A count, numbering, reference or span that is
+/// wrong is a [PackInconsistent].
 ///
 /// The reads are synchronous inside; the interface is asynchronous so that
 /// they can move to an isolate without changing it.
@@ -36,7 +35,7 @@ final class PackQuranTextRepository implements QuranTextRepository {
 
   /// Opens `text.sqlite` of [pack] read-only. A file that is not a text pack
   /// of the manifest's format version fails with [UnsupportedPackFormat], a
-  /// file that cannot be opened with [FileHashMismatch].
+  /// file that cannot be read with [FileHashMismatch].
   static Result<PackQuranTextRepository> open(VerifiedPack pack) {
     final manifest = pack.manifest;
     if (manifest.kind != PackKind.text || manifest.riwaya == null) {
@@ -50,8 +49,6 @@ final class PackQuranTextRepository implements QuranTextRepository {
         formatVersion: manifest.formatVersion,
       );
       return Ok(PackQuranTextRepository(pack: pack, database: database));
-    } on FileSystemException {
-      return Failure(FileHashMismatch(manifest.id, textPackFileName));
     } on PackFailure catch (failure) {
       return Failure(_named(manifest.id, failure));
     }
@@ -104,7 +101,10 @@ final class PackQuranTextRepository implements QuranTextRepository {
   Future<Result<List<WordSpan>>> words(QuranAddress address) async => _read(() {
     _expectAyah(address);
     _verifySurah(address.surah);
-    return _database.words(address.surah, address.ayah);
+    return [
+      for (final word in _database.words(address.surah, address.ayah))
+        WordSpan(number: word.number, start: word.start, end: word.end),
+    ];
   });
 
   @override
@@ -112,17 +112,13 @@ final class PackQuranTextRepository implements QuranTextRepository {
       _read(() => _editionMap ??= _buildEditionMap());
 
   @override
-  Future<bool> contains(QuranAddress address) async => switch (_read(() {
+  Future<Result<bool>> contains(QuranAddress address) async => _read(() {
     if (!_hasAyah(address.ayahAddress)) return false;
     final word = address.word;
     if (word == null) return true;
-    return _database
-        .words(address.surah, address.ayah)
-        .any((span) => span.number == word);
-  })) {
-    Ok(:final value) => value,
-    Failure() => false,
-  };
+    _verifySurah(address.surah);
+    return word <= _database.words(address.surah, address.ayah).length;
+  });
 
   Result<T> _read<T>(T Function() read) {
     if (_disabled) return Failure(PackDisabled(_id));
@@ -148,6 +144,7 @@ final class PackQuranTextRepository implements QuranTextRepository {
           surah,
           ayah,
         ),
+        FileHashMismatch(:final file) => FileHashMismatch(id, file),
         _ => failure,
       };
 
@@ -209,11 +206,45 @@ final class PackQuranTextRepository implements QuranTextRepository {
     }
     _database.basmala(surah);
     for (var ayah = 1; ayah <= _surahList()[surah - 1].ayahCount; ayah++) {
-      if (_database.ayahText(surah, ayah) == null) {
-        throw _missingAyah(surah, ayah);
-      }
+      _checkWords(
+        QuranAddress(riwaya, surah, ayah),
+        _database.ayahText(surah, ayah) ?? (throw _missingAyah(surah, ayah)),
+        _database.words(surah, ayah),
+      );
     }
     _verifiedSurahs.add(surah);
+  }
+
+  /// Words numbered from 1, each span non-empty, after the span before and
+  /// on character boundaries within the ayah.
+  void _checkWords(QuranAddress ayah, PackText text, List<WordRow> words) {
+    var previousEnd = 0;
+    for (final (index, word) in words.indexed) {
+      if (_spanProblem(index + 1, word, previousEnd, text)
+          case final problem?) {
+        throw PackInconsistent(
+          _id,
+          '$ayah: $problem: [${word.start}, ${word.end})',
+        );
+      }
+      previousEnd = word.end;
+    }
+  }
+
+  static String? _spanProblem(
+    int expected,
+    WordRow word,
+    int previousEnd,
+    PackText text,
+  ) {
+    final (:number, :start, :end) = word;
+    if (number != expected) return 'word $expected is numbered $number';
+    if (start >= end) return 'word $number is empty or reversed';
+    if (!text.isSliceBoundary(start) || !text.isSliceBoundary(end)) {
+      return 'word $number is outside the ayah or splits a character';
+    }
+    if (start < previousEnd) return 'word $number overlaps the word before';
+    return null;
   }
 
   PackInconsistent _missingAyah(int surah, int ayah) =>

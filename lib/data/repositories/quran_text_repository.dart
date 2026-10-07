@@ -23,11 +23,14 @@ abstract interface class QuranTextRepository {
   /// The basmala stored for [surah]; null when the surah has none.
   Future<Result<PackText?>> basmala(int surah);
 
-  /// The word spans of the ayah at [address], an ayah address.
+  /// The word spans of the ayah at [address], an ayah address. The spans of
+  /// a surah are checked on its first read, like its digest.
   Future<Result<List<WordSpan>>> words(QuranAddress address);
 
   Future<Result<EditionMap>> editionMap();
 
-  /// Whether the ayah or word at [address] is in the pack.
-  Future<bool> contains(QuranAddress address);
+  /// Whether the ayah or word at [address] is in the pack: `Ok(false)` when
+  /// it is not, a failure when the pack cannot answer because it is broken or
+  /// disabled.
+  Future<Result<bool>> contains(QuranAddress address);
 }

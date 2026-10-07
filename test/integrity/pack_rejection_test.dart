@@ -124,6 +124,8 @@ void main() {
     SyntheticFault.pathInFileName: ('verify', isA<ManifestUnreadable>()),
     SyntheticFault.missingFile: ('verify', isA<FileHashMismatch>()),
     SyntheticFault.wrongFileSize: ('verify', isA<FileHashMismatch>()),
+    SyntheticFault.overlappingSpans: ('read', isA<PackInconsistent>()),
+    SyntheticFault.nonStrictSchema: ('open', isA<UnsupportedPackFormat>()),
   };
 
   test('every synthetic fault is listed', () {
@@ -181,7 +183,7 @@ void main() {
           expect(await repository.words(address), disabled, reason: '$address');
           expect(
             await repository.contains(address),
-            isFalse,
+            disabled,
             reason: '$address',
           );
         }

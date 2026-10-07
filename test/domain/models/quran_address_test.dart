@@ -30,6 +30,24 @@ void main() {
       expect(QuranAddress('warsh_2', 1, 1).riwaya, 'warsh_2');
     });
 
+    test('accepts a riwaya exactly when riwayaPattern matches it', () {
+      for (final riwaya in ['hafs', 'warsh_2', 'q1', '', 'Hafs', '_x', 'a-b']) {
+        expect(
+          () => QuranAddress(riwaya, 1, 1),
+          QuranAddress.riwayaPattern.hasMatch(riwaya)
+              ? returnsNormally
+              : throwsArgumentError,
+          reason: riwaya,
+        );
+        expect(
+          QuranAddress.tryParse('$riwaya:1:1') != null,
+          QuranAddress.riwayaPattern.hasMatch(riwaya),
+          reason: riwaya,
+        );
+      }
+      expect(QuranAddress.riwayaPattern.pattern, r'^[a-z][a-z0-9_]*$');
+    });
+
     test('rejects numbers that are not positive or exceed the limit', () {
       expect(() => QuranAddress('hafs', 0, 1), throwsArgumentError);
       expect(() => QuranAddress('hafs', 1, 0), throwsArgumentError);

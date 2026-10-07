@@ -4,6 +4,9 @@ enum PackKind { text }
 
 enum TrustGrade { a, b, c }
 
+/// What a pack takes from a source: its text, or its edition's divisions.
+enum SourceRole { text, editionMap }
+
 /// A pack's `manifest.json` (docs/CONTENT_PACKS.md). Dates are kept as the
 /// manifest writes them, `YYYY-MM-DD`.
 final class PackManifest {
@@ -82,7 +85,7 @@ final class PackSource {
     required this.licence,
   });
 
-  final String role;
+  final SourceRole role;
   final int registryRow;
   final String name;
   final String publisher;
@@ -94,6 +97,8 @@ final class PackSource {
   final PackLicence licence;
 }
 
+/// At least one of [text] and [permissionRef] is set; the parser refuses a
+/// licence with neither.
 final class PackLicence {
   const PackLicence({
     required this.text,

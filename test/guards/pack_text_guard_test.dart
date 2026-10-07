@@ -19,6 +19,13 @@ const _sinks = {'lib/ui/core/widgets/quran_text.dart'};
 /// gallery's synthetic sample.
 const _producers = {_database, 'lib/ui/core/gallery/gallery_screen.dart'};
 
+/// The only files that may construct a `VerifiedPack`: the repository that
+/// verifies packs, and the model itself.
+const _verifiers = {
+  'lib/data/repositories/local_pack_repository.dart',
+  'lib/domain/models/verified_pack.dart',
+};
+
 /// The files that carry `PackText` values from the file to the screen.
 bool _carriesPackText(String path) =>
     path == _packText ||
@@ -29,6 +36,7 @@ bool _carriesPackText(String path) =>
     ).hasMatch(path);
 
 final _verbatim = RegExp(r'\bverbatim\b');
+final _verifiedPack = RegExp(r'\bVerifiedPack\s*(?:\(|\.\s*new\b)');
 final _fromPack = RegExp(r'\bfromPack\b');
 final _normalising = RegExp(
   r'normali[sz]|unorm|\bNFK?[CD]\b|diacritic',
@@ -61,6 +69,11 @@ Iterable<String> _violationsIn(String path, String text) sync* {
       yield '${at(match)}: fromPack outside a producer';
     }
   }
+  if (!_verifiers.contains(path)) {
+    for (final match in _verifiedPack.allMatches(source.code)) {
+      yield '${at(match)}: VerifiedPack constructed outside verification';
+    }
+  }
   for (final match in _normalising.allMatches(source.code)) {
     yield '${at(match)}: normalisation ${match[0]}';
   }
@@ -87,7 +100,7 @@ void main() {
   });
 
   test('the listed files exist', () {
-    for (final path in {_packText, ..._sinks, ..._producers}) {
+    for (final path in {_packText, ..._sinks, ..._producers, ..._verifiers}) {
       expect(File(path).existsSync(), isTrue, reason: path);
     }
     expect(
@@ -136,6 +149,31 @@ final d = switch (text) { PackText(:final verbatim) => verbatim };
         [
           '$view:1: fromPack outside a producer',
           '$repository:1: fromPack outside a producer',
+        ],
+      );
+    });
+
+    test('a VerifiedPack constructed outside verification', () {
+      expect(
+        _violations({
+          view: '''
+final a = VerifiedPack(directory: d, manifest: m, signatureChecked: false);
+final b = const VerifiedPack (directory: d, manifest: m, signatureChecked: true);
+final c = VerifiedPack.new;
+final d = VerifiedPack . new(directory: d, manifest: m, signatureChecked: false);
+Future<Result<VerifiedPack>> e() => f();
+final VerifiedPack g = h;
+''',
+          for (final verifier in _verifiers)
+            verifier:
+                'return VerifiedPack(directory: d, manifest: m, '
+                'signatureChecked: c);',
+        }),
+        [
+          '$view:1: VerifiedPack constructed outside verification',
+          '$view:2: VerifiedPack constructed outside verification',
+          '$view:3: VerifiedPack constructed outside verification',
+          '$view:4: VerifiedPack constructed outside verification',
         ],
       );
     });
@@ -207,9 +245,9 @@ final g = list.map((s) => s.trim);
       expect(
         _violations({
           view: '''
-// text.verbatim, PackText.fromPack, normalize, s.trim()
-/// [PackText.verbatim]
-final a = 'verbatim fromPack NFC';
+// text.verbatim, PackText.fromPack, normalize, s.trim(), VerifiedPack(
+/// [PackText.verbatim], [VerifiedPack.new]
+final a = 'verbatim fromPack NFC VerifiedPack(';
 ''',
           _database: "/* s.trim() */ final b = 'x.split(y)';",
         }),

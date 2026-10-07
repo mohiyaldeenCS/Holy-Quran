@@ -3,6 +3,9 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holyquran/domain/models/pack_failure.dart';
+import 'package:holyquran/domain/models/verified_pack.dart';
+import 'package:holyquran/utils/result.dart';
 
 import '../../testing/packs/synthetic_pack.dart';
 import 'pack_integrity_suite.dart';
@@ -183,9 +186,24 @@ void main() {
           ),
         ],
       );
-      expect(await wordSpanProblemsOfPack(await built(surahs: surahs)), [
+      final problems = await wordSpanProblemsOfPack(
+        await built(surahs: surahs),
+      );
+      expect(problems.where((p) => p.contains('span [')), [
         startsWith('hafs:2:3:2: span [5, 14)'),
       ]);
+      expect(
+        problems,
+        contains(
+          'hafs:2:1: PackInconsistent(faulty-${builds - 1}): hafs:2:3: '
+          'word 2 overlaps the word before: [5, 14)',
+        ),
+      );
+      expect(
+        problems.where((p) => p.startsWith('hafs:1:')),
+        isEmpty,
+        reason: 'surah 1 is read before surah 2 disables the pack',
+      );
     });
 
     test('divisions with a gap in their numbers or out of order', () async {
@@ -248,6 +266,14 @@ void main() {
       expect(await locationProblems(loaded), [
         'the pack sits in moved/7, not moved/1',
       ]);
+      expect(
+        loaded.verification,
+        isA<Failure<VerifiedPack>>().having(
+          (f) => f.error,
+          'error',
+          isA<ManifestUnreadable>(),
+        ),
+      );
     });
   });
 }

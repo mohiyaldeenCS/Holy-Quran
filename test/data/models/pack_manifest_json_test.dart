@@ -6,6 +6,7 @@ import 'package:holyquran/data/models/pack_manifest_json.dart';
 import 'package:holyquran/domain/models/edition_map.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/pack_manifest.dart';
+import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/utils/result.dart';
 
 import '../../../testing/packs/synthetic_pack.dart';
@@ -67,7 +68,10 @@ void main() {
     expect(manifest.font.family, font['family']);
     expect(manifest.font.version, font['version']);
     expect(manifest.font.sha256, font['sha256']);
-    expect(manifest.sources.map((s) => s.role), ['text', 'edition_map']);
+    expect(manifest.sources.map((s) => s.role), [
+      SourceRole.text,
+      SourceRole.editionMap,
+    ]);
     expect(manifest.sources.map((s) => s.registryRow), [1, 4]);
     final first = manifest.sources.first;
     expect(first.name, source['name']);
@@ -78,7 +82,7 @@ void main() {
     expect(first.fileSha256, source['file_sha256']);
     expect(first.trustGrade, TrustGrade.a);
     expect(first.licence.text, isNull);
-    expect(first.licence.permissionRef, isNull);
+    expect(first.licence.permissionRef, 'Synthetic permission 1');
     expect(first.licence.notice, isNull);
     expect(first.licence.allowsExport, isTrue);
     expect(manifest.files.single.name, textPackFileName);
@@ -315,6 +319,73 @@ void main() {
     );
   });
 
+  test('riwaya is accepted exactly when QuranAddress accepts it', () {
+    for (final riwaya in ['hafs', 'warsh_2', 'q1', 'Hafs', '_hafs', 'ha-fs']) {
+      expect(
+        parse(edited((json) => json['riwaya'] = riwaya)) is Ok,
+        QuranAddress.riwayaPattern.hasMatch(riwaya),
+        reason: riwaya,
+      );
+    }
+  });
+
+  group('sources', () {
+    test('must not be empty', () {
+      expect(
+        parse(edited((json) => json['sources'] = <Object?>[])),
+        unreadableBecause('sources is empty'),
+      );
+    });
+
+    test('have the role text or edition_map', () {
+      for (final role in ['Text', 'edition-map', 'editionMap', 'pages', '']) {
+        expect(
+          parse(edited((json) => json.at(['sources', 1])['role'] = role)),
+          unreadableBecause(
+            'manifest.sources[1].role is not text or edition_map',
+          ),
+          reason: role,
+        );
+      }
+    });
+
+    test('of a text pack include a text source', () {
+      expect(
+        parse(
+          edited((json) => json.at(['sources', 0])['role'] = 'edition_map'),
+        ),
+        unreadableBecause('sources of a text pack has no text source'),
+      );
+      expect(
+        parse(
+          edited((json) => (json['sources']! as List<Object?>).removeAt(1)),
+        ),
+        isA<Ok<PackManifest>>(),
+      );
+    });
+
+    test('each have a licence text or a permission reference', () {
+      final licence = ['sources', 1, 'licence'];
+      expect(
+        parse(edited((json) => json.at(licence)['permission_ref'] = null)),
+        unreadableBecause(
+          'manifest.sources[1].licence has neither text nor permission_ref',
+        ),
+      );
+      final withText = parse(
+        edited((json) {
+          json.at(licence)
+            ..['permission_ref'] = null
+            ..['text'] = 'Synthetic licence';
+        }),
+      );
+      expect(
+        (withText as Ok<PackManifest>).value.sources[1].licence.text,
+        'Synthetic licence',
+      );
+    });
+  });
+
   test('trust grades are A, B or C', () {
     for (final grade in ['a', 'D', 'A+', '']) {
       expect(
@@ -478,12 +549,11 @@ void main() {
     );
   });
 
-  test('lists may be empty', () {
+  test('the changelog and reviews may be empty', () {
     expect(
       parse(
         edited((json) {
           json['changelog'] = <Object?>[];
-          json['sources'] = <Object?>[];
           json['reviews'] = <Object?>[];
         }),
       ),

@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/data/services/pack_database.dart';
 import 'package:holyquran/domain/models/edition_map.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/surah_info.dart';
-import 'package:holyquran/domain/models/word_span.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 import '../../../testing/packs/raw_pack.dart';
@@ -120,7 +120,7 @@ void main() {
         for (final (a, ayah) in surah.ayat.indexed) {
           expect(db.words(s + 1, a + 1), [
             for (final (n, start, end) in stored.words(s + 1, a + 1))
-              WordSpan(number: n, start: start, end: end),
+              (number: n, start: start, end: end),
           ]);
           expect(
             db.words(s + 1, a + 1).map((w) => (w.start, w.end)),
@@ -128,7 +128,7 @@ void main() {
           );
         }
       }
-      expect(db.words(2, 2).last, const WordSpan(number: 3, start: 6, end: 8));
+      expect(db.words(2, 2).last, (number: 3, start: 6, end: 8));
       expect(db.words(1, 9), isEmpty);
     });
 
@@ -259,18 +259,28 @@ void main() {
       }
     });
 
-    test('a missing file, and creates none', () async {
-      final path = '${root.path}/missing/text.sqlite';
-      expect(
-        () => PackDatabase.open(path, formatVersion: 1),
-        throwsA(isA<FileSystemException>()),
-      );
-      final flat = '${root.path}/text.sqlite';
-      expect(
-        () => PackDatabase.open(flat, formatVersion: 1),
-        throwsA(isA<FileSystemException>()),
-      );
+    test('a missing file, as a file whose bytes differ, and creates none', () {
+      for (final path in [
+        '${root.path}/missing/text.sqlite',
+        '${root.path}/text.sqlite',
+      ]) {
+        expect(
+          () => PackDatabase.open(path, formatVersion: 1),
+          throwsFailure<FileHashMismatch>((f) => (f.pack, f.file), (
+            path,
+            'text.sqlite',
+          )),
+        );
+      }
       expect(root.listSync(), isEmpty);
+    });
+
+    test('a directory in place of the file', () async {
+      final directory = await Directory('${root.path}/text.sqlite').create();
+      expect(
+        () => PackDatabase.open(directory.path, formatVersion: 1),
+        throwsFailure<FileHashMismatch>(),
+      );
     });
   });
 
@@ -346,14 +356,137 @@ void main() {
     });
   });
 
-  test('a table missing from the file is an unsupported format', () async {
-    final pack = await buildSyntheticPack(root);
-    final writable = sqlite3.open(pack.textFile.path);
-    writable.execute('DROP TABLE sajda');
-    writable.close();
+  group('open refuses a schema other than format v1:', () {
+    var builds = 0;
+    Future<SyntheticPack> changed(List<String> statements) async {
+      final pack = await buildSyntheticPack(
+        Directory('${root.path}/${builds++}'),
+      );
+      final writable = sqlite3.open(pack.textFile.path);
+      try {
+        statements.forEach(writable.execute);
+      } finally {
+        writable.close();
+      }
+      return pack;
+    }
+
+    void expectRefused(SyntheticPack pack) => expect(
+      () => PackDatabase.open(pack.textFile.path, formatVersion: 1),
+      throwsFailure<UnsupportedPackFormat>((f) => (f.pack, f.formatVersion), (
+        pack.textFile.path,
+        1,
+      )),
+    );
+
+    const sajda = 'surah INTEGER NOT NULL, ayah INTEGER NOT NULL';
+    const key = 'PRIMARY KEY (surah, ayah)';
+    // Each variant replaces the sajda table, or the division table when the
+    // change needs a column outside the primary key.
+    const variants = {
+      'a table that is missing': ('sajda', null),
+      'a table that is not STRICT': ('sajda', '($sajda, $key) WITHOUT ROWID'),
+      'a table that has a rowid': ('sajda', '($sajda, $key) STRICT'),
+      'a column of another type': (
+        'sajda',
+        '(surah INTEGER NOT NULL, ayah INT NOT NULL, $key) '
+            'STRICT, WITHOUT ROWID',
+      ),
+      'a column that may be null': (
+        'division',
+        '(kind TEXT NOT NULL, number INTEGER NOT NULL, surah INTEGER, '
+            'ayah INTEGER NOT NULL, PRIMARY KEY (kind, number)) '
+            'STRICT, WITHOUT ROWID',
+      ),
+      'a column that is missing': (
+        'sajda',
+        '(surah INTEGER NOT NULL PRIMARY KEY) STRICT, WITHOUT ROWID',
+      ),
+      'an extra column': (
+        'sajda',
+        '($sajda, note TEXT, $key) STRICT, WITHOUT ROWID',
+      ),
+      'a generated column': (
+        'sajda',
+        '($sajda, shown INTEGER GENERATED ALWAYS AS (ayah) VIRTUAL, $key) '
+            'STRICT, WITHOUT ROWID',
+      ),
+      'columns in another order': (
+        'sajda',
+        '(ayah INTEGER NOT NULL, surah INTEGER NOT NULL, $key) '
+            'STRICT, WITHOUT ROWID',
+      ),
+      'another primary key': (
+        'sajda',
+        '($sajda, PRIMARY KEY (ayah, surah)) STRICT, WITHOUT ROWID',
+      ),
+    };
+    for (final MapEntry(key: name, value: (table, definition))
+        in variants.entries) {
+      test(name, () async {
+        expectRefused(
+          await changed([
+            'DROP TABLE $table',
+            if (definition != null) 'CREATE TABLE $table $definition',
+          ]),
+        );
+      });
+    }
+
+    test('an extra table or view', () async {
+      expectRefused(
+        await changed(['CREATE TABLE synthetic (x INTEGER) STRICT']),
+      );
+      expectRefused(await changed(['CREATE VIEW synthetic AS SELECT 1']));
+    });
+
+    test('the fault nonStrictSchema', () async {
+      expectRefused(
+        await buildSyntheticPack(root, fault: SyntheticFault.nonStrictSchema),
+      );
+    });
+
+    test('and accepts the schema rebuilt exactly', () async {
+      const division =
+          '(kind TEXT NOT NULL, number INTEGER NOT NULL, '
+          'surah INTEGER NOT NULL, ayah INTEGER NOT NULL, '
+          'PRIMARY KEY (kind, number)) STRICT, WITHOUT ROWID';
+      final pack = await changed([
+        'DROP TABLE sajda',
+        'CREATE TABLE sajda ($sajda, $key) STRICT, WITHOUT ROWID',
+        'DROP TABLE division',
+        'CREATE TABLE division $division',
+      ]);
+      final db = open(pack);
+      expect(db.sajdas(), isEmpty);
+      expect(db.divisions(), isEmpty);
+    });
+  });
+
+  test('an empty basmala is a text, not an absent one', () async {
+    final pack = await buildSyntheticPack(
+      root,
+      surahs: const [
+        SyntheticSurah(
+          name: 'Synthetic surah',
+          basmala: '',
+          ayat: [SyntheticAyah('Synthetic ayah')],
+        ),
+      ],
+      divisions: const [],
+      sajdas: const [],
+    );
     final db = open(pack);
-    expect(db.sajdas, throwsFailure<UnsupportedPackFormat>());
-    expect(db.ayahText(1, 1), isNotNull);
+    expect(db.basmala(1)!.verbatim, isEmpty);
+    expect(raw(pack).surahs().single.basmala, isEmpty);
+    expect(
+      db.surahSha256(1),
+      surahDigest([utf8.encode('Synthetic ayah')], basmala: const []),
+    );
+    expect(
+      db.surahSha256(1),
+      isNot(surahDigest([utf8.encode('Synthetic ayah')])),
+    );
   });
 
   test('opens a path with spaces and URI characters', () async {
@@ -404,29 +537,34 @@ void main() {
       }
     });
 
-    test('a write through the same kind of connection is refused', () async {
-      // The connection PackDatabase.open makes, opened here so that a write
-      // can be attempted: PackDatabase itself has no way to write.
-      final connection = sqlite3.open(
-        'file:${Uri.file(pack.textFile.path).path}?mode=ro&immutable=1',
+    test('a hot journal next to the file is ignored and left as it is, '
+        'which only immutable=1 does', () async {
+      final journal = File('${pack.textFile.path}-journal');
+      final bytes = Uint8List.fromList([
+        for (var i = 0; i < 4096; i++) 1 + i % 255,
+      ]);
+      await journal.writeAsBytes(bytes);
+      final hash = await fileSha256(pack.textFile);
+      final names = pack.directory.listSync().map((e) => e.path).toSet();
+
+      await readEverything();
+      expect(await journal.readAsBytes(), bytes);
+      expect(await fileSha256(pack.textFile), hash);
+      expect(pack.directory.listSync().map((e) => e.path).toSet(), names);
+
+      // The same journal stops a read-only connection that is not immutable,
+      // so the reads above did not succeed by accident.
+      final mutable = sqlite3.open(
+        'file:${Uri.file(pack.textFile.path).path}?mode=ro',
         mode: OpenMode.readOnly,
         uri: true,
       );
-      addTearDown(connection.close);
-      final hash = await fileSha256(pack.textFile);
-      for (final sql in [
-        'INSERT INTO sajda VALUES (1, 1)',
-        'DELETE FROM ayah',
-        'CREATE TABLE synthetic (x INTEGER)',
-        'PRAGMA user_version = 9',
-      ]) {
-        expect(
-          () => connection.execute(sql),
-          throwsA(isA<SqliteException>()),
-          reason: sql,
-        );
-      }
-      expect(await fileSha256(pack.textFile), hash);
+      addTearDown(mutable.close);
+      expect(
+        () => mutable.select('SELECT count(*) FROM ayah'),
+        throwsA(isA<SqliteException>()),
+      );
+      expect(await journal.readAsBytes(), bytes);
     });
   });
 }

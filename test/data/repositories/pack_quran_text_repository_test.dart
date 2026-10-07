@@ -16,6 +16,7 @@ import 'package:holyquran/domain/models/surah_info.dart';
 import 'package:holyquran/domain/models/verified_pack.dart';
 import 'package:holyquran/domain/models/word_span.dart';
 import 'package:holyquran/utils/result.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 import '../../../testing/packs/raw_pack.dart';
 import '../../../testing/packs/synthetic_pack.dart';
@@ -177,7 +178,7 @@ void main() {
         'hafs:2:2:3',
       ]) {
         expect(
-          await repository.contains(_at(address)),
+          ok(await repository.contains(_at(address))),
           isTrue,
           reason: address,
         );
@@ -191,7 +192,7 @@ void main() {
         'warsh:1:1',
       ]) {
         expect(
-          await repository.contains(_at(address)),
+          ok(await repository.contains(_at(address))),
           isFalse,
           reason: address,
         );
@@ -247,7 +248,8 @@ void main() {
       expect(await repository.surahs(), disabled);
       expect(await repository.editionMap(), disabled);
       expect(await repository.ayahText(_at('warsh:1:1')), disabled);
-      expect(await repository.contains(_at('hafs:2:1')), isFalse);
+      expect(await repository.contains(_at('hafs:2:1')), disabled);
+      expect(await repository.contains(_at('hafs:9:1')), disabled);
     });
 
     for (final (name, read) in [
@@ -309,6 +311,116 @@ void main() {
       fails<TextEncodingRejected>((f) => (f.surah, f.ayah), (1, null)),
     );
     expect(await repository.surahs(), fails<PackDisabled>());
+  });
+
+  group('word spans', () {
+    /// A pack whose ayah 2:2 has the [words] given, its text unchanged.
+    Future<PackQuranTextRepository> withWords(List<(int, int)> words) async {
+      final surahs = [...defaultSyntheticSurahs];
+      final second = surahs[1];
+      surahs[1] = SyntheticSurah(
+        name: second.name,
+        revelationPlace: second.revelationPlace,
+        revelationOrder: second.revelationOrder,
+        ayat: [
+          second.ayat[0],
+          SyntheticAyah(second.ayat[1].text, words: words),
+          second.ayat[2],
+        ],
+      );
+      return unverified(await buildSyntheticPack(root, surahs: surahs));
+    }
+
+    test('that are valid are given, also around a surrogate pair', () async {
+      final repository = await withWords(const [(0, 2), (3, 5), (6, 8)]);
+      expect(ok(await repository.words(_at('hafs:2:2'))), const [
+        WordSpan(number: 1, start: 0, end: 2),
+        WordSpan(number: 2, start: 3, end: 5),
+        WordSpan(number: 3, start: 6, end: 8),
+      ]);
+      expect(ok(await repository.contains(_at('hafs:2:2:3'))), isTrue);
+      expect(ok(await repository.contains(_at('hafs:2:2:4'))), isFalse);
+    });
+
+    final faults = {
+      'overlapping': (
+        const [(0, 2), (1, 5), (6, 8)],
+        'hafs:2:2: word 2 overlaps the word before: [1, 5)',
+      ),
+      'out of order': (
+        const [(3, 5), (0, 2), (6, 8)],
+        'hafs:2:2: word 2 overlaps the word before: [0, 2)',
+      ),
+      'empty': (
+        const [(0, 2), (3, 3), (6, 8)],
+        'hafs:2:2: word 2 is empty or reversed: [3, 3)',
+      ),
+      'reversed': (
+        const [(0, 2), (5, 3), (6, 8)],
+        'hafs:2:2: word 2 is empty or reversed: [5, 3)',
+      ),
+      'negative': (
+        const [(-1, 2), (3, 5), (6, 8)],
+        'hafs:2:2: word 1 is outside the ayah or splits a character: [-1, 2)',
+      ),
+      'past the end of the ayah': (
+        const [(0, 2), (3, 5), (6, 9)],
+        'hafs:2:2: word 3 is outside the ayah or splits a character: [6, 9)',
+      ),
+      'splitting a surrogate pair': (
+        const [(0, 2), (3, 4), (6, 8)],
+        'hafs:2:2: word 2 is outside the ayah or splits a character: [3, 4)',
+      ),
+    };
+    for (final MapEntry(key: name, value: (words, reason)) in faults.entries) {
+      test(
+        '$name fail the first read of the surah, then disable the pack',
+        () async {
+          final repository = await withWords(words);
+          expect(ok(await repository.ayahText(_at('hafs:1:1'))), isNotNull);
+          expect(
+            await repository.ayahText(_at('hafs:2:1')),
+            fails<PackInconsistent>((f) => f.reason, reason),
+          );
+          expect(
+            await repository.words(_at('hafs:1:1')),
+            fails<PackDisabled>(),
+          );
+        },
+      );
+    }
+
+    test('numbered with a gap fail, as checked by contains too', () async {
+      final pack = await buildSyntheticPack(root);
+      final writable = sqlite3.open(pack.textFile.path);
+      writable.execute(
+        'UPDATE word SET number = 5 WHERE surah = 2 AND ayah = 2 AND number = 3',
+      );
+      writable.close();
+      final repository = unverified(pack);
+      expect(
+        await repository.contains(_at('hafs:2:2:1')),
+        fails<PackInconsistent>(
+          (f) => f.reason,
+          'hafs:2:2: word 3 is numbered 5: [6, 8)',
+        ),
+      );
+      expect(await repository.contains(_at('hafs:1:1')), fails<PackDisabled>());
+    });
+
+    test('are checked by contains before a word is found', () async {
+      final repository = unverified(
+        await buildSyntheticPack(root, fault: SyntheticFault.overlappingSpans),
+      );
+      expect(ok(await repository.contains(_at('hafs:1:1'))), isTrue);
+      expect(
+        await repository.contains(_at('hafs:1:1:2')),
+        fails<PackInconsistent>(
+          (f) => f.reason,
+          'hafs:1:1: word 2 overlaps the word before: [8, 14)',
+        ),
+      );
+    });
   });
 
   group('counts that differ from the stored rows', () {
@@ -601,6 +713,15 @@ void main() {
         'verify',
         isA<FileHashMismatch>().having((f) => f.file, 'file', textFileName),
       ),
+      SyntheticFault.overlappingSpans: (
+        'read',
+        isA<PackInconsistent>().having(
+          (f) => f.reason,
+          'reason',
+          'hafs:1:1: word 2 overlaps the word before: [8, 14)',
+        ),
+      ),
+      SyntheticFault.nonStrictSchema: ('open', isA<UnsupportedPackFormat>()),
     };
 
     test('every fault has an expected step and failure', () async {

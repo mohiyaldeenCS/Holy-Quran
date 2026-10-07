@@ -576,6 +576,60 @@ void main() {
         expect(file['bytes'], (await faulty.textFile.length()) + 1);
         expect(file['sha256'], await fileSha256(faulty.textFile));
       },
+      SyntheticFault.overlappingSpans: (fault) async {
+        final faulty = await build(fault);
+        await expectListedHashIsTrue(faulty);
+        final raw = RawPack.open(faulty.textFile);
+        addTearDown(raw.close);
+        final [(_, _, firstEnd), ...] = _rawWords(clean, 1, 1);
+        expect(raw.words(1, 1), [
+          for (final (n, start, end) in _rawWords(clean, 1, 1))
+            (n, n == 2 ? firstEnd - 1 : start, end),
+        ]);
+        for (final s in raw.surahs()) {
+          for (final (number, bytes) in raw.ayat(s.number)) {
+            expect(
+              bytes,
+              utf8.encode(clean.surahs[s.number - 1].ayat[number - 1].text),
+            );
+            if (s.number != 1 || number != 1) {
+              expect(
+                raw.words(s.number, number),
+                _rawWords(clean, s.number, number),
+              );
+            }
+          }
+        }
+        expect({
+          'files/0/sha256',
+          'files/0/bytes',
+        }, containsAll(_diff(faulty.manifest, clean.manifest)));
+      },
+      SyntheticFault.nonStrictSchema: (fault) async {
+        final faulty = await build(fault);
+        await expectListedHashIsTrue(faulty);
+        final raw = RawPack.open(faulty.textFile);
+        addTearDown(raw.close);
+        expect(
+          {for (final t in raw.tables()) t.name: t.strict},
+          {
+            'ayah': true,
+            'division': true,
+            'sajda': false,
+            'surah': true,
+            'word': true,
+          },
+        );
+        expect(
+          raw.tables().every((t) => t.withoutRowid == (t.name != 'surah')),
+          isTrue,
+        );
+        expect(raw.sajdas(), clean.sajdas);
+        expect({
+          'files/0/sha256',
+          'files/0/bytes',
+        }, containsAll(_diff(faulty.manifest, clean.manifest)));
+      },
     };
 
     test('every fault has a check', () {

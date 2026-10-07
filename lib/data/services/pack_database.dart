@@ -9,10 +9,13 @@ import '../../domain/models/edition_map.dart';
 import '../../domain/models/pack_failure.dart';
 import '../../domain/models/pack_text.dart';
 import '../../domain/models/surah_info.dart';
-import '../../domain/models/word_span.dart';
 
 /// The first ayah of a division unit, as stored.
 typedef DivisionRow = ({Division kind, int number, int surah, int ayah});
+
+/// A word of an ayah, as stored: offsets in UTF-16 code units, not yet
+/// checked against the ayah.
+typedef WordRow = ({int number, int start, int end});
 
 /// The number of rows of each table of a text pack.
 typedef PackRowCounts = ({
@@ -29,18 +32,23 @@ typedef PackRowCounts = ({
 /// bytes and decoded as strict UTF-8.
 ///
 /// Failures are thrown as [PackFailure]s naming the file:
-/// [UnsupportedPackFormat] when the file is not a text pack of the expected
-/// version, [TextEncodingRejected] when a text is not strict UTF-8 or begins
-/// with U+FEFF.
+/// [FileHashMismatch] when there is no readable file, [UnsupportedPackFormat]
+/// when the file is not a text pack of the expected version,
+/// [TextEncodingRejected] when a text is not strict UTF-8 or begins with
+/// U+FEFF.
 final class PackDatabase {
   PackDatabase._(this._db, this._path, this._formatVersion);
 
   /// Opens the pack file at [path]. Throws [UnsupportedPackFormat] when the
-  /// header, `application_id` or `user_version` is not that of a text pack of
-  /// [formatVersion], and a [FileSystemException] when there is no readable
-  /// file at [path]; no file is ever created.
+  /// header, `application_id`, `user_version` or schema is not that of a
+  /// text pack of [formatVersion], and [FileHashMismatch] when there is no
+  /// readable file at [path]; no file is ever created.
   static PackDatabase open(String path, {required int formatVersion}) {
-    _checkHeader(path, formatVersion);
+    try {
+      _checkHeader(path, formatVersion);
+    } on FileSystemException {
+      throw FileHashMismatch(path, Uri.file(path).pathSegments.last);
+    }
     final Database db;
     try {
       db = sqlite3.open(
@@ -60,6 +68,7 @@ final class PackDatabase {
       if (userVersion != formatVersion) {
         throw UnsupportedPackFormat(path, userVersion);
       }
+      pack._checkSchema();
     } on PackFailure {
       db.close();
       rethrow;
@@ -72,6 +81,54 @@ final class PackDatabase {
   static const _headerLength = 100;
   static const _magic = 'SQLite format 3\u{0}';
   static const _utf8Encoding = 1;
+
+  /// The tables of docs/CONTENT_PACKS.md, "Text pack": whether each is
+  /// WITHOUT ROWID, and its columns in order as name, type, NOT NULL and
+  /// position in the primary key.
+  static const _schema = {
+    'surah': (
+      false,
+      [
+        ('number', 'INTEGER', false, 1),
+        ('name', 'TEXT', true, 0),
+        ('ayah_count', 'INTEGER', true, 0),
+        ('revelation_place', 'TEXT', false, 0),
+        ('revelation_order', 'INTEGER', false, 0),
+        ('basmala', 'TEXT', false, 0),
+      ],
+    ),
+    'ayah': (
+      true,
+      [
+        ('surah', 'INTEGER', true, 1),
+        ('number', 'INTEGER', true, 2),
+        ('text', 'TEXT', true, 0),
+      ],
+    ),
+    'word': (
+      true,
+      [
+        ('surah', 'INTEGER', true, 1),
+        ('ayah', 'INTEGER', true, 2),
+        ('number', 'INTEGER', true, 3),
+        ('start_offset', 'INTEGER', true, 0),
+        ('end_offset', 'INTEGER', true, 0),
+      ],
+    ),
+    'division': (
+      true,
+      [
+        ('kind', 'TEXT', true, 1),
+        ('number', 'INTEGER', true, 2),
+        ('surah', 'INTEGER', true, 0),
+        ('ayah', 'INTEGER', true, 0),
+      ],
+    ),
+    'sajda': (
+      true,
+      [('surah', 'INTEGER', true, 1), ('ayah', 'INTEGER', true, 2)],
+    ),
+  };
 
   final Database _db;
   final String _path;
@@ -96,6 +153,54 @@ final class PackDatabase {
     }
   }
 
+  /// Exactly the tables of [_schema], each STRICT, with exactly its columns
+  /// and none hidden or generated, so that every value read has the type and
+  /// nullability the reads below assume.
+  void _checkSchema() {
+    final tables = {
+      for (final row in _select(
+        'SELECT name, type, wr, strict FROM pragma_table_list '
+        r"WHERE schema = 'main' AND name NOT LIKE 'sqlite\_%' ESCAPE '\'",
+      ))
+        row.columnAt(0) as String: (
+          type: row.columnAt(1),
+          withoutRowid: row.columnAt(2) == 1,
+          strict: row.columnAt(3) == 1,
+        ),
+    };
+    if (tables.length != _schema.length) _unsupported();
+    for (final MapEntry(key: table, value: (withoutRowid, columns))
+        in _schema.entries) {
+      final found = tables[table];
+      if (found == null ||
+          found.type != 'table' ||
+          !found.strict ||
+          found.withoutRowid != withoutRowid) {
+        _unsupported();
+      }
+      final stored = [
+        for (final row in _select(
+          'SELECT name, type, "notnull", pk, hidden FROM pragma_table_xinfo(?) '
+          'ORDER BY cid',
+          [table],
+        ))
+          (
+            row.columnAt(0),
+            row.columnAt(1),
+            row.columnAt(2) == 1,
+            row.columnAt(3),
+            row.columnAt(4) == 0,
+          ),
+      ];
+      if (stored.length != columns.length) _unsupported();
+      for (final (index, (name, type, notNull, pk)) in columns.indexed) {
+        if (stored[index] != (name, type, notNull, pk, true)) _unsupported();
+      }
+    }
+  }
+
+  Never _unsupported() => throw UnsupportedPackFormat(_path, _formatVersion);
+
   void close() => _db.close();
 
   /// Every surah, in order.
@@ -112,7 +217,7 @@ final class PackDatabase {
           'makki' => RevelationPlace.makki,
           'madani' => RevelationPlace.madani,
           null => null,
-          _ => throw UnsupportedPackFormat(_path, _formatVersion),
+          _ => _unsupported(),
         },
         revelationOrder: row.columnAt(4) as int?,
       ),
@@ -139,14 +244,14 @@ final class PackDatabase {
     _ => null,
   };
 
-  /// The word spans of an ayah, in order; empty when there is no such ayah.
-  List<WordSpan> words(int surah, int ayah) => [
+  /// The words of an ayah, by number; empty when there is no such ayah.
+  List<WordRow> words(int surah, int ayah) => [
     for (final row in _select(
       'SELECT number, start_offset, end_offset FROM word '
       'WHERE surah = ? AND ayah = ? ORDER BY number',
       [surah, ayah],
     ))
-      WordSpan(
+      (
         number: row.columnAt(0) as int,
         start: row.columnAt(1) as int,
         end: row.columnAt(2) as int,
@@ -164,7 +269,7 @@ final class PackDatabase {
           'hizb' => Division.hizb,
           'rub' => Division.rub,
           'page' => Division.page,
-          _ => throw UnsupportedPackFormat(_path, _formatVersion),
+          _ => _unsupported(),
         },
         number: row.columnAt(1) as int,
         surah: row.columnAt(2) as int,
@@ -232,7 +337,7 @@ final class PackDatabase {
     try {
       return _db.select(sql, parameters);
     } on SqliteException {
-      throw UnsupportedPackFormat(_path, _formatVersion);
+      _unsupported();
     }
   }
 

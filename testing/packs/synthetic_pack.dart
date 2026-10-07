@@ -100,6 +100,13 @@ enum SyntheticFault {
 
   /// `files[0].bytes` is one more than the file's size; its hash is right.
   wrongFileSize,
+
+  /// The second word of the first ayah starts inside the first; the counts
+  /// and every hash are consistent with it.
+  overlappingSpans,
+
+  /// The `sajda` table is created without `STRICT`.
+  nonStrictSchema,
 }
 
 /// A built pack and what it truly holds. [manifest] is what the pack claims;
@@ -256,9 +263,11 @@ Future<SyntheticPack> buildSyntheticPack(
   String id = 'synthetic-text',
   int version = 1,
 }) async {
-  final stored = fault == SyntheticFault.leadingBom
-      ? _withLeadingBom(surahs)
-      : surahs;
+  final stored = switch (fault) {
+    SyntheticFault.leadingBom => _withLeadingBom(surahs),
+    SyntheticFault.overlappingSpans => _withOverlappingSpans(surahs),
+    _ => surahs,
+  };
   final directory = await Directory(
     '${root.path}/$id/$version',
   ).create(recursive: true);
@@ -334,19 +343,40 @@ Future<SyntheticPack> buildSyntheticPack(
 }
 
 List<SyntheticSurah> _withLeadingBom(List<SyntheticSurah> surahs) {
-  final first = surahs[0];
-  final ayah = first.ayat[0];
-  final bommed = SyntheticAyah(
-    '\u{FEFF}${ayah.text}',
-    words: [for (final (start, end) in ayah.spans) (start + 1, end + 1)],
+  final ayah = surahs[0].ayat[0];
+  return _withFirstAyah(
+    surahs,
+    SyntheticAyah(
+      '\u{FEFF}${ayah.text}',
+      words: [for (final (start, end) in ayah.spans) (start + 1, end + 1)],
+    ),
   );
+}
+
+List<SyntheticSurah> _withOverlappingSpans(List<SyntheticSurah> surahs) {
+  final ayah = surahs[0].ayat[0];
+  final [(firstStart, firstEnd), (_, secondEnd), ...rest] = ayah.spans;
+  return _withFirstAyah(
+    surahs,
+    SyntheticAyah(
+      ayah.text,
+      words: [(firstStart, firstEnd), (firstEnd - 1, secondEnd), ...rest],
+    ),
+  );
+}
+
+List<SyntheticSurah> _withFirstAyah(
+  List<SyntheticSurah> surahs,
+  SyntheticAyah ayah,
+) {
+  final first = surahs[0];
   return [
     SyntheticSurah(
       name: first.name,
       basmala: first.basmala,
       revelationPlace: first.revelationPlace,
       revelationOrder: first.revelationOrder,
-      ayat: [bommed, ...first.ayat.skip(1)],
+      ayat: [ayah, ...first.ayat.skip(1)],
     ),
     ...surahs.skip(1),
   ];
@@ -374,7 +404,11 @@ void _writeDatabase(
       ..execute('PRAGMA journal_mode = DELETE')
       ..execute('PRAGMA foreign_keys = ON');
     for (final table in _schema) {
-      db.execute(table);
+      db.execute(
+        fault == SyntheticFault.nonStrictSchema && table == _schema.last
+            ? table.replaceFirst('STRICT, ', '')
+            : table,
+      );
     }
 
     // Text is bound as the UTF-8 bytes written here and cast to TEXT, so the
@@ -489,7 +523,7 @@ Map<String, Object?> _source(String role, int registryRow) => {
   'trust_grade': 'A',
   'licence': {
     'text': null,
-    'permission_ref': null,
+    'permission_ref': 'Synthetic permission $registryRow',
     'notice': null,
     'allows_export': true,
   },

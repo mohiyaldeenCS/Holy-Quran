@@ -316,13 +316,17 @@ Future<List<String>> schemaProblems(PackUnderTest pack) async {
   ];
 }
 
-/// `id` and `version` name the two directories the pack sits in.
+/// `id` and `version` name the two directories the pack sits in. They are
+/// read from the manifest file itself, since verification refuses a pack
+/// that sits elsewhere.
 Future<List<String>> locationProblems(PackUnderTest pack) async {
   final segments = Directory(
     pack.directory,
   ).absolute.uri.pathSegments.where((segment) => segment.isNotEmpty).toList();
-  final manifest = pack.manifest;
-  final expected = [manifest.id, '${manifest.version}'];
+  final manifest =
+      jsonDecode(await File('${pack.directory}/manifest.json').readAsString())
+          as Map<String, Object?>;
+  final expected = ['${manifest['id']}', '${manifest['version']}'];
   final found = segments.length < 2
       ? segments
       : segments.sublist(segments.length - 2);
@@ -525,12 +529,19 @@ Future<List<String>> bomProblems(PackUnderTest pack) async {
   ];
 }
 
+/// The spans are checked twice: as the file stores them, so that the check
+/// does not depend on the production path accepting the pack, and as the
+/// repository gives them.
 Future<List<String>> wordSpanProblemsOfPack(PackUnderTest pack) async {
   final problems = <String>[];
   final repository = pack.openRepository();
   for (final surah in pack.raw.surahs()) {
-    for (final (number, _) in pack.raw.ayat(surah.number)) {
+    for (final (number, bytes) in pack.raw.ayat(surah.number)) {
       final address = QuranAddress(repository.riwaya, surah.number, number);
+      final stored = pack.raw.words(surah.number, number);
+      problems.addAll(
+        wordSpanProblems('$address', _decodedKeepingBom(bytes), stored),
+      );
       final text = _value(
         await repository.ayahText(address),
         problems,
@@ -543,7 +554,7 @@ Future<List<String>> wordSpanProblemsOfPack(PackUnderTest pack) async {
       );
       if (text == null || spans == null) continue;
       final words = [for (final s in spans) (s.number, s.start, s.end)];
-      if ('$words' != '${pack.raw.words(surah.number, number)}') {
+      if ('$words' != '$stored') {
         problems.add(
           '$address: the repository gives other spans than the file',
         );
@@ -552,6 +563,18 @@ Future<List<String>> wordSpanProblemsOfPack(PackUnderTest pack) async {
     }
   }
   return problems;
+}
+
+/// [bytes] decoded as UTF-8 with a leading U+FEFF kept, which Dart's decoder
+/// drops.
+String _decodedKeepingBom(List<int> bytes) {
+  final text = utf8.decode(bytes, allowMalformed: true);
+  final bom =
+      bytes.length >= 3 &&
+      bytes[0] == 0xEF &&
+      bytes[1] == 0xBB &&
+      bytes[2] == 0xBF;
+  return bom ? '\u{FEFF}$text' : text;
 }
 
 /// The problems of the word spans [words], `(number, start, end)` in UTF-16

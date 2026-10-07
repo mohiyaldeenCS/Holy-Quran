@@ -3,11 +3,11 @@
 /// pack.
 final class QuranAddress implements Comparable<QuranAddress> {
   QuranAddress(this.riwaya, this.surah, this.ayah, [this.word]) {
-    if (!_riwaya.hasMatch(riwaya)) {
+    if (!riwayaPattern.hasMatch(riwaya)) {
       throw ArgumentError.value(
         riwaya,
         'riwaya',
-        'must match ${_riwaya.pattern}',
+        'must match ${riwayaPattern.pattern}',
       );
     }
     _checkNumber(surah, 'surah');
@@ -22,9 +22,13 @@ final class QuranAddress implements Comparable<QuranAddress> {
 
   /// A signed 32-bit integer, so that any reader of the form can hold it.
   static const _maxNumber = (1 << 31) - 1;
-  static final _riwaya = RegExp(r'^[a-z][a-z0-9_]*$');
+  static const _riwayaForm = '[a-z][a-z0-9_]*';
+
+  /// The form of a riwaya name, here and wherever one is read, such as a
+  /// pack manifest.
+  static final riwayaPattern = RegExp('^$_riwayaForm\$');
   static final _canonical = RegExp(
-    r'^([a-z][a-z0-9_]*):([1-9][0-9]*):([1-9][0-9]*)(?::([1-9][0-9]*))?$',
+    '^($_riwayaForm):([1-9][0-9]*):([1-9][0-9]*)(?::([1-9][0-9]*))?\$',
   );
 
   /// Throws a [FormatException] unless [source] is in the canonical form.

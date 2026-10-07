@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../../domain/models/edition_map.dart';
 import '../../domain/models/pack_failure.dart';
 import '../../domain/models/pack_manifest.dart';
+import '../../domain/models/quran_address.dart';
 import '../../utils/result.dart';
 
 /// The pack format versions this app reads (docs/CONTENT_PACKS.md).
@@ -74,8 +75,10 @@ PackManifest _manifest(_Object json) {
   if (kind == PackKind.text && riwaya == null) {
     throw const _Invalid('riwaya of a text pack is null');
   }
-  if (riwaya != null && !_riwaya.hasMatch(riwaya)) {
-    throw _Invalid('riwaya is not of the form ${_riwaya.pattern}');
+  if (riwaya != null && !QuranAddress.riwayaPattern.hasMatch(riwaya)) {
+    throw _Invalid(
+      'riwaya is not of the form ${QuranAddress.riwayaPattern.pattern}',
+    );
   }
   final counts = _counts(json.object('counts'));
   final files = [for (final file in json.objects('files')) _file(file)];
@@ -84,6 +87,14 @@ PackManifest _manifest(_Object json) {
     throw const _Invalid(
       'files of a text pack is not exactly $textPackFileName',
     );
+  }
+  final sources = [
+    for (final source in json.objects('sources')) _source(source),
+  ];
+  if (sources.isEmpty) throw const _Invalid('sources is empty');
+  if (kind == PackKind.text &&
+      !sources.any((source) => source.role == SourceRole.text)) {
+    throw const _Invalid('sources of a text pack has no text source');
   }
   return PackManifest(
     formatVersion: json.integer('format_version'),
@@ -96,15 +107,13 @@ PackManifest _manifest(_Object json) {
     riwaya: riwaya,
     edition: json.string('edition'),
     font: _font(json.object('font')),
-    sources: [for (final source in json.objects('sources')) _source(source)],
+    sources: sources,
     files: files,
     surahSha256: _surahSha256(json.object('surah_sha256'), counts.surahs),
     counts: counts,
     reviews: [for (final review in json.objects('reviews')) _review(review)],
   );
 }
-
-final _riwaya = RegExp(r'^[a-z][a-z0-9_]*$');
 
 PackChange _change(_Object json) {
   json.expectKeys(const {'version', 'date', 'summary'});
@@ -138,7 +147,11 @@ PackSource _source(_Object json) {
     'licence',
   });
   return PackSource(
-    role: json.string('role'),
+    role: switch (json.string('role')) {
+      'text' => SourceRole.text,
+      'edition_map' => SourceRole.editionMap,
+      _ => throw _Invalid('${json.path}.role is not text or edition_map'),
+    },
     registryRow: json.positive('registry_row'),
     name: json.string('name'),
     publisher: json.string('publisher'),
@@ -158,9 +171,14 @@ PackSource _source(_Object json) {
 
 PackLicence _licence(_Object json) {
   json.expectKeys(const {'text', 'permission_ref', 'notice', 'allows_export'});
+  final text = json.nullableString('text');
+  final permissionRef = json.nullableString('permission_ref');
+  if (text == null && permissionRef == null) {
+    throw _Invalid('${json.path} has neither text nor permission_ref');
+  }
   return PackLicence(
-    text: json.nullableString('text'),
-    permissionRef: json.nullableString('permission_ref'),
+    text: text,
+    permissionRef: permissionRef,
     notice: json.nullableString('notice'),
     allowsExport: json.boolean('allows_export'),
   );

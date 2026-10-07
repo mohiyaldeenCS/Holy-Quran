@@ -46,4 +46,27 @@ void main() {
       expect('${_text(sample)}', isNot(contains('synthetic')));
     }
   });
+
+  test('isSliceBoundary holds within the text, between characters', () {
+    final text = _text('ab \u{1F600} cd');
+    expect(
+      [
+        for (var offset = -1; offset <= 9; offset++)
+          text.isSliceBoundary(offset),
+      ],
+      [false, true, true, true, true, false, true, true, true, true, false],
+    );
+    expect(_text('').isSliceBoundary(0), isTrue);
+    expect(_text('').isSliceBoundary(1), isFalse);
+    expect(_text('\u{1F600}').isSliceBoundary(1), isFalse);
+    expect(_text('\u{1F600}').isSliceBoundary(2), isTrue);
+  });
+
+  test('isSliceBoundary allows a lone surrogate to be cut around', () {
+    final text = _text('a\uD83Db');
+    expect(
+      [for (var i = 0; i <= 3; i++) text.isSliceBoundary(i)],
+      [true, true, true, true],
+    );
+  });
 }
