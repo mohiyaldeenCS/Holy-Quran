@@ -135,6 +135,234 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'التنقل الرئيسي'**
   String get mainNavigationLabel;
+
+  /// A count of ayat, such as a surah's length. count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{آية واحدة} =2{آيتان} few{{digits} آيات} other{{digits} آية}}'**
+  String ayahCount(int count, String digits);
+
+  /// Accessible name of an ayah-end marker, read by screen readers (AX-01). number is the ayah number, already written in Arabic-Indic digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'الآية {number}'**
+  String ayahMarkerLabel(String number);
+
+  /// The surah name inside the surah header, after the word for surah, as the identity's SurahHeader writes it. name is the surah's name without that word.
+  ///
+  /// In ar, this message translates to:
+  /// **'سورة {name}'**
+  String surahHeaderName(String name);
+
+  /// Title of the debug-only gallery of the design-system widgets, and the label of the debug button on the More tab that opens it.
+  ///
+  /// In ar, this message translates to:
+  /// **'معرض المكوّنات'**
+  String get galleryTitle;
+
+  /// Name of the paper reading theme, as the identity names it (docs/DESIGN_SYSTEM.md, Themes).
+  ///
+  /// In ar, this message translates to:
+  /// **'ورق'**
+  String get themePaper;
+
+  /// Name of the night reading theme, as the identity names it (docs/DESIGN_SYSTEM.md, Themes).
+  ///
+  /// In ar, this message translates to:
+  /// **'ليل'**
+  String get themeNight;
+
+  /// Name of the sepia reading theme, as the identity names it (docs/DESIGN_SYSTEM.md, Themes).
+  ///
+  /// In ar, this message translates to:
+  /// **'سيبيا'**
+  String get themeSepia;
+
+  /// Name of the contrast reading theme, as the identity names it (docs/DESIGN_SYSTEM.md, Themes).
+  ///
+  /// In ar, this message translates to:
+  /// **'تباين عالٍ'**
+  String get themeContrast;
+
+  /// Accessible name of the interface-level switch (LevelSwitch), as the identity's reference labels it.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الواجهة'**
+  String get levelLabel;
+
+  /// The simple option of the interface-level switch (LevelSwitch), as the identity's reference names it.
+  ///
+  /// In ar, this message translates to:
+  /// **'بسيط'**
+  String get levelSimple;
+
+  /// The medium option of the interface-level switch (LevelSwitch), as the identity's reference names it.
+  ///
+  /// In ar, this message translates to:
+  /// **'متوسط'**
+  String get levelMedium;
+
+  /// The study option of the interface-level switch (LevelSwitch), as the identity's reference names it.
+  ///
+  /// In ar, this message translates to:
+  /// **'دراسة'**
+  String get levelStudy;
+
+  /// Debug gallery: title of the Mark section, as the identity's Mark preview is titled.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرمز'**
+  String get gallerySectionMark;
+
+  /// Debug gallery: title of the Lockup section, as the identity's Lockup preview is titled.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشعار الكامل'**
+  String get gallerySectionLockup;
+
+  /// Debug gallery: title of the Icon section, as the identity's Icon preview is titled.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأيقونات'**
+  String get gallerySectionIcons;
+
+  /// Debug gallery: title of the Button section, as the identity's Button preview is titled.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأزرار'**
+  String get gallerySectionButtons;
+
+  /// Debug gallery: title of the IconButton section, as the identity's IconButton preview is titled.
+  ///
+  /// In ar, this message translates to:
+  /// **'أزرار الأيقونات'**
+  String get gallerySectionIconButtons;
+
+  /// Debug gallery: title of the Switch section, as the identity's Switch preview is titled.
+  ///
+  /// In ar, this message translates to:
+  /// **'المفاتيح'**
+  String get gallerySectionSwitches;
+
+  /// Debug gallery: title of the LevelSwitch section, as the identity's LevelSwitch preview is titled.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الواجهة'**
+  String get gallerySectionLevelSwitch;
+
+  /// Debug gallery: title of the TabBar section, as the identity's TabBar preview is titled.
+  ///
+  /// In ar, this message translates to:
+  /// **'شريط التنقل'**
+  String get gallerySectionTabBar;
+
+  /// Debug gallery: title of the QuranText section, as the identity's QuranText preview is titled.
+  ///
+  /// In ar, this message translates to:
+  /// **'النص القرآني'**
+  String get gallerySectionQuranText;
+
+  /// Debug gallery: title of the AyahMarker section, as the identity's AyahMarker preview is titled.
+  ///
+  /// In ar, this message translates to:
+  /// **'فاصلة الآية'**
+  String get gallerySectionAyahMarker;
+
+  /// Debug gallery: title of the SurahHeader section, as the identity's SurahHeader preview is titled.
+  ///
+  /// In ar, this message translates to:
+  /// **'رأس السورة'**
+  String get gallerySectionSurahHeader;
+
+  /// Debug gallery: label of the primary Button sample, as in the identity's Button preview.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ التلاوة'**
+  String get galleryButtonPrimary;
+
+  /// Debug gallery: label of the outline Button sample, as in the identity's Button preview.
+  ///
+  /// In ar, this message translates to:
+  /// **'علامة مرجعية'**
+  String get galleryButtonOutline;
+
+  /// Debug gallery: label of the tonal Button sample, as in the identity's Button preview.
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف إلى مجموعة'**
+  String get galleryButtonTonal;
+
+  /// Debug gallery: label of the text Button sample, as in the identity's Button preview.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء'**
+  String get galleryButtonText;
+
+  /// Debug gallery: label of the disabled Button sample, as in the identity's Button preview.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير متاح'**
+  String get galleryButtonDisabled;
+
+  /// Debug gallery: spoken name of the plain play IconButton sample, as in the identity's IconButton preview.
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل من هنا'**
+  String get galleryIconButtonPlayFromHere;
+
+  /// Debug gallery: spoken name of the plain bookmark IconButton sample, as in the identity's IconButton preview.
+  ///
+  /// In ar, this message translates to:
+  /// **'علامة مرجعية'**
+  String get galleryIconButtonBookmark;
+
+  /// Debug gallery: spoken name of the plain study IconButton sample, as in the identity's IconButton preview.
+  ///
+  /// In ar, this message translates to:
+  /// **'مركز الدراسة'**
+  String get galleryIconButtonStudy;
+
+  /// Debug gallery: spoken name of the tint search IconButton sample, as in the identity's IconButton preview.
+  ///
+  /// In ar, this message translates to:
+  /// **'بحث'**
+  String get galleryIconButtonSearch;
+
+  /// Debug gallery: spoken name of the solid play IconButton sample, as in the identity's IconButton preview.
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل'**
+  String get galleryIconButtonPlay;
+
+  /// Debug gallery: label of the first Switch sample, as in the identity's Switch preview.
+  ///
+  /// In ar, this message translates to:
+  /// **'ألوان التجويد'**
+  String get gallerySwitchTajweed;
+
+  /// Debug gallery: label of the second Switch sample, as in the identity's Switch preview.
+  ///
+  /// In ar, this message translates to:
+  /// **'منع إطفاء الشاشة أثناء التلاوة'**
+  String get gallerySwitchKeepAwake;
+
+  /// Debug gallery: a synthetic sample shown in QuranText to display its sizes. It is not Quran text and must never be replaced by Quran text.
+  ///
+  /// In ar, this message translates to:
+  /// **'نص تجريبي للاختبار وليس آية'**
+  String get sampleText;
+
+  /// Debug gallery: a synthetic stand-in for a surah name in the SurahHeader sample. Not a real surah name.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم تجريبي'**
+  String get sampleSurahName;
+
+  /// Debug gallery: a synthetic stand-in for the information line under the SurahHeader sample. Not real surah facts.
+  ///
+  /// In ar, this message translates to:
+  /// **'سطر تجريبي'**
+  String get sampleInfo;
 }
 
 class _AppLocalizationsDelegate

@@ -1,0 +1,3 @@
+tags:
+  golden:
+    description: Golden image tests. Compared on the golden platform only (ubuntu-24.04 in CI).

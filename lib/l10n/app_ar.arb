@@ -27,5 +27,175 @@
   "mainNavigationLabel": "التنقل الرئيسي",
   "@mainNavigationLabel": {
     "description": "Accessible name of the main tab bar, read by screen readers."
+  },
+  "ayahCount": "{count, plural, =1{آية واحدة} =2{آيتان} few{{digits} آيات} other{{digits} آية}}",
+  "@ayahCount": {
+    "description": "A count of ayat, such as a surah's length. count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "digits": {
+        "type": "String"
+      }
+    }
+  },
+  "ayahMarkerLabel": "الآية {number}",
+  "@ayahMarkerLabel": {
+    "description": "Accessible name of an ayah-end marker, read by screen readers (AX-01). number is the ayah number, already written in Arabic-Indic digits.",
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "surahHeaderName": "سورة {name}",
+  "@surahHeaderName": {
+    "description": "The surah name inside the surah header, after the word for surah, as the identity's SurahHeader writes it. name is the surah's name without that word.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "galleryTitle": "معرض المكوّنات",
+  "@galleryTitle": {
+    "description": "Title of the debug-only gallery of the design-system widgets, and the label of the debug button on the More tab that opens it."
+  },
+  "themePaper": "ورق",
+  "@themePaper": {
+    "description": "Name of the paper reading theme, as the identity names it (docs/DESIGN_SYSTEM.md, Themes)."
+  },
+  "themeNight": "ليل",
+  "@themeNight": {
+    "description": "Name of the night reading theme, as the identity names it (docs/DESIGN_SYSTEM.md, Themes)."
+  },
+  "themeSepia": "سيبيا",
+  "@themeSepia": {
+    "description": "Name of the sepia reading theme, as the identity names it (docs/DESIGN_SYSTEM.md, Themes)."
+  },
+  "themeContrast": "تباين عالٍ",
+  "@themeContrast": {
+    "description": "Name of the contrast reading theme, as the identity names it (docs/DESIGN_SYSTEM.md, Themes)."
+  },
+  "levelLabel": "مستوى الواجهة",
+  "@levelLabel": {
+    "description": "Accessible name of the interface-level switch (LevelSwitch), as the identity's reference labels it."
+  },
+  "levelSimple": "بسيط",
+  "@levelSimple": {
+    "description": "The simple option of the interface-level switch (LevelSwitch), as the identity's reference names it."
+  },
+  "levelMedium": "متوسط",
+  "@levelMedium": {
+    "description": "The medium option of the interface-level switch (LevelSwitch), as the identity's reference names it."
+  },
+  "levelStudy": "دراسة",
+  "@levelStudy": {
+    "description": "The study option of the interface-level switch (LevelSwitch), as the identity's reference names it."
+  },
+  "gallerySectionMark": "الرمز",
+  "@gallerySectionMark": {
+    "description": "Debug gallery: title of the Mark section, as the identity's Mark preview is titled."
+  },
+  "gallerySectionLockup": "الشعار الكامل",
+  "@gallerySectionLockup": {
+    "description": "Debug gallery: title of the Lockup section, as the identity's Lockup preview is titled."
+  },
+  "gallerySectionIcons": "الأيقونات",
+  "@gallerySectionIcons": {
+    "description": "Debug gallery: title of the Icon section, as the identity's Icon preview is titled."
+  },
+  "gallerySectionButtons": "الأزرار",
+  "@gallerySectionButtons": {
+    "description": "Debug gallery: title of the Button section, as the identity's Button preview is titled."
+  },
+  "gallerySectionIconButtons": "أزرار الأيقونات",
+  "@gallerySectionIconButtons": {
+    "description": "Debug gallery: title of the IconButton section, as the identity's IconButton preview is titled."
+  },
+  "gallerySectionSwitches": "المفاتيح",
+  "@gallerySectionSwitches": {
+    "description": "Debug gallery: title of the Switch section, as the identity's Switch preview is titled."
+  },
+  "gallerySectionLevelSwitch": "مستوى الواجهة",
+  "@gallerySectionLevelSwitch": {
+    "description": "Debug gallery: title of the LevelSwitch section, as the identity's LevelSwitch preview is titled."
+  },
+  "gallerySectionTabBar": "شريط التنقل",
+  "@gallerySectionTabBar": {
+    "description": "Debug gallery: title of the TabBar section, as the identity's TabBar preview is titled."
+  },
+  "gallerySectionQuranText": "النص القرآني",
+  "@gallerySectionQuranText": {
+    "description": "Debug gallery: title of the QuranText section, as the identity's QuranText preview is titled."
+  },
+  "gallerySectionAyahMarker": "فاصلة الآية",
+  "@gallerySectionAyahMarker": {
+    "description": "Debug gallery: title of the AyahMarker section, as the identity's AyahMarker preview is titled."
+  },
+  "gallerySectionSurahHeader": "رأس السورة",
+  "@gallerySectionSurahHeader": {
+    "description": "Debug gallery: title of the SurahHeader section, as the identity's SurahHeader preview is titled."
+  },
+  "galleryButtonPrimary": "ابدأ التلاوة",
+  "@galleryButtonPrimary": {
+    "description": "Debug gallery: label of the primary Button sample, as in the identity's Button preview."
+  },
+  "galleryButtonOutline": "علامة مرجعية",
+  "@galleryButtonOutline": {
+    "description": "Debug gallery: label of the outline Button sample, as in the identity's Button preview."
+  },
+  "galleryButtonTonal": "أضف إلى مجموعة",
+  "@galleryButtonTonal": {
+    "description": "Debug gallery: label of the tonal Button sample, as in the identity's Button preview."
+  },
+  "galleryButtonText": "إلغاء",
+  "@galleryButtonText": {
+    "description": "Debug gallery: label of the text Button sample, as in the identity's Button preview."
+  },
+  "galleryButtonDisabled": "غير متاح",
+  "@galleryButtonDisabled": {
+    "description": "Debug gallery: label of the disabled Button sample, as in the identity's Button preview."
+  },
+  "galleryIconButtonPlayFromHere": "تشغيل من هنا",
+  "@galleryIconButtonPlayFromHere": {
+    "description": "Debug gallery: spoken name of the plain play IconButton sample, as in the identity's IconButton preview."
+  },
+  "galleryIconButtonBookmark": "علامة مرجعية",
+  "@galleryIconButtonBookmark": {
+    "description": "Debug gallery: spoken name of the plain bookmark IconButton sample, as in the identity's IconButton preview."
+  },
+  "galleryIconButtonStudy": "مركز الدراسة",
+  "@galleryIconButtonStudy": {
+    "description": "Debug gallery: spoken name of the plain study IconButton sample, as in the identity's IconButton preview."
+  },
+  "galleryIconButtonSearch": "بحث",
+  "@galleryIconButtonSearch": {
+    "description": "Debug gallery: spoken name of the tint search IconButton sample, as in the identity's IconButton preview."
+  },
+  "galleryIconButtonPlay": "تشغيل",
+  "@galleryIconButtonPlay": {
+    "description": "Debug gallery: spoken name of the solid play IconButton sample, as in the identity's IconButton preview."
+  },
+  "gallerySwitchTajweed": "ألوان التجويد",
+  "@gallerySwitchTajweed": {
+    "description": "Debug gallery: label of the first Switch sample, as in the identity's Switch preview."
+  },
+  "gallerySwitchKeepAwake": "منع إطفاء الشاشة أثناء التلاوة",
+  "@gallerySwitchKeepAwake": {
+    "description": "Debug gallery: label of the second Switch sample, as in the identity's Switch preview."
+  },
+  "sampleText": "نص تجريبي للاختبار وليس آية",
+  "@sampleText": {
+    "description": "Debug gallery: a synthetic sample shown in QuranText to display its sizes. It is not Quran text and must never be replaced by Quran text."
+  },
+  "sampleSurahName": "اسم تجريبي",
+  "@sampleSurahName": {
+    "description": "Debug gallery: a synthetic stand-in for a surah name in the SurahHeader sample. Not a real surah name."
+  },
+  "sampleInfo": "سطر تجريبي",
+  "@sampleInfo": {
+    "description": "Debug gallery: a synthetic stand-in for the information line under the SurahHeader sample. Not real surah facts."
   }
 }

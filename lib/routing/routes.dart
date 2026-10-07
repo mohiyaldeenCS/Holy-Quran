@@ -4,4 +4,5 @@ abstract final class Routes {
   static const listen = '/listen';
   static const study = '/study';
   static const more = '/more';
+  static const gallery = '/gallery';
 }

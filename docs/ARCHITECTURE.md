@@ -83,7 +83,7 @@ official architecture skill).
 lib/
   main.dart                    bootstrap only
   config/                      dependency wiring, environment
-  routing/                     go_router configuration; the tab shell until M0.2
+  routing/                     go_router configuration
   domain/
     models/                    immutable, pure Dart
     use_cases/
@@ -96,6 +96,8 @@ lib/
       theme/                   tokens.g.dart and ramps.g.dart (generated), theme extensions
       widgets/                 the design-system components, with their metrics
       metrics/                 <screen>_metrics.dart: layout values read from a board
+      gallery/                 debug-only gallery of the design-system widgets
+      app.dart, tab_shell.dart the root widget and the five-tab shell
       l10n/                    digit and plural helpers
     features/
       <feature>/
@@ -396,9 +398,9 @@ maintained and supports the minimum OS versions, then record it in
 | Read-only pack databases | `sqlite3` | Proposed |
 | Audio | `just_audio`, `audio_service`, `audio_session` | Evaluate in Phase 0 |
 | Downloads | `background_downloader` | Evaluate in Phase 0 |
-| Hashing and signatures | `crypto`, `cryptography` | Proposed |
+| Hashing and signatures | `crypto` (dev dependency since M0.2, D-054), `cryptography` | Proposed |
 | Localisation | `flutter_localizations`, `intl` | Decided (D-047) |
-| SVG icons | `flutter_svg` | Proposed |
+| SVG icons | none: generated `Path` code (D-054) | Decided |
 | Immutable models | `freezed` | Optional; plain classes are fine for small models |
 
 ## Privacy and security

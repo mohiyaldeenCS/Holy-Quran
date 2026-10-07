@@ -6,3 +6,4 @@ design/identity-boards/** -text
 .claude/skills/** -text
 *.ttf binary
 *.woff2 binary
+assets/licenses/** -text

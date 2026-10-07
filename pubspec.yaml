@@ -15,10 +15,35 @@ dependencies:
   intl: any
 
 dev_dependencies:
+  crypto: ^3.0.7
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
+  path_parsing: ^1.1.0
 
 flutter:
   generate: true
   uses-material-design: true
+
+  # Copied byte for byte from design/design-system/fonts/ttf/ (D-026); a test
+  # compares their hashes with design/README.md.
+  fonts:
+    - family: Amiri Quran
+      fonts:
+        - asset: assets/fonts/AmiriQuran-Regular.ttf
+    - family: Reem Kufi
+      fonts:
+        - asset: assets/fonts/ReemKufi-Variable.ttf
+    - family: IBM Plex Sans Arabic
+      fonts:
+        - asset: assets/fonts/IBMPlexSansArabic-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/IBMPlexSansArabic-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/IBMPlexSansArabic-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/IBMPlexSansArabic-Bold.ttf
+          weight: 700
+
+  assets:
+    - assets/licenses/

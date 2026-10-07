@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide TabBar;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
@@ -6,6 +6,7 @@ import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/router.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/app.dart';
+import 'package:holyquran/ui/core/widgets/tab_bar.dart';
 import 'package:holyquran/ui/features/home/views/home_screen.dart';
 import 'package:holyquran/ui/features/listen/views/listen_screen.dart';
 import 'package:holyquran/ui/features/more/views/more_screen.dart';
@@ -23,7 +24,7 @@ final _tabs = <({String label, String path, Type screen})>[
 ];
 
 Finder _tab(String label) =>
-    find.descendant(of: find.byType(NavigationBar), matching: find.text(label));
+    find.descendant(of: find.byType(TabBar), matching: find.text(label));
 
 Future<GoRouter> _pumpApp(WidgetTester tester) async {
   final router = createRouter();

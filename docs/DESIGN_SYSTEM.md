@@ -120,6 +120,11 @@ brand and not the reading surface:
 | App-icon tile in the home header | Tile `emerald-700`, star `gold-400`, book `paper-100` (the emerald `Mark` on a rounded tile) |
 | Reader's floating player bar | Drawn on the paper board as `emerald-700` with a `gold-400` button and `emerald-950` glyph: these are `player`, `player-accent` and its fixed glyph colour, so it follows the theme like `MiniPlayer` |
 
+The debug-only gallery (`lib/ui/core/gallery/`) shows the emerald and dark `Mark` and
+the emerald `Lockup` on `emerald-700` and `emerald-950` backdrops, as their previews
+do; it ships in no release build. A guard allows `ramps.g.dart` only in these widget
+files and the gallery.
+
 Nothing else reaches a ramp. Any other colour on a board is mapped to its semantic
 token by role (see the `apply-visual-identity` skill). Mapping a fixed brand surface
 by role would be wrong: the splash as `primary` would turn gold at night.
@@ -146,8 +151,8 @@ primary button is emerald on paper and sepia and gold in night: use `primary` an
 
 `RD-08` asks for an option to follow the system's dark mode. The identity does not say
 which theme that maps to. The reading taken here: when the option is on, the app
-shows `night` while the system is dark and the user's chosen light theme otherwise.
-The owner confirmed it on 2026-10-07 (D-050).
+shows `night` while the system is dark and the user's chosen theme otherwise; a user
+on `contrast` stays on `contrast` (D-050, D-053, both the owner's).
 
 ### Type
 
@@ -348,11 +353,18 @@ test fails on any new shortfall and also when one of these changes:
 | `player-accent` on `player`, paper and sepia: the 13 px label of `ContinueCard` (`.qk-continue-label`), and the gold reference line of the emerald share card | 3.90 | Small text below 4.5. Open with the owner (O-12); needed by M1.2 |
 | `emerald-950` on `ornament`, sepia: the ayah number inside the filled marker while its ayah is recited (`.qk-ayah-no.is-playing`) | 3.10 | Small text below 4.5. Open with the owner (O-12); needed by M1.10 |
 | `tj-ghunna` on `ground`: paper 4.43, sepia 3.85. `tj-iqlab` sepia 4.22. `tj-madd-wajib` sepia 3.99 | 3.85 to 4.43 | Below 4.5. Quran text is 25 px or larger, which WCAG counts as large text (3:1), but neither `AX-03` nor the identity makes that distinction. Open with the owner (O-12); needed before Phase 2 |
-| `tj-*` on `surface`, in the tajweed key: the values for sepia are to be computed when `TajweedKey` is built | below 4.5 for some | Same question, Phase 2 |
+| `tj-*` on `surface`, in the tajweed key: sepia `tj-ghunna` 4.24, sepia `tj-madd-wajib` 4.39; every other theme passes (paper's lowest is `tj-ghunna` at 4.79) | 4.24 and 4.39 | Same question, Phase 2 |
+| `line` on `ground` and `surface`: the off track of `Switch` (`.qk-switch`), a control boundary that WCAG 2.2 1.4.11 holds to 3:1. Paper 1.35 and 1.45, night 1.54 and 1.36, sepia 1.31 and 1.45 | 1.31 to 1.54 | Below 3:1. Found in M0.2; added to O-12. The widget reproduces the reference meanwhile |
+| `surface` on `line`: the off knob of `Switch` (`.qk-switch-knob` on the off track). Paper 1.45, night 1.36, sepia 1.45 | 1.36 to 1.45 | Same as the off track; part of O-12 |
 
 The list is a starting point. When a widget is built, every text colour it draws on
 every background it sits on is added to the test (PRD §8.20 asks for an automatic
-check of the colour pairs).
+check of the colour pairs). The test is `test/guards/contrast_test.dart`; it prints
+every pair with its ratio.
+
+Pairs that pass with less than 0.1 to spare: paper `emerald-950` on `ornament` 4.52;
+sepia `tj-madd-tabii` on `ground` 4.57; paper `tj-madd-wajib` on `ground` 4.59;
+`gold-text-strong` on `gold-100` 7.50 against 7 in the contrast theme.
 
 `warning` reaches only 4.22 on `ground` in sepia, which passes for an icon; this is
 why warning text is `ink`. `ink-disabled` is not tested: it marks disabled controls,
@@ -448,8 +460,42 @@ the first of them is needed:
 
 | Point | Needed by |
 | --- | --- |
-| **Icons the identity does not have.** The set has 26. The ayah toolbar alone needs copy and share, and Phase 1 also needs icons such as note, delete, tag, timer, queue and information. Compile the full list from the Phase 1 requirements in M0.2 and ask who draws them: the designer, or this project following the identity's icon rules, each shown to the owner before use | M0.2 for the list; M1.6 for the first use |
 | The category «تفسير» of `UD-01` has no shape or colour in the identity (`Tag` defines four: حفظ، مراجعة، دراسة، آيات مهمة); two of the four preview colours are raw ramp steps that do not follow the theme; and there is no palette for the colour of a user-made category | M1.6 |
-| Which theme "follow system dark" switches to and from | M0.2 |
 | The Mushaf board shows six waqf marks; `WQ-02` lists seven (it adds السكت). The list is checked against the mushaf's appendix in B0.8 | M1.6 |
-| Contrast below 4.5:1 in the identity's own values: the gold label of the continue-reading card, the number inside the filled ayah marker in sepia, and four values of three tajweed colours (see "Contrast") | M1.2 for the card; M1.10 for the marker; Phase 2 for tajweed |
+| Contrast below the required ratio in the identity's own values: the gold label of the continue-reading card, the number inside the filled ayah marker in sepia, six tajweed values, and the off track and knob of `Switch` (see "Contrast"; O-12) | M1.1 for the switch; M1.2 for the card; M1.10 for the marker; Phase 2 for tajweed |
+
+Settled in M0.2: "follow system dark" shows `night` while the system is dark, except
+that `contrast` stays (D-050, D-053); tab labels stop growing where they no longer fit
+(D-058).
+
+### Icons Phase 1 needs (compiled in M0.2 from PRD §7.4, §7.7 and the Phase 1 rows of §8)
+
+Shown to the owner on 2026-10-07. Drawn by this project on the identity's icon rules
+and approved by him one by one before use (D-051); words are used where the last
+column says so (D-052).
+
+| Need | Requirement | Covered by |
+| --- | --- | --- |
+| Play, bookmark, study in the ayah toolbar | §7.4, `AU-03`, `UD-01`, `ST-01` | `play`, `bookmark`, `study` |
+| Next and previous ayah | `AU-05`, `TF-03` | `next`, `previous` |
+| Sleep timer | `AU-07` | `night` (labelled «مؤقت النوم» in `MiniPlayer`) |
+| Repeat | `AU-09` | `repeat` |
+| Queue | `AU-17` | `index` (labelled «قائمة التشغيل» on the Screens2 board) |
+| Download, pause and cancel a download | `AU-13`, `OF-02`, `TF-06` | `download`, `pause`, `close` |
+| Downloaded | `OF-02` | `check` |
+| Integrity alert, low space, «تعذّر الاتصال» | §9.5, `OF-04`, `OF-05` | `alert` |
+| Back | pushed screens | `previous` (labelled «رجوع» on the boards) |
+| Close a sheet, clear the search field | §7.5, `SR-01` | `close` |
+| Search, sort, ayah context, open in the mushaf | `SR-01`, `SR-04`, `SR-05`, `NV-05` | `search`, `sort`, `context`, `mushaf` |
+| Night theme quick toggle | `RD-08` | `night` |
+| Tag | `UD-02` | The `Tag` component's shape; no icon |
+| Copy | §7.4, `SH-01`, `TF-10` | **New icon** (D-051) |
+| Share | §7.4, `SH-02`, `TF-10` | **New icon** (D-051) |
+| Information (source badge, sources row) | `LX-11`, `TF-05` | **New icon** (D-051) |
+| Note, and its margin indicator | `UD-04`, `UD-05`, `ST-01` | **New icon** (D-051) |
+| Delete | `UD-07` | **New icon** (D-051); undo is the word «تراجع» |
+| Stop | `AU-05` | **New icon** (D-051) |
+| Next and previous surah, in the full player | `AU-05` | **New icons**, two drawings for one need (D-051) |
+| Add to queue; update a pack; filter; save the share-card image; search history | `AU-17`, `OF-06`, `UD-03`, `SH-02`, `SR-10` | Words, no icon (D-052) |
+| Microphone | `SR-11`, deferred | Hidden (PRD §7.8) |
+
