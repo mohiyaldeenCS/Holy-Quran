@@ -6,8 +6,9 @@ screen locked, with lock-screen, notification and headset controls (`AU-15`,
 `NF-09`)? Interruptions (`AU-22`) are watched in the same session, not a gate. The
 highlight part of S3 waits for timing data (B0.5).
 
-Spike code: `spike/s3/`, removed before the merge (D-068); the last commit that holds
-it is named here when the spike closes.
+Spike code: `spike/s3/`, removed before the merge (D-068). The code is kept at commit
+`be4fbc2`; the device APK (artefact `holyquran-spike-apk` of CI run 68, kept until
+2027-01-05) was built from `be7aed9`, which holds the same spike code.
 
 ## What was built
 

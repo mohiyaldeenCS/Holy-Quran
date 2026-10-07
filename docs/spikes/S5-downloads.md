@@ -5,8 +5,9 @@ Status: **code ready; device measurement pending.** Question from
 activate, update and rollback (`OF-04`, `OF-05`, `OF-06`). Real-network resume on a
 real host waits for O-08 (M1.4).
 
-Spike code: `spike/s5/`, removed before the merge (D-068); the last commit that holds
-it is named here when the spike closes.
+Spike code: `spike/s5/`, removed before the merge (D-068). The code is kept at commit
+`be4fbc2`; the device APK (artefact `holyquran-spike-apk` of CI run 68, kept until
+2027-01-05) was built from `be7aed9`, which holds the same spike code.
 
 ## What was built
 

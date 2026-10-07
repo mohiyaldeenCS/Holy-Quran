@@ -10,10 +10,10 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-07 |
 | Phase | 0 — Foundation. Gate 0 not met |
-| Stream A — app | M0.1, M0.2 and M0.3 merged, with human checks pending (pull requests #2, #3 and #4). Next milestone: **M0.4 Spikes** |
+| Stream A — app | M0.1, M0.2 and M0.3 merged, with human checks pending (pull requests #2, #3 and #4). **M0.4 part 1** merged as partial (pull request #6): spikes S1, S5 and the S3 playback part are done on Linux and await the owner's device run. Next: M0.4 part 2 (S4, S7), then M0.5 |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | None open. Start M0.4 from `main` (on the branch the session is bound to, D-045) |
-| Last session | First implementing session: environment, kickoff answers, M0.1, M0.2 and M0.3 (pull requests #2, #3 and #4) |
+| Working branch | None open. Start the next part from `main` (on the branch the session is bound to, D-045) |
+| Last session | First implementing session: environment, kickoff answers, M0.1 to M0.3 and M0.4 part 1 (pull requests #2, #3, #4 and #6) |
 
 ## What is in the repository
 
@@ -97,10 +97,30 @@ raw extraction output; signing keys. The 13 logo SVG files are in
   `code-reviewer`; its findings were applied (schema check on open, word-span
   checks, pack location, source rules) or carried to M1.2, M1.4 and M1.5
   (`docs/plans/M0.3.md`). Pending: the checks below.
-
+- **M0.4 Spikes, part 1** (pull request #6; plan `docs/plans/M0.4.md`; D-068 to
+  D-072, owner answers on where spike code lives, one profile APK, Android 8.0 and
+  iOS 15, the page mark inside the line). Spike code was built in `spike/`, run on
+  Linux and in CI, and removed before the merge; it is kept at `be4fbc2` (the APK was built from `be7aed9`) (D-068).
+  - S1 (`docs/spikes/S1-surah-rendering.md`): the Tanzil file read strictly on the
+    CI runner gives a pack that passes the whole integrity suite, reproducibly; the
+    font covers every code point; a surah-mode text block with markers, word
+    hit-testing, highlights, last-line centring and page blocks. Findings for M1.2:
+    SkParagraph reorders inline placeholders on right-to-left lines (worked around);
+    ink leaves its line band, so nothing is clipped; Amiri Quran shapes a word by the
+    word before it, so no line is laid out alone; a pause mark can start a line cut
+    off from its word, which M1.2 must prevent without changing the text; 4,578
+    letterless tokens (input to D-038).
+  - S5 (`docs/spikes/S5-downloads.md`): resumable downloads, verify then activate,
+    rollback, against a local server with faults.
+  - S3 (`docs/spikes/S3-background-audio.md`): background playback of a generated
+    tone with lock-screen, notification and headset controls.
+  - The profile APK for every pending device check (D-069) is the artefact
+    `holyquran-spike-apk` of CI run 68 (`actions/runs/37602557411`), kept until 2027-01-05.
+  - Partial: everything on the device (below); S2, S4, S6, S7 and the S3 highlight
+    part are not started.
 ## In progress
 
-Nothing in stream A.
+Nothing in stream A: M0.4 part 1 waits on the owner's device run.
 
 Stream B: the owner is extracting book 466 (التهذيب في التفسير, about 7,325 site
 pages). The review of `docs/CONTENT_PACKS.md` by the planning session has not started.
@@ -114,22 +134,22 @@ pages). The review of `docs/CONTENT_PACKS.md` by the planning session has not st
 2. Check the environment (`flutter --version` should print 3.44.7; the SessionStart
    hook installs it in cloud sessions). If the machine differs from "Environment"
    below, record it.
-3. Start **M0.4 Spikes** (`docs/IMPLEMENTATION_PLAN.md`): plan with
-   `flutter-architect` and keep the plan in `docs/plans/M0.4.md`. S1, S5 and the
-   playback part of S3 need nothing from stream B. The plan says spike code lives on
-   `spike/*` branches that are never merged; a session bound to one branch (D-045)
-   cannot push those, so settle where spike code lives first and record it. S1 needs
-   the Tanzil file downloaded into the ignored `data/raw/`, never committed, with its
-   SHA-256 on the spike page.
-4. Golden images: after a push that adds or changes a golden test, start CI by hand
+3. When the owner sends the device results, record them on the three spike pages
+   and settle D-073 to D-075 (`docs/plans/M0.4.md`, "Decisions"), on a short docs
+   branch. If the APK fails on the device, revert the cleanup commit on the session
+   branch, fix, and rebuild with the `spike-apk` task (D-068).
+4. Then **M0.4 part 2**: S7 (gestures, needs only S1) and S4 (home-screen widget,
+   for Phase 2) with the same spike folder (D-068). S2, S6 and the S3 highlight part
+   wait for B0.3, packs and B0.5.
+5. Golden images: after a push that adds or changes a golden test, start CI by hand
    on the branch with the task `goldens` (Actions → CI → Run workflow, or the API),
    pull the commit it pushes, and push again so the pull request is checked
    (D-056, D-059). Off `ubuntu-24.04` run `flutter test --exclude-tags golden test
    tools/gen/test`.
-5. Draw the eight new icons of D-051 on the identity's icon rules and show each to
+6. Draw the eight new icons of D-051 on the identity's icon rules and show each to
    the owner before M1.6 needs them; add them to the generator's input only after he
    approves.
-6. If M0.4 is finished before Gate 0 is met, continue with **M0.5**, not with
+7. If M0.4 is finished before Gate 0 is met, continue with **M0.5**, not with
    Phase 1.
 
 ## Next actions — stream B (planning session and the owner)
@@ -186,11 +206,12 @@ Permission conditions to confirm with him when each is first needed are listed i
 
 | Milestone | Check | Who | How |
 | --- | --- | --- | --- |
-| M0.1 | The shell launches on Android: the app opens in Arabic, right to left, on الرئيسية, and the five tabs switch | Owner, or a session with an Android SDK and emulator | Owner's choice (D-049): once, at the end of Phase 0 or when he wants to try it, start the CI workflow by hand (Actions → CI → Run workflow) and install the `holyquran-debug-apk` it attaches; or `flutter run` on a device. No session so far has had an Android SDK |
-| M0.2 | Screen reader (TalkBack), keyboard focus ring, the system bold-text setting and 200% text on a real device, for the M0.2 widgets | Owner, on a device | With the debug APK (CI task `apk`): open More → «معرض المكوّنات» |
+| M0.1 | The shell launches on Android: the app opens in Arabic, right to left, on الرئيسية, and the five tabs switch | Owner, on his Android phone | Install the spike APK (D-069, artefact `holyquran-spike-apk` of CI run 68) once; its launcher's "App" entry opens the shell. No session so far has had an Android SDK |
+| M0.2 | Screen reader (TalkBack), keyboard focus ring, the system bold-text setting and 200% text on a real device, for the M0.2 widgets | Owner, on his phone | The spike APK's "Component gallery" entry |
 | M0.3 | Review of `docs/CONTENT_PACKS.md`, questions P1–P7 | Planning session | Read the file; answer in a change to it |
 | M0.3 | The integrity suite passes on the real base pack | Planning session, when B0.2 delivers it | The command in stream B's next actions |
-| M0.3 | The Android build links the bundled SQLite of `sqlite3` (its build hook) | CI | The hand-started `apk` task, with the final APK (D-049) |
+| M0.3 | The bundled SQLite of `sqlite3` runs on Android | Owner | The spike APK's S1 "Prepare text" opens the pack through it (the build itself passed in CI runs 51 and 66) |
+| M0.4 | S1, S3, S5 device protocols: shaping by eye, hit test, 200%, NF-01 cold start, NF-02 scroll, 60-minute locked playback and controls, downloads with Wi-Fi gating, resume, corrupt file, low space, rollback | Owner, on his phone (model, Android version and memory still to be told) | The three spike pages, "Device protocol"; run S1 before S5 |
 
 ## Environment
 
@@ -246,6 +267,7 @@ Newest first. One line per session.
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
 | 2026-10-07 | Planning session | Checked the owner's extraction of seven Zaydi-library books (471, 473, 514, 737, 165, 276, 440): all complete; multi-part navigation confirmed; three more honorific codes found; linking prospects noted per book. PRD §5.5 updated and re-exported at revision 145. | Pull request #5 |
+| 2026-10-07 | First implementing session (continued) | M0.4 part 1: plan; owner answers D-068 to D-071; S1 text path on the real Tanzil text in CI, surah-mode rendering and measurements; S5 downloads; S3 playback; spike APK; two code reviews applied; spike code removed before merge. | Pull request #6 |
 | 2026-10-07 | First implementing session (continued) | M0.3: plan in `docs/plans/M0.3.md`; pack format v1; addresses, `PackText`, manifest verification, read-only SQLite reader, text repository, integrity suite and guards; D-061 to D-067; code review applied. | Pull request #4 |
 | 2026-10-07 | First implementing session (continued) | M0.2: plan in `docs/plans/M0.2.md`; owner decided follow-system dark (D-050, D-053), the APK only by hand (D-049), the missing icons (D-051, D-052), tab label scaling (D-058); generator, themes, fonts, 13 widgets, gallery, 60 goldens via the CI `goldens` task, guards; code and identity reviews applied. | Pull request #3 |
 | 2026-10-07 | First implementing session | Read the documents; installed Flutter 3.44.7; recorded the environment; owner answered K1–K4, O-15 (D-050) and the APK question (D-049); fetched the 13 logo files and verified the identity copy against the live artifacts; M0.1: strict lints, Arabic five-tab shell, single ARB, CI with Android build, setup hook, README; `code-reviewer` findings applied. | Pull request #2 |

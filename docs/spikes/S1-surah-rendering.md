@@ -8,8 +8,9 @@ surah; cold start to a saved position (`RD-02`, `SY-02`, `NF-01`, `NF-02`). Also
 last-line centring left partial by M0.2, and where the page mark of `RD-06` goes
 (D-071: inside the line, the text keeps flowing).
 
-Spike code: `spike/s1/`, removed before the merge (D-068); the last commit that holds
-it is named here when the spike closes.
+Spike code: `spike/s1/`, removed before the merge (D-068). The code is kept at commit
+`be4fbc2`; the device APK (artefact `holyquran-spike-apk` of CI run 68, kept until
+2027-01-05) was built from `be7aed9`, which holds the same spike code.
 
 ## The real text (D-072)
 

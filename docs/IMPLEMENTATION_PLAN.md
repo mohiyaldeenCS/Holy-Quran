@@ -189,6 +189,11 @@ settles something it also gets an entry in `docs/DECISIONS.md`.
 Also decided here: audio and download packages, minimum OS versions (O-02), and the
 two reference devices.
 
+Part 1 (S1, S5, the S3 playback part) done in pull request #6 as partial: run on
+Linux and in CI, device runs pending (`docs/spikes/`); O-02 decided (D-070); one
+reference phone so far. Part 2 (S4, S7) next; S2, S6 and the S3 highlight part wait
+for stream B.
+
 ### M0.5 Remaining design-system widgets (only while Gate 0 waits)
 
 Branch `feat/m0-5-ds-widgets`. The Phase 1 components and board elements not built
