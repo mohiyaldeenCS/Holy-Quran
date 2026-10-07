@@ -79,13 +79,13 @@ and editor are part of the credit line.
 | Book | Source | Publisher, edition, editor | Rights record | Extraction | Honorific table applied | Ayah linking reviewed | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | تفسير غريب القرآن — الإمام زيد بن علي (183) | Zaydi Library | الدار العالمية، الأولى، 1412 هـ - 1992 م | Under the site-wide record above | Complete, checked | No | No | Open |
-| تفسير الإمام الهادي يحيى بن الحسين (471) | Zaydi Library | See the library notes | Under the site-wide record above | Pending | No | No | Open |
-| تفسير غريب القرآن — الإمام المهدي العياني (473) | Zaydi Library | See the library notes | Under the site-wide record above | Pending | No | No | Open |
-| التيسير في التفسير (514) | Zaydi Library | See the library notes | Under the site-wide record above | Pending | No | No | Open |
-| شافي العليل في شرح الخمسمائة آية (737) | Zaydi Library | Not stated on the site | Under the site-wide record above | Pending | No | No | Open |
-| الناسخ والمنسوخ من القرآن الكريم (165) | Zaydi Library | See the library notes | Under the site-wide record above | Pending | No | No | Open |
-| التبيان في الناسخ والمنسوخ (276) | Zaydi Library | See the library notes | Under the site-wide record above | Pending | No | No | Open |
-| مسائل نافع بن الأزرق (440) | Zaydi Library | See the library notes | Under the site-wide record above | Pending | No | No | Open |
+| تفسير الإمام الهادي يحيى بن الحسين (471) | Zaydi Library | See the library notes | Under the site-wide record above | Complete, checked | No | No | Open |
+| تفسير غريب القرآن — الإمام المهدي العياني (473) | Zaydi Library | See the library notes | Under the site-wide record above | Complete, checked | No | No | Open |
+| التيسير في التفسير (514) | Zaydi Library | See the library notes | Under the site-wide record above | Complete, checked | No | No | Open |
+| شافي العليل في شرح الخمسمائة آية (737) | Zaydi Library | Not stated on the site | Under the site-wide record above | Complete, checked | No | No | Open |
+| الناسخ والمنسوخ من القرآن الكريم (165) | Zaydi Library | See the library notes | Under the site-wide record above | Complete, checked | No | No | Open |
+| التبيان في الناسخ والمنسوخ (276) | Zaydi Library | See the library notes | Under the site-wide record above | Complete, checked | No | No | Open |
+| مسائل نافع بن الأزرق (440) | Zaydi Library | See the library notes | Under the site-wide record above | Complete, checked | No | No | Open |
 
 The general tafsirs of PRD §8.8 are added here if the owner keeps them (O-06).
 
