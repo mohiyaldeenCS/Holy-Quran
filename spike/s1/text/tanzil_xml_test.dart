@@ -16,6 +16,67 @@ const _oneAya =
     '<quran><sura index="1" name="S"><aya index="1" text="T"/>'
     '</sura></quran>';
 
+/// The reason each refusal must give.
+const _reasons = {
+  'a byte order mark': 'a byte order mark at byte 0',
+  'malformed UTF-8': 'malformed UTF-8 at byte',
+  'an overlong encoding': 'malformed UTF-8 at byte',
+  'an encoded surrogate': 'malformed UTF-8 at byte',
+  'a value beginning with U+FEFF':
+      'a value beginning with U+FEFF in sura 1 aya 1 text',
+  'U+FFFE in a value': 'the character U+FFFE in sura 1 aya 1 text',
+  'a control character in a value': 'a control character in sura 1 aya 1',
+  'an entity reference': 'a reference in an attribute of sura 1 aya 1',
+  'a character reference': 'a reference in an attribute of sura 1 aya 1',
+  'a reference in content': 'character data or a reference inside sura 1',
+  'a CDATA section': 'a CDATA section',
+  'a processing instruction': 'a processing instruction',
+  'a stylesheet instruction': 'a processing instruction',
+  'a declaration not at the start': 'a processing instruction',
+  'a DOCTYPE': 'a DOCTYPE or markup declaration',
+  'another encoding': 'an encoding other than UTF-8',
+  'another XML version': 'without version 1.0',
+  'declaration attributes out of order':
+      'XML declaration attributes out of order',
+  'an unknown element': 'an unknown element inside sura 1',
+  'an element named like a known one': 'an unknown element inside quran',
+  'an unknown aya attribute': 'the unknown attribute "type" in sura 1 aya 1',
+  'an unknown sura attribute': 'the unknown attribute "ayas" in sura 1',
+  'an attribute on quran': 'the unknown attribute "a" in quran',
+  'an uppercase attribute': 'an unexpected byte in the tag of sura 1 aya 1',
+  'a repeated attribute': 'a repeated attribute "text" in sura 1 aya 1',
+  'a missing text': 'sura 1 aya 1 without a text attribute',
+  'a missing name': 'sura 1 without a name attribute',
+  'an empty text': 'an empty value in sura 1 aya 1 text',
+  'an unquoted value': 'an unquoted attribute value in sura 1 aya 1',
+  'an unterminated value': 'an unterminated attribute value in sura 1',
+  'a tab in a value': 'a tab or line break in an attribute of sura 1 aya 1',
+  'a line break in a value':
+      'a tab or line break in an attribute of sura 1 aya 1',
+  'a carriage return in a value':
+      'a tab or line break in an attribute of sura 1 aya 1',
+  '"<" in a value': '"<" in an attribute of sura 1 aya 1',
+  'attributes without space between':
+      'an unexpected byte in the tag of sura 1 aya 1',
+  'a sura index gap': 'sura 1 has an index other than 1',
+  'an aya index gap': 'sura 1 aya 2 has an index other than 2',
+  'a leading zero in an index': 'sura 1 aya 1 has an index other than 1',
+  'a bismillah after aya 1': 'a bismillah attribute on sura 1 aya 2',
+  'a sura without ayat': 'sura 1 without ayat',
+  'an empty sura element': 'sura 1 without ayat',
+  'a quran without suras': 'a quran element without suras',
+  'content inside an aya': 'content inside sura 1 aya 1',
+  'character data inside a sura': 'character data or a reference inside sura 1',
+  'a comment inside an element': 'a comment inside sura 1',
+  'no comment': '0 comments outside the root element',
+  'two comments': '2 comments outside the root element',
+  '"--" in a comment': '"--" inside a comment',
+  'an unterminated comment': 'an unterminated comment',
+  'content after the root': 'content after the root element',
+  'a second root': 'content after the root element',
+  'a missing end tag': 'the end of input inside quran',
+};
+
 void main() {
   group('readTanzilXml reads', () {
     final suras = syntheticFixtureSuras();
@@ -34,22 +95,37 @@ void main() {
     });
 
     test('every value as the bytes given, at its offset', () {
-      void expectAt(String value, int offset, String given) {
+      void expectAt(String value, int offset, int length, String given) {
         final encoded = utf8.encode(value);
         expect(encoded, utf8.encode(given));
-        expect(bytes.sublist(offset, offset + encoded.length), encoded);
+        expect(length, encoded.length);
+        expect(bytes.sublist(offset, offset + length), encoded);
+        expect(bytes[offset + length], 0x22);
       }
 
       for (final (s, sura) in suras.indexed) {
         final read = xml.suras[s];
-        expectAt(read.name, read.nameByteOffset, sura.name);
+        expectAt(
+          read.name,
+          read.nameByteOffset,
+          read.nameByteLength,
+          sura.name,
+        );
         final ayat = xml.ayat.where((a) => a.surah == s + 1).toList();
         for (final (a, ayah) in ayat.indexed) {
-          expectAt(ayah.text, ayah.byteOffset, sura.ayat[a]);
+          expectAt(ayah.text, ayah.byteOffset, ayah.byteLength, sura.ayat[a]);
           if (a == 0 && sura.bismillah != null) {
-            expectAt(ayah.basmala!, ayah.basmalaByteOffset!, sura.bismillah!);
+            expectAt(
+              ayah.basmala!,
+              ayah.basmalaByteOffset!,
+              ayah.basmalaByteLength!,
+              sura.bismillah!,
+            );
           } else {
-            expect((ayah.basmala, ayah.basmalaByteOffset), (null, null));
+            expect(
+              (ayah.basmala, ayah.basmalaByteOffset, ayah.basmalaByteLength),
+              (null, null, null),
+            );
           }
         }
       }
@@ -80,6 +156,18 @@ void main() {
       expect(read.ayat.single.text, 'T');
       expect(read.notice, 'n');
     });
+  });
+
+  test('readTanzilXml reads a declaration with all three attributes', () {
+    final read = readTanzilXml(
+      _xml(
+        _oneAya,
+        head:
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>'
+            '<!--n-->',
+      ),
+    );
+    expect(read.suras.single.nameByteLength, 1);
   });
 
   group('readTanzilXml refuses', () {
@@ -119,6 +207,10 @@ void main() {
       'another encoding': _xml(
         _oneAya,
         head: '<?xml version="1.0" encoding="iso-8859-1"?><!--n-->',
+      ),
+      'declaration attributes out of order': _xml(
+        _oneAya,
+        head: '<?xml encoding="utf-8" version="1.0"?><!--n-->',
       ),
       'another XML version': _xml(
         _oneAya,
@@ -197,13 +289,21 @@ void main() {
       'a missing end tag': _xml(_oneAya.replaceFirst('</quran>', '')),
     };
 
+    test('each case with its reason', () {
+      expect(refusals.keys.toSet(), _reasons.keys.toSet());
+    });
+
     for (final MapEntry(key: name, value: bytes) in refusals.entries) {
       test(name, () {
         expect(
           () => readTanzilXml(bytes),
           throwsA(
             isA<FormatException>()
-                .having((e) => e.message, 'message', startsWith('Tanzil XML'))
+                .having(
+                  (e) => e.message,
+                  'message',
+                  allOf(startsWith('Tanzil XML: '), contains(_reasons[name])),
+                )
                 .having((e) => e.source, 'source', isNull),
           ),
         );

@@ -1,19 +1,27 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-/// One `<aya>` of a Tanzil XML file. [byteOffset] is where the UTF-8 bytes of
-/// [text] start in the file; [basmalaByteOffset] likewise for [basmala], the
-/// `bismillah` attribute, which only an ayah numbered 1 may carry.
+/// One `<aya>` of a Tanzil XML file. The UTF-8 bytes of [text] are the
+/// [byteLength] bytes of the file from [byteOffset], up to the closing
+/// quote; likewise for [basmala], the `bismillah` attribute, which only an
+/// ayah numbered 1 may carry.
 typedef TanzilAyah = ({
   int surah,
   int ayah,
   String text,
   int byteOffset,
+  int byteLength,
   String? basmala,
   int? basmalaByteOffset,
+  int? basmalaByteLength,
 });
 
-typedef TanzilSura = ({int index, String name, int nameByteOffset});
+typedef TanzilSura = ({
+  int index,
+  String name,
+  int nameByteOffset,
+  int nameByteLength,
+});
 
 /// A whole file: its suras, its ayat in file order, and the one comment
 /// outside the root element (the copyright block), as written between `<!--`
@@ -41,7 +49,8 @@ typedef TanzilXml = ({
 /// exactly one comment outside the root element.
 TanzilXml readTanzilXml(Uint8List bytes) => _TanzilReader(bytes).read();
 
-const _declarationAttributes = {'version', 'encoding', 'standalone'};
+/// In the order XML requires them.
+const _declarationAttributes = ['version', 'encoding', 'standalone'];
 const _suraAttributes = {'index', 'name'};
 const _ayaAttributes = {'index', 'text', 'bismillah'};
 
@@ -139,7 +148,7 @@ final class _TanzilReader {
       _fail('a processing instruction', 0);
     }
     final (attributes, _) = _attributes(
-      _declarationAttributes,
+      _declarationAttributes.toSet(),
       'the XML declaration',
       declaration: true,
     );
@@ -147,6 +156,10 @@ final class _TanzilReader {
       final range? => _value(range, 'the XML declaration'),
       null => null,
     };
+    if ('${attributes.keys}' !=
+        '${_declarationAttributes.where(attributes.containsKey)}') {
+      _fail('XML declaration attributes out of order', 0);
+    }
     if (pseudo('version') != '1.0') {
       _fail('an XML declaration without version 1.0', 0);
     }
@@ -233,6 +246,7 @@ final class _TanzilReader {
       index: index,
       name: _value(name, '$where name'),
       nameByteOffset: name.start,
+      nameByteLength: name.end - name.start,
     ));
     if (empty) _fail('$where without ayat', _at);
     var ayat = 0;
@@ -262,8 +276,10 @@ final class _TanzilReader {
       ayah: ayah,
       text: _value(text, '$where text'),
       byteOffset: text.start,
+      byteLength: text.end - text.start,
       basmala: basmala == null ? null : _value(basmala, '$where bismillah'),
       basmalaByteOffset: basmala?.start,
+      basmalaByteLength: basmala == null ? null : basmala.end - basmala.start,
     ));
     if (!empty) {
       if (!_take('</aya')) _fail('content inside $where', _at);

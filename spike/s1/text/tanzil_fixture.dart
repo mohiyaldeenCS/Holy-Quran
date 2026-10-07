@@ -6,8 +6,10 @@ import 'gibberish.dart';
 /// A sura of a synthetic Tanzil-form XML fixture. Every value is synthetic.
 typedef FixtureSura = ({String name, String? bismillah, List<String> ayat});
 
+/// Names Tanzil and the version, as the writer requires of a notice.
 const fixtureNotice =
-    '\n# Synthetic notice for tests, not a licence\n#  line two\t\n';
+    '\n# Synthetic notice for tests, not a licence: Tanzil, Version 1.1\n'
+    '#  line two\t\n';
 
 /// Bytes in the Tanzil XML form, with [notice] as the one comment before the
 /// root element, or after it when [noticeLast].

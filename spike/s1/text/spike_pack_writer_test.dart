@@ -10,6 +10,7 @@ import 'package:holyquran/data/services/manifest_signature.dart';
 import 'package:holyquran/data/services/pack_file_service.dart';
 import 'package:holyquran/domain/models/verified_pack.dart';
 import 'package:holyquran/utils/result.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 import '../../../test/integrity/pack_integrity_suite.dart';
 import '../../../testing/packs/raw_pack.dart';
@@ -159,44 +160,168 @@ void main() {
     await expectLater(_write(target, bytes), throwsStateError);
   });
 
-  test(
-    'refuses a value that is not the source bytes, leaving nothing',
-    () async {
-      final xml = readTanzilXml(bytes);
-      final surahs = spikeSurahsOf(xml);
-      final first = surahs.first;
-      final shifted = [
-        (
-          name: first.name,
-          basmala: first.basmala,
-          ayat: [
-            (
-              value: first.ayat.first.value,
-              byteOffset: first.ayat.first.byteOffset + 1,
-            ),
-            ...first.ayat.skip(1),
-          ],
-        ),
-        ...surahs.skip(1),
-      ];
-      final target = Directory('${root.path}/d');
+  group('refuses, leaving nothing,', () {
+    final xml = readTanzilXml(bytes);
+    final surahs = spikeSurahsOf(xml);
+    final first = surahs.first.ayat.first;
+
+    /// The surahs with the first ayah replaced by [ayah].
+    List<SpikeSurah> withFirstAyah(SpikeText ayah) => [
+      (
+        name: surahs.first.name,
+        basmala: surahs.first.basmala,
+        ayat: [ayah, ...surahs.first.ayat.skip(1)],
+      ),
+      ...surahs.skip(1),
+    ];
+
+    Future<void> expectRefused(
+      String name,
+      List<SpikeSurah> given,
+      String reason, {
+      SpikeSource? source,
+    }) async {
+      final target = Directory('${root.path}/refused $name');
       await expectLater(
         writeSpikePack(
           target,
-          surahs: shifted,
+          surahs: given,
+          fontSha256: _fontSha256,
+          source: source ?? _sourceOf(bytes, xml),
+        ),
+        throwsA(isA<StateError>().having((e) => e.message, 'message', reason)),
+      );
+      expect(target.existsSync(), isFalse);
+    }
+
+    final range =
+        '[${first.byteOffset}, ${first.byteOffset + first.byteLength})';
+
+    test('a value at another offset', () async {
+      await expectRefused(
+        'shifted',
+        withFirstAyah((
+          value: first.value,
+          byteOffset: first.byteOffset + 1,
+          byteLength: first.byteLength,
+        )),
+        'ayah 1:1 is not the quoted source bytes '
+            '[${first.byteOffset + 1}, ${first.byteOffset + 1 + first.byteLength})',
+      );
+    });
+
+    test('a value truncated at its offset', () async {
+      final short = first.value.substring(0, 5);
+      await expectRefused(
+        'truncated',
+        withFirstAyah((
+          value: short,
+          byteOffset: first.byteOffset,
+          byteLength: utf8.encode(short).length,
+        )),
+        'ayah 1:1 is not the quoted source bytes '
+            '[${first.byteOffset}, ${first.byteOffset + 5})',
+      );
+      await expectRefused(
+        'truncated, full length',
+        withFirstAyah((
+          value: short,
+          byteOffset: first.byteOffset,
+          byteLength: first.byteLength,
+        )),
+        'ayah 1:1 is not the quoted source bytes $range',
+      );
+    });
+
+    test('a notice that does not name Tanzil and the version', () async {
+      for (final (name, notice) in [
+        ('no Tanzil', ' Synthetic notice, Version 1.1 '),
+        ('no version', ' Synthetic Tanzil notice '),
+        ('another version', ' Synthetic Tanzil notice, Version 1.10 '),
+        ('a longer version', ' Synthetic Tanzil notice, Version 1.1.2 '),
+      ]) {
+        await expectRefused(
+          name,
+          surahs,
+          'the notice does not name Tanzil and Version 1.1',
+          source: (
+            bytes: bytes,
+            url: 'https://example.invalid/synthetic.xml',
+            version: tanzilUthmaniVersion,
+            fetchedOn: '2026-01-01',
+            notice: notice,
+          ),
+        );
+      }
+    });
+
+    test(
+      'on a SQLite failure after creating the directory, naming no value',
+      () async {
+        var deep = '${root.path}/deep';
+        while (deep.length < 700) {
+          deep = '$deep/${'d' * 100}';
+        }
+        final target = Directory(deep);
+        await target.create(recursive: true);
+        final message = await writeSpikePack(
+          target,
+          surahs: surahs,
           fontSha256: _fontSha256,
           source: _sourceOf(bytes, xml),
+        ).then<String>((_) => fail('written'), onError: (Object e) => '$e');
+        expect(message, endsWith('/text.sqlite: SQLite error 14'));
+        expect(Directory('$deep/$spikePackId').existsSync(), isFalse);
+        expect(target.existsSync(), isTrue);
+        for (final sura in syntheticFixtureSuras()) {
+          for (final value in [sura.name, ?sura.bismillah, ...sura.ayat]) {
+            expect(message, isNot(contains(value)));
+          }
+        }
+      },
+    );
+  });
+
+  test('sqliteStep names the step and the code, never the bound values', () {
+    final db = sqlite3.open(':memory:')
+      ..execute('CREATE TABLE t (a TEXT NOT NULL, b INTEGER NOT NULL) STRICT');
+    addTearDown(db.close);
+    const value = 'Synthetic bound value';
+    void insert() =>
+        db.execute('INSERT INTO t VALUES (?, ?)', [value, 'Synthetic other']);
+    expect(insert, throwsA(predicate((Object e) => '$e'.contains(value))));
+    expect(
+      () => sqliteStep('ayah 1:1', insert),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          'ayah 1:1: SQLite error 3091',
         ),
-        throwsA(
-          isA<StateError>().having(
-            (e) => e.message,
-            'message',
-            'ayah 1:1 differs from the source bytes at byte '
-                '${first.ayat.first.byteOffset + 1}',
-          ),
+      ),
+    );
+  });
+
+  test(
+    'stores no date: another fetch date gives the same text.sqlite',
+    () async {
+      final xml = readTanzilXml(bytes);
+      final again = await writeSpikePack(
+        Directory('${root.path}/other date'),
+        surahs: spikeSurahsOf(xml),
+        fontSha256: _fontSha256,
+        source: (
+          bytes: bytes,
+          url: 'https://example.invalid/synthetic.xml',
+          version: tanzilUthmaniVersion,
+          fetchedOn: '2027-12-31',
+          notice: xml.notice,
         ),
       );
-      expect(Directory('${target.path}/$spikePackId/1').existsSync(), isFalse);
+      expect(
+        await File('$again/text.sqlite').readAsBytes(),
+        await File('${await written.future}/text.sqlite').readAsBytes(),
+      );
     },
   );
 

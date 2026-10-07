@@ -8,6 +8,7 @@ import '../../../testing/packs/synthetic_pack.dart' show amiriQuranFontPath;
 import 'device_text.dart';
 import 'spike_pack_writer.dart';
 import 'tanzil_fixture.dart';
+import 'tanzil_xml.dart';
 
 // The device path against a loopback server serving a synthetic fixture.
 
@@ -21,9 +22,26 @@ void main() {
   final bytes = tanzilFixtureXml(syntheticFixtureSuras());
   final digest = sha256.convert(bytes).toString();
   final font = File(amiriQuranFontPath).readAsBytesSync();
+  late String packDigest;
 
   setUpAll(() async {
     root = await Directory.systemTemp.createTemp('spike_device_text');
+    final xml = readTanzilXml(bytes);
+    final reference = await writeSpikePack(
+      Directory('${root.path}/reference'),
+      surahs: spikeSurahsOf(xml),
+      fontSha256: sha256.convert(font).toString(),
+      source: (
+        bytes: bytes,
+        url: 'https://example.invalid/elsewhere.xml',
+        version: tanzilUthmaniVersion,
+        fetchedOn: '2030-05-05',
+        notice: xml.notice,
+      ),
+    );
+    packDigest = sha256
+        .convert(await File('$reference/text.sqlite').readAsBytes())
+        .toString();
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((request) async {
       if (request.uri.path == '/quran.xml') {
@@ -45,10 +63,13 @@ void main() {
     Directory into, {
     String path = '/quran.xml',
     String? sha,
+    String? packSha,
+    Uri? at,
   }) => HttpOverrides.runWithHttpOverrides(
     () => fetchTanzilPack(
-      url: url(path),
+      url: at ?? url(path),
       expectedSha256: sha ?? digest,
+      expectedPackSha256: packSha ?? packDigest,
       root: into,
       fontBytes: Uint8List.fromList(font),
       now: DateTime.utc(2026, 1, 2),
@@ -56,7 +77,8 @@ void main() {
     _RealHttp(),
   );
 
-  test('writes and verifies the pack, replacing an earlier one', () async {
+  test('writes the pack the CI run recorded, whatever the date and URL, '
+      'replacing an earlier one', () async {
     final into = Directory('${root.path}/ok');
     final first = await fetch(into);
     expect(first, '${into.path}/$spikePackId/$spikePackVersion');
@@ -97,6 +119,51 @@ void main() {
           (e) => e.message,
           'message',
           'the server answered 404',
+        ),
+      ),
+    );
+  });
+
+  test(
+    'refuses a pack with another text.sqlite SHA-256, keeping none',
+    () async {
+      final into = Directory('${root.path}/other pack');
+      final other = sha256.convert([1]).toString();
+      await expectLater(
+        fetch(into, packSha: other),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'the device pack text.sqlite has SHA-256 $packDigest, not $other',
+          ),
+        ),
+      );
+      expect(Directory('${into.path}/$spikePackId').existsSync(), isFalse);
+    },
+  );
+
+  test('refuses an expected pack SHA-256 that is not lowercase hex', () async {
+    await expectLater(
+      fetch(Directory('${root.path}/no pack sha'), packSha: ''),
+      throwsStateError,
+    );
+  });
+
+  test('reports another exception by its type only', () async {
+    final closed = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    final port = closed.port;
+    await closed.close();
+    await expectLater(
+      fetch(
+        Directory('${root.path}/refused'),
+        at: Uri.parse('http://127.0.0.1:$port/quran.xml'),
+      ),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          'fetching: SocketException',
         ),
       ),
     );

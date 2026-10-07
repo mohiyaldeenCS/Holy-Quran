@@ -29,17 +29,48 @@ const _options = {
 /// download.
 const _registryUrl = 'https://tanzil.net/docs/tanzil_project';
 
+/// Prints only messages this tool or the spike code wrote; any other
+/// exception by its type alone, since its text might hold Quran text (D-072).
 Future<void> main(List<String> arguments) async {
+  var code = 0;
+  try {
+    await _run(arguments);
+  } on _Exit catch (e) {
+    stderr.writeln(e.message);
+    code = e.code;
+  } on FormatException catch (e) {
+    stderr.writeln(e.message);
+    code = 65;
+  } on StateError catch (e) {
+    stderr.writeln(e.message);
+    code = 65;
+  } on Object catch (e) {
+    stderr.writeln('failed: ${e.runtimeType}');
+    code = 70;
+  }
+  await stdout.flush();
+  await stderr.flush();
+  exit(code);
+}
+
+final class _Exit implements Exception {
+  const _Exit(this.code, this.message);
+
+  final int code;
+  final String message;
+}
+
+Future<void> _run(List<String> arguments) async {
   final options = <String, String>{};
   for (var i = 0; i < arguments.length; i += 2) {
     if (!_options.contains(arguments[i]) || i + 1 >= arguments.length) {
-      _exit(64, _usage);
+      throw const _Exit(64, _usage);
     }
     options[arguments[i]] = arguments[i + 1];
   }
   final input = options['--input'];
   final out = options['--out'];
-  if (input == null || out == null) _exit(64, _usage);
+  if (input == null || out == null) throw const _Exit(64, _usage);
   final fetchedOn =
       options['--fetched-on'] ??
       DateTime.now().toUtc().toIso8601String().substring(0, 10);
@@ -49,32 +80,25 @@ Future<void> main(List<String> arguments) async {
   stdout.writeln('input sha256 $inputSha256');
   final expected = options['--expected-sha256'];
   if (expected != null && expected != inputSha256) {
-    _exit(65, 'the input is not the file with SHA-256 $expected');
+    throw _Exit(65, 'the input is not the file with SHA-256 $expected');
   }
 
-  final String directory;
-  try {
-    final xml = readTanzilXml(bytes);
-    final font = await File(
-      options['--font'] ?? 'assets/fonts/AmiriQuran-Regular.ttf',
-    ).readAsBytes();
-    directory = await writeSpikePack(
-      Directory(out),
-      surahs: spikeSurahsOf(xml),
-      fontSha256: sha256.convert(font).toString(),
-      source: (
-        bytes: bytes,
-        url: options['--source-url'] ?? _registryUrl,
-        version: tanzilUthmaniVersion,
-        fetchedOn: fetchedOn,
-        notice: xml.notice,
-      ),
-    );
-  } on FormatException catch (e) {
-    _exit(65, e.message);
-  } on StateError catch (e) {
-    _exit(65, e.message);
-  }
+  final xml = readTanzilXml(bytes);
+  final font = await File(
+    options['--font'] ?? 'assets/fonts/AmiriQuran-Regular.ttf',
+  ).readAsBytes();
+  final directory = await writeSpikePack(
+    Directory(out),
+    surahs: spikeSurahsOf(xml),
+    fontSha256: sha256.convert(font).toString(),
+    source: (
+      bytes: bytes,
+      url: options['--source-url'] ?? _registryUrl,
+      version: tanzilUthmaniVersion,
+      fetchedOn: fetchedOn,
+      notice: xml.notice,
+    ),
+  );
 
   final verified = await const LocalPackRepository(
     files: PackFileService(),
@@ -82,30 +106,25 @@ Future<void> main(List<String> arguments) async {
   ).verify(directory);
   switch (verified) {
     case Failure(:final error):
-      _exit(65, 'the pack failed verification: $error');
+      throw _Exit(65, 'the pack failed verification: $error');
     case Ok(value: final pack):
       final counts = pack.manifest.counts;
+      final divisions = [
+        for (final MapEntry(:key, :value) in counts.divisions.entries)
+          '${key.name} $value',
+      ];
+      final manifest = await File('$directory/manifest.json').readAsBytes();
       stdout
         ..writeln('pack $directory')
         ..writeln(
           'counts surahs ${counts.surahs} ayat ${counts.ayat} '
           'words ${counts.words}',
         )
-        ..writeln(
-          'divisions ${[for (final MapEntry(:key, :value) in counts.divisions.entries) '${key.name} $value'].join(' ')}',
-        )
+        ..writeln('divisions ${divisions.join(' ')}')
         ..writeln('text.sqlite sha256 ${pack.manifest.files.single.sha256}')
-        ..writeln(
-          'manifest.json sha256 '
-          '${sha256.convert(await File('$directory/manifest.json').readAsBytes())}',
-        );
+        ..writeln('manifest.json sha256 ${sha256.convert(manifest)}');
       for (final MapEntry(:key, :value) in pack.manifest.surahSha256.entries) {
         stdout.writeln('surah $key sha256 $value');
       }
   }
-}
-
-Never _exit(int code, String message) {
-  stderr.writeln(message);
-  exit(code);
 }

@@ -12,8 +12,9 @@ import 'tanzil_xml.dart';
 const spikePackId = 'spike-tanzil-uthmani';
 const spikePackVersion = 1;
 
-/// A value as read from the source file, and where its UTF-8 bytes start.
-typedef SpikeText = ({String value, int byteOffset});
+/// A value as read from the source file: its UTF-8 bytes are the
+/// [byteLength] bytes from [byteOffset], between a pair of quotes.
+typedef SpikeText = ({String value, int byteOffset, int byteLength});
 
 typedef SpikeSurah = ({
   SpikeText name,
@@ -21,9 +22,9 @@ typedef SpikeSurah = ({
   List<SpikeText> ayat,
 });
 
-/// The source file and what the manifest records of it. [version] is the
-/// registry's (docs/SOURCES.md row 1); [notice] is the file's copyright
-/// block, kept verbatim.
+/// The source file and what the manifest records of it. [notice] is the
+/// file's copyright block, kept verbatim; it must name Tanzil and
+/// `Version <version>`.
 typedef SpikeSource = ({
   Uint8List bytes,
   String url,
@@ -32,7 +33,8 @@ typedef SpikeSource = ({
   String notice,
 });
 
-/// The source version of docs/SOURCES.md, row 1.
+/// The source version of docs/SOURCES.md, row 1, which the notice of the
+/// file must name.
 const tanzilUthmaniVersion = '1.1';
 
 /// Synthetic divisions, not the edition's: a unit of each kind starts every
@@ -53,50 +55,70 @@ List<SpikeSurah> spikeSurahsOf(TanzilXml xml) => [
 ];
 
 SpikeSurah _surah(TanzilSura sura, List<TanzilAyah> ayat) => (
-  name: (value: sura.name, byteOffset: sura.nameByteOffset),
-  basmala: switch ((ayat.first.basmala, ayat.first.basmalaByteOffset)) {
-    (final String value, final int offset) => (
+  name: (
+    value: sura.name,
+    byteOffset: sura.nameByteOffset,
+    byteLength: sura.nameByteLength,
+  ),
+  basmala: switch ((
+    ayat.first.basmala,
+    ayat.first.basmalaByteOffset,
+    ayat.first.basmalaByteLength,
+  )) {
+    (final String value, final int offset, final int length) => (
       value: value,
       byteOffset: offset,
+      byteLength: length,
     ),
     _ => null,
   },
   ayat: [
-    for (final ayah in ayat) (value: ayah.text, byteOffset: ayah.byteOffset),
+    for (final ayah in ayat)
+      (
+        value: ayah.text,
+        byteOffset: ayah.byteOffset,
+        byteLength: ayah.byteLength,
+      ),
   ],
 );
+
+/// Runs one SQLite step. A [SqliteException] prints the statement's bound
+/// values, which may be Quran text (D-072), so it becomes a [StateError]
+/// naming [where] and the result code only.
+T sqliteStep<T>(String where, T Function() run) {
+  try {
+    return run();
+  } on SqliteException catch (e) {
+    throw StateError('$where: SQLite error ${e.extendedResultCode}');
+  }
+}
 
 /// Writes `<root>/spike-tanzil-uthmani/1/` (manifest.json and text.sqlite)
 /// to docs/CONTENT_PACKS.md, format v1, and returns its path.
 ///
 /// Spike only (D-068, D-072): words are the maximal runs between U+0020, and
 /// the divisions are [spikeDivisionEvery]; the changelog says so. Every value
-/// must equal the source bytes at its offset before it is written and is
-/// read back as stored bytes after; any difference, an existing directory or
-/// a manifest the app's parser refuses throws a [StateError] naming an
-/// address, and leaves no pack behind.
+/// must be exactly the quoted source bytes at its offset before it is
+/// written, and is read back as stored bytes after. Any difference, a notice
+/// that does not name Tanzil and the version, an existing directory, a
+/// manifest the app's parser refuses or any other failure throws a
+/// [StateError] naming an address or a type, never a value, and leaves no
+/// directory behind.
 Future<String> writeSpikePack(
   Directory root, {
   required List<SpikeSurah> surahs,
   required String fontSha256,
   required SpikeSource source,
 }) async {
-  final directory = Directory('${root.path}/$spikePackId/$spikePackVersion');
+  final parent = Directory('${root.path}/$spikePackId');
+  final directory = Directory('${parent.path}/$spikePackVersion');
   if (directory.existsSync()) {
     throw StateError('${directory.path} exists; a version is never rewritten');
   }
   if (surahs.isEmpty) throw StateError('no surah to write');
-  _forEachText(surahs, (where, text) {
-    final value = text.value;
-    if (value.isEmpty || value.codeUnitAt(0) == 0xFEFF) {
-      throw StateError('$where is empty or begins with U+FEFF');
-    }
-    if (!_equalsAt(utf8.encode(value), source.bytes, text.byteOffset)) {
-      throw StateError(
-        '$where differs from the source bytes at byte ${text.byteOffset}',
-      );
-    }
-  });
+  _checkNotice(source);
+  _forEachText(surahs, (where, text) => _checkSource(where, text, source));
+  final created = !parent.existsSync();
   await directory.create(recursive: true);
   try {
     final text = File('${directory.path}/$_textFile');
@@ -125,11 +147,57 @@ Future<String> writeSpikePack(
     await File(
       '${directory.path}/$_manifestFile',
     ).writeAsBytes(manifest, flush: true);
-  } on Object {
+  } on Object catch (e) {
     await directory.delete(recursive: true);
-    rethrow;
+    if (created) await parent.delete();
+    if (e is StateError) rethrow;
+    throw StateError('writing ${directory.path}: ${e.runtimeType}');
   }
   return directory.path;
+}
+
+/// ASCII checks on the licence block only.
+void _checkNotice(SpikeSource source) {
+  final version = RegExp(
+    'Version ${RegExp.escape(source.version)}(?!\\.?[0-9])',
+  );
+  if (!source.notice.contains('Tanzil') || !version.hasMatch(source.notice)) {
+    throw StateError(
+      'the notice does not name Tanzil and Version ${source.version}',
+    );
+  }
+}
+
+/// [text] is exactly the bytes between a pair of quotes of the source.
+void _checkSource(String where, SpikeText text, SpikeSource source) {
+  final (:value, :byteOffset, :byteLength) = text;
+  final bytes = source.bytes;
+  final end = byteOffset + byteLength;
+  if (value.isEmpty || value.codeUnitAt(0) == 0xFEFF) {
+    throw StateError('$where is empty or begins with U+FEFF');
+  }
+  final quoted =
+      byteOffset >= 1 &&
+      end < bytes.length &&
+      (bytes[end] == 0x22 || bytes[end] == 0x27) &&
+      bytes[byteOffset - 1] == bytes[end];
+  final encoded = utf8.encode(value);
+  if (!quoted ||
+      encoded.length != byteLength ||
+      !_equalsAt(encoded, bytes, byteOffset) ||
+      _decoded(bytes, byteOffset, end) != value) {
+    throw StateError(
+      '$where is not the quoted source bytes [$byteOffset, $end)',
+    );
+  }
+}
+
+String? _decoded(Uint8List bytes, int start, int end) {
+  try {
+    return utf8.decode(Uint8List.sublistView(bytes, start, end));
+  } on FormatException {
+    return null;
+  }
 }
 
 void _forEachText(
@@ -221,39 +289,49 @@ CREATE TABLE sajda (
 /// Writes the tables, binding each value as the Dart string received, and
 /// returns the manifest's `counts`.
 Map<String, Object?> _writeDatabase(String path, List<SpikeSurah> surahs) {
-  final db = sqlite3.open(path);
+  final db = sqliteStep('opening $path', () => sqlite3.open(path));
   try {
-    db
-      ..execute("PRAGMA encoding = 'UTF-8'")
-      ..execute('PRAGMA application_id = $_applicationId')
-      ..execute('PRAGMA user_version = $_formatVersion')
-      ..execute('PRAGMA journal_mode = DELETE')
-      ..execute('PRAGMA foreign_keys = ON');
-    for (final table in _schema) {
-      db.execute(table);
-    }
-    db.execute('BEGIN');
-    final insertSurah = db.prepare(
-      'INSERT INTO surah VALUES (?, ?, ?, NULL, NULL, ?)',
-    );
-    final insertAyah = db.prepare('INSERT INTO ayah VALUES (?, ?, ?)');
-    final insertWord = db.prepare('INSERT INTO word VALUES (?, ?, ?, ?, ?)');
-    final insertDivision = db.prepare(
-      'INSERT INTO division VALUES (?, ?, ?, ?)',
+    sqliteStep('creating the schema', () {
+      db
+        ..execute("PRAGMA encoding = 'UTF-8'")
+        ..execute('PRAGMA application_id = $_applicationId')
+        ..execute('PRAGMA user_version = $_formatVersion')
+        ..execute('PRAGMA journal_mode = DELETE')
+        ..execute('PRAGMA foreign_keys = ON');
+      for (final table in _schema) {
+        db.execute(table);
+      }
+      db.execute('BEGIN');
+    });
+    final [insertSurah, insertAyah, insertWord, insertDivision] = sqliteStep(
+      'preparing the inserts',
+      () => [
+        db.prepare('INSERT INTO surah VALUES (?, ?, ?, NULL, NULL, ?)'),
+        db.prepare('INSERT INTO ayah VALUES (?, ?, ?)'),
+        db.prepare('INSERT INTO word VALUES (?, ?, ?, ?, ?)'),
+        db.prepare('INSERT INTO division VALUES (?, ?, ?, ?)'),
+      ],
     );
     var words = 0;
     final starts = <(int, int)>[];
     for (final (s, surah) in surahs.indexed) {
-      insertSurah.execute([
-        s + 1,
-        surah.name.value,
-        surah.ayat.length,
-        surah.basmala?.value,
-      ]);
+      sqliteStep(
+        'surah ${s + 1}',
+        () => insertSurah.execute([
+          s + 1,
+          surah.name.value,
+          surah.ayat.length,
+          surah.basmala?.value,
+        ]),
+      );
       for (final (a, ayah) in surah.ayat.indexed) {
-        insertAyah.execute([s + 1, a + 1, ayah.value]);
+        final where = 'ayah ${s + 1}:${a + 1}';
+        sqliteStep(where, () => insertAyah.execute([s + 1, a + 1, ayah.value]));
         for (final (w, (start, end)) in spikeWordSpans(ayah.value).indexed) {
-          insertWord.execute([s + 1, a + 1, w + 1, start, end]);
+          sqliteStep(
+            '$where word ${w + 1}',
+            () => insertWord.execute([s + 1, a + 1, w + 1, start, end]),
+          );
           words++;
         }
         starts.add((s + 1, a + 1));
@@ -265,21 +343,27 @@ Map<String, Object?> _writeDatabase(String path, List<SpikeSurah> surahs) {
       var number = 0;
       for (var i = 0; i < starts.length; i += every) {
         final (surah, ayah) = starts[i];
-        insertDivision.execute([kind, ++number, surah, ayah]);
+        number++;
+        sqliteStep(
+          '$kind $number',
+          () => insertDivision.execute([kind, number, surah, ayah]),
+        );
       }
       divisions[kind] = number;
     }
-    for (final statement in [
-      insertSurah,
-      insertAyah,
-      insertWord,
-      insertDivision,
-    ]) {
-      statement.close();
-    }
-    db
-      ..execute('COMMIT')
-      ..execute('VACUUM');
+    sqliteStep('committing', () {
+      for (final statement in [
+        insertSurah,
+        insertAyah,
+        insertWord,
+        insertDivision,
+      ]) {
+        statement.close();
+      }
+      db
+        ..execute('COMMIT')
+        ..execute('VACUUM');
+    });
     return {
       'surahs': surahs.length,
       'ayat': starts.length,
@@ -299,15 +383,21 @@ Map<String, String> _readBack(
   List<SpikeSurah> surahs,
   Uint8List source,
 ) {
-  final db = sqlite3.open(
-    'file:${Uri.file(path).path}?mode=ro&immutable=1',
-    mode: OpenMode.readOnly,
-    uri: true,
+  final db = sqliteStep(
+    'reopening $path',
+    () => sqlite3.open(
+      'file:${Uri.file(path).path}?mode=ro&immutable=1',
+      mode: OpenMode.readOnly,
+      uri: true,
+    ),
   );
   try {
-    final rows = db.select(
-      'SELECT number, CAST(name AS BLOB), CAST(basmala AS BLOB) FROM surah '
-      'ORDER BY number',
+    final rows = sqliteStep(
+      'reading the surahs back',
+      () => db.select(
+        'SELECT number, CAST(name AS BLOB), CAST(basmala AS BLOB) FROM surah '
+        'ORDER BY number',
+      ),
     );
     if (rows.length != surahs.length) {
       throw StateError('${rows.length} surahs stored, ${surahs.length} given');
@@ -316,8 +406,8 @@ Map<String, String> _readBack(
       final same = switch ((stored, given)) {
         (null, null) => true,
         (final Uint8List bytes, final SpikeText text) =>
-          _equalsAt(bytes, source, text.byteOffset) &&
-              bytes.length == utf8.encode(text.value).length,
+          bytes.length == text.byteLength &&
+              _equalsAt(bytes, source, text.byteOffset),
         _ => false,
       };
       if (!same) throw StateError('$where: stored bytes differ from source');
@@ -329,10 +419,13 @@ Map<String, String> _readBack(
       if (row.columnAt(0) != s + 1) throw StateError('surah ${s + 1} missing');
       expectStored('surah ${s + 1} name', row.columnAt(1), surah.name);
       expectStored('surah ${s + 1} basmala', row.columnAt(2), surah.basmala);
-      final ayat = db.select(
-        'SELECT number, CAST(text AS BLOB) FROM ayah WHERE surah = ? '
-        'ORDER BY number',
-        [s + 1],
+      final ayat = sqliteStep(
+        'reading surah ${s + 1} back',
+        () => db.select(
+          'SELECT number, CAST(text AS BLOB) FROM ayah WHERE surah = ? '
+          'ORDER BY number',
+          [s + 1],
+        ),
       );
       if (ayat.length != surah.ayat.length) {
         throw StateError('surah ${s + 1}: ${ayat.length} ayat stored');
