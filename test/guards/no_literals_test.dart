@@ -9,7 +9,13 @@ final _colourLiterals = RegExp(
   r'\bColor\s*\.\s*from\w*|\bColor\s*\(|\b(?:Cupertino)?Colors\s*\.|'
   r'\b0[xX][0-9A-Fa-f]{8}',
 );
-final _arabic = RegExp('[\u0600-\u06FF]');
+
+/// Every Arabic script block: Arabic, Supplement, Extended-B and -A, and
+/// Presentation Forms-A and -B.
+final _arabic = RegExp(
+  '[\u0600-\u06FF\u0750-\u077F\u0870-\u089F\u08A0-\u08FF'
+  '\uFB50-\uFDFF\uFE70-\uFEFF]',
+);
 const _fontFamilies = {AppFonts.quran, AppFonts.kufi, AppFonts.sans};
 
 bool _scanned(String path) =>
@@ -139,6 +145,45 @@ const y = 0xFF;
           '$file:4: Arabic text',
         ],
       );
+    });
+
+    test('flags every Arabic script block', () {
+      const firstAndLast = [
+        (0x0600, 0x06FF),
+        (0x0750, 0x077F),
+        (0x0870, 0x089F),
+        (0x08A0, 0x08FF),
+        (0xFB50, 0xFDFF),
+        (0xFE70, 0xFEFF),
+      ];
+      final presentationForm = String.fromCharCode(0xFEFB);
+      expect(
+        _violations({
+          file:
+              "final a = '$presentationForm';\n"
+              "final b = '\\uFDF2';\n"
+              "final c = '${String.fromCharCode(0x0700)}';\n",
+        }),
+        ['$file:1: Arabic text', '$file:2: Arabic text'],
+      );
+      for (final (first, last) in firstAndLast) {
+        for (final code in [first, last]) {
+          final letter = String.fromCharCode(code);
+          expect(
+            _violations({file: "final a = '$letter';"}),
+            ['$file:1: Arabic text'],
+            reason: code.toRadixString(16),
+          );
+        }
+        for (final code in [first - 1, last + 1]) {
+          if (firstAndLast.any((r) => code >= r.$1 && code <= r.$2)) continue;
+          expect(
+            _violations({file: "final a = '${String.fromCharCode(code)}';"}),
+            isEmpty,
+            reason: code.toRadixString(16),
+          );
+        }
+      }
     });
 
     test('skips generated files and the generated localizations', () {
