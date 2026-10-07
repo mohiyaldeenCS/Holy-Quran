@@ -9,8 +9,8 @@ phases and deferred features. Everything else in `docs/` is derived from it.
 | Field | Value |
 | --- | --- |
 | Living document | <https://claude.ai/artifact/RMrzS7vqiKF2zRED2bE9SL> (owner's planning account) |
-| Exported | 2026-10-07, document revision 129 |
-| SHA-256 of `PRD.ar.md` | `35efb531b7184ba951db69e1a6ab9fbfadbc211be7dd4eeb4aad37fb4472e9fd` |
+| Exported | 2026-10-07, document revision 145 |
+| SHA-256 of `PRD.ar.md` | `68639e8e7e648d7012f4f69532cef599b48eeacd2e338c9e32d8cbe4fda393c8` |
 
 The file is the unedited Markdown export. Do not edit it here: changes are made in the
 living document by the planning session and re-exported, so the two never drift. If
