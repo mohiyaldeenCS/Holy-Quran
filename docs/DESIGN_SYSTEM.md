@@ -348,11 +348,17 @@ test fails on any new shortfall and also when one of these changes:
 | `player-accent` on `player`, paper and sepia: the 13 px label of `ContinueCard` (`.qk-continue-label`), and the gold reference line of the emerald share card | 3.90 | Small text below 4.5. Open with the owner (O-12); needed by M1.2 |
 | `emerald-950` on `ornament`, sepia: the ayah number inside the filled marker while its ayah is recited (`.qk-ayah-no.is-playing`) | 3.10 | Small text below 4.5. Open with the owner (O-12); needed by M1.10 |
 | `tj-ghunna` on `ground`: paper 4.43, sepia 3.85. `tj-iqlab` sepia 4.22. `tj-madd-wajib` sepia 3.99 | 3.85 to 4.43 | Below 4.5. Quran text is 25 px or larger, which WCAG counts as large text (3:1), but neither `AX-03` nor the identity makes that distinction. Open with the owner (O-12); needed before Phase 2 |
-| `tj-*` on `surface`, in the tajweed key: the values for sepia are to be computed when `TajweedKey` is built | below 4.5 for some | Same question, Phase 2 |
+| `tj-*` on `surface`, in the tajweed key: sepia `tj-ghunna` 4.24, sepia `tj-madd-wajib` 4.39; every other theme passes (paper's lowest is `tj-ghunna` at 4.79) | 4.24 and 4.39 | Same question, Phase 2 |
+| `line` on `ground` and `surface`: the off track of `Switch` (`.qk-switch`), a control boundary that WCAG 2.2 1.4.11 holds to 3:1. Paper 1.35 and 1.45, night 1.54 and 1.36, sepia 1.31 and 1.45 | 1.31 to 1.54 | Below 3:1. Found in M0.2; added to O-12. The widget reproduces the reference meanwhile |
 
 The list is a starting point. When a widget is built, every text colour it draws on
 every background it sits on is added to the test (PRD §8.20 asks for an automatic
-check of the colour pairs).
+check of the colour pairs). The test is `test/guards/contrast_test.dart`; it prints
+every pair with its ratio.
+
+Pairs that pass with less than 0.1 to spare: paper `emerald-950` on `ornament` 4.52;
+sepia `tj-madd-tabii` on `ground` 4.57; paper `tj-madd-wajib` on `ground` 4.59;
+`gold-text-strong` on `gold-100` 7.50 against 7 in the contrast theme.
 
 `warning` reaches only 4.22 on `ground` in sepia, which passes for an icon; this is
 why warning text is `ink`. `ink-disabled` is not tested: it marks disabled controls,
