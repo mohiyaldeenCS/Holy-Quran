@@ -255,9 +255,10 @@ Allowed, and nothing else:
   markers between them; several ayat copied together, each with its number (`SH-01`).
 - **Wrapping a whole value in a fixed format.** The copy format
   `﴿…﴾ [السورة: الرقم]`, whose brackets and reference are UI strings.
-- **Slicing at offsets stored in the pack.** One span per word for hit testing and
-  highlights. The slices of an ayah, joined in order with nothing added, equal the
-  ayah; a test asserts this for every ayah.
+- **Slicing at offsets stored in the pack.** One span per word, for hit testing and
+  highlights, and one per mark, which is how a pause mark is addressed and looked up.
+  Word and mark spans and the U+0020 between them make up the ayah exactly; a test
+  asserts this for every ayah.
 
 Not allowed: normalising, trimming, replacing, changing case, splitting on spaces or
 characters in app code, joining words with a separator of the app's own, re-encoding,

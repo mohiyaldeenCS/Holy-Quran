@@ -71,7 +71,8 @@ Rules:
 - `options` holds the choices the source file was produced with (on Tanzil's
   download page: the text type and whether pause marks, sajda signs and other signs
   are included), with names and values as the source gives them. Values are strings,
-  numbers or booleans. It is `null` when the source offers no choices (D-077).
+  numbers or booleans; names are not empty. It is `null` when the source offers no
+  choices (D-077); an empty object is refused.
 - `id` and `version` equal the names of the two directories the pack sits in
   (`<pack-id>/<version>/`), so a manifest cannot be moved under another pack or
   version.
@@ -149,8 +150,10 @@ CREATE TABLE sajda (
 
 ### Word and mark offsets
 
-A word is a white-space-separated token of the ayah that holds at least one Arabic
-letter; a token with none (a pause mark, a sajda sign) is a mark (D-078). A mark has
+The tokens of an ayah are separated by U+0020 only. A word is a token that holds at
+least one letter, a code point of Unicode general category L (Lu, Ll, Lt, Lm or Lo,
+so the tatweel U+0640 and the small waw and yeh U+06E5 and U+06E6 count); a token
+with none (a pause mark, a sajda sign) is a mark (D-078). A mark has
 no word number and lies outside every word span, so highlighting a spoken word does
 not colour the mark after it. `counts.words` and `counts.marks` are the row counts of
 `word` and `mark`. Which mark it is, is its slice; meanings come from their own
@@ -160,11 +163,13 @@ Offsets are UTF-16 code units, because Flutter's text spans, hit testing and gly
 boxes all count in them, so the app slices with no conversion. In Python:
 `len(s[:i].encode('utf-16-le')) // 2` for code-point index `i`.
 
-The word and mark spans of one ayah, taken together, are ordered, do not overlap and
-lie within the ayah. A mark's `after_word` is the number of the last word before it
-(0 when no word precedes it). What lies between spans is the source's own
-separator. The ayah reassembled from all its spans and the gaps between them is
-identical to the stored ayah; the integrity suite checks it.
+Each word or mark span is exactly one token: it holds no U+0020, and the code unit
+before it and the one at its end are U+0020 or the ayah's edge. So the spans of one
+ayah, taken together, are ordered, do not overlap, lie within the ayah, and nothing
+but U+0020 lies outside them; a source whose text uses any other separator is
+refused by the pipeline, never rewritten. A mark's `after_word` is the number of
+the last word before it (0 when no word precedes it). The integrity suite checks
+all of this for every ayah.
 
 ### Surah digest
 

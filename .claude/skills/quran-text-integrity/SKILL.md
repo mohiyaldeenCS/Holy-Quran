@@ -52,8 +52,9 @@ Allowed, and nothing else (`docs/ARCHITECTURE.md`, "Keeping pack text untouched"
   them; several copied ayat, each with its number.
 - **Wrapping a whole value in the fixed copy format** `﴿…﴾ [السورة: الرقم]`. The three
   copy formats of `SH-01` differ only in the reference that follows the text.
-- **Slicing at the word offsets stored in the pack**, for per-word hit testing and
-  highlights. The slices of an ayah, joined with nothing added, equal the ayah.
+- **Slicing at the word and mark offsets stored in the pack**, for per-word hit
+  testing and highlights and for addressing a pause mark. Word and mark spans and
+  the U+0020 between them make up the ayah exactly.
 
 Also:
 
@@ -123,7 +124,7 @@ The integrity suite (PRD §9.4) is the proof, and it must pass:
 - counts and hashes of every text pack;
 - displayed, copied, shared and exported text equal to the pack text for every ayah
   (copy: every ayah; share card: the 50 shortest and the 50 longest ayat);
-- word slices rejoin to the ayah;
+- word and mark spans are exactly the U+0020-separated tokens and rejoin to the ayah;
 - pack text is unwrapped only by the listed sinks, and no normalisation API is
   imported (the mechanism is decided in M0.3; D-036).
 
