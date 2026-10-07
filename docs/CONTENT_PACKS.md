@@ -147,12 +147,18 @@ u32be(number) ‖ u32be(byte_length) ‖ UTF-8 bytes
 
 In Python, standard library only: `h.update(struct.pack('>II', n, len(b))); h.update(b)`.
 
-Test vectors (synthetic, computed independently in Python and in Dart):
+Test vectors (synthetic, computed independently in Python and in Dart). The inputs
+are written with escapes because an editor may silently recompose `e` + U+0301 into
+U+00E9, which changes the bytes and the digest; that is exactly the kind of change
+the digest exists to catch. `A` stands for the synthetic Arabic-script phrase
+`\u0646\u0635 \u062a\u062c\u0631\u064a\u0628\u064a`.
 
-| Input | SHA-256 |
-| --- | --- |
-| ayat `['Synthetic ayah one', 'Synthetic é two', ' نص تجريبي  ']`, basmala `'Synthetic opening line'` | `881415c778b801345a189d02c780cfc9d52a5f92e4390af1e176e02c12b73bb8` |
-| the same ayat, no basmala | `1e0042fff89902b157ace9af9ce04a42b5059b3babd38e73e803480413d8051c` |
+| Ayat | Basmala | SHA-256 |
+| --- | --- | --- |
+| `'Synthetic ayah one'`, `'Synthetic e\u0301 two'`, `' A  '` | `'Synthetic opening line'` | `881415c778b801345a189d02c780cfc9d52a5f92e4390af1e176e02c12b73bb8` |
+| the same | none | `1e0042fff89902b157ace9af9ce04a42b5059b3babd38e73e803480413d8051c` |
+| `'Synthetic ayah one'`, `'Synthetic \u00e9 two'`, `' A  '` | `'Synthetic opening line'` | `3e93c75c683b8258ecc0e2698acd10f06c07c025ac7dada60a691f8e46edf177` |
+| the same | none | `0b1fede8d41e15b1529f9a121f4a57a590759dd23159e12b707d840cc68816cb` |
 
 And for offsets: in `'ab \u{1F600} cd'` the word `cd` starts at UTF-16 offset 6
 (code-point index 5).
