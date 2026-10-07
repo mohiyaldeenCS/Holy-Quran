@@ -13,6 +13,7 @@ import 'package:holyquran/domain/models/verified_pack.dart';
 import 'package:holyquran/utils/result.dart';
 
 import '../../testing/packs/synthetic_pack.dart';
+import 'pack_integrity_suite.dart' show byteMismatch;
 
 // The rejection row of PRD section 9.4: each faulty synthetic pack is refused
 // through the production path (verify, open, read), and once a pack is
@@ -101,6 +102,22 @@ Map<String, String> _stored(SyntheticPack pack) => {
   },
 };
 
+/// Each of [texts] is the stored text of its key, compared without printing
+/// either.
+void _expectStoredBytes(
+  Map<String, PackText> texts,
+  Map<String, String> stored,
+) {
+  for (final MapEntry(:key, :value) in texts.entries) {
+    expect(stored.containsKey(key), isTrue, reason: key);
+    expect(
+      byteMismatch(utf8.encode(value.verbatim), utf8.encode(stored[key]!)),
+      isNull,
+      reason: key,
+    );
+  }
+}
+
 void main() {
   late Directory root;
 
@@ -136,10 +153,9 @@ void main() {
     final pack = await buildSyntheticPack(root);
     final outcome = await _readThrough(pack);
     expect(outcome.failure, isNull);
-    expect({
-      for (final MapEntry(:key, :value) in outcome.texts.entries)
-        key: value.verbatim,
-    }, _stored(pack));
+    final stored = _stored(pack);
+    expect(outcome.texts.keys.toSet(), stored.keys.toSet());
+    _expectStoredBytes(outcome.texts, stored);
   });
 
   for (final MapEntry(key: fault, value: (step, failure)) in expected.entries) {
@@ -150,14 +166,7 @@ void main() {
       expect(outcome.step, step);
       expect(outcome.failure, failure);
 
-      final stored = _stored(pack);
-      for (final MapEntry(:key, :value) in outcome.texts.entries) {
-        expect(
-          utf8.encode(value.verbatim),
-          utf8.encode(stored[key]!),
-          reason: key,
-        );
-      }
+      _expectStoredBytes(outcome.texts, _stored(pack));
 
       final repository = outcome.repository;
       if (repository == null) {
