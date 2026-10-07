@@ -7,6 +7,9 @@ environment:
   sdk: ^3.12.2
 
 dependencies:
+  audio_service: ^0.18.19
+  audio_session: ^0.2.4
+  background_downloader: 9.5.9
   crypto: ^3.0.7
   flutter:
     sdk: flutter
@@ -14,6 +17,8 @@ dependencies:
     sdk: flutter
   go_router: ^18.0.2
   intl: any
+  just_audio: ^0.10.6
+  path_provider: ^2.1.6
   sqlite3: ^3.5.2
 
 dev_dependencies:
