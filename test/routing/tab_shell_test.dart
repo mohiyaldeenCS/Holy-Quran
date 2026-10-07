@@ -10,23 +10,26 @@ void main() {
 
   testWidgets('the tab bar is named for screen readers', (tester) async {
     final semantics = tester.ensureSemantics();
-    addTearDown(semantics.dispose);
-    await tester.pumpWidget(QuranApp(router: createRouter()));
-    await tester.pumpAndSettle();
+    try {
+      await tester.pumpWidget(QuranApp(router: createRouter()));
+      await tester.pumpAndSettle();
 
-    expect(find.bySemanticsLabel(l10n.mainNavigationLabel), findsOneWidget);
-    for (final label in [
-      l10n.tabHome,
-      l10n.tabMushaf,
-      l10n.tabListen,
-      l10n.tabStudy,
-      l10n.tabMore,
-    ]) {
-      expect(
-        find.bySemanticsLabel(RegExp(RegExp.escape(label))),
-        findsWidgets,
-        reason: label,
-      );
+      expect(find.bySemanticsLabel(l10n.mainNavigationLabel), findsOneWidget);
+      for (final label in [
+        l10n.tabHome,
+        l10n.tabMushaf,
+        l10n.tabListen,
+        l10n.tabStudy,
+        l10n.tabMore,
+      ]) {
+        expect(
+          find.bySemanticsLabel(RegExp(RegExp.escape(label))),
+          findsWidgets,
+          reason: label,
+        );
+      }
+    } finally {
+      semantics.dispose();
     }
   });
 
@@ -34,12 +37,15 @@ void main() {
     tester,
   ) async {
     final semantics = tester.ensureSemantics();
-    addTearDown(semantics.dispose);
-    await tester.pumpWidget(QuranApp(router: createRouter()));
-    await tester.pumpAndSettle();
+    try {
+      await tester.pumpWidget(QuranApp(router: createRouter()));
+      await tester.pumpAndSettle();
 
-    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-    await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
-    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    } finally {
+      semantics.dispose();
+    }
   });
 }
