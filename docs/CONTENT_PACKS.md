@@ -63,7 +63,13 @@ Rules:
 - The keys of `surah_sha256` are exactly `"1"` to `"<counts.surahs>"`.
 - `sources` is a list because a pack may draw on several registry rows (the base pack
   takes its text from row 1 and its divisions from row 4). Each entry carries its own
-  licence and grade (question P1 of the M0.3 review).
+  licence and grade (question P1 of the M0.3 review). `role` is `text` or
+  `edition_map`; a text pack has at least one `text` source. Every licence has a
+  non-null `text` or `permission_ref`, so no content is shown without a source and a
+  permission (PRD §9.1).
+- `id` and `version` equal the names of the two directories the pack sits in
+  (`<pack-id>/<version>/`), so a manifest cannot be moved under another pack or
+  version.
 - `font` names the font the text is drawn with; text and font are one pair (PRD §9.1).
   The integrity suite checks it against the app's pinned font file.
 
@@ -138,7 +144,8 @@ the gaps between them is identical to the stored ayah; the integrity suite check
 ### Surah digest
 
 `surah_sha256` holds, per surah, the lowercase hex SHA-256 over a sequence of fields:
-first the basmala, if the surah has one, with number 0; then every ayah in order,
+first the basmala when `basmala IS NOT NULL` (an empty string counts), with number 0;
+then every ayah in order,
 with its number. Each field is written as
 
 ```
@@ -173,11 +180,18 @@ And for offsets: in `'ab \u{1F600} cd'` the word `cd` starts at UTF-16 offset 6
    key exists the check reports "not checked", and no pack ships).
 2. Parse the manifest strictly.
 3. For each file: size, then SHA-256.
-4. Open read-only and immutable; check `application_id`, `user_version` and the
-   header bytes.
-5. The first time a surah is read in a session, compare its digest with
-   `surah_sha256`. On a mismatch the pack is disabled for the session and no text from
-   it is shown.
+4. Open read-only and immutable; check the header bytes, `application_id`,
+   `user_version`, and that the tables and columns are those above and `STRICT`.
+5. On the first read in a session, compare the row counts with `counts` and check
+   that numbering is contiguous and every division and sajda points at an ayah.
+6. The first time a surah is read in a session, compare its digest with
+   `surah_sha256`, decode every text of the surah as strict UTF-8, and check its word
+   spans (ordered, not overlapping, within the ayah).
+
+Any failure in steps 5 and 6 disables the pack for the session (`PackInconsistent`,
+`SurahHashMismatch`, `TextEncodingRejected`) and no text from it is shown. The app
+keeps one open text repository per pack per session, so the disabled state holds
+for the whole session.
 
 When the whole pack is re-verified (first run after install or update) is wired in
 M1.2 with the integrity alert. The bundled base pack is copied from the app's assets
