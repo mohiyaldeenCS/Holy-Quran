@@ -1,0 +1,31 @@
+{
+  "@@locale": "ar",
+  "appTitle": "القرآن الكريم",
+  "@appTitle": {
+    "description": "The application's name, shown as the window and task-switcher title."
+  },
+  "tabHome": "الرئيسية",
+  "@tabHome": {
+    "description": "Label of the main navigation tab for the home screen."
+  },
+  "tabMushaf": "المصحف",
+  "@tabMushaf": {
+    "description": "Label of the main navigation tab for the Mushaf reader."
+  },
+  "tabListen": "الاستماع",
+  "@tabListen": {
+    "description": "Label of the main navigation tab for listening to recitations."
+  },
+  "tabStudy": "الدراسة",
+  "@tabStudy": {
+    "description": "Label of the main navigation tab for study: tafsir, search and the ayah sheet."
+  },
+  "tabMore": "المزيد",
+  "@tabMore": {
+    "description": "Label of the main navigation tab for bookmarks, notes, resources and settings."
+  },
+  "mainNavigationLabel": "التنقل الرئيسي",
+  "@mainNavigationLabel": {
+    "description": "Accessible name of the main tab bar, read by screen readers."
+  }
+}

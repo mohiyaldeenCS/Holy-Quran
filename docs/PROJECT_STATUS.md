@@ -10,16 +10,22 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-07 |
 | Phase | 0 — Foundation. Gate 0 not met |
-| Stream A — app | Not started. Next milestone: **M0.1 Repository and tooling** |
+| Stream A — app | M0.1 merged with one human check pending (pull request #2). Next milestone: **M0.2 Design-system foundation** |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | None open. Start `feat/m0-1-tooling` from `main` |
-| Last session | Planning session: project foundation, merged by pull request #1 |
+| Working branch | None open. Start M0.2 on `feat/m0-2-design-system` from `main`, or on the branch the session is bound to (D-045) |
+| Last session | First implementing session: environment, kickoff answers, M0.1 (pull request #2) |
 
 ## What is in the repository
 
-- The untouched output of `flutter create` (commit `664e167`): the counter demo,
-  package `holyquran`, Dart SDK `^3.12.2`, placeholder id `com.example.holyquran`,
-  six platform folders. **No application code has been written.**
+- The Flutter app (package `holyquran`, Flutter 3.44.7 pinned, placeholder id
+  `com.example.holyquran`, six platform folders of which only Android and iOS are
+  built): an empty Arabic, right-to-left shell. `lib/ui/core/app.dart` (`QuranApp`),
+  `lib/routing/` (go_router stateful shell with five branches and a label-only
+  placeholder tab bar), five placeholder screens under `lib/ui/features/*/views/`,
+  `lib/l10n/app_ar.arb` with its committed generated `AppLocalizations`. Nine widget
+  tests. No design system, no domain or data code yet.
+- Tooling: strict `analysis_options.yaml` (D-046); CI in `.github/workflows/ci.yml`
+  (D-043); the cloud-session setup hook `.claude/hooks/session-start.sh` (D-048).
 - `docs/` — PRD export, plan, architecture, design-system mapping, sources, rights
   register, decisions, workflow, Zaydi-library notes, the prompts for starting a
   session.
@@ -27,12 +33,14 @@ corrected first.
   WOFF2 and pinned TTF), the ten identity boards, and a script that builds offline
   previews of both.
 - `.claude/` — eight agents, five project skills, twenty vendored official Flutter
-  and Dart skills. `.mcp.json` — the Dart and Flutter MCP server.
+  and Dart skills, the SessionStart hook. `.mcp.json` — the Dart and Flutter MCP
+  server.
 - `tools/ziydia/` — the extraction tool for the Zaydi Library.
 
 Not in the repository: any content pack; any Quran text as data (the PRD and the
 design files show a few sample words and ayat as illustration, never to be copied);
-raw extraction output; the 13 logo SVG files; a CI workflow; signing keys.
+raw extraction output; signing keys. The 13 logo SVG files are in
+`design/design-system/assets/Logos/` (hashes in `design/README.md`).
 
 ## Done
 
@@ -47,6 +55,12 @@ raw extraction output; the 13 logo SVG files; a CI workflow; signing keys.
   checked; structure of book 466 inspected (fixed sub-headings, including النزول).
 - **Project foundation**: this document set, agents, skills. Reviewed twice by an
   independent agent; its findings were applied before the merge.
+- **M0.1 Repository and tooling** (pull request #2): environment recorded, Flutter
+  pinned, kickoff answers applied (D-040 to D-045), strict lints, the Arabic
+  five-tab shell, single ARB file, CI (Android build by hand, D-049), README, cloud
+  setup hook. Logo files fetched from the identity artifact; the repository's copy of
+  the identity verified byte-identical to the live artifacts. Pending: launch on an
+  Android device (below).
 
 ## In progress
 
@@ -61,15 +75,30 @@ tool (`docs/content/ZIYDIA_LIBRARY.md`).
    `docs/prd/PRD.ar.md` once, `docs/IMPLEMENTATION_PLAN.md`, `docs/ARCHITECTURE.md`,
    `docs/DESIGN_SYSTEM.md`, `docs/SOURCES.md`, `docs/DECISIONS.md`,
    `design/README.md`. Component sources and boards are read per task, not up front.
-2. Record the environment in "Environment" below (the list is in M0.1).
-3. Put the kickoff questions K1–K4 below to the owner in one `AskUserQuestion` call.
-4. Start **M0.1** on `feat/m0-1-tooling` (`docs/IMPLEMENTATION_PLAN.md`).
-5. Then **M0.2**, **M0.3**, **M0.4**, one at a time. Spikes S1, S5 and the playback
-   part of S3 need nothing from stream B. If they are finished before Gate 0 is met,
-   continue with **M0.5**, not with Phase 1.
-6. If the Artifact tool is available in your session, fetch the 13 logo files as
-   `design/README.md` describes. If not, ask the owner to export them. They are
-   needed by M1.11, not before.
+2. Check the environment (`flutter --version` should print 3.44.7; the SessionStart
+   hook installs it in cloud sessions). If the machine differs from "Environment"
+   below, record it.
+3. Start **M0.2 Design-system foundation** (`docs/IMPLEMENTATION_PLAN.md`), opening
+   its pull request early as a draft, since CI runs only on pull requests and `main`
+   (D-043). In this order:
+   1. Plan with `flutter-architect`.
+   2. Token generator in `tools/gen/` (`content-engineer`), generated files, themes.
+   3. Fonts to `assets/fonts/` with the hash test.
+   4. The three type questions of `docs/DESIGN_SYSTEM.md`.
+   5. Icons generated from `ICONS`.
+   6. The M0.2 widgets (`ui-builder`). The identity's `TabBar` replaces the
+      placeholder `NavigationBar` in `lib/routing/tab_shell.dart`; move the shell
+      view under `lib/ui/` then, and update the tab finders in
+      `test/routing/router_test.dart`.
+   7. Gallery, goldens through a manually started CI workflow, contrast and guard
+      tests.
+4. The follow-system option is decided (D-050): `night` while the system is dark,
+   the user's chosen theme otherwise. Compile the list of icons Phase 1 needs beyond
+   the 26 and show it to the owner, then put O-13 (who draws them) to him (in "Waiting on the
+   owner").
+5. Then **M0.3** and **M0.4**, one at a time. Spikes S1, S5 and the playback part of
+   S3 need nothing from stream B. If they are finished before Gate 0 is met, continue
+   with **M0.5**, not with Phase 1.
 
 ## Next actions — stream B (planning session and the owner)
 
@@ -92,19 +121,15 @@ tool (`docs/content/ZIYDIA_LIBRARY.md`).
 
 ## Waiting on the owner
 
-Kickoff questions for the implementing session to ask first:
-
-| ID | Question, as it should be put to him | Recommendation | Needed by |
-| --- | --- | --- | --- |
-| K1 (O-01) | «معرّف التطبيق في المتجرين (مثل com.اسمك.quran) واسم الناشر الذي سيظهر للمستخدمين. المعرّف لا يمكن تغييره بعد النشر، والمستودع فيه الآن معرّف مؤقت com.example.holyquran.» | Decide now; if he has no name yet, keep the placeholder and change it before the first store upload | M0.1 |
-| K2 (O-05) | «مشروع Flutter أُنشئ بست منصات. النطاق المعتمد Android وiOS فقط. هل أحذف مجلدات web وlinux وmacos وwindows؟» | Remove all four. Keep `windows` only if he wants to preview the app on his Windows PC without an emulator | M0.1 |
-| K3 (O-10) | «بناء نسخة iOS يحتاج جهاز Mac. هل لديك Mac، أم نعتمد على GitHub Actions لبناء iOS، أم نؤجل تجربة iOS إلى قرب نهاية المرحلة 1؟» | Develop and test on Android now; run an iOS build on a macOS CI runner at the end of each milestone, so problems surface early. macOS runners use up the free minutes much faster than Linux ones, so not on every push | M0.1 |
-| K4 (D-029) | «هل أفعّل GitHub Actions ليفحص كل تغيير آليًا (التنسيق والتحليل والاختبارات)؟ في المستودعات الخاصة له حصة دقائق مجانية شهرية.» | Yes | M0.1 |
+Kickoff questions K1–K4 were answered on 2026-10-07 (D-041 to D-044): keep the
+placeholder application id for now (O-01 stays open, below); keep all six platform
+folders; defer iOS builds to near the end of Phase 1; enable CI.
 
 Open decisions that come later (full list in `docs/DECISIONS.md`):
 
 | ID | Question, as it should be put to him | Needed by |
 | --- | --- | --- |
+| O-01 | «معرّف التطبيق في المتجرين (مثل com.اسمك.quran) واسم الناشر الذي سيظهر للمستخدمين. المعرّف لا يمكن تغييره بعد النشر.» | Before the first store upload |
 | O-04 | «ما التلاوات التي تريدها في الإصدار الأول (خمس على الأقل، اثنتان منها بتوقيت كلمات)، ومن أين نأخذ ملفاتها، وهل يجيز إذن كل منها التنزيل دون اتصال والاستضافة على خادمك؟» | Phase 0 (B0.5) |
 | O-06 | «هل تبقى التفاسير السبعة العامة (الميسر، المختصر، السعدي، الجلالين، البغوي، ابن كثير، الطبري) بجانب كتب المكتبة الزيدية؟» | Phase 0 (B0.7) |
 | O-03 | «حزم المحتوى تُوقَّع بمفتاح خاص. من يحتفظ بالمفتاح، وأين يجري التوقيع؟» | Phase 0 (B0.11, and the base pack before M1.2) |
@@ -112,7 +137,6 @@ Open decisions that come later (full list in `docs/DECISIONS.md`):
 | O-07 | «نحتاج من صاحب المكتبة الزيدية جدول رموز خط الموقع: ما العبارة التي يرسمها كل من @ # ÷ ø $ ~ & والخط العمودي؟» | Before any Zaydi-library book is shown |
 | O-13 | «الهوية فيها 26 أيقونة، وتنقصها أيقونات تحتاجها المرحلة 1 مثل النسخ والمشاركة والملاحظة والحذف. من يرسمها: المصمم، أم أرسمها على قواعد أيقونات الهوية وأعرضها عليك قبل اعتمادها؟» | M0.2 for the full list; M1.6 for first use |
 | O-02 | «أدنى إصدار ندعمه من Android وiOS؟ توصية الوثيقة: Android 8.0 وiOS 15.» | End of Phase 0 |
-| O-15 | «خيار «اتبع وضع النظام الداكن»: هل يبدّل بين سمة الليل والسمة الفاتحة التي اختارها المستخدم؟» | M0.2 |
 | O-17 | «في الوثيقة توصيتان لم تعتمدهما بعد ونراهما لازمتين للإصدار الأول: «أبلغ عن خطأ» من أي آية أو مادة، وإعداد أولي من ثلاث خطوات (وضع العرض، المستوى، التلاوة). هل تعتمدهما؟» | M1.1 |
 | O-08 | «أين تُستضاف حزم المحتوى للتجربة ثم للإطلاق؟ يكفي أي استضافة ملفات ثابتة عبر HTTPS.» | M1.4 for a test host; end of Phase 1 for launch |
 | O-14 | «تصنيف «تفسير» في العلامات ليس له شكل ولا لون في الهوية، ولا توجد لوحة ألوان للتصنيفات التي يضيفها المستخدم. ما الشكل واللون، وما الألوان المتاحة؟ وهل تبقى ألوان التصنيفات الأربعة ثابتة في كل السمات كما في الهوية؟» | M1.6 |
@@ -126,15 +150,16 @@ Permission conditions to confirm with him when each is first needed are listed i
 
 ## Pending human checks
 
-None yet. Acceptance criteria that wait for a device, a reviewer or the owner are
-listed here when a milestone merges with them open.
+| Milestone | Check | Who | How |
+| --- | --- | --- | --- |
+| M0.1 | The shell launches on Android: the app opens in Arabic, right to left, on الرئيسية, and the five tabs switch | Owner, or a session with an Android SDK and emulator | Owner's choice (D-049): once, at the end of Phase 0 or when he wants to try it, start the CI workflow by hand (Actions → CI → Run workflow) and install the `holyquran-debug-apk` it attaches; or `flutter run` on a device. No session so far has had an Android SDK |
 
 ## Environment
 
 | Where | State |
 | --- | --- |
 | Planning session (cloud) | No Flutter SDK. Network policy blocks `pub.dev`, `storage.googleapis.com`, `dl.google.com` and Maven, so Flutter cannot be installed or run there. Public GitHub repositories are readable with `git`. `gh` works through the REST API only. The artifact asset store is unreachable. Nothing in this repository was compiled or run by that session. |
-| Implementing session | **To be recorded by the first implementing session.** |
+| Implementing session, 2026-10-07 (cloud) | Ubuntu 24.04.5 LTS, x86_64, 4 cores, 15 GB. No Flutter preinstalled: Flutter **3.44.7** stable (framework `84fc5cbb22`, engine `69c8c61792`, Dart 3.12.2) installed from `storage.googleapis.com` into `~/sdk/flutter` and linked into `/usr/local/bin`; this is the pinned version (D-040). `pub.dev`, `storage.googleapis.com`, Maven Central and Google Maven are reachable; `dl.google.com` is blocked, so there is **no Android SDK**, no emulator and no device: the app cannot be built or launched for Android here, only analysed and tested (CI builds the APK). `flutter doctor`: Flutter OK; Android toolchain missing; Chrome missing; Linux toolchain lacks GTK. No macOS. Java 21 present. `git` 2.43 works; `gh` 2.89 is installed: `gh auth status` reports the token as invalid, but `gh api` calls work through the session proxy; the session's GitHub tools also work. The Dart MCP server failed to connect at session start (`dart` was not on the PATH); it is not waiting for approval. The SessionStart hook (D-048) puts `dart` on the PATH for later sessions. iOS could not be tried: no macOS, and iOS builds are deferred (D-042). |
 
 ## Risks being watched
 
@@ -145,8 +170,17 @@ listed here when a milestone merges with them open.
 - Zaydi-library text needs an approved honorific table and reviewed ayah linking.
 - Rendering fidelity of the Quran fonts in Flutter is unproven until spikes S1 and S2.
 - The identity has no icon for several Phase 1 actions (O-13).
-- iOS cannot be built without macOS, and Gate 0 asks for measurements on both
-  systems (`docs/IMPLEMENTATION_PLAN.md`, "Gate 0 and iOS").
+- iOS builds are deferred to near the end of Phase 1 (D-042), while Gate 0 asks for
+  measurements on both systems. Closing Gate 0 on Android measurements alone needs
+  the owner's explicit decision (`docs/IMPLEMENTATION_PLAN.md`, "Gate 0 and iOS").
+- Left from the M0.1 review, for the milestone named:
+  - The router has no `errorBuilder`, so an unknown location shows go_router's
+    default English page. Nothing reaches it yet; handle it with in-app addresses
+    (`NV-06`, M1.3).
+  - Branch-stack tests are weak until a branch has a child route. Strengthen them
+    when the first child route arrives.
+  - Flutter 3.44.7 is written in two places, the CI workflow and the setup hook; an
+    upgrade changes both (D-040).
 - The identity's own values miss the 4.5:1 contrast of `AX-03` in a few places
   (O-12).
 - Three registry rows that Phase 1 needs are not `Ready` yet: 6, 8 and 19.
@@ -162,5 +196,6 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-10-07 | First implementing session | Read the documents; installed Flutter 3.44.7; recorded the environment; owner answered K1–K4, O-15 (D-050) and the APK question (D-049); fetched the 13 logo files and verified the identity copy against the live artifacts; M0.1: strict lints, Arabic five-tab shell, single ARB, CI with Android build, setup hook, README; `code-reviewer` findings applied. | Pull request #2 |
 | 2026-10-07 | Planning session | Updated the PRD to revision 129 (sources ready, decisions, Zaydi-library section, section order fixed, registry row 19, new open points). Added the project foundation: PRD export, architecture, plan, design-system mapping, sources, rights register, decisions, workflow, identity files with verified fonts and a preview script, agents, skills, MCP configuration, extraction tool. No application code. | Pull request #1 |
 | 2026-10-06 | Owner's other account | `flutter create` skeleton committed. | `664e167` |

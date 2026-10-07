@@ -4,9 +4,8 @@ An Arabic app for reading, listening to, studying and memorising the Quran, buil
 with Flutter for Android and iOS. It is a non-profit service to the community: free,
 with no ads and no purchases.
 
-**Status:** Phase 0 (foundation). The repository holds the project documents, the
-approved visual identity and an untouched `flutter create` skeleton. Application code
-has not been started. See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md).
+**Status:** Phase 0 (foundation). The app is an empty shell: Arabic, right to left,
+five tabs with placeholder screens. See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md).
 
 ## Where things are
 
@@ -44,15 +43,43 @@ The project is developed with Claude Code. Open the repository, and the session 
 [`CLAUDE.md`](CLAUDE.md). To start or resume work, use the prompt in
 [`docs/KICKOFF_PROMPT.md`](docs/KICKOFF_PROMPT.md).
 
-With Flutter installed:
+### Toolchain
+
+Flutter **3.44.7** stable (Dart 3.12.2), the version pinned in `docs/DECISIONS.md`
+(D-040) and used by CI. In Claude Code cloud sessions,
+`.claude/hooks/session-start.sh` installs it automatically.
+
+### Run, check, test
 
 ```bash
-flutter pub get
-dart format .
+flutter pub get                                      # also generates lib/l10n/app_localizations*.dart
+flutter run                                          # on an Android device or emulator
+dart format --output=none --set-exit-if-changed .    # format check, as in CI
 flutter analyze
 flutter test
-flutter run
+flutter build apk --debug
 ```
+
+Before every commit run `dart format .`, `flutter analyze` and `flutter test`. CI
+(`.github/workflows/ci.yml`) runs the same checks, verifies that generated files are
+up to date, on every pull request and every push to `main`. A debug APK is built only
+when the workflow is started by hand (Actions → CI → Run workflow); it is attached to
+the run as `holyquran-debug-apk` (D-049).
+
+### Generate
+
+| What | Command | Output (committed) |
+| --- | --- | --- |
+| UI strings | `flutter gen-l10n` (also run by `flutter pub get`) | `lib/l10n/app_localizations.dart`, `lib/l10n/app_localizations_ar.dart`, from `lib/l10n/app_ar.arb` |
+
+Generated files are never edited by hand: change the input and regenerate. The token
+and icon generators of `tools/gen/` arrive with milestone M0.2.
+
+### Platforms
+
+Only Android and iOS are built and released. The `web`, `linux`, `macos` and
+`windows` folders from `flutter create` are kept but not maintained (D-041). iOS builds
+start near the end of Phase 1 (D-042).
 
 To look at the identity (Python 3, nothing to install):
 

@@ -147,7 +147,7 @@ primary button is emerald on paper and sepia and gold in night: use `primary` an
 `RD-08` asks for an option to follow the system's dark mode. The identity does not say
 which theme that maps to. The reading taken here: when the option is on, the app
 shows `night` while the system is dark and the user's chosen light theme otherwise.
-Confirm it with the owner when the settings screen is built.
+The owner confirmed it on 2026-10-07 (D-050).
 
 ### Type
 
@@ -287,8 +287,8 @@ Notes on porting:
 - Directional icons follow reading direction: "next" points left. Play does not flip.
 - `Mark` and `StarOutline` geometry is in the same file. Stroke by size: 2.2 at 96 and
   above, 3 from 64, 3.6 from 48, 5 from 32, 6.5 below.
-- Logo files (lockups, app icons) are not in the repository yet; see
-  `design/README.md`. The logo is never stretched, rotated, shadowed or placed on a
+- Logo files (marks, lockups, app icons) are in
+  `design/design-system/assets/Logos/`, with their hashes in `design/README.md`. The logo is never stretched, rotated, shadowed or placed on a
   colour close to its own. Clear space is half the star's width.
 
 ### Quran text colour
