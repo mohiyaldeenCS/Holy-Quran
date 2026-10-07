@@ -95,16 +95,16 @@ and easy to link to an ayah. The list was shown to the owner on 2026-10-06; he a
 «التيسير في التفسير». It becomes final book by book, as each one passes the checks in
 "Before a book is shown".
 
-| ID | Book | Serves | Extraction |
-| --- | --- | --- | --- |
-| 183 | تفسير غريب القرآن — الإمام زيد بن علي | Word meanings (LX-06) | Complete, checked |
-| 471 | تفسير الإمام الهادي يحيى بن الحسين | Tafsir (TF) | Complete, checked |
-| 473 | تفسير غريب القرآن — الإمام المهدي العياني | Word meanings and tafsir | Complete, checked |
-| 514 | التيسير في التفسير — بدر الدين بن أمير الدين | Tafsir (TF) | Complete, checked |
-| 737 | شافي العليل في شرح الخمسمائة آية | Ayat al-ahkam | Complete, checked |
-| 165 | الناسخ والمنسوخ من القرآن الكريم — عبد الله بن الحسين الرسي | Abrogation | Complete, checked |
-| 276 | التبيان في الناسخ والمنسوخ — ابن أبي النجم | Abrogation | Complete, checked |
-| 440 | مسائل نافع بن الأزرق | Rare words with poetic evidence | Complete, checked |
+| ID | Book | Serves | Extraction | Linking to ayat |
+| --- | --- | --- | --- | --- |
+| 183 | تفسير غريب القرآن — الإمام زيد بن علي | Word meanings (LX-06) | Complete, checked | Linked by the tool; not reviewed |
+| 471 | تفسير الإمام الهادي يحيى بن الحسين | Tafsir (TF) | Complete, checked | Partly linked by the tool; not reviewed |
+| 473 | تفسير غريب القرآن — الإمام المهدي العياني | Word meanings and tafsir | Complete, checked | Not started; inspected |
+| 514 | التيسير في التفسير — بدر الدين بن أمير الدين | Tafsir (TF) | Complete, checked | Linked by the tool; not reviewed |
+| 737 | شافي العليل في شرح الخمسمائة آية | Ayat al-ahkam | Complete, checked | Not started; inspected |
+| 165 | الناسخ والمنسوخ من القرآن الكريم — عبد الله بن الحسين الرسي | Abrogation | Complete, checked | Not started; inspected |
+| 276 | التبيان في الناسخ والمنسوخ — ابن أبي النجم | Abrogation | Complete, checked | Partly linked by the tool; not reviewed |
+| 440 | مسائل نافع بن الأزرق | Rare words with poetic evidence | Complete, checked | Not started; inspected |
 
 In Phase 1 every approved book is offered as a tafsir pack read by ayah
 (`TF-01`…`TF-08`): its passage where it has one, and the fixed sentence of the `TF`
@@ -146,6 +146,11 @@ What they show:
   the Quran and ends with سورة البقرة, as its table of contents shows.
 - **Book 737 has no ayah numbers** after its quotations, and book 440 has one. They
   cannot be linked the way book 183 is; see "Linking commentary to ayat".
+- The last column counts bracketed references. For book 183 it gives those that hold
+  one number; the book has 2,901 in all: those 2,863, 37 ranges and one that is not a
+  number. For the other books it counts every reference, ranges included. Most of
+  the references in books 514, 471 and 276 cite other ayat as evidence; they are not
+  what links a passage.
 
 Open question for the owner: do the seven general tafsirs listed in PRD §8.8
 (الميسر، المختصر، السعدي، الجلالين، البغوي، ابن كثير، الطبري) stay alongside these?
@@ -237,7 +242,15 @@ Markup inside `html` that carries meaning:
   «(٢) سورة البقرة» with the surah number in parentheses.
 - `<span style="color: #800000;">·</span>` followed by a word and a colon — a
   sub-heading (book 466; see "Asbab al-nuzul").
-- `<span style="font-size: 0.8em;">` — the bracketed ayah numbers.
+- `<span style="font-size: 0.8em;">` — the bracketed ayah numbers. In books 276, 471
+  and 514 the bracket names the surah as well: `[البقرة: ١٩٠]`.
+- `<span style="color: #be0000;">` at the start of a paragraph — the number of an item
+  (`[١٠]` in book 276, `٣٤٨ -` in book 471) or, in book 514, the ayah number that
+  opens a commentary paragraph (`(٢٧٥)`). A range in book 514 is written without the
+  span: `(١١ - ١٢)`.
+- A paragraph of dashes (33 or 31 in the book; the tool takes 20 or more) — in book
+  514 only, the rule between the text
+  of the surah at the top of a page and the commentary below it.
 
 A typical line in book 183:
 
@@ -252,17 +265,37 @@ typed Quran text).
 ## Known issues to resolve before use
 
 1. **Honorific glyph codes.** The site's font draws honorific phrases from single
-   characters. Eight were seen in book 183: `@` (264 times, almost always after
-   «زيد بن علي»), `#` (43), `÷` (35, after the Prophet's name), `ø` (16, after the
-   name of God), `$` (14), `~` (7), `&` (2), `|` (2). `*` is an ordinary section
-   separator. The seven books extracted on 2026-10-07 use the same eight and add
-   three: `¥` (46 times across them), `®` (19) and `^` (4, in book 737). Counts in
-   those seven books together: `÷` 2,772, `#` 2,530, `ø` 1,655, `@` 422, `~` 392,
-   `$` 266, `|` 149. Whether `=` (20) and `×` (3) are codes or ordinary characters is
-   to be checked in context. The meaning of each code must come from the site owner
-   or be confirmed by the religious reviewer; some follow singular, dual and plural
-   names, so context alone is not enough. Until the table is approved, no book is
-   shown.
+   characters, each wrapped in its own span: `<span style="color: #800000;">X</span>`.
+   Counted by that markup over the eight first-release books there are **sixteen**
+   codes (the count of eleven given earlier came from looking at characters, and
+   missed five):
+
+   | Code | Unicode | Times | Books |
+   | --- | --- | --- | --- |
+   | `÷` | U+00F7 | 2,807 | all eight |
+   | `#` | U+0023 | 2,573 | all eight |
+   | `ø` | U+00F8 | 1,671 | all eight |
+   | `@` | U+0040 | 686 | 183, 471, 473, 514, 737, 276 |
+   | `~` | U+007E | 399 | all but 737 |
+   | `$` | U+0024 | 280 | all but 440 |
+   | the vertical line | U+007C | 151 | 183, 473, 514, 165, 276, 440 |
+   | `ª` | U+00AA | 108 | 471, 473, 165 |
+   | `À` | U+00C0 | 75 | 183, 471, 473, 514, 737, 165 |
+   | `¥` | U+00A5 | 46 | all but 183 |
+   | `®` | U+00AE | 19 | 514, 165, 440 |
+   | `&` | U+0026 | 17 | all but 440 |
+   | `¤` | U+00A4 | 8 | 473, 514, 276, 440 |
+   | `¦` | U+00A6 | 7 | 473, 514, 165, 276 |
+   | `^` | U+005E | 4 | 737 |
+   | `¿` | U+00BF | 2 | 514 |
+
+   The same span also wraps three real Unicode ligatures, which need no table:
+   U+FDFD (146 times), U+FDFB (75) and U+FDFA (11); and a middle dot that marks a
+   sub-heading (book 737, as in book 466). `*` is an ordinary section separator.
+   `tools/ziydia/ziydia_link.py inspect <id>` prints the codes of any book. The
+   meaning of each code must come from the site owner or be confirmed by the
+   religious reviewer; some follow singular, dual and plural names, so context alone
+   is not enough. Until the table is approved, no book is shown.
 2. **Quran quotations inside commentary.** They are part of the book's text, written
    in the book's own orthography. Per `TF-08` they are displayed in the UI font as
    part of the source and are never treated as reference Quran text. The reference
@@ -281,36 +314,168 @@ typed Quran text).
 
 ## Linking commentary to ayat
 
-For book 183 the link is mechanical: each in-text chapter heading carries the surah
-number (114 headings, الفاتحة to الناس) and each quotation is followed by its ayah
-number (2,863 positions). The linker reads the `html` field and must:
+`tools/ziydia/ziydia_link.py` links the paragraphs of an extracted book to ayat
+(decision D-081). Its rules:
 
-1. Take the surah number from the numeral in the chapter heading, and check the name
-   against the surah names of the base pack; never fuzzy-match names.
-2. Read ayah numbers only from the bracketed numerals after U+2063.
-3. Emit segments `(book, surah, from_ayah, to_ayah, text, printed_page)`; a passage
-   that covers several ayat is one segment with a range (`TF-04`).
-4. Stop the build on any chapter title or number it cannot resolve. No guessing.
-5. Produce a report the religious reviewer signs for a sample.
+1. A link rests only on what the book prints: a surah heading, an ayah number in
+   brackets after a quotation, a number that opens a commentary paragraph. The wording
+   of a quotation never makes a link.
+2. No printed number is corrected. A number that looks wrong is kept and the passage
+   is flagged for a person to check.
+3. Every paragraph goes into the output exactly as it stands in `html`, and the tool
+   proves it: the paragraphs it wrote equal the paragraphs it read. The only ones left
+   out are the rules of dashes of book 514, which are counted.
+4. A surprise in the structure stops the run: text outside paragraphs, a page label
+   that cannot be read, and in books 183 and 514 a surah heading that cannot be read
+   or is out of place. In books 276 and 471, where many headings are not surah
+   headings, one that cannot be read is noted and gives no surah.
+5. Each book has a profile that says how it prints its links. A book without one is
+   not linked.
 
-Each other book needs its own inspection first; structure differs between books.
-From the counts in "Extraction results":
+The output (`ziydia_links/`, outside Git like the extraction itself) is one passage
+per line in `passages.jsonl`: kind, surah, ayah ranges, what the link rests on, review
+flags, and the paragraphs with their site page, part and printed page. `report.json`
+holds the counts and every note; `sample.html` is a fixed sample for the reviewer and
+`review.html` lists every flagged passage. Commands are in `tools/ziydia/README.md`.
 
-- **514, 471 and 276** carry a bracketed ayah number after their quotations, as book
-  183 does, and in-text chapter headings. The same kind of linker should serve them.
-- **473 and 165** carry numbers after only some quotations. What the unnumbered
-  quotations are is to be inspected.
-- **737 and 440** carry none. Book 737 is ordered by surah, with a heading per surah;
-  book 440 is a numbered list of questions. Linking them to ayat needs another
-  basis, such as an index in the book itself. Matching a quotation's wording against
-  the Quran text is not that basis unless the reviewer approves the method and
-  checks every link, because a quotation is the book's own orthography.
+### The check against the printed text
+
+Book 514 prints the whole text of the Quran, surah by surah, with its ayah numbers.
+`compare` uses it to test the links of every book: is the quotation a link rests on
+found in the ayat it is linked to? It compares letters only, and writes no text of
+its own: `compare.json` holds numbers, and `compare.html` shows the passages it lists
+as the book prints them. It is a check, never a way of making a link, and it changes
+none (D-082). Outcomes: found; found when the spelling of alif, waw, ya, hamza and ta
+is ignored (the books and the text of 514 do not always spell alike); too short to
+compare; not found there. For those not found it says whether the words stand at
+another ayah of the same surah, which is how a misprinted number shows itself.
+
+What it reads: in book 183 every quotation that a number follows; in book 514 the
+first quotation of the paragraph that opens a passage; in books 276 and 471 every
+quotation of the item up to its first reference. It does not read the paragraphs
+carried after the opening one. A quotation with fewer than four letters, once the
+letters above are set aside, is not compared.
+
+The text of book 514 is itself an extraction, not the reference text. When the base
+pack exists (B0.2) the same check is run against it.
+
+### Results, 2026-10-07
+
+Run on the extraction of 2026-10-06 and 2026-10-07.
+
+| Book | How it prints its links | Linked passages | Flagged by the linker | Confirmed by the text of 514 | Not compared | Not confirmed |
+| --- | --- | --- | --- | --- | --- | --- |
+| 183 | Heading with the surah number; `[N]` after a quotation | 2,721 | 166 | 2,647 | 66 too short | 8 |
+| 514 | Text above a rule, commentary below; a paragraph opens with `(N)` | 5,488 | 12 | 5,306 | 151 too short; 2 whose printed range is not a range | 29 |
+| 276 | Numbered items; `[surah: N]` after the item's quotation | 123 of 146 items | 3 | 116 | 1 without a quotation | 6 |
+| 471 | Numbered questions; `[surah: N]` after the question's quotation | 302 of 361 items | 15 | 291 | 1 too short; 1 without a quotation | 9 |
+
+SHA-256 of each `passages.jsonl`, so that a later run on the same extraction can be
+compared with this one:
+
+| Book | `passages.jsonl` |
+| --- | --- |
+| 183 | `cba1f8d987d738c157d100d48f33103b50fc94fe9cdae532e980ede80a07d2df` |
+| 514 | `e9d7ec08492ae002c69871591f0922c6a3dc4477d90580e41f4329f568bbc37b` |
+| 276 | `92e6a1f68a512b2b5947aa2485d08d4c930ad5bc32e92efc556f7e8c912d2f0b` |
+| 471 | `d0638a75f5d3b7b2fa89463d0806d2d34000fc0be7405bb1456c90726aa300d4` |
+
+**What an independent check covered.** A reviewing agent wrote its own parsing code,
+applied the rules above to every paragraph of the four books, and found no difference
+from the tool's output in kind, surah, ayah ranges, basis, carried mark or review
+flags; it found the output paragraphs equal to the input paragraphs page by page,
+apart from the 3,780 rules of book 514; and it reproduced
+the comparison with ayah texts it assembled separately. That shows the tool does
+what its rules say. It does not show that the rules give the right ayah: only the
+comparison and the reviewer speak to that. It also measured how often a confirmed
+quotation matches ayat it is not linked to: under 0.1% in book 183 and about 0.3% in
+book 514. Its findings on the tool were applied in two rounds; it then verified every
+figure in this section on the final output, whose SHA-256 values are the four above.
+Nothing has been compared with a printed copy.
+
+**Book 183.** 114 headings numbered 1 to 114. A paragraph with a bracketed number is
+a passage; 152 paragraphs carry more than one number and keep them all. 32 paragraphs
+without a number continue the passage before them. 23 paragraphs quote something of
+their own and print no number for it; each starts a passage linked to the surah only.
+107 lines of asterisks are kept apart. The 166 flags are ayah numbers out of order;
+the text confirms 155 of them, so order alone is a weak sign in this book. The
+comparison is what finds numbers that look wrong: 5 passages quote words that stand
+at another ayah of the same surah in the text of book 514, in each case one digit
+away from the printed number.
+
+**Book 514.** Each page prints the text of the surah, a rule, then the commentary.
+Every surah starts on a new page after a page that holds its title; all 114 headings
+are the first paragraph of their page. The surah number is the order of the heading.
+Two things support it: for the 102 surahs that books 183 and 514 name alike, the
+order agrees with the number book 183 prints (for the other 12 nothing is checked);
+and the last ayah number printed in each surah sums to 6,236 over the book. 112
+surahs open with one and the same unnumbered line; surahs 1 and 9 do not. A
+commentary paragraph that opens with a number starts the commentary on those ayat,
+and the 10,960 unnumbered paragraphs after such paragraphs are carried with them. In
+106 surahs every ayah is opened by a number. In the other 8, 13 ayat are not: 4 have
+no number anywhere, 5 lie under the two ranges printed backwards, and 4 lie behind
+numbers that the comparison finds one digit off. The passage before each gap is
+flagged, because its unnumbered paragraphs may belong to those ayat. Commentary
+before the first number of a surah (35 surahs) is linked to the surah only. Among the
+29 not confirmed are those 4 numbers, which the linker had already flagged, one
+quotation found in the ayah next to its own, and 24 whose quotation is found nowhere
+in the surah as worded. In 19 of the 24 nine tenths
+of the quotation's letters do stand, in order, in the ayat it is linked to: the
+wording differs slightly from the text printed above the rule. The religious
+reviewer says why, and what the app shows when a commentary quotes an ayah otherwise
+than the text above it.
+
+**Books 276 and 471.** An item is linked by the first reference of its own paragraph,
+and the paragraphs up to the next item or heading go with it. A link rests on two statements
+when the reference names the surah of the heading above it (117 items in 276, 297 in
+471), and on the reference alone otherwise. The other items have no ayah: items
+without a reference (21 and 46), references in a form the tool does not read (0 and
+7), and surah names that are not in the table, which are never guessed (2 and 6; all
+are misprints as far as seen). Of these, 10
+in 276 and 54 in 471 stay linked to the surah of their heading; 13 and 5 have no
+surah either. A paragraph carried after an item that opens with a quotation and a
+reference of its own flags the item (3 in 276, 10 in 471), since it may be a unit the
+book did not number. In book 471, 1,042 paragraphs are linked to a surah only; 622
+of them are the running commentary on the surahs of the last parts (site pages 424
+to 591), which is mostly not written as numbered questions. Book 276 opens with
+chapters on abrogation that belong to no surah.
+
+Surah names are looked up in a table built by `names` from the headings of books 183
+and 514. The lookup ignores vowel marks, tatweel, the form of alif and a pair of
+parentheses around the name. In book 276 eight names the table lacks are taken from
+the book's own numbered headings, and each is noted.
+
+### What is still to do
+
+- **Review.** Nothing above has been seen by a reviewer. For each book: the religious
+  reviewer marks `sample.html`; every passage in `review.html` and `compare.html` is
+  checked against the printed copy. A link that is flagged, or that the check did
+  not confirm, stays out of a pack until it is cleared (D-082). Most of the 166
+  flags of book 183 are confirmed by the check, so clearing them should be quick.
+- **Corrections.** Where the reviewer finds a printed number wrong, the correction is
+  recorded in a reviewed file that names the passage, the printed number and the
+  right one, and is applied by a tested step. That step is not written yet.
+- **The four other books**, looked at with `inspect` only and not linked:
+  - 473 prints ayah numbers inside 2,577 of its 5,298 quotations, under headings that
+    name the surah, and runs from the end of the mushaf to its beginning. A profile
+    of its own looks possible.
+  - 165 has 156 references that name the surah, under headings by subject.
+  - 737 has headings by surah and a number inside 140 of its 1,188 quotations.
+  - 440 is 250 numbered questions, each a heading that holds the quotation asked
+    about. 124 of its 302 quotations hold a number, and a number in parentheses
+    follows the quotation in the headings. Whether those are ayah numbers or
+    footnote marks has not been looked at.
+  Matching a quotation's wording against the Quran text is not a basis for a link
+  unless the reviewer approves the method and checks every link.
+- **Surah numbers of book 514.** They rest on the order of its headings until the
+  base pack gives the reference names and counts to check against.
 
 ## Before a book is shown in the app
 
 1. Extraction complete (`state.json` says `done`) and page sequence checked for gaps.
 2. Honorific table approved and applied by a pipeline step that is itself tested.
-3. Ayah linking built and a sample reviewed by the religious reviewer.
+3. Ayah linking built; the sample reviewed by the religious reviewer; every flagged
+   or unconfirmed passage checked against the printed copy.
 4. Pack manifest filled in: source, edition, permission reference, trust grade,
    SHA-256, counts, reviewer and date (PRD §9.2).
 5. The book's row in `docs/content/RIGHTS_REGISTER.md` is `Complete`: credit line with

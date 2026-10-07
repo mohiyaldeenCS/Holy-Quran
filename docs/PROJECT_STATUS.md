@@ -13,7 +13,7 @@ corrected first.
 | Stream A — app | M0.1, M0.2 and M0.3 merged, with human checks pending (pull requests #2, #3 and #4). **M0.4 part 1** merged as partial (pull request #6): spikes S1, S5 and the S3 playback part are done on Linux and await the owner's device run. Next: M0.4 part 2 (S4, S7), then M0.5 |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | None open. Start the next part from `main` (on the branch the session is bound to, D-045) |
-| Last session | First implementing session: environment, kickoff answers, M0.1 to M0.3 and M0.4 part 1 (pull requests #2, #3, #4 and #6) |
+| Last session | Implementing session: M0.1 to M0.3 and M0.4 part 1 (pull requests #2, #3, #4 and #6). Planning session: pack format review (#7) and the ayah linker for four Zaydi-library books (#8) |
 
 ## What is in the repository
 
@@ -39,7 +39,8 @@ corrected first.
   (D-043), with hand-started tasks `apk` (D-049) and `goldens` (D-056, D-059); the
   token and icon generator `tools/gen/` (D-054); the cloud-session setup hook
   `.claude/hooks/session-start.sh` (D-048). Milestone plans in `docs/plans/`. The
-  pack format, version 1, in `docs/CONTENT_PACKS.md` (D-064).
+  pack format, version 1, in `docs/CONTENT_PACKS.md` (D-064), with the planning
+  session's review and the two changes it asks for (D-077).
 - `docs/` — PRD export, plan, architecture, design-system mapping, sources, rights
   register, decisions, workflow, Zaydi-library notes, the prompts for starting a
   session.
@@ -49,7 +50,8 @@ corrected first.
 - `.claude/` — eight agents, five project skills, twenty vendored official Flutter
   and Dart skills, the SessionStart hook. `.mcp.json` — the Dart and Flutter MCP
   server.
-- `tools/ziydia/` — the extraction tool for the Zaydi Library.
+- `tools/ziydia/` — the extraction tool for the Zaydi Library, and the ayah linker
+  `ziydia_link.py` with its tests (107, run by hand: Python, no Flutter).
 
 Not in the repository: any content pack; any Quran text as data (the PRD and the
 design files show a few sample words and ayat as illustration, never to be copied);
@@ -60,7 +62,7 @@ raw extraction output; signing keys. The 13 logo SVG files are in
 
 - **PRD** complete: 49 raw requirements analysed into 21 modules with IDs, acceptance
   criteria, five phases with gates, source registry, deferred features. Exported at
-  revision 145 to `docs/prd/PRD.ar.md`.
+  revision 147 to `docs/prd/PRD.ar.md`.
 - **Sources**: the owner holds written permissions for every source that needed one
   (D-012). Registry: 9 ready, 9 awaiting our own verification, 1 deferred.
 - **Identity** copied into `design/`. App fonts pinned and verified identical to the
@@ -118,12 +120,34 @@ raw extraction output; signing keys. The 13 logo SVG files are in
     `holyquran-spike-apk` of CI run 68 (`actions/runs/37602557411`), kept until 2027-01-05.
   - Partial: everything on the device (below); S2, S4, S6, S7 and the S3 highlight
     part are not started.
+
+- **Pack format reviewed by the planning session** (pull request #7): format
+  version 1 accepted with two changes for stream A to apply, a `mark` table and
+  `sources[].options` (D-077); P1 to P7 answered in `docs/CONTENT_PACKS.md`; the word
+  and mark rule (D-078), the Tanzil file of the base pack (D-079) and a signature
+  scheme (D-080) proposed. The answers that rest on the published structure of the
+  Tanzil and KFGQPC files, not on the files themselves, are marked so; the pipeline
+  checks them in B0.2.
+
+- **Ayah linker for the Zaydi Library** (pull request #8): `tools/ziydia/ziydia_link.py`
+  links books 183, 514, 276 and 471 from what each book prints, and checks the
+  quotation each link rests on against the text of the Quran as book 514 prints it
+  (D-081, D-082). 183: 2,721 linked passages, 2,647 confirmed by the check. 514:
+  5,488 and 5,306. 276: 123 of 146 items, 116 confirmed. 471: 302 of 361 items, 291
+  confirmed; much of that book can be linked to a surah only. Partial: no link has
+  been seen by a reviewer or compared with a printed copy; books 473, 165, 737 and
+  440 are not linked; the step that applies a reviewer's corrections is not written.
+  The honorific codes were recounted from their markup: sixteen, not eleven. PRD §5.5
+  updated and re-exported at revision 147. An independent agent reviewed the tool in
+  two rounds and its findings were applied; what it verified, and what it did not, is
+  stated in `docs/content/ZIYDIA_LIBRARY.md`, "Results".
+
 ## In progress
 
 Nothing in stream A: M0.4 part 1 waits on the owner's device run.
 
 Stream B: the owner is extracting book 466 (التهذيب في التفسير, about 7,325 site
-pages). The review of `docs/CONTENT_PACKS.md` by the planning session has not started.
+pages). Nothing else is open in stream B.
 
 ## Next actions — stream A (the implementing account)
 
@@ -138,40 +162,52 @@ pages). The review of `docs/CONTENT_PACKS.md` by the planning session has not st
    and settle D-073 to D-075 (`docs/plans/M0.4.md`, "Decisions"), on a short docs
    branch. If the APK fails on the device, revert the cleanup commit on the session
    branch, fix, and rebuild with the `spike-apk` task (D-068).
-4. Then **M0.4 part 2**: S7 (gestures, needs only S1) and S4 (home-screen widget,
+4. Read "Review by the planning session" in `docs/CONTENT_PACKS.md` (D-077). It
+   answers P1 to P7 and the question of `docs/plans/M0.4.md` about the Tanzil file
+   (D-079: the default file without rub-el-hizb signs). Apply its two changes to the
+   format text, the manifest parser, `PackDatabase`, the synthetic pack builder and
+   the integrity suite: the `mark` table with `counts.marks` (D-078), and
+   `sources[].options`. Rewrite the sections of the format they touch; say so here if
+   either change is not acceptable as written.
+5. Decision numbers: D-068 to D-075 are yours (pull request #6 and its plan); stream
+   B took D-076 to D-082. See `docs/WORKFLOW.md`, "Two sessions at once".
+6. Then **M0.4 part 2**: S7 (gestures, needs only S1) and S4 (home-screen widget,
    for Phase 2) with the same spike folder (D-068). S2, S6 and the S3 highlight part
    wait for B0.3, packs and B0.5.
-5. Golden images: after a push that adds or changes a golden test, start CI by hand
+7. Golden images: after a push that adds or changes a golden test, start CI by hand
    on the branch with the task `goldens` (Actions → CI → Run workflow, or the API),
    pull the commit it pushes, and push again so the pull request is checked
    (D-056, D-059). Off `ubuntu-24.04` run `flutter test --exclude-tags golden test
    tools/gen/test`.
-6. Draw the eight new icons of D-051 on the identity's icon rules and show each to
+8. Draw the eight new icons of D-051 on the identity's icon rules and show each to
    the owner before M1.6 needs them; add them to the generator's input only after he
    approves.
-7. If M0.4 is finished before Gate 0 is met, continue with **M0.5**, not with
+9. If M0.4 is finished before Gate 0 is met, continue with **M0.5**, not with
    Phase 1.
 
 ## Next actions — stream B (planning session and the owner)
 
 1. Owner: finish extracting book 466 and upload the result.
-2. Owner: obtain the honorific glyph table from the site owner (O-07). It now has
-   eleven codes, not eight.
+2. Owner: obtain the honorific glyph table from the site owner (O-07). It has
+   sixteen codes; the table with their counts is in
+   `docs/content/ZIYDIA_LIBRARY.md`, "Known issues".
 3. Owner: choose the Phase 1 recitations (O-04), decide on the general tafsirs
    (O-06), name the proofreader of the Hafs text (O-16) and decide who keeps the
    pack-signing key (O-03). All four are needed inside Phase 0.
 4. Owner with the planning session: fill the rights register from the permission
    papers (B0.1, `docs/content/RIGHTS_REGISTER.md`).
-5. Planning session: build the ayah linker for book 183, then for 514, 471 and 276,
-   which are marked the same way; inspect how 473, 165, 737 and 440 can be linked;
-   prepare the reviewer's sample.
+5. Owner: give the religious reviewer the linking pages of books 183, 514, 276 and
+   471 (`sample.html`, `review.html` and `compare.html` of each, sent to the owner on
+   2026-10-07 and rebuilt by the commands in `tools/ziydia/README.md`). He marks the
+   sample, and checks every passage of the other two pages against the printed copy.
+   He also says whether he accepts the rule of D-082.
+   Planning session: write profiles for books 473, 165, 737 and 440 where what they
+   print allows it; write the step that applies the reviewer's corrections; rerun
+   `compare` against the base pack when B0.2 builds it.
 6. Planning session with the owner: the base pack (B0.2), KFGQPC assets (B0.3), the
    word index (B0.4), waqf-mark meanings (B0.8), acceptance data (B0.10), the pipeline
    (B0.11).
-7. Planning session: review `docs/CONTENT_PACKS.md` (format v1, merged with
-   pull request #4) and answer its questions P1–P7 and the signing note. Changes go
-   into a new version of that file.
-8. Planning session: run the app's integrity suite on the base pack when B0.2
+7. Planning session: run the app's integrity suite on the base pack when B0.2
    builds it: `flutter test test/integrity
    --dart-define=HOLYQURAN_PACK_DIR=<pack-id>/<version>` (D-067).
 
@@ -190,7 +226,7 @@ Open decisions that come later (full list in `docs/DECISIONS.md`):
 | O-06 | «هل تبقى التفاسير السبعة العامة (الميسر، المختصر، السعدي، الجلالين، البغوي، ابن كثير، الطبري) بجانب كتب المكتبة الزيدية؟» | Phase 0 (B0.7) |
 | O-03 | «حزم المحتوى تُوقَّع بمفتاح خاص. من يحتفظ بالمفتاح، وأين يجري التوقيع؟» | Phase 0 (B0.11, and the base pack before M1.2) |
 | O-16 | «من يدقّق نص حفص قبل اعتماده؟ الوثيقة تطلب حافظًا متقنًا. هل يتولاه القارئ المُجاز الذي ذكرتَه أم شخص آخر؟» | Gate 0 |
-| O-07 | «نحتاج من صاحب المكتبة الزيدية جدول رموز خط الموقع: ما العبارة التي يرسمها كل من @ # ÷ ø $ ~ & ¥ ® ^ والخط العمودي؟» | Before any Zaydi-library book is shown |
+| O-07 | «نحتاج من صاحب المكتبة الزيدية جدول رموز خط الموقع: ما العبارة التي يرسمها كل رمز من الرموز الستة عشر؟ وهي ÷ # ø @ ~ $ ª À ¥ ® & ¤ ¦ ^ ¿ والخط العمودي، وجدولها بأعدادها في ملف المكتبة الزيدية في المستودع.» | Before any Zaydi-library book is shown |
 | O-17 | «في الوثيقة توصيتان لم تعتمدهما بعد ونراهما لازمتين للإصدار الأول: «أبلغ عن خطأ» من أي آية أو مادة، وإعداد أولي من ثلاث خطوات (وضع العرض، المستوى، التلاوة). هل تعتمدهما؟» | M1.1 |
 | O-08 | «أين تُستضاف حزم المحتوى للتجربة ثم للإطلاق؟ يكفي أي استضافة ملفات ثابتة عبر HTTPS.» | M1.4 for a test host; end of Phase 1 for launch |
 | O-14 | «تصنيف «تفسير» في العلامات ليس له شكل ولا لون في الهوية، ولا توجد لوحة ألوان للتصنيفات التي يضيفها المستخدم. ما الشكل واللون، وما الألوان المتاحة؟ وهل تبقى ألوان التصنيفات الأربعة ثابتة في كل السمات كما في الهوية؟» | M1.6 |
@@ -208,7 +244,6 @@ Permission conditions to confirm with him when each is first needed are listed i
 | --- | --- | --- | --- |
 | M0.1 | The shell launches on Android: the app opens in Arabic, right to left, on الرئيسية, and the five tabs switch | Owner, on his Android phone | Install the spike APK (D-069, artefact `holyquran-spike-apk` of CI run 68) once; its launcher's "App" entry opens the shell. No session so far has had an Android SDK |
 | M0.2 | Screen reader (TalkBack), keyboard focus ring, the system bold-text setting and 200% text on a real device, for the M0.2 widgets | Owner, on his phone | The spike APK's "Component gallery" entry |
-| M0.3 | Review of `docs/CONTENT_PACKS.md`, questions P1–P7 | Planning session | Read the file; answer in a change to it |
 | M0.3 | The integrity suite passes on the real base pack | Planning session, when B0.2 delivers it | The command in stream B's next actions |
 | M0.3 | The bundled SQLite of `sqlite3` runs on Android | Owner | The spike APK's S1 "Prepare text" opens the pack through it (the build itself passed in CI runs 51 and 66) |
 | M0.4 | S1, S3, S5 device protocols: shaping by eye, hit test, 200%, NF-01 cold start, NF-02 scroll, 60-minute locked playback and controls, downloads with Wi-Fi gating, resume, corrupt file, low space, rollback | Owner, on his phone (model, Android version and memory still to be told) | The three spike pages, "Device protocol"; run S1 before S5 |
@@ -226,7 +261,13 @@ Permission conditions to confirm with him when each is first needed are listed i
   record in the rights register is open until the owner reads it from the paper.
 - Word boundaries differ between sources; the unified word index and mapping tables
   (B0.4) must exist before search, sync, tajweed and linguistic features.
-- Zaydi-library text needs an approved honorific table and reviewed ayah linking.
+- Zaydi-library text needs an approved honorific table (sixteen codes) and reviewed
+  ayah linking. The first run found 9 printed ayah numbers that appear to point at
+  the wrong ayah; a reviewer must clear every flagged or unconfirmed link (D-082).
+- In 24 passages of book 514 the quotation the commentary opens with is not found, as
+  worded, in the text the book prints above it (`docs/content/ZIYDIA_LIBRARY.md`,
+  results for book 514). The religious reviewer says why, and what the app shows when
+  a commentary quotes an ayah otherwise than the Hafs text displayed above it.
 - Rendering fidelity of the Quran fonts in Flutter is unproven until spikes S1 and S2.
 - Eight icons are still to be drawn and approved before M1.6 (D-051).
 - No pack can ship until a real signature verifier and key exist (D-065, O-03).
@@ -266,6 +307,8 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-10-07 | Planning session | Built and tested the ayah linker for books 183, 514, 276 and 471, with a check of every link against the text printed in book 514; recounted the honorific codes (sixteen); D-081, D-082; PRD re-exported at revision 147; two rounds of independent review applied. | Pull request #8 |
+| 2026-10-07 | Planning session | Reviewed pack format v1 and answered P1–P7 and stream A's question about the Tanzil file; D-076 to D-080; a rule for two sessions working at once in `docs/WORKFLOW.md`. | Pull request #7 |
 | 2026-10-07 | Planning session | Checked the owner's extraction of seven Zaydi-library books (471, 473, 514, 737, 165, 276, 440): all complete; multi-part navigation confirmed; three more honorific codes found; linking prospects noted per book. PRD §5.5 updated and re-exported at revision 145. | Pull request #5 |
 | 2026-10-07 | First implementing session (continued) | M0.4 part 1: plan; owner answers D-068 to D-071; S1 text path on the real Tanzil text in CI, surah-mode rendering and measurements; S5 downloads; S3 playback; spike APK; two code reviews applied; spike code removed before merge. | Pull request #6 |
 | 2026-10-07 | First implementing session (continued) | M0.3: plan in `docs/plans/M0.3.md`; pack format v1; addresses, `PackText`, manifest verification, read-only SQLite reader, text repository, integrity suite and guards; D-061 to D-067; code review applied. | Pull request #4 |

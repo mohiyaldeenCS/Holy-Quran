@@ -209,15 +209,15 @@ are the identity, not features, and need no source. Stop as soon as Gate 0 is me
 | --- | --- |
 | B0.1 Rights register | `docs/content/RIGHTS_REGISTER.md` filled in: one record per source, per book and per recitation, saying what its permission allows |
 | B0.2 Base pack | Tanzil Uthmani 1.1 with its notice, metadata and the source's search forms; counts; SHA-256 per surah; character-by-character comparison with the KFGQPC Hafs text under a documented table of known encoding differences; proofreader's sign-off |
-| B0.3 KFGQPC assets | Hafs text (update 2.0), page fonts and line layout for 1421H, checksums verified; a note in `docs/content/` with the download locations and checksums, so that spike S2 can fetch them |
-| B0.4 Word index | Tanzil words as the index, with the rule for mark-only tokens fixed; mapping tables to KFGQPC words, to the search forms and to timing data; zero unmapped words |
+| B0.3 KFGQPC assets | Hafs text (update 2.0), page fonts and line layout for 1421H, checksums verified; a note in `docs/content/` with the download locations and checksums, so that spike S2 can fetch them; `testing/reference/kfgqpc-hafs-counts.json`, the per-surah ayah counts of the KFGQPC file, as the integrity suite's independent witness (`docs/CONTENT_PACKS.md`, P5) |
+| B0.4 Word index | Tanzil words as the index, with the rule for mark-only tokens fixed (D-078) and the table of mark code points; mapping tables to KFGQPC words, to the search forms and to timing data; zero unmapped words |
 | B0.5 Recitations | The list for Phase 1 (O-04), file sources, a rights record each, timing data, drift measured per recitation; a note in `docs/content/` with the download locations, so that spike S3 can fetch one recitation and its timing |
-| B0.6 Zaydi Library | Extraction of the first-release books (done, 2026-10-07); approved honorific table; ayah linking for book 183; reviewer's sample — `docs/content/ZIYDIA_LIBRARY.md` |
+| B0.6 Zaydi Library | Extraction of the first-release books (done, 2026-10-07); approved honorific table; ayah linking (D-081: built for books 183, 514, 276 and 471, not reviewed; the other four books still to do); the reviewer's sample and the check of every flagged or unconfirmed link (D-082) — `docs/content/ZIYDIA_LIBRARY.md` |
 | B0.7 Tafsir packs | The tafsirs chosen for Phase 1 (O-06), each sampled against print |
 | B0.8 Waqf marks | Meanings of the marks transcribed from the Madinah mushaf's appendix and reviewed, and the list of marks checked against it (`WQ-02`). Not written from memory. Registry row 19 |
 | B0.9 Surah facts | Makki or Madani, ayah count and order from the source metadata (`RD-17`) |
 | B0.10 Acceptance data | The golden set of at least 200 search queries with the number of matches for each, taken from a reference independent of the app (`SR` criteria); three reference recitations with checked ayah boundaries (`AU` criteria) |
-| B0.11 Pipeline | `tools/packs/`: source file to verified pack, with the checks of PRD §9.4 and the signing step. Needs the decision on the signing key (O-03) |
+| B0.11 Pipeline | `tools/packs/`: source file to verified pack, with the checks of PRD §9.4 and the rules of the review in `docs/CONTENT_PACKS.md`; a synthetic source file and tests, so that it runs without any Quran text; the signing step (D-080). Signing needs the decision on the key (O-03) |
 
 ---
 
