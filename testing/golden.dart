@@ -1,6 +1,6 @@
 // Golden tests carry `@Tags(['golden'])`. Their images are made only by the
-// manually started `.github/workflows/goldens.yml` on ubuntu-24.04 and compared
-// by CI there. Sessions run `flutter test --exclude-tags golden test
+// CI workflow started by hand with the task `goldens` on ubuntu-24.04, and
+// compared by CI there. Sessions run `flutter test --exclude-tags golden test
 // tools/gen/test` and never commit images made on another machine.
 
 import 'package:flutter/material.dart';

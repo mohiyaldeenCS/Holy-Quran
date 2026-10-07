@@ -4,7 +4,18 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Started by hand from the Actions tab or the API. The check runs except when
+  # golden images are being made; the chosen task runs after it (D-049, D-056).
   workflow_dispatch:
+    inputs:
+      task:
+        description: What to do besides the checks
+        type: choice
+        options: [apk, goldens]
+        default: apk
+      scope:
+        description: Milestone or requirement ID for the golden commit message, e.g. M0.2
+        required: false
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -14,12 +25,13 @@ permissions:
   contents: read
 
 env:
-  # Pinned by D-040; also in goldens.yml and .claude/hooks/session-start.sh.
+  # Pinned by D-040; also in .claude/hooks/session-start.sh.
   FLUTTER_VERSION: 3.44.7
 
 jobs:
   check:
     name: Format, analyze, test
+    if: github.event_name != 'workflow_dispatch' || inputs.task != 'goldens'
     # The golden platform (docs/DESIGN_SYSTEM.md, "Type"): goldens are made and compared here.
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -64,7 +76,7 @@ jobs:
   android:
     name: Build Android (debug APK)
     # Started by hand only, when an APK is wanted for a device (D-049).
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.task == 'apk'
     needs: check
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -91,3 +103,43 @@ jobs:
           name: holyquran-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 14
+
+  goldens:
+    name: Update golden images
+    # Creates or updates the golden images on the golden platform and commits
+    # them to the branch it was started on (docs/DESIGN_SYSTEM.md, "Type").
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.task == 'goldens' &&
+      github.ref != 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Update golden images
+        run: flutter test --tags golden --update-goldens
+
+      - name: Commit changed images
+        env:
+          SCOPE: ${{ inputs.scope }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- ':(glob)test/**/goldens/*.png'
+          if git diff --cached --quiet; then
+            echo "No golden images changed."
+            exit 0
+          fi
+          git commit -m "test(ds): update golden images (${SCOPE:-goldens})" -m "Generated on ubuntu-24.04 by $RUN_URL"
+          git push

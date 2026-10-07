@@ -66,13 +66,13 @@ raw extraction output; signing keys. The 13 logo SVG files are in
 
 Stream A: M0.2, following `docs/plans/M0.2.md`, on `claude/great-hamilton-9n23mt`,
 draft pull request #3. Done and pushed, CI green: step 0 (fonts and OFL texts in
-`assets/`, dev packages, `ubuntu-24.04` as golden platform, `goldens.yml`); T1
+`assets/`, dev packages, `ubuntu-24.04` as golden platform, a hand-started `goldens` task in CI); T1
 generator and its three outputs (D-054); T2 `ReadingTheme` and `ThemePreference`;
 T3a font loading in tests and font and import guards (type answers D-055); T3b
 literal, feature-number, type-rule and contrast guards; T4 themes, `QuranApp`
 theme wiring, motion constants, digit and ayah-count helpers. Next: T3c golden
 harness (`testing/golden.dart`), then T5a and T5b widgets, T6 `TabBar`, T7 gallery,
-then step 7 (run `goldens.yml`, reviews, documents, merge).
+then step 7 (run CI with the `goldens` task, reviews, documents, merge).
 
 Stream B: extraction of seven Zaydi-library books is waiting for the owner to run the
 tool (`docs/content/ZIYDIA_LIBRARY.md`).
