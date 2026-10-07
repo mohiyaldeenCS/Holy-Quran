@@ -231,7 +231,8 @@ void main() {
   });
 
   test('the checks name no stored text of a pack with letters between or in '
-      'marks, a word without a letter, or marks out of place', () async {
+      'marks, a word without a letter, marks out of place, or spans that '
+      'are not whole tokens', () async {
     final pack = await buildSyntheticPack(
       root,
       id: 'fault-${builds++}',
@@ -251,6 +252,17 @@ void main() {
             (afterWord: 1, start: 2, end: 6),
           ],
         ),
+        SyntheticAyah(
+          '\u{646}\u{635} \u{6D6}',
+          words: [(0, 2)],
+          marks: [(afterWord: 1, start: 2, end: 4)],
+        ),
+        SyntheticAyah('\u{646}\u{635} \u{62A}\u{62C}', words: [(0, 5)]),
+        SyntheticAyah(
+          '\u{646}\u{635}\u{6D6}',
+          words: [(0, 2)],
+          marks: [(afterWord: 1, start: 2, end: 3)],
+        ),
       ]),
     );
     final messages = await messagesOf(pack);
@@ -261,6 +273,9 @@ void main() {
       'has after_word',
       'splits a surrogate pair',
       'span [',
+      'holds the separator',
+      'does not start a token',
+      'does not end a token',
     ]) {
       expect(messages, anyElement(contains(kind)), reason: kind);
     }

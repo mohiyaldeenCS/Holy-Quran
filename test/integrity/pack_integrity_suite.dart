@@ -136,6 +136,8 @@ final packChecks = <String, PackCheck>{
       spanProblemsOfPack,
   'has only the separator U+0020 outside its word and mark spans':
       gapProblemsOfPack,
+  'has word and mark spans that are whole space-separated tokens':
+      tokenProblemsOfPack,
   'has a letter in every word and none in any mark': letterProblemsOfPack,
   'has divisions and sajdas that refer to its ayat': referenceProblems,
   'names the pinned Amiri Quran font file': fontProblems,
@@ -718,6 +720,11 @@ Future<List<String>> gapProblemsOfPack(PackUnderTest pack) async => [
     ...gapProblems('$address', text, words, marks),
 ];
 
+Future<List<String>> tokenProblemsOfPack(PackUnderTest pack) async => [
+  for (final (address, text, words, marks) in _storedAyat(pack))
+    ...tokenProblems('$address', text, words, marks),
+];
+
 Future<List<String>> letterProblemsOfPack(PackUnderTest pack) async => [
   for (final (address, text, words, marks) in _storedAyat(pack))
     ...letterProblems('$address', text, words, marks),
@@ -860,6 +867,37 @@ List<String> gapProblems(
         '$where: the gap [$gapStart, $i) holds '
         '${codePointName(_codePointAt(text, other))} at offset $other',
       );
+    }
+  }
+  return problems;
+}
+
+/// A word or mark that holds [separator], or that does not start after it
+/// or the start of the ayah, or end before it or the end of the ayah. With
+/// [gapProblems] this proves that the spans are exactly the tokens between
+/// separators. Spans out of bounds are left to [spanProblems].
+List<String> tokenProblems(
+  String where,
+  String text,
+  List<StoredWord> words,
+  List<StoredMark> marks,
+) {
+  final problems = <String>[];
+  for (final (kind, number, start, end) in [
+    for (final (number, start, end) in words) ('word', number, start, end),
+    for (final (number, _, start, end) in marks) ('mark', number, start, end),
+  ]) {
+    if (start < 0 || start >= end || end > text.length) continue;
+    final span = '$where: $kind $number [$start, $end)';
+    final inside = text.substring(start, end).codeUnits.indexOf(separator);
+    if (inside >= 0) {
+      problems.add('$span holds the separator at offset ${start + inside}');
+    }
+    if (start > 0 && text.codeUnitAt(start - 1) != separator) {
+      problems.add('$span does not start a token');
+    }
+    if (end < text.length && text.codeUnitAt(end) != separator) {
+      problems.add('$span does not end a token');
     }
   }
   return problems;

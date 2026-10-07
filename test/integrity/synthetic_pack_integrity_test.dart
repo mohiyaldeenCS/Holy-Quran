@@ -218,6 +218,45 @@ void main() {
     });
   });
 
+  group('tokenProblems', () {
+    test('accepts spans that are whole tokens, at the edges too', () {
+      expect(
+        tokenProblems(
+          'x',
+          ' ab  ! cd ',
+          [(1, 1, 3), (2, 7, 9)],
+          [(1, 1, 5, 6)],
+        ),
+        isEmpty,
+      );
+      expect(
+        tokenProblems('x', '! ab ?', [(1, 2, 4)], [(1, 0, 0, 1), (2, 1, 5, 6)]),
+        isEmpty,
+      );
+      expect(tokenProblems('x', 'ab', [(1, 0, 9)], [(1, 1, 3, 1)]), isEmpty);
+    });
+
+    test('flags a mark that swallows the separator', () {
+      expect(tokenProblems('x', 'ab !', [(1, 0, 2)], [(1, 1, 2, 4)]), [
+        'x: mark 1 [2, 4) holds the separator at offset 2',
+        'x: mark 1 [2, 4) does not start a token',
+      ]);
+    });
+
+    test('flags two tokens in one word', () {
+      expect(tokenProblems('x', 'ab cd', [(1, 0, 5)], []), [
+        'x: word 1 [0, 5) holds the separator at offset 2',
+      ]);
+    });
+
+    test('flags a token split between a word and a mark', () {
+      expect(tokenProblems('x', 'ab!', [(1, 0, 2)], [(1, 1, 2, 3)]), [
+        'x: word 1 [0, 2) does not end a token',
+        'x: mark 1 [2, 3) does not start a token',
+      ]);
+    });
+  });
+
   group('letterProblems', () {
     test('accepts Latin, Latin-1 and Arabic words, and letterless marks', () {
       expect(
@@ -508,9 +547,41 @@ void main() {
         'hafs:3:1: the gap [2, 3) holds U+002D at offset 2',
         'hafs:3:2: the gap [2, 4) holds U+0063 at offset 3',
       ]);
+      expect(await tokenProblemsOfPack(pack), [
+        'hafs:3:1: word 1 [0, 2) does not end a token',
+        'hafs:3:1: word 2 [3, 5) does not start a token',
+      ]);
       expect(await letterProblemsOfPack(pack), [
         'hafs:3:3: word 2 [3, 4) holds no letter',
         'hafs:3:4: mark 1 [3, 5) holds the letter U+0063 at offset 3',
+      ]);
+    });
+
+    test('spans that are not whole tokens', () async {
+      final pack = await built(
+        surahs: withAyat(defaultSyntheticSurahs, 3, const [
+          SyntheticAyah(
+            'ab !',
+            words: [(0, 2)],
+            marks: [(afterWord: 1, start: 2, end: 4)],
+          ),
+          SyntheticAyah('ab cd', words: [(0, 5)]),
+          SyntheticAyah(
+            'ab!',
+            words: [(0, 2)],
+            marks: [(afterWord: 1, start: 2, end: 3)],
+          ),
+        ]),
+      );
+      expect(pack.verification, isA<Ok<VerifiedPack>>());
+      expect(await spanProblemsOfPack(pack), isEmpty);
+      expect(await gapProblemsOfPack(pack), isEmpty);
+      expect(await tokenProblemsOfPack(pack), [
+        'hafs:3:1: mark 1 [2, 4) holds the separator at offset 2',
+        'hafs:3:1: mark 1 [2, 4) does not start a token',
+        'hafs:3:2: word 1 [0, 5) holds the separator at offset 2',
+        'hafs:3:3: word 1 [0, 2) does not end a token',
+        'hafs:3:3: mark 1 [2, 3) does not start a token',
       ]);
     });
 

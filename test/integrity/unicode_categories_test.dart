@@ -37,6 +37,26 @@ void main() {
     expect(wrong, isEmpty);
   });
 
+  test('no code point the table leaves out of the covered blocks is \\p{L}, '
+      'but those Unicode assigned after 15.1', () {
+    // Lo since Unicode 16.0, in Arabic Extended-C. U+0897 ARABIC PEPET and
+    // U+10EFC ARABIC COMBINING ALEF OVERLAY are also new in 16.0, as Mn, so
+    // they need no entry: the check is about letters only.
+    const assignedLater = {0x10EC2, 0x10EC3, 0x10EC4};
+    final letter = RegExp(r'^\p{L}$', unicode: true);
+    final missing = [
+      for (final c in covered())
+        if (generalCategory(c) == null &&
+            !assignedLater.contains(c) &&
+            letter.hasMatch(String.fromCharCode(c)))
+          codePointName(c),
+    ];
+    expect(missing, isEmpty);
+    for (final c in assignedLater) {
+      expect(generalCategory(c), isNull, reason: codePointName(c));
+    }
+  });
+
   test('the letters of the synthetic and Arabic texts', () {
     for (final c in [0x41, 0x7A, 0xAA, 0xC0, 0xE9, 0xFF, 0x628, 0x671]) {
       expect(isLetter(c), isTrue, reason: codePointName(c));
