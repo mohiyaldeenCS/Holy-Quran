@@ -398,22 +398,42 @@ void main() {
   group('options', () {
     final options = ['sources', 0, 'options'];
 
-    test('may be null, empty or any names with scalar values', () {
+    test('may be null, or names with scalar values', () {
       final withNull = parse(edited((json) => json.set(options, null)));
       expect((withNull as Ok<PackManifest>).value.sources[0].options, isNull);
-      final empty = parse(
-        edited((json) => json.set(options, <String, Object?>{})),
-      );
-      expect((empty as Ok<PackManifest>).value.sources[0].options, isEmpty);
       final given = <String, Object?>{
         'Synthetic Name': 'synthetic',
-        '': '',
+        'synthetic empty value': '',
         'synthetic-count': 0,
         'synthetic ratio': -0.25,
         'synthetic flag': false,
       };
       final parsed = parse(edited((json) => json.set(options, given)));
       expect((parsed as Ok<PackManifest>).value.sources[0].options, given);
+    });
+
+    test('refuse an empty object: no choices is null', () {
+      expect(
+        parse(edited((json) => json.set(options, <String, Object?>{}))),
+        unreadableBecause('manifest.sources[0].options is empty; use null'),
+      );
+      expect(
+        parse(
+          edited(
+            (json) => json.at(['sources', 1])['options'] = <String, Object?>{},
+          ),
+        ),
+        unreadableBecause('manifest.sources[1].options is empty; use null'),
+      );
+    });
+
+    test('refuse an empty option name', () {
+      expect(
+        parse(edited((json) => json.at(options)[''] = 'synthetic')),
+        unreadableBecause(
+          'manifest.sources[0].options has an empty option name',
+        ),
+      );
     });
 
     test('refuse a value that is an object, a list or null', () {

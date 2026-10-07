@@ -18,10 +18,10 @@ import 'quran_text_repository.dart';
 /// Before the first read, the database's rows are compared with the
 /// manifest's counts. Before the first read of a surah, its digest is
 /// compared with the manifest, each of its texts is decoded and the word
-/// and mark spans of each ayah are checked together. Any of these failing, or a text the
-/// database refuses, fails that call and disables the pack: every later call
-/// fails with [PackDisabled]. A count, numbering, reference or span that is
-/// wrong is a [PackInconsistent].
+/// and mark spans of each ayah are checked together. Any of these failing,
+/// or a text the database refuses, fails that call and disables the pack:
+/// every later call fails with [PackDisabled]. A count, numbering, reference
+/// or span that is wrong is a [PackInconsistent].
 ///
 /// The reads are synchronous inside; the interface is asynchronous so that
 /// they can move to an isolate without changing it.

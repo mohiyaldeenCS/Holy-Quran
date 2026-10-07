@@ -166,9 +166,21 @@ PackSource _source(_Object json) {
       'C' => TrustGrade.c,
       _ => throw _Invalid('${json.path}.trust_grade is not A, B or C'),
     },
-    options: json.nullableObject('options')?.scalars(),
+    options: _options(json.nullableObject('options')),
     licence: _licence(json.object('licence')),
   );
+}
+
+/// Null when the source offers no choices; an empty object or an empty
+/// option name is refused, so that "no choices" has one spelling.
+Map<String, Object>? _options(_Object? json) {
+  if (json == null) return null;
+  final options = json.scalars();
+  if (options.isEmpty) throw _Invalid('${json.path} is empty; use null');
+  if (options.containsKey('')) {
+    throw _Invalid('${json.path} has an empty option name');
+  }
+  return options;
 }
 
 PackLicence _licence(_Object json) {
