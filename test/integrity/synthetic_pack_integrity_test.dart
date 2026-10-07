@@ -23,21 +23,18 @@ void main() {
 
   definePackIntegritySuite(
     'a synthetic pack',
-    () async => (await buildSyntheticPack(
-      root,
-      surahs: formatSyntheticSurahs,
-    )).directory.path,
+    () async => (await buildSyntheticPack(root)).directory.path,
   );
 
   group('the synthetic pack holds text that any change would break:', () {
     final texts = [
-      for (final surah in formatSyntheticSurahs) ...[
+      for (final surah in defaultSyntheticSurahs) ...[
         surah.name,
         ?surah.basmala,
         for (final ayah in surah.ayat) ayah.text,
       ],
     ];
-    final ayat = formatSyntheticSurahs.expand((s) => s.ayat);
+    final ayat = defaultSyntheticSurahs.expand((s) => s.ayat);
 
     test('NFC-unstable text, decomposed and precomposed', () {
       expect(texts, anyElement(contains('e\u{301}')));
@@ -55,7 +52,7 @@ void main() {
     });
 
     test('surahs with and without a basmala', () {
-      final basmalas = formatSyntheticSurahs.map((s) => s.basmala != null);
+      final basmalas = defaultSyntheticSurahs.map((s) => s.basmala != null);
       expect(basmalas, containsAll([true, false]));
     });
 
@@ -444,10 +441,7 @@ void main() {
 
     test('a counts.marks other than the mark rows', () async {
       final problems = await countProblems(
-        await built(
-          fault: SyntheticFault.wrongMarkCount,
-          surahs: formatSyntheticSurahs,
-        ),
+        await built(fault: SyntheticFault.wrongMarkCount),
       );
       expect(
         problems,
@@ -459,10 +453,7 @@ void main() {
     });
 
     test('a mark that overlaps the word before it', () async {
-      final pack = await built(
-        fault: SyntheticFault.markOverlapsWord,
-        surahs: formatSyntheticSurahs,
-      );
+      final pack = await built(fault: SyntheticFault.markOverlapsWord);
       final spans = await spanProblemsOfPack(pack);
       const overlap =
           'hafs:1:2: mark 1 span [10, 13) is not after the span before, not '
@@ -481,10 +472,7 @@ void main() {
 
     test('a mark whose after_word is not the words before it', () async {
       final problems = await spanProblemsOfPack(
-        await built(
-          fault: SyntheticFault.wrongAfterWord,
-          surahs: formatSyntheticSurahs,
-        ),
+        await built(fault: SyntheticFault.wrongAfterWord),
       );
       expect(
         problems.where((p) => p.contains('after_word')),
@@ -503,7 +491,7 @@ void main() {
     test('text outside every span other than U+0020, words without a '
         'letter and marks with one', () async {
       final pack = await built(
-        surahs: withAyat(formatSyntheticSurahs, 3, const [
+        surahs: withAyat(defaultSyntheticSurahs, 3, const [
           SyntheticAyah('ab-cd ef', words: [(0, 2), (3, 5), (6, 8)]),
           SyntheticAyah('ab c', words: [(0, 2)]),
           SyntheticAyah('ab \u{6D6}', words: [(0, 2), (3, 4)]),
@@ -528,12 +516,7 @@ void main() {
 
     test('a stored leading U+FEFF outside every span', () async {
       expect(
-        await gapProblemsOfPack(
-          await built(
-            fault: SyntheticFault.leadingBom,
-            surahs: formatSyntheticSurahs,
-          ),
-        ),
+        await gapProblemsOfPack(await built(fault: SyntheticFault.leadingBom)),
         ['hafs:1:1: the gap [0, 1) holds U+FEFF at offset 0'],
       );
     });

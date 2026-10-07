@@ -198,10 +198,11 @@ final class SyntheticPack {
 /// Three short surahs of plainly synthetic text that would change under any
 /// normalising, trimming or offset error: a precomposed and a decomposed
 /// e-acute, leading, trailing and double spaces, a character outside the BMP,
-/// an Arabic-script synthetic phrase, a word list with a non-space separator,
-/// and surahs with and without a basmala. Single code points stand alone as
-/// marks: between words, after the last word, before the first word, and
-/// one outside the BMP.
+/// an Arabic-script synthetic phrase, a word holding a hyphen, and surahs
+/// with and without a basmala. Single code points stand alone as marks:
+/// between words, after the last word, before the first word, and one
+/// outside the BMP. Only U+0020 lies outside the words and marks
+/// (docs/CONTENT_PACKS.md, "Word and mark offsets").
 const List<SyntheticSurah> defaultSyntheticSurahs = [
   SyntheticSurah(
     name: 'Synthetic surah one',
@@ -224,10 +225,7 @@ const List<SyntheticSurah> defaultSyntheticSurahs = [
     ayat: [
       SyntheticAyah('Synthetic  double  spaces'),
       SyntheticAyah('ab \u{1F600} cd'),
-      SyntheticAyah(
-        'Synthetic-pair joined',
-        words: [(0, 9), (10, 14), (15, 21)],
-      ),
+      SyntheticAyah('Synthetic-pair joined'),
     ],
   ),
   SyntheticSurah(

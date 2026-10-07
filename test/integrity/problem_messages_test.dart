@@ -175,11 +175,7 @@ void main() {
   });
 
   test('the checks find nothing in a pack without a fault', () async {
-    final pack = await buildSyntheticPack(
-      root,
-      surahs: formatSyntheticSurahs,
-      id: 'fault-${builds++}',
-    );
+    final pack = await buildSyntheticPack(root, id: 'fault-${builds++}');
     expect(await messagesOf(pack), isEmpty);
   });
 
@@ -190,7 +186,6 @@ void main() {
         final pack = await buildSyntheticPack(
           root,
           fault: fault,
-          surahs: formatSyntheticSurahs,
           id: 'fault-${builds++}',
         );
         final messages = await messagesOf(pack);
@@ -240,7 +235,7 @@ void main() {
     final pack = await buildSyntheticPack(
       root,
       id: 'fault-${builds++}',
-      surahs: withAyat(formatSyntheticSurahs, 3, const [
+      surahs: withAyat(defaultSyntheticSurahs, 3, const [
         SyntheticAyah('\u{646}\u{635} \u{62A}\u{62C}', words: [(0, 2)]),
         SyntheticAyah(
           '\u{646}\u{635} \u{62A}\u{62C}',

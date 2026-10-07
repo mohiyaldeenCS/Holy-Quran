@@ -301,7 +301,27 @@ void main() {
         }
       }
       expect(raw.words(2, 2).last, (2, 6, 8), reason: "'cd' after U+1F600");
-      expect(raw.words(2, 3), [(1, 0, 9), (2, 10, 14), (3, 15, 21)]);
+      expect(raw.words(2, 3), [
+        (1, 0, 14),
+        (2, 15, 21),
+      ], reason: 'a hyphen inside a token joins one word');
+    });
+
+    test('leaves only U+0020 outside its words and marks', () {
+      for (final surah in pack.surahs) {
+        for (final ayah in surah.ayat) {
+          final covered = List.filled(ayah.text.length, false);
+          for (final (start, end) in [
+            ...ayah.spans,
+            for (final mark in ayah.markSpans) (mark.start, mark.end),
+          ]) {
+            covered.fillRange(start, end, true);
+          }
+          for (final (offset, unit) in ayah.text.codeUnits.indexed) {
+            if (!covered[offset]) expect(unit, 0x20, reason: '$offset');
+          }
+        }
+      }
     });
 
     test('stores marks outside every word, each after the word before', () {

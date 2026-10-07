@@ -130,9 +130,8 @@ void main() {
 
     test('gives word spans', () async {
       expect(ok(await repository.words(_at('hafs:2:3'))), const [
-        WordSpan(number: 1, start: 0, end: 9),
-        WordSpan(number: 2, start: 10, end: 14),
-        WordSpan(number: 3, start: 15, end: 21),
+        WordSpan(number: 1, start: 0, end: 14),
+        WordSpan(number: 2, start: 15, end: 21),
       ]);
       expect(
         ok(
