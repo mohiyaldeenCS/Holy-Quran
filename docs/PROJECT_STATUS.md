@@ -74,7 +74,9 @@ raw extraction output; signing keys. The 13 logo SVG files are in
   platform, contrast and code guards; owner decisions D-050 to D-053 and D-058;
   engineering decisions D-054 to D-057, D-059, D-060. Reviewed by `code-reviewer`
   and `identity-auditor`, findings applied. Partial: the page size of `QuranText`
-  does not centre its last line (S1, M1.2). Pending: the human checks below.
+  does not centre its last line (S1, M1.2). The owner saw the gallery images in the
+  four themes and approved them as matching the identity on 2026-10-07. Pending: the
+  device checks below.
 
 ## In progress
 
@@ -163,8 +165,6 @@ Permission conditions to confirm with him when each is first needed are listed i
 | Milestone | Check | Who | How |
 | --- | --- | --- | --- |
 | M0.1 | The shell launches on Android: the app opens in Arabic, right to left, on الرئيسية, and the five tabs switch | Owner, or a session with an Android SDK and emulator | Owner's choice (D-049): once, at the end of Phase 0 or when he wants to try it, start the CI workflow by hand (Actions → CI → Run workflow) and install the `holyquran-debug-apk` it attaches; or `flutter run` on a device. No session so far has had an Android SDK |
-| M0.2 | The owner has seen the design-system screenshots | Owner | The gallery golden images `test/ui/core/gallery/goldens/gallery_<theme>.png`, sent to him in the session of 2026-10-07; his confirmation is recorded here |
-| M0.2 | The gallery matches the component previews (`design/preview/`) and the System, Colors and Type boards | Owner or a reviewer with a browser | Build the previews (`python3 design/preview/build.py`) and compare with the gallery images or the gallery in a debug build. The identity auditor compared the code and images with the sources and found no visual deviation; no browser comparison has been made |
 | M0.2 | Screen reader (TalkBack), keyboard focus ring, the system bold-text setting and 200% text on a real device, for the M0.2 widgets | Owner, on a device | With the debug APK (CI task `apk`): open More → «معرض المكوّنات» |
 
 ## Environment
