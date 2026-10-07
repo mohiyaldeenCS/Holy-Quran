@@ -70,9 +70,11 @@ draft pull request #3. Done and pushed, CI green: step 0 (fonts and OFL texts in
 generator and its three outputs (D-054); T2 `ReadingTheme` and `ThemePreference`;
 T3a font loading in tests and font and import guards (type answers D-055); T3b
 literal, feature-number, type-rule and contrast guards; T4 themes, `QuranApp`
-theme wiring, motion constants, digit and ayah-count helpers. Next: T3c golden
-harness (`testing/golden.dart`), then T5a and T5b widgets, T6 `TabBar`, T7 gallery,
-then step 7 (run CI with the `goldens` task, reviews, documents, merge).
+theme wiring, motion constants, digit and ayah-count helpers; T3c golden harness;
+T5a control widgets and T5b brand and mushaf widgets, with their 48 golden images
+made by the CI `goldens` task (D-056). Next: T6 `TabBar` (in progress), T7 gallery,
+then step 7 (goldens for the new widgets, contrast pairs of the new widgets,
+reviews, documents, merge).
 
 Stream B: extraction of seven Zaydi-library books is waiting for the owner to run the
 tool (`docs/content/ZIYDIA_LIBRARY.md`).
