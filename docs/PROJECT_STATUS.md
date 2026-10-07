@@ -10,22 +10,29 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-07 |
 | Phase | 0 — Foundation. Gate 0 not met |
-| Stream A — app | M0.1 merged with one human check pending (pull request #2). **M0.2 Design-system foundation** in progress (draft pull request #3) |
+| Stream A — app | M0.1 and M0.2 merged, with human checks pending (pull requests #2 and #3). Next milestone: **M0.3 Domain core and pack reader** |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | `claude/great-hamilton-9n23mt`, restarted from `main` after pull request #2 (D-045) |
-| Last session | First implementing session: environment, kickoff answers, M0.1 (pull request #2) |
+| Working branch | None open. Start M0.3 from `main` (on the branch the session is bound to, D-045) |
+| Last session | First implementing session: environment, kickoff answers, M0.1 and M0.2 (pull requests #2 and #3) |
 
 ## What is in the repository
 
 - The Flutter app (package `holyquran`, Flutter 3.44.7 pinned, placeholder id
   `com.example.holyquran`, six platform folders of which only Android and iOS are
-  built): an empty Arabic, right-to-left shell. `lib/ui/core/app.dart` (`QuranApp`),
-  `lib/routing/` (go_router stateful shell with five branches and a label-only
-  placeholder tab bar), five placeholder screens under `lib/ui/features/*/views/`,
-  `lib/l10n/app_ar.arb` with its committed generated `AppLocalizations`. Nine widget
-  tests. No design system, no domain or data code yet.
+  built): an Arabic, right-to-left shell with five tabs and placeholder screens, on
+  the design system. `lib/ui/core/theme/` (generated tokens and ramps, the four
+  themes, follow-system dark), `lib/ui/core/widgets/` (13 design-system widgets and
+  the generated icon paths), `lib/ui/core/tab_shell.dart` with the identity's
+  `TabBar`, a debug-only gallery at `/gallery` (More tab, debug builds),
+  `lib/ui/core/l10n/` (Arabic-Indic digits, ayah count), `lib/domain/models/`
+  (`ReadingTheme`, `ThemePreference`), `lib/l10n/app_ar.arb`. Fonts and OFL texts in
+  `assets/`. About 720 tests: unit, widget, guards (fonts, imports, literals, design
+  numbers, type rules, contrast) and 60 golden images made on `ubuntu-24.04`. No
+  content pack, data layer or feature yet.
 - Tooling: strict `analysis_options.yaml` (D-046); CI in `.github/workflows/ci.yml`
-  (D-043); the cloud-session setup hook `.claude/hooks/session-start.sh` (D-048).
+  (D-043), with hand-started tasks `apk` (D-049) and `goldens` (D-056, D-059); the
+  token and icon generator `tools/gen/` (D-054); the cloud-session setup hook
+  `.claude/hooks/session-start.sh` (D-048). The M0.2 plan is in `docs/plans/M0.2.md`.
 - `docs/` — PRD export, plan, architecture, design-system mapping, sources, rights
   register, decisions, workflow, Zaydi-library notes, the prompts for starting a
   session.
@@ -61,20 +68,17 @@ raw extraction output; signing keys. The 13 logo SVG files are in
   setup hook. Logo files fetched from the identity artifact; the repository's copy of
   the identity verified byte-identical to the live artifacts. Pending: launch on an
   Android device (below).
+- **M0.2 Design-system foundation** (pull request #3): generated tokens and icons,
+  four themes and follow-system dark, fonts with hash guards, the three type answers,
+  13 widgets, the debug gallery, golden images in four themes made on the golden
+  platform, contrast and code guards; owner decisions D-050 to D-053 and D-058;
+  engineering decisions D-054 to D-057, D-059, D-060. Reviewed by `code-reviewer`
+  and `identity-auditor`, findings applied. Partial: the page size of `QuranText`
+  does not centre its last line (S1, M1.2). Pending: the human checks below.
 
 ## In progress
 
-Stream A: M0.2, following `docs/plans/M0.2.md`, on `claude/great-hamilton-9n23mt`,
-draft pull request #3. Done and pushed, CI green: step 0 (fonts and OFL texts in
-`assets/`, dev packages, `ubuntu-24.04` as golden platform, a hand-started `goldens` task in CI); T1
-generator and its three outputs (D-054); T2 `ReadingTheme` and `ThemePreference`;
-T3a font loading in tests and font and import guards (type answers D-055); T3b
-literal, feature-number, type-rule and contrast guards; T4 themes, `QuranApp`
-theme wiring, motion constants, digit and ayah-count helpers; T3c golden harness;
-T5a control widgets and T5b brand and mushaf widgets, with their 48 golden images
-made by the CI `goldens` task (D-056). Next: T6 `TabBar` (in progress), T7 gallery,
-then step 7 (goldens for the new widgets, contrast pairs of the new widgets,
-reviews, documents, merge).
+Nothing in stream A.
 
 Stream B: extraction of seven Zaydi-library books is waiting for the owner to run the
 tool (`docs/content/ZIYDIA_LIBRARY.md`).
@@ -88,27 +92,24 @@ tool (`docs/content/ZIYDIA_LIBRARY.md`).
 2. Check the environment (`flutter --version` should print 3.44.7; the SessionStart
    hook installs it in cloud sessions). If the machine differs from "Environment"
    below, record it.
-3. Start **M0.2 Design-system foundation** (`docs/IMPLEMENTATION_PLAN.md`), opening
-   its pull request early as a draft, since CI runs only on pull requests and `main`
-   (D-043). In this order:
-   1. Plan with `flutter-architect`.
-   2. Token generator in `tools/gen/` (`content-engineer`), generated files, themes.
-   3. Fonts to `assets/fonts/` with the hash test.
-   4. The three type questions of `docs/DESIGN_SYSTEM.md`.
-   5. Icons generated from `ICONS`.
-   6. The M0.2 widgets (`ui-builder`). The identity's `TabBar` replaces the
-      placeholder `NavigationBar` in `lib/routing/tab_shell.dart`; move the shell
-      view under `lib/ui/` then, and update the tab finders in
-      `test/routing/router_test.dart`.
-   7. Gallery, goldens through a manually started CI workflow, contrast and guard
-      tests.
-4. The follow-system option is decided (D-050): `night` while the system is dark,
-   the user's chosen theme otherwise. Compile the list of icons Phase 1 needs beyond
-   the 26 and show it to the owner, then put O-13 (who draws them) to him (in "Waiting on the
-   owner").
-5. Then **M0.3** and **M0.4**, one at a time. Spikes S1, S5 and the playback part of
-   S3 need nothing from stream B. If they are finished before Gate 0 is met, continue
-   with **M0.5**, not with Phase 1.
+3. Start **M0.3 Domain core and pack reader** (`docs/IMPLEMENTATION_PLAN.md`): plan
+   with `flutter-architect` and keep the plan in `docs/plans/M0.3.md`; open the pull
+   request early as a draft (CI runs only on pull requests and `main`). It needs no
+   content: tests use synthetic packs whose text is plainly not Quran text. It
+   writes `docs/CONTENT_PACKS.md` for the planning session to review, decides
+   `PackText` (D-036), and turns `QuranText`'s input into `PackText`. Signing waits
+   on O-03; build SHA-256 verification now.
+4. Golden images: after a push that adds or changes a golden test, start CI by hand
+   on the branch with the task `goldens` (Actions → CI → Run workflow, or the API),
+   pull the commit it pushes, and push again so the pull request is checked
+   (D-056, D-059). Off `ubuntu-24.04` run `flutter test --exclude-tags golden test
+   tools/gen/test`.
+5. Draw the eight new icons of D-051 on the identity's icon rules and show each to
+   the owner before M1.6 needs them; add them to the generator's input only after he
+   approves.
+6. Then **M0.4** (spikes S1, S5 and the playback part of S3 need nothing from stream
+   B). If M0.3 and M0.4 are finished before Gate 0 is met, continue with **M0.5**,
+   not with Phase 1.
 
 ## Next actions — stream B (planning session and the owner)
 
@@ -162,6 +163,9 @@ Permission conditions to confirm with him when each is first needed are listed i
 | Milestone | Check | Who | How |
 | --- | --- | --- | --- |
 | M0.1 | The shell launches on Android: the app opens in Arabic, right to left, on الرئيسية, and the five tabs switch | Owner, or a session with an Android SDK and emulator | Owner's choice (D-049): once, at the end of Phase 0 or when he wants to try it, start the CI workflow by hand (Actions → CI → Run workflow) and install the `holyquran-debug-apk` it attaches; or `flutter run` on a device. No session so far has had an Android SDK |
+| M0.2 | The owner has seen the design-system screenshots | Owner | The gallery golden images `test/ui/core/gallery/goldens/gallery_<theme>.png`, sent to him in the session of 2026-10-07; his confirmation is recorded here |
+| M0.2 | The gallery matches the component previews (`design/preview/`) and the System, Colors and Type boards | Owner or a reviewer with a browser | Build the previews (`python3 design/preview/build.py`) and compare with the gallery images or the gallery in a debug build. The identity auditor compared the code and images with the sources and found no visual deviation; no browser comparison has been made |
+| M0.2 | Screen reader (TalkBack), keyboard focus ring, the system bold-text setting and 200% text on a real device, for the M0.2 widgets | Owner, on a device | With the debug APK (CI task `apk`): open More → «معرض المكوّنات» |
 
 ## Environment
 
@@ -178,7 +182,7 @@ Permission conditions to confirm with him when each is first needed are listed i
   (B0.4) must exist before search, sync, tajweed and linguistic features.
 - Zaydi-library text needs an approved honorific table and reviewed ayah linking.
 - Rendering fidelity of the Quran fonts in Flutter is unproven until spikes S1 and S2.
-- The identity has no icon for several Phase 1 actions (O-13).
+- Eight icons are still to be drawn and approved before M1.6 (D-051).
 - iOS builds are deferred to near the end of Phase 1 (D-042), while Gate 0 asks for
   measurements on both systems. Closing Gate 0 on Android measurements alone needs
   the owner's explicit decision (`docs/IMPLEMENTATION_PLAN.md`, "Gate 0 and iOS").
@@ -190,6 +194,16 @@ Permission conditions to confirm with him when each is first needed are listed i
     when the first child route arrives.
   - Flutter 3.44.7 is written in two places, the CI workflow and the setup hook; an
     upgrade changes both (D-040).
+- Left from the M0.2 reviews, for the milestone named:
+  - The context sheet justifies compact Quran text at 23 px (`.qk-ctx
+    .qk-quran-compact`); `QuranText` renders compact start-aligned everywhere
+    (D-060), so `ContextSheet` needs its own variant (M1.3).
+  - `AyahMarker` is the touch target for the ayah tools; at 26 px it needs a 48 hit
+    area when it becomes tappable (M1.6).
+  - `tools/gen/test/generator_test.dart` scans for Arabic without the U+0870–089F
+    block (the code guard covers it); add it with the next generator change.
+  - `motionFast`, `motionSlow` and `context.shadows` have no caller yet; they are the
+    identity's scale and are used by the first widgets that animate or float.
 - The identity's own values miss the 4.5:1 contrast of `AX-03` in a few places
   (O-12).
 - Three registry rows that Phase 1 needs are not `Ready` yet: 6, 8 and 19.
@@ -205,6 +219,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-10-07 | First implementing session (continued) | M0.2: plan in `docs/plans/M0.2.md`; owner decided follow-system dark (D-050, D-053), the APK only by hand (D-049), the missing icons (D-051, D-052), tab label scaling (D-058); generator, themes, fonts, 13 widgets, gallery, 60 goldens via the CI `goldens` task, guards; code and identity reviews applied. | Pull request #3 |
 | 2026-10-07 | First implementing session | Read the documents; installed Flutter 3.44.7; recorded the environment; owner answered K1–K4, O-15 (D-050) and the APK question (D-049); fetched the 13 logo files and verified the identity copy against the live artifacts; M0.1: strict lints, Arabic five-tab shell, single ARB, CI with Android build, setup hook, README; `code-reviewer` findings applied. | Pull request #2 |
 | 2026-10-07 | Planning session | Updated the PRD to revision 129 (sources ready, decisions, Zaydi-library section, section order fixed, registry row 19, new open points). Added the project foundation: PRD export, architecture, plan, design-system mapping, sources, rights register, decisions, workflow, identity files with verified fonts and a preview script, agents, skills, MCP configuration, extraction tool. No application code. | Pull request #1 |
 | 2026-10-06 | Owner's other account | `flutter create` skeleton committed. | `664e167` |

@@ -116,29 +116,32 @@ Android. State in the status file whether an iOS build could be tried.
 
 ### M0.2 Design-system foundation
 
-- [ ] Token generator in `tools/gen/` reading `design/design-system/tokens.json`
+- [x] Token generator in `tools/gen/` reading `design/design-system/tokens.json`
       (ignoring `sample` and `usage`); generated tokens committed; theme extensions;
       the four themes; the follow-system option.
-- [ ] Fonts copied from `design/design-system/fonts/ttf/` to `assets/fonts/` and
+- [x] Fonts copied from `design/design-system/fonts/ttf/` to `assets/fonts/` and
       registered; a test compares their hashes with `design/README.md`; the three OFL
       texts included for the licences screen.
-- [ ] The three type questions of `docs/DESIGN_SYSTEM.md` settled and recorded: line
+- [x] The three type questions of `docs/DESIGN_SYSTEM.md` settled and recorded: line
       height distribution, Reem Kufi's variable weight, fonts in golden tests.
-- [ ] Icons generated from the `ICONS` map.
-- [ ] Widgets: `Mark`, `Lockup`, `Icon`, `Button`, `IconButton`, `Switch`,
+- [x] Icons generated from the `ICONS` map.
+- [x] Widgets: `Mark`, `Lockup`, `Icon`, `Button`, `IconButton`, `Switch`,
       `LevelSwitch`, `TabBar`, `QuranText`, `AyahMarker`, `SurahHeader`; helpers for
       Arabic-Indic digits and ayah counts.
-- [ ] A debug-only gallery screen showing every widget in the four themes.
-- [ ] Tests: goldens per widget and theme, tagged `golden`, with the way they are
+- [x] A debug-only gallery screen showing every widget in the four themes.
+- [x] Tests: goldens per widget and theme, tagged `golden`, with the way they are
       created and compared set up as `docs/DESIGN_SYSTEM.md` describes (a manually
       started CI workflow, or the recorded golden machine when there is no CI); the
       contrast test with the pairs, thresholds and known exceptions of that document
       (`AX-03`); the guards against design numbers in feature code and against
       importing the ramps outside `lib/ui/core/`.
 - [x] The owner's answer on the follow-system option (O-15): D-050.
-- [ ] The list of icons Phase 1 needs beyond the identity's 26, compiled from PRD §8,
+- [x] The list of icons Phase 1 needs beyond the identity's 26, compiled from PRD §8,
       and the owner's decision on who draws them (`docs/DESIGN_SYSTEM.md`, "Open
       design points").
+
+Done in pull request #3 (D-050 to D-060). Partial: `QuranText` page size does not
+centre its last line (`text-align-last`), left to spike S1 and M1.2.
 
 Done when: the gallery matches the component previews (`design/preview/`) and the
 `System`, `Colors` and `Type` boards, the owner has seen screenshots, and the tests
