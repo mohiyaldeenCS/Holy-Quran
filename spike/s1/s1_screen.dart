@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' show FramePhase;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -184,6 +185,23 @@ Future<List<FrameTiming>> _timingsOf(Future<void> Function() action) async {
 
 double _ms(Duration d) => d.inMicroseconds / 1000;
 
+// Android 14 scales text non-linearly, large sizes less than small ones, so
+// the system scale is given at the Quran page size and at Material's body
+// size, the spike UI's.
+final double _quranSize = AppTextStyles.quranPage.fontSize!;
+const double _bodySize = 14;
+
+Map<String, double> _systemScale(TextScaler scaler) => {
+  for (final size in [_quranSize, _bodySize])
+    '${size.toInt()}px': (scaler.scale(size) / size * 1000).round() / 1000,
+};
+
+String _systemScaleLabel(TextScaler scaler) =>
+    'System ${(scaler.scale(_quranSize) / _quranSize).toStringAsFixed(2)}x '
+    'at ${_quranSize.toInt()} px, '
+    '${(scaler.scale(_bodySize) / _bodySize).toStringAsFixed(2)}x at '
+    '${_bodySize.toInt()} px';
+
 class S1Screen extends StatefulWidget {
   const S1Screen({this.environment = S1Environment.device, super.key});
 
@@ -299,7 +317,7 @@ class _S1ScreenState extends State<S1Screen> {
     measurement.results['device'] = {
       'readerWidth': readerWidth,
       'devicePixelRatio': view.devicePixelRatio,
-      'systemTextScale': MediaQuery.textScalerOf(context).scale(100) / 100,
+      'systemTextScale': _systemScale(MediaQuery.textScalerOf(context)),
       'subset': subset,
     };
     if (mounted) setState(() => _integrity = measurement.results);
@@ -725,7 +743,7 @@ class _S1ReaderScreenState extends State<S1ReaderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final system = MediaQuery.textScalerOf(context).scale(100) / 100;
+    final system = MediaQuery.textScalerOf(context);
     final change = _scaleChange;
     return Scaffold(
       appBar: AppBar(title: Text('Surah ${widget.surah.firstAyah.surah}')),
@@ -751,9 +769,7 @@ class _S1ReaderScreenState extends State<S1ReaderScreen> {
                 for (final scale in [null, 1.0, 1.5, 2.0])
                   ChoiceChip(
                     label: Text(
-                      scale == null
-                          ? 'System ${system.toStringAsFixed(2)}x'
-                          : '${scale}x',
+                      scale == null ? _systemScaleLabel(system) : '${scale}x',
                     ),
                     selected: _scale == scale,
                     onSelected: _measuring
@@ -895,46 +911,66 @@ class _S1ScrollTestScreenState extends State<S1ScrollTestScreen> {
     await Future<void>.delayed(_flush);
     if (!mounted) return null;
     final refreshRate = View.of(context).display.refreshRate;
-    final clock = Stopwatch();
     var distance = 0.0;
+    // The window runs from the vsync of the first tick to that of the last
+    // tick that moved the list, in the engine's clock, as FrameTiming is.
+    Duration? first;
+    Duration? lastMoved;
     final timings = await _timingsOf(() async {
       final done = Completer<void>();
-      var lastMax = -1.0;
       var stalled = 0;
       final ticker = Ticker((elapsed) {
         if (!mounted || !controller.hasClients) {
           if (!done.isCompleted) done.complete();
           return;
         }
+        final stamp = SchedulerBinding.instance.currentSystemFrameTimeStamp;
+        first ??= stamp;
         final position = controller.position;
-        final max = position.maxScrollExtent;
-        final target = _ms(elapsed) / 1000 * _scrollSpeed;
         // V2 learns its extent as it builds blocks; the run ends when the
-        // end stops moving away.
-        if (target < max) {
-          stalled = 0;
-          controller.jumpTo(target);
-        } else {
-          stalled = max == lastMax ? stalled + 1 : 0;
-          controller.jumpTo(max);
-          if (stalled >= 5 && !done.isCompleted) done.complete();
+        // list has stopped moving for a few frames.
+        final next = math.min(
+          _ms(elapsed) / 1000 * _scrollSpeed,
+          position.maxScrollExtent,
+        );
+        if (next == position.pixels) {
+          if (++stalled >= 5 && !done.isCompleted) done.complete();
+          return;
         }
-        lastMax = max;
+        stalled = 0;
+        lastMoved = stamp;
+        controller.jumpTo(next);
       });
-      clock.start();
       unawaited(ticker.start());
       await done.future;
-      clock.stop();
       distance = controller.hasClients ? controller.position.pixels : 0;
       ticker.dispose();
     });
-    if (timings.isEmpty) throw StateError('no frame timings were reported');
+    final start = first;
+    final end = lastMoved;
+    if (start == null || end == null) {
+      throw StateError('the scroll did not run');
+    }
+    final inWindow = [
+      for (final t in timings)
+        if (t.timestampInMicroseconds(FramePhase.vsyncStart) case final v
+            when v >= start.inMicroseconds && v <= end.inMicroseconds)
+          t,
+    ];
+    final measured = inWindow.isEmpty ? timings : inWindow;
+    if (measured.isEmpty) throw StateError('no frame timings were reported');
+    // The window holds the last moving frame's whole refresh interval.
+    final windowMs = _ms(end - start) + 1000 / refreshRate;
     return {
       'surah': widget.surah.firstAyah.surah,
       'distancePx': distance.roundToDouble(),
-      'durationMs': clock.elapsedMilliseconds,
       'speedPxPerS': _scrollSpeed,
-      'stats': FrameStats.from(timings, refreshRate: refreshRate).toJson(),
+      'windowMs': windowMs,
+      'framesReported': timings.length,
+      'framesInWindow': inWindow.length,
+      'windowFiltered': inWindow.isNotEmpty,
+      'fps': measured.length / windowMs * 1000,
+      'stats': FrameStats.from(measured, refreshRate: refreshRate).toJson(),
     };
   }
 
@@ -945,7 +981,7 @@ class _S1ScrollTestScreenState extends State<S1ScrollTestScreen> {
       'format': 1,
       'mode': _buildMode,
       'readerWidth': media.size.width - 2 * _gutter,
-      'textScale': media.textScaler.scale(100) / 100,
+      'systemTextScale': _systemScale(media.textScaler),
       'refreshRate': View.of(context).display.refreshRate,
       'runs': _runs,
     };
@@ -988,7 +1024,9 @@ class _S1ScrollTestScreenState extends State<S1ScrollTestScreen> {
 String _scrollLine(Map<String, Object?> run) {
   final stats = run['stats']! as Map<String, Object?>;
   final total = stats['total']! as Map<String, Object?>;
-  return '${run['layout']} run ${run['run']}: ${stats['frames']} frames at '
+  final fps = (run['fps']! as double).toStringAsFixed(1);
+  return '${run['layout']} run ${run['run']}: ${stats['frames']} frames, '
+      '$fps fps at '
       '${stats['refreshRate']} Hz, total p50 ${total['p50']} p99 '
       '${total['p99']} max ${total['max']} ms, over 16.7 ms '
       '${stats['over16ms']}, over 32 ms ${stats['over32ms']}';
@@ -1088,7 +1126,7 @@ class _S1ColdStartScreenState extends State<S1ColdStartScreen> {
       'ayah': _arm.ayah,
       'layout': SpikeLayout.v1.name,
       'readerWidth': media.size.width - 2 * _gutter,
-      'textScale': media.textScaler.scale(100) / 100,
+      'systemTextScale': _systemScale(media.textScaler),
       'refreshRate': View.of(context).display.refreshRate,
       'agesMs': {
         for (final MapEntry(:key, :value) in ages.entries)
@@ -1134,6 +1172,11 @@ class _S1ColdStartScreenState extends State<S1ColdStartScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _Line('Armed at ${_arm.surah}:${_arm.ayah}'),
+          // Every launch records a run while the marker is armed.
+          const _Line(
+            'Copy runs JSON and Disarm before using other screens; the '
+            'last $_keptColdStarts runs are kept.',
+          ),
           if (_error case final error?) _Line(error),
           if (run != null) ...[
             for (final MapEntry(:key, :value)

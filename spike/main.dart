@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
@@ -16,10 +18,20 @@ import 's5/s5_screen.dart';
 // The profile spike APK (D-069):
 // flutter build apk --profile -t spike/main.dart --dart-define=...
 
+/// The launcher starts without S3 if the media service is not up by then.
+const _audioInitLimit = Duration(seconds: 10);
+
 Future<void> main() async {
   final ages = <String, Duration?>{'mainStart': processAge()};
   WidgetsFlutterBinding.ensureInitialized();
-  final audio = await initSpikeAudio();
+  WidgetBuilder? s3Screen;
+  String? s3Unavailable;
+  try {
+    final audio = await initSpikeAudio().timeout(_audioInitLimit);
+    s3Screen = (_) => S3Screen(audio: audio);
+  } on Object catch (e) {
+    s3Unavailable = 'S3 unavailable: ${e.runtimeType}';
+  }
   ages['audioReady'] = processAge();
   ColdStartArm? arm;
   try {
@@ -30,7 +42,8 @@ Future<void> main() async {
   ages['markerRead'] = processAge();
   runApp(
     SpikeRoot(
-      s3Screen: (_) => S3Screen(audio: audio),
+      s3Screen: s3Screen,
+      s3Unavailable: s3Unavailable,
       coldStart: arm == null ? null : ColdStartLaunch(arm: arm, ages: ages),
     ),
   );
@@ -41,12 +54,16 @@ Future<void> main() async {
 class SpikeRoot extends StatefulWidget {
   const SpikeRoot({
     required this.s3Screen,
+    this.s3Unavailable,
     this.coldStart,
     this.s1Environment = S1Environment.device,
     super.key,
   });
 
-  final WidgetBuilder s3Screen;
+  /// Null when the media service did not start; the S3 entry then shows
+  /// [s3Unavailable] and does not open.
+  final WidgetBuilder? s3Screen;
+  final String? s3Unavailable;
 
   /// Set when a cold start is armed; the launcher then opens straight on
   /// the S1 cold-start measurement.
@@ -75,6 +92,7 @@ class _SpikeRootState extends State<SpikeRoot> {
           builder: (_) => SpikeLauncher(
             onOpenApp: () => setState(() => _router = createRouter()),
             s3Screen: widget.s3Screen,
+            s3Unavailable: widget.s3Unavailable,
             s1Environment: widget.s1Environment,
           ),
         ),
@@ -98,11 +116,13 @@ class SpikeLauncher extends StatelessWidget {
     required this.onOpenApp,
     required this.s3Screen,
     required this.s1Environment,
+    this.s3Unavailable,
     super.key,
   });
 
   final VoidCallback onOpenApp;
-  final WidgetBuilder s3Screen;
+  final WidgetBuilder? s3Screen;
+  final String? s3Unavailable;
   final S1Environment s1Environment;
 
   void _push(BuildContext context, WidgetBuilder builder) =>
@@ -140,7 +160,14 @@ class SpikeLauncher extends StatelessWidget {
         ),
         ListTile(
           title: const Text('S3 background audio'),
-          onTap: () => _push(context, s3Screen),
+          subtitle: s3Screen == null
+              ? Text(s3Unavailable ?? 'S3 unavailable')
+              : null,
+          enabled: s3Screen != null,
+          onTap: switch (s3Screen) {
+            final screen? => () => _push(context, screen),
+            null => null,
+          },
         ),
         ListTile(
           title: const Text('S5 downloads'),

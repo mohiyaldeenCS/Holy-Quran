@@ -41,15 +41,16 @@ class S5Run {
   final _changes = StreamController<void>.broadcast();
   final List<String> lines = [];
   Future<void>? _starting;
-  late final Directory _base;
+  late Directory _base;
   File? _logFile;
   Future<void> _writes = Future.value();
-  late final LoopbackPackServer _server;
-  late final LoopbackForwarder _forwarder;
-  late final PackStore _store;
-  late final BackgroundDownloaderAdapter _adapter;
-  late final PackDownloadQueue _queue;
+  late LoopbackPackServer _server;
+  late LoopbackForwarder _forwarder;
+  late PackStore _store;
+  late BackgroundDownloaderAdapter _adapter;
+  late PackDownloadQueue _queue;
   final Map<String, String> _lastProgress = {};
+  final List<Future<void> Function()> _opened = [];
   bool ready = false;
   bool busy = false;
   bool wifiOnly = true;
@@ -60,7 +61,16 @@ class S5Run {
 
   Stream<void> get changes => _changes.stream;
 
-  Future<void> start() => _starting ??= _start();
+  /// A failed start closes what it opened and may be tried again.
+  Future<void> start() =>
+      _starting ??= _start().catchError((Object e, StackTrace stack) async {
+        for (final close in _opened.reversed) {
+          await close();
+        }
+        _opened.clear();
+        _starting = null;
+        Error.throwWithStackTrace(e, stack);
+      });
 
   Future<void> _start() async {
     _base = Directory(
@@ -68,7 +78,7 @@ class S5Run {
     );
     await _base.create(recursive: true);
     final logFile = File('${_base.path}/log.txt');
-    if (await logFile.exists()) {
+    if (_logFile == null && await logFile.exists()) {
       lines.insertAll(0, await logFile.readAsLines());
     }
     _logFile = logFile;
@@ -87,6 +97,7 @@ class S5Run {
       log(line);
     }
     _server = await LoopbackPackServer.start(served);
+    _opened.add(_server.close);
     for (final version in [1, 2]) {
       _server.inject(
         _textPath(version),
@@ -98,6 +109,7 @@ class S5Run {
       port: _port,
       targetPort: _server.baseUri.port,
     );
+    _opened.add(_forwarder.close);
     log('serving at ${_forwarder.baseUri}, ${_throttle ~/ 1024} KiB/s');
 
     _store = PackStore(Directory('${_base.path}/store'));

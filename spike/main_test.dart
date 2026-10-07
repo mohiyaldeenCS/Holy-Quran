@@ -66,6 +66,25 @@ void main() {
     expect(find.text('S3 stand-in'), findsOneWidget);
   });
 
+  testWidgets('without the media service the S3 entry says so and does not '
+      'open, and the rest of the launcher works', (tester) async {
+    await tester.pumpWidget(
+      SpikeRoot(
+        s3Screen: null,
+        s3Unavailable: 'S3 unavailable: TimeoutException',
+        s1Environment: environment,
+      ),
+    );
+    expect(find.text('S3 unavailable: TimeoutException'), findsOneWidget);
+    await tester.tap(find.text('S3 background audio'));
+    await tester.pumpAndSettle();
+    expect(find.text('Spikes'), findsOneWidget);
+
+    await tester.tap(find.text('App'));
+    await tester.pumpAndSettle();
+    expect(find.byType(QuranApp), findsOneWidget);
+  });
+
   testWidgets('the gallery opens in Arabic, right to left', (tester) async {
     await tester.pumpWidget(spikeRoot());
     await tester.tap(find.text('Component gallery'));

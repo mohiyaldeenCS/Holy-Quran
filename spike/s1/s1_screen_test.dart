@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -27,13 +28,42 @@ S1Environment _environment(Directory root) => S1Environment(
   font: () => File(amiriQuranFontPath).readAsBytes(),
 );
 
-Future<void> _pump(WidgetTester tester, Widget home) async {
+/// Large sizes scale less than small ones, as on Android 14.
+final class _NonlinearScaler extends TextScaler {
+  const _NonlinearScaler();
+
+  @override
+  double scale(double fontSize) =>
+      fontSize <= 14 ? fontSize * 2 : fontSize * 1.4;
+
+  @override
+  double get textScaleFactor => 2;
+
+  @override
+  TextScaler clamp({double minScaleFactor = 0, double maxScaleFactor = 2}) =>
+      this;
+}
+
+Future<void> _pump(
+  WidgetTester tester,
+  Widget home, {
+  TextScaler? system,
+}) async {
   tester.view
     ..physicalSize = const Size(412, 900)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
-    MaterialApp(theme: buildAppTheme(ReadingTheme.paper), home: home),
+    MaterialApp(
+      theme: buildAppTheme(ReadingTheme.paper),
+      builder: system == null
+          ? null
+          : (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(textScaler: system),
+              child: child!,
+            ),
+      home: home,
+    ),
   );
 }
 
@@ -181,6 +211,12 @@ void main() {
       ),
     );
     await _until(tester, find.text('1 runs kept'));
+    expect(find.textContaining('Disarm before using other screens'), findsOne);
+    final runs = await tester.runAsync(
+      () => File('${root.path}/storage/s1-cold-starts.json').readAsString(),
+    );
+    final run = (jsonDecode(runs!) as List<Object?>).single! as Map;
+    expect(run['systemTextScale'], {'25px': 1.0, '14px': 1.0});
     expect(ages.keys, [
       'mainStart',
       'firstFrame',
@@ -197,5 +233,21 @@ void main() {
     final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
     expect(top, greaterThan(0));
     expect(scrollable.position.pixels, top);
+  });
+
+  testWidgets('the reader labels the system scale at the Quran size and at '
+      '14 px, which differ under non-linear scaling', (tester) async {
+    final surah = (await tester.runAsync(
+      () => readSyntheticSurahs(Directory('${root.path}/src')),
+    ))!;
+    surah.pack.close();
+    await _pump(
+      tester,
+      S1ReaderScreen(surah: surah.short),
+      system: const _NonlinearScaler(),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('System 1.40x at 25 px, 2.00x at 14 px'), findsOneWidget);
+    expect(find.text('2.0x'), findsOneWidget);
   });
 }

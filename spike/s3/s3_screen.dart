@@ -58,7 +58,8 @@ class S3Run {
     await audio.loadTone(tone);
     final logger = _logger ??= await _createLogger();
     await logger.start();
-    await audio.play();
+    // Completes only when playback pauses, stops or ends.
+    unawaited(audio.play());
   }
 
   Future<void> stop() async {
