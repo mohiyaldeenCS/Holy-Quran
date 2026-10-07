@@ -14,6 +14,13 @@ extensions from the same tokens and components (`docs/DESIGN_SYSTEM.md`).
 The links open only for accounts the owner has shared them with. Everything needed to
 build is in the files here; nothing in this folder is imported by the app.
 
+On 2026-10-07 the implementing session compared this folder with the live artifacts
+(design system version `1791056155-311f`, boards version `1791038005-b192`): the ten
+boards, `canvas.json`, `tokens.json`, `tokens.css`, `manifest.json`,
+`design-system.json`, `README.md`, `api/tokens.md`, `components/src/index.jsx`,
+`components/bundle.css`, `components/bundle.js`, `components/index.d.ts` and the six
+WOFF2 fonts are byte-identical.
+
 ## Viewing the identity
 
 The files do not open usefully as they are: a component's `preview.html` is a
