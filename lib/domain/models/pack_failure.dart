@@ -51,13 +51,29 @@ final class SurahHashMismatch extends PackFailure {
   String toString() => 'SurahHashMismatch($pack): surah $surah';
 }
 
+/// A stored text that is not strict UTF-8 or begins with U+FEFF.
 final class TextEncodingRejected extends PackFailure {
-  const TextEncodingRejected(super.pack, this.at);
+  const TextEncodingRejected(super.pack, this.surah, this.ayah);
 
-  final QuranAddress at;
+  final int surah;
+
+  /// Null when the text is the surah's name or basmala.
+  final int? ayah;
 
   @override
-  String toString() => 'TextEncodingRejected($pack): $at';
+  String toString() =>
+      'TextEncodingRejected($pack): surah $surah${ayah == null ? '' : ' ayah $ayah'}';
+}
+
+/// The pack's rows disagree with its manifest or with the format: a count, a
+/// numbering or a reference.
+final class PackInconsistent extends PackFailure {
+  const PackInconsistent(super.pack, this.reason);
+
+  final String reason;
+
+  @override
+  String toString() => 'PackInconsistent($pack): $reason';
 }
 
 final class AddressNotInPack extends PackFailure {

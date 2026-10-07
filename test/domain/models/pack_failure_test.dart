@@ -17,7 +17,12 @@ void main() {
       const FileHashMismatch('p', 'text.sqlite'):
           'FileHashMismatch(p): text.sqlite',
       const SurahHashMismatch('p', 4): 'SurahHashMismatch(p): surah 4',
-      TextEncodingRejected('p', address): 'TextEncodingRejected(p): x:2:3',
+      const TextEncodingRejected('p', 2, 3):
+          'TextEncodingRejected(p): surah 2 ayah 3',
+      const TextEncodingRejected('p', 2, null):
+          'TextEncodingRejected(p): surah 2',
+      const PackInconsistent('p', 'counts.ayat'):
+          'PackInconsistent(p): counts.ayat',
       AddressNotInPack('p', address): 'AddressNotInPack(p): x:2:3',
       const PackDisabled('p'): 'PackDisabled(p)',
     };
