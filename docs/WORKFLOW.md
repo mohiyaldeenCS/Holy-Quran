@@ -85,8 +85,7 @@ skill by name reads the file.
    file as it should read once merged, with that number. Wait for CI; merge. Nothing
    is committed to `main` afterwards. Report to the owner in Arabic.
 
-Milestones run one at a time. A second branch is opened only for a spike or a small
-fix.
+Milestones run one at a time. A second branch is opened only for a small fix.
 
 ### A brief to an agent contains
 
@@ -106,8 +105,9 @@ brief or point to the file that has it.
   directly; it changes only by merging a pull request.
 - One branch per milestone or change:
   `feat/m0-1-tooling`, `feat/m1-2-reader-surah`, `fix/…`, `docs/…`, `chore/…`.
-  Spike code lives on `spike/s1-surah-rendering` and the like: pushed, never merged.
-  The page that reports a spike is ordinary work on the milestone branch.
+  Spike code lives in `spike/` on the milestone branch and is deleted by the last
+  code commit before the merge; the page that reports a spike cites the SHA of the
+  last commit that holds its code (D-068).
 - **Conventional Commits, in English**: `type(scope): summary` in the imperative, at
   most 72 characters. The body says what and why and names the requirement IDs, or
   the milestone where there is no requirement (`M0.1`). No Arabic and no Quran text

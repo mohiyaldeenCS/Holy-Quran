@@ -78,6 +78,7 @@ void definePackIntegritySuite(
       (tester) async {
         final texts = (await tester.runAsync(() => _displayedTexts(pack())))!;
         expect(texts, isNotEmpty);
+        final problems = <String>[];
         for (final (where, text, stored) in texts) {
           await tester.pumpWidget(
             goldenApp(
@@ -89,17 +90,16 @@ void definePackIntegritySuite(
             of: find.byType(QuranText),
             matching: find.byType(RichText),
           );
-          final span = tester.widget<RichText>(drawn).text as TextSpan;
-          expect(span.children, isNull, reason: where);
-          expect(utf8.encode(span.text!), stored, reason: where);
-          expect(
-            utf8.encode(
-              tester.renderObject<RenderParagraph>(drawn).text.toPlainText(),
+          problems.addAll(
+            drawnTextProblems(
+              where,
+              tester.widget<RichText>(drawn).text,
+              tester.renderObject<RenderParagraph>(drawn).text,
+              stored,
             ),
-            stored,
-            reason: where,
           );
         }
+        expectNoProblems(problems);
       },
     );
   });
@@ -211,6 +211,48 @@ T? _value<T>(Result<T> result, List<String> problems, String what) {
       problems.add('$what: $error');
       return null;
   }
+}
+
+/// Null when [actual] holds the same bytes as [stored]; otherwise their
+/// lengths, digests and the first offset at which they differ. Never the
+/// bytes: the suite runs on the real text in CI, and its log must not hold it.
+String? byteMismatch(List<int> actual, List<int> stored) {
+  if (_sameBytes(actual, stored)) return null;
+  var at = 0;
+  while (at < actual.length && at < stored.length && actual[at] == stored[at]) {
+    at++;
+  }
+  return '${actual.length} bytes, sha256 ${sha256.convert(actual)}, where '
+      '${stored.length} bytes, sha256 ${sha256.convert(stored)}, are stored; '
+      'they differ from byte $at';
+}
+
+/// The problems of a [RichText] that should draw [stored]: its span [given]
+/// and the span its paragraph [laidOut] lays out.
+List<String> drawnTextProblems(
+  String where,
+  InlineSpan given,
+  InlineSpan laidOut,
+  List<int> stored,
+) {
+  final problems = <String>[];
+  if (given is! TextSpan) {
+    problems.add('$where: RichText holds a span that is not a TextSpan');
+  } else {
+    if (given.children case final children?) {
+      problems.add('$where: the span has ${children.length} child spans');
+    }
+    final text = given.text;
+    if (text == null) {
+      problems.add('$where: the span has no text');
+    } else if (byteMismatch(utf8.encode(text), stored) case final m?) {
+      problems.add('$where: RichText holds $m');
+    }
+  }
+  if (byteMismatch(utf8.encode(laidOut.toPlainText()), stored) case final m?) {
+    problems.add('$where: the paragraph lays out $m');
+  }
+  return problems;
 }
 
 bool _sameBytes(List<int> a, List<int> b) {
@@ -480,9 +522,10 @@ Future<List<String>> storedTextProblems(PackUnderTest pack) async {
         '$where: the app gives ${text == null ? 'none' : 'a text'}, '
         'the file ${bytes == null ? 'none' : 'a text'}',
       );
-    } else if (text != null &&
-        !_sameBytes(utf8.encode(text.verbatim), bytes!)) {
-      problems.add('$where: the app gives other bytes than the file holds');
+    } else if (text != null) {
+      if (byteMismatch(utf8.encode(text.verbatim), bytes!) case final m?) {
+        problems.add('$where: the app gives $m');
+      }
     }
   }
 
