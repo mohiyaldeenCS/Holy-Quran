@@ -26,6 +26,7 @@ void main() {
   late Directory root;
   late SpikeSurahText long;
   late SpikeSurahText short;
+  late SpikeSurahText marked;
 
   setUpAll(() async {
     root = await Directory.systemTemp.createTemp('s1_render');
@@ -33,6 +34,23 @@ void main() {
     long = read.long;
     short = read.short;
     read.pack.close();
+    final withMarks = await readSyntheticSurahs(
+      Directory('${root.path}/marked'),
+      withMarks: true,
+    );
+    final all = withMarks.long;
+    marked = SpikeSurahText(
+      firstAyah: all.firstAyah,
+      ayat: all.ayat.sublist(0, 80),
+      words: all.words.sublist(0, 80),
+      marks: all.marks.sublist(0, 80),
+      basmala: all.basmala,
+      pageStarts: {
+        for (final MapEntry(:key, :value) in all.pageStarts.entries)
+          if (key.ayah <= 80) key: value,
+      },
+    );
+    withMarks.pack.close();
   });
   tearDownAll(() => root.delete(recursive: true));
 
@@ -165,6 +183,55 @@ void main() {
           expect(words, greaterThan(planner.all.length ~/ 2));
           v1.dispose();
         }
+      });
+    }
+  }
+
+  for (final scale in _scales) {
+    for (final width in _widths) {
+      final where = '${width.toInt()} wide at ${scale}x';
+      test('a V2 block knows where the next block draws each ayah on its '
+          'first line, unless that line is its own last ($where)', () {
+        final planner = SurahFlowPlanner(
+          surah: marked,
+          width: width,
+          textScaler: TextScaler.linear(scale),
+          pageMarkSize: _pageMark,
+        );
+        final blocks = planner.all;
+        var matched = 0;
+        var lastLine = 0;
+        for (var k = 0; k + 1 < blocks.length; k++) {
+          final shown = planner.paragraphFor(blocks[k]);
+          final next = planner.paragraphFor(blocks[k + 1]);
+          final hiddenIsLast =
+              shown.firstShownLine + shown.visibleLineCount ==
+              shown.lineCount - 1;
+          if (hiddenIsLast) lastLine++;
+          final content = shown.content;
+          for (var i = 0; i < content.length; i++) {
+            final ayah = content.ayahAt(i);
+            final predicted = shown.nextLineBoxOf(ayah);
+            if (hiddenIsLast) {
+              expect(predicted, isNull, reason: 'block $k, $ayah');
+            }
+            if (predicted == null) continue;
+            final drawn = next.boxesOf(ayah).first;
+            expect(next.lineBands.first.contains(drawn.center), isTrue);
+            expect(predicted.left, closeTo(drawn.left, _px), reason: '$ayah');
+            expect(predicted.right, closeTo(drawn.right, _px));
+            expect(predicted.top, closeTo(shown.height, _px));
+            matched++;
+          }
+          shown.dispose();
+          next.dispose();
+        }
+        expect(matched, greaterThan(blocks.length ~/ 2));
+        // ignore: avoid_print
+        print(
+          'next-line boxes $where: $matched matched over ${blocks.length} '
+          'blocks; $lastLine blocks whose hidden line is their last',
+        );
       });
     }
   }
@@ -621,6 +688,47 @@ void main() {
     }
   });
 
+  for (final scale in _scales) {
+    test('lineStretch counts each word and mark once, on the line it starts '
+        'on (${scale}x)', () {
+      final v1 = surahParagraph(
+        marked,
+        width: 360,
+        textScaler: TextScaler.linear(scale),
+        pageMarkSize: _pageMark,
+      );
+      addTearDown(v1.dispose);
+      final bands = v1.lineBands;
+      int lineOf(Rect rect) => bands.indexWhere(
+        (b) => b.top <= rect.center.dy && rect.center.dy < b.bottom,
+      );
+      final words = List.filled(bands.length, 0);
+      final marks = List.filled(bands.length, 0);
+      final content = v1.content;
+      for (var i = 0; i < content.length; i++) {
+        final ayah = content.ayahAt(i);
+        for (final word in content.words[i]) {
+          final boxes = v1.boxesOf(
+            QuranAddress(ayah.riwaya, ayah.surah, ayah.ayah, word.number),
+          );
+          words[lineOf(boxes.first)]++;
+        }
+        for (final mark in content.marks[i]) {
+          marks[v1.markBoxOf(ayah, mark.number)!.line]++;
+        }
+      }
+      final stretch = lineStretch(v1);
+      expect(stretch, hasLength(bands.length - 1));
+      expect([
+        for (final s in stretch) s.words,
+      ], words.sublist(0, words.length - 1));
+      expect([
+        for (final s in stretch) s.marks,
+      ], marks.sublist(0, marks.length - 1));
+      expect(marks.fold(0, (a, b) => a + b), greaterThan(100));
+    });
+  }
+
   test('a block starts at a stored word offset only', () {
     expect(
       () => SurahBlockContent(
@@ -671,7 +779,11 @@ void main() {
       perBlock.sort();
       final stretch = lineStretch(v1);
       final maxStretch = stretch
-          .map((s) => s.words > 1 ? s.stretch / (s.words - 1) : s.stretch)
+          .map(
+            (s) => s.words + s.marks > 1
+                ? s.stretch / (s.words + s.marks - 1)
+                : s.stretch,
+          )
           .reduce((a, b) => a > b ? a : b);
       // ignore: avoid_print
       print(

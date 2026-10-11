@@ -485,7 +485,7 @@ Future<SurahLayoutResult> measureSurahLayout(
 
   final perGap = [
     for (final s in stretch)
-      if (s.words > 1) s.stretch / (s.words - 1),
+      if (s.words + s.marks > 1) s.stretch / (s.words + s.marks - 1),
   ];
   return (
     json: {
@@ -501,7 +501,7 @@ Future<SurahLayoutResult> measureSurahLayout(
         'p99': _p99(stretch.map((s) => s.stretch)),
         'perGapMax': _max(perGap),
         'perGapP99': _p99(perGap),
-        'oneWordLines': stretch.where((s) => s.words <= 1).length,
+        'oneWordLines': stretch.where((s) => s.words + s.marks <= 1).length,
       },
       'ink': {...bandInkJson(ink), 'ms': inkMs},
       'v2': v2,

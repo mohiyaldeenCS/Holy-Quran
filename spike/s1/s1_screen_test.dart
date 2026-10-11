@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/ui/core/theme/app_theme.dart';
+import 'package:holyquran/ui/core/widgets/ayah_marker.dart';
 
 import '../../testing/packs/synthetic_pack.dart' show amiriQuranFontPath;
 import 'render/page_blocks_v2.dart';
@@ -233,6 +235,45 @@ void main() {
     final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
     expect(top, greaterThan(0));
     expect(scrollable.position.pixels, top);
+  });
+
+  testWidgets('the reader scrolls the marked surah to its end in V1 and V2', (
+    tester,
+  ) async {
+    final read = (await tester.runAsync(
+      () => readSyntheticSurahs(
+        Directory('${root.path}/marked'),
+        withMarks: true,
+      ),
+    ))!;
+    read.pack.close();
+    final surah = read.long;
+    expect(surah.marks.expand((m) => m), isNotEmpty);
+    await _pump(tester, S1ReaderScreen(surah: surah));
+    await tester.pumpAndSettle();
+    final last = surah.firstAyah.ayah + surah.ayat.length - 1;
+    for (final layout in ['V1', 'V2']) {
+      if (layout == 'V2') {
+        await tester.tap(find.text('V2'));
+        await tester.pumpAndSettle();
+        expect(find.byType(PageBlocksV2), findsOneWidget);
+      }
+      final position = tester
+          .state<ScrollableState>(find.byType(Scrollable).last)
+          .position;
+      while (position.pixels < position.maxScrollExtent) {
+        position.jumpTo(
+          math.min(position.pixels + 2000, position.maxScrollExtent),
+        );
+        await tester.pump();
+        expect(tester.takeException(), isNull, reason: layout);
+      }
+      expect(
+        find.byWidgetPredicate((w) => w is AyahMarker && w.number == last),
+        findsOneWidget,
+        reason: '$layout reaches ayah $last',
+      );
+    }
   });
 
   testWidgets('the reader labels the system scale at the Quran size and at '

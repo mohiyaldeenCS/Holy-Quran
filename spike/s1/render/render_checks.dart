@@ -255,35 +255,42 @@ bool _sameInts(List<int> a, List<int> b) {
 }
 
 /// The stretch justification adds to each shown line but the last, and the
-/// number of words that start on it.
-List<({int line, double stretch, int words})> lineStretch(
+/// number of words and of marks that start on it.
+List<({int line, double stretch, int words, int marks})> lineStretch(
   SurahParagraph paragraph,
 ) {
   final widths = paragraph.lineWidths();
   final starts = paragraph.lineStartPositions;
   final content = paragraph.content;
-  final counts = List.filled(starts.length, 0);
-  var line = 0;
-  for (var i = 0; i < content.length; i++) {
-    final ayah = content.ayahAt(i).ayah;
-    for (final word in content.words[i]) {
-      if (word.start < content.baseOf(i) ||
-          !_notAfter(starts.first, ayah, word.start)) {
-        continue;
+  List<int> perLine(Iterable<int> Function(int index) startsOf) {
+    final counts = List.filled(starts.length, 0);
+    var line = 0;
+    for (var i = 0; i < content.length; i++) {
+      final ayah = content.ayahAt(i).ayah;
+      for (final start in startsOf(i)) {
+        if (start < content.baseOf(i) ||
+            !_notAfter(starts.first, ayah, start)) {
+          continue;
+        }
+        while (line + 1 < starts.length &&
+            _notAfter(starts[line + 1], ayah, start)) {
+          line++;
+        }
+        counts[line]++;
       }
-      while (line + 1 < starts.length &&
-          _notAfter(starts[line + 1], ayah, word.start)) {
-        line++;
-      }
-      counts[line]++;
     }
+    return counts;
   }
+
+  final words = perLine((i) => [for (final w in content.words[i]) w.start]);
+  final marks = perLine((i) => [for (final m in content.marks[i]) m.start]);
   return [
     for (var k = 0; k < widths.length - 1; k++)
       (
         line: k,
         stretch: widths[k].laidOut - widths[k].natural,
-        words: counts[k],
+        words: words[k],
+        marks: marks[k],
       ),
   ];
 }

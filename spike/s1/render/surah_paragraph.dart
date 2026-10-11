@@ -135,9 +135,9 @@ final class SurahBlockContent {
 /// the text is one span. With [colours] it is cut at every stored word
 /// offset, each word and each stretch between words its own span, and words
 /// numbered in [colours] take that colour. Text inside a [hidden] range,
-/// half-open UTF-16 offsets that start and end on stored word starts or the
-/// text's ends, is drawn in [hiddenColour]. The slices joined in order are
-/// the text from [from].
+/// half-open UTF-16 offsets that start and end on stored word or mark
+/// starts or the text's ends, is drawn in [hiddenColour]. The slices joined
+/// in order are the text from [from].
 List<InlineSpan> ayahTextSpans(
   PackText text,
   List<WordSpan> words, {
@@ -523,7 +523,7 @@ final class SurahParagraph {
   /// The ayat as laid out, every line in place in body coordinates, with
   /// only the lines for which [shown] holds visible: what the band ink check
   /// draws. The caller disposes it. Throws a [StateError] when a line starts
-  /// inside a word.
+  /// inside a word or mark.
   ui.Paragraph paragraphShowing(bool Function(int line) shown) {
     final lines = _metrics.length;
     final hidden = <(int, int)>[];
@@ -532,7 +532,7 @@ final class SurahParagraph {
       final start = _lineStarts[k];
       final end = k + 1 < lines ? _lineStarts[k + 1] : _length;
       if (!_sliceable(start) || !_sliceable(end)) {
-        throw StateError('line $k starts or ends inside a word');
+        throw StateError('line $k starts or ends inside a word or mark');
       }
       if (hidden.isNotEmpty && hidden.last.$2 == start) {
         hidden.last = (hidden.last.$1, end);
@@ -608,9 +608,16 @@ final class SurahParagraph {
   /// The visible lines' bands in block coordinates. They tile the body:
   /// each runs from the bottom of the one above to its own descent.
   List<Rect> get lineBands => [
-    for (var k = _first; k < _end; k++)
-      Rect.fromLTRB(0, _dy + _tops[k], _width, _dy + _bottoms[k]),
+    for (var k = 0; k < visibleLineCount; k++) lineBand(k),
   ];
+
+  /// The band of visible line [k], as in [lineBands].
+  Rect lineBand(int k) => Rect.fromLTRB(
+    0,
+    _dy + _tops[_first + k],
+    _width,
+    _dy + _bottoms[_first + k],
+  );
 
   /// The widths of the visible lines as laid out, and as they would be
   /// unjustified, which is the stretch justification adds to each.
@@ -631,8 +638,11 @@ final class SurahParagraph {
   List<int> get lineStarts => _lineStarts.sublist(_first, _end);
 
   List<LineStart> get lineStartPositions => [
-    for (final start in lineStarts) _positionOf(start),
+    for (var k = 0; k < visibleLineCount; k++) lineStartPosition(k),
   ];
+
+  /// Where visible line [k] starts, as in [lineStartPositions].
+  LineStart lineStartPosition(int k) => _positionOf(_lineStarts[_first + k]);
 
   LineStart _positionOf(int offset) {
     final segment = _segmentAt(offset)!;
@@ -731,11 +741,74 @@ final class SurahParagraph {
       final range = _wordRange(index, span.single);
       return range == null ? const [] : _merged(_rawBoxes(range.$1, range.$2));
     }
+    return _merged(_ayahBoxes(index));
+  }
+
+  /// The body boxes of the ayah at [index]: its text and its marker.
+  List<TextBox> _ayahBoxes(int index) {
     final text = _textOf[index];
-    return _merged([
+    return [
       if (text != null) ..._rawBoxes(text.start, text.end),
       _asTextBox(_markerRaw(index)),
-    ]);
+    ];
+  }
+
+  /// The extent of the ayah [ayah]'s text and marker on the line after the
+  /// shown ones, as tall as that line's band, in block coordinates: where
+  /// the next block draws it. Null when the ayah is not on that line, or
+  /// when no line follows or it is the paragraph's last: a last line is not
+  /// justified here, while the next block justifies it.
+  Rect? nextLineBoxOf(QuranAddress ayah) {
+    final index = content.indexOf(ayah);
+    if (index == null || ayah.isWord || _end >= _metrics.length - 1) {
+      return null;
+    }
+    final boxes = _ayahBoxes(index).where((box) => _lineOfBox(box) == _end);
+    if (boxes.isEmpty) return null;
+    return Rect.fromLTRB(
+      math.max(boxes.map((box) => box.left).reduce(math.min), 0),
+      _tops[_end],
+      math.min(boxes.map((box) => box.right).reduce(math.max), _width),
+      _bottoms[_end],
+    ).shift(Offset(_shiftOf(_end), _dy));
+  }
+
+  /// Where mark [mark] (its stored number) of [ayah] is drawn: the U+0020
+  /// before it and the mark, on the shown line holding the mark's first
+  /// code unit; [line] indexes [lineBands]. Null when the mark is on no
+  /// shown line of this block. [box] is null when the engine gives no box
+  /// of positive width there: a combining mark has no box of its own
+  /// (Flutter 3.44.7 draws it on the space before it), so a mark that
+  /// starts a line, its space ending the line above, or that opens its
+  /// ayah, with no space before it, may have none; so may a mark on the
+  /// line above a line-start mark, whose boxes the engine puts past the
+  /// left edge.
+  ///
+  /// D-083 puts one separator between tokens, so the text is never read:
+  /// there is none before a mark that is first in its ayah or in the block.
+  ({int line, Rect? box})? markBoxOf(QuranAddress ayah, int mark) {
+    final index = content.indexOf(ayah);
+    if (index == null || ayah.isWord) return null;
+    final span = content.marks[index].where((m) => m.number == mark);
+    if (span.isEmpty) return null;
+    final base = content.baseOf(index);
+    final stored = span.single;
+    if (stored.start < base) return null;
+    final text = _textOf[index]!;
+    final start = text.start + stored.start - base;
+    final line = _lineOfOffset(start);
+    if (line < _first || line >= _end) return null;
+    final from = stored.start > base ? start - 1 : start;
+    final boxes = _merged(
+      _rawBoxes(
+        from,
+        text.start + stored.end - base,
+      ).where((box) => _lineOfBox(box) == line),
+    );
+    return (
+      line: line - _first,
+      box: boxes.isEmpty || boxes.single.width <= 0 ? null : boxes.single,
+    );
   }
 
   /// The top of the line on which the ayah of [ayah] starts in this block,

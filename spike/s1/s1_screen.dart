@@ -19,6 +19,9 @@ import 'package:holyquran/ui/core/widgets/quran_text.dart';
 import 'package:holyquran/utils/result.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../s7/gesture_target.dart';
+import '../s7/reader_gestures.dart';
+import '../s7/tap_resolver.dart';
 import 'measure/frame_stats.dart';
 import 'measure/process_age.dart';
 import 'measure/text_checks.dart';
@@ -620,7 +623,7 @@ class _SurahView extends StatelessWidget {
     required this.scale,
     this.pageMarks = true,
     this.highlighted = const {},
-    this.onWordTap,
+    this.wrapBlock,
     this.controller,
     this.blockKey,
     super.key,
@@ -631,7 +634,7 @@ class _SurahView extends StatelessWidget {
   final double? scale;
   final bool pageMarks;
   final Set<QuranAddress> highlighted;
-  final ValueChanged<QuranAddress>? onWordTap;
+  final BlockWrapper? wrapBlock;
   final ScrollController? controller;
   final Key? blockKey;
 
@@ -651,7 +654,7 @@ class _SurahView extends StatelessWidget {
               SpikeLayout.v1 => SurahListV1(
                 surah: surah,
                 highlighted: highlighted,
-                onWordTap: onWordTap,
+                wrapBlock: wrapBlock,
                 pageMark: pageMarks ? _pageMarkSlot : null,
                 pageMarkSize: measurePageMark,
                 controller: controller,
@@ -660,7 +663,7 @@ class _SurahView extends StatelessWidget {
               SpikeLayout.v2 => PageBlocksV2(
                 surah: surah,
                 highlighted: highlighted,
-                onWordTap: onWordTap,
+                wrapBlock: wrapBlock,
                 pageMark: pageMarks ? _pageMarkSlot : null,
                 pageMarkSize: measurePageMark,
                 controller: controller,
@@ -691,8 +694,14 @@ class _S1ReaderScreenState extends State<S1ReaderScreen> {
   Map<String, Object?>? _scaleChange;
   String? _error;
 
-  void _tap(QuranAddress word) =>
+  void _tap(GestureTarget target) {
+    if (target case WordTarget(:final word)) {
       setState(() => _tapped = word == _tapped ? null : word);
+    }
+  }
+
+  Widget _withGestures(BuildContext context, SurahTextBlock block) =>
+      BlockGestures(rule: TapRule.exact, onTap: _tap, child: block);
 
   Future<void> _measureScaleChange() async {
     setState(() {
@@ -819,7 +828,7 @@ class _S1ReaderScreenState extends State<S1ReaderScreen> {
               scale: _scale,
               pageMarks: _pageMarks,
               highlighted: {?_tapped},
-              onWordTap: _tap,
+              wrapBlock: _withGestures,
             ),
           ),
         ],
