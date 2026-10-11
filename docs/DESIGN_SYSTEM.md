@@ -29,7 +29,7 @@ are part of the approved identity and are reproduced, not "corrected":
 | In the reference | Stated rule it differs from | What the app does |
 | --- | --- | --- |
 | Action button inside `ResourceRow`: 44 high, 15 px text, radius 14 (`.qk-btn-small`) | Buttons are 52 high with 17 px text | Reproduce it; the hit area is still 48 |
-| Chips and sheet tabs 40 high (`Tag`, `ModeChips`, `WordSheet` tabs, tajweed chip, sort control) | Touch targets are 48 | Reproduce the 40 visual; the hit area is 48 (`AX-02`) |
+| Chips 40 high (`Tag`, `ModeChips`, tajweed chip, sort control) and sheet tabs 42 (`WordSheet`: 40 plus a 1 px border on a content-box element) | Touch targets are 48 | Reproduce the visual; the hit area is 48 (`AX-02`) |
 | `SurahHeader` name 26 px, 30 px in the large size | `surah-header` style is 24 px | Component metric. The 24 px style is used where the README names it: player title, page header |
 | Text at 11, 14, 16, 19, 23, 26 and 30 px inside components, and 12 px outside the tab bar | The named styles; 13 px is the smallest; `tab-label` 12 px is for the tab bar only | Component metrics, declared in the widget |
 | Radii 10, 14, 18, 20 and 26 inside components | Radius scale 8, 12, 16, 24, 28, full | Component metrics |

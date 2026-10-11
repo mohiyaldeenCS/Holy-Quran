@@ -338,6 +338,10 @@ Permission conditions to confirm with him when each is first needed are listed i
     together with the S1 finding of a pause mark cut off at a line start.
   - `SearchResult` keeps its expanded state inside the widget, so in a lazily built
     list a card scrolled away and back collapses again; M1.8 makes it the caller's.
+  - After a search result's link has had keyboard focus and the view widens and
+    narrows again, the link's semantics may lose its focusable flag while Tab still
+    reaches it; Flutter's own `ExcludeFocus` behaves the same. Check with TalkBack
+    (M1.8).
   - `timesCount` has no caller since the repeat label became its own plural
     (D-091, 11); the memorisation widgets of Phase 2 use it.
   - The greeting of the home board has no strings yet; M1.1 adds them with the home
