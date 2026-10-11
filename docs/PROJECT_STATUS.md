@@ -186,10 +186,15 @@ Stream A: **M0.4 part 2** on `claude/great-hamilton-9n23mt` (D-093).
   S5's native files, the `spike-s1-text` and `spike-apk` CI tasks with the D-079 URL.
   Analysis is clean; 14 spike tests in `spike/s1` fail until task A brings the writer
   to D-083, so `ci.yml`'s check does not run `spike` yet.
-- Running: two trial agent runs (key 1: the generator-test fix; key 2: a no-change
-  smoke run).
-- Next: an early `spike-apk` build with `home_widget`; wave 1 (tasks A and B); then
-  the waves of `docs/plans/M0.4-part2.md`.
+- Blocked since 2026-10-11 17:13 UTC: every GitHub Actions run ends in
+  `startup_failure` before any job starts (CI runs 118 to 120, agent runs 1 and 2).
+  Run 118 is the push of `main` after #13, with the same `ci.yml` as the green run
+  117, so the cause is a repository or account setting, not a workflow file. The
+  session cannot read Actions permissions or billing; the owner is asked (M0.4-6).
+  Nothing has run, so no API credit has been spent.
+- Next, once a run starts: the two trial agent runs (key 1: the generator-test fix;
+  key 2: a no-change smoke run); an early `spike-apk` build with `home_widget`;
+  wave 1 (tasks A and B); then the waves of `docs/plans/M0.4-part2.md`.
 
 M0.4 part 1 and M0.5 still wait on the owner's device run and his look at the gallery
 images.
@@ -275,6 +280,7 @@ Open decisions that come later (full list in `docs/DECISIONS.md`):
 | M0.4-3 | «اختبار الإيماءات: كم مشاركًا (نقترح خمسة، بينهم شخص فوق الستين وآخر يستخدم الخط الكبير)، وعلى أي هواتف، وهل تدير الاختبار بالنص العربي الذي نجهزه؟» | The S7 usability test |
 | M0.4-4 | «في الوثيقة تفتح لمسة فاصلة الآية «أدوات الآية»، وتفتح اللمسة المطوّلة «شريط أدواتها». هل هما الشريط نفسه بأفعاله الخمسة (موصى به، وبه تعمل التجربة الآن)، أم تفتح الفاصلة شيئًا آخر مثل ورقة الآية المصغّرة؟» | M1.6 (settled for the spike by the recommended option) |
 | M0.4-5 | «يشترط AX-02 ألا يقل هدف اللمس عن 48، والكلمة في النص المتدفق لا يتجاوز هدفها عرضها ونصف الفراغين حولها. هل تُستثنى الكلمات وعلامات الوقف داخل النص كما يستثنيها معيار WCAG 2.2 للأهداف داخل النص (موصى به، والتجربة تقيس الأثر)، أم يتغير تصميم الإيماءات؟» | M1.2 (settled for the spike by the recommended option) |
+| M0.4-6 | «منذ الساعة 17:13 بتوقيت UTC يفشل كل تشغيل في GitHub Actions قبل أن يبدأ (startup_failure)، ومنه فحص CI على main الذي نجح قبل ذلك بملفات العمل نفسها، فلا يعمل أي وكيل ولا أي فحص. أرجو التحقق من أمرين: (1) في المستودع: Settings ثم Actions ثم General، تحت «Actions permissions» اختر «Allow all actions and reusable workflows» (موصى به)، أو اسمح على الأقل بإجراءات GitHub وبالإجراء subosito/flutter-action. (2) في حسابك: Settings ثم Billing and licensing، تأكد أن دقائق Actions للمستودعات الخاصة لم تنفد وأن الدفع وحد الإنفاق سليمان.» | Every agent run and CI check |
 | O-01 | «معرّف التطبيق في المتجرين (مثل com.اسمك.quran) واسم الناشر الذي سيظهر للمستخدمين. المعرّف لا يمكن تغييره بعد النشر.» | Before the first store upload |
 | O-04 | «ما التلاوات التي تريدها في الإصدار الأول (خمس على الأقل، اثنتان منها بتوقيت كلمات)، ومن أين نأخذ ملفاتها، وهل يجيز إذن كل منها التنزيل دون اتصال والاستضافة على خادمك؟» | Phase 0 (B0.5) |
 | O-06 | «هل تبقى التفاسير السبعة العامة (الميسر، المختصر، السعدي، الجلالين، البغوي، ابن كثير، الطبري) بجانب كتب المكتبة الزيدية؟» | Phase 0 (B0.7) |
@@ -379,7 +385,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
-| 2026-10-11 | Implementing session (second account), continued | On the owner's instruction, set up implementation by agents in GitHub Actions on his two API accounts: `agent.yml` and `agent.mjs` (Claude Agent SDK 0.3.296, option names read from its type definitions), the `check` task in CI, D-092, the workflow section. Linted with actionlint and shellcheck; the script was smoke-tested locally with an invalid key. | Pull request #13 |
+| 2026-10-11 | Implementing session (second account), continued | On the owner's instruction, set up implementation by agents in GitHub Actions on his two API accounts: `agent.yml` and `agent.mjs` (Claude Agent SDK 0.3.296, option names read from its type definitions), the `check` task in CI, D-092, the workflow section. Linted with actionlint and shellcheck; the script was smoke-tested locally with an invalid key. After the merge: M0.4 part 2 planned as agent waves (D-093 to D-095) and step 0 done; the trial runs and every other Actions run since 17:13 UTC end in `startup_failure`, a setting the owner must check (M0.4-6). | Pull request #13; `claude/great-hamilton-9n23mt` |
 | 2026-10-11 | Implementing session (second account) | Found the first account's session still at work on the M0.5 branch; the owner chose this session to continue and the other handed over cleanly. Adopted its work (0a, A, B, D) and dropped a duplicate 0a; finished batch C; showed the five sections in the gallery (E); tested that the widgets draw a pack's bytes unchanged and kept the ramp allow-list current (F); code review and identity audit of every batch until both passed, findings applied; D-091; golden images by CI runs 103 and 110; merged; the owner confirmed D-089 and D-091. | Pull requests #10 and #12 |
 | 2026-10-11 | Implementing session (continued) | M0.5: step 0a with code review applied; batches A, B and D (14 widgets, five gallery sections); batch C partial; stopped at the owner's request to continue from the other account. | Draft pull request #10 |
 | 2026-10-07 | Planning session | Linked books 473 (surahs in the book's own order, ayah numbers inside quotations) and 440 (footnotes that name the surah and ayah); found that 737 and 165 cannot be linked to ayat from what they print; D-090; independent review applied; PRD at revision 151. Recorded from Git where the implementing session stopped (draft pull request #10). | Pull request #11 |
