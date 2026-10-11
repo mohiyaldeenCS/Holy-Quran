@@ -154,6 +154,11 @@ void main() {
       () => fitQuranSize(ayahOf(1), wide, from: 23, to: 24),
       throwsAssertionError,
     );
+    expect(
+      () => fitQuranSize(ayahOf(1), wide, from: 25.5),
+      throwsAssertionError,
+    );
+    expect(() => fitQuranSize(ayahOf(1), wide, to: 22.5), throwsAssertionError);
   });
 
   for (final (n, size) in [

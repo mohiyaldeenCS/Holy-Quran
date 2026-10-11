@@ -16,6 +16,10 @@ double? fitQuranSize(
 }) {
   assert(to >= _cardMinFontSize, 'QuranText.card asserts at least 22');
   assert(from >= to, 'from must not be below to');
+  assert(
+    from == from.roundToDouble() && to == to.roundToDouble(),
+    'the fit steps whole sizes',
+  );
   for (var size = from; size >= to; size--) {
     final painter = _layOut(ayah, size, box.width);
     final fits =

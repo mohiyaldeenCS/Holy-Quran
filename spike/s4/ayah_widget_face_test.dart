@@ -63,8 +63,27 @@ const _wide = Size(364, 170);
 const _square = Size(170, 170);
 const _sizes = [_wide, _square];
 
+/// Share.dc.html line 89: the widget's `padding:10px`.
+const double _padding = 10;
+
+/// Share.dc.html line 90: the frame's `border:1.5px` and `padding:3px`.
+const double _outerToInner = 1.5 + 3;
+
 /// Share.dc.html lines 89-90: padding 10, frame 1.5, frame padding 3.
 const double _innerFrameInset = 14.5;
+
+/// Share.dc.html line 90: the inner frame's `border:1px`.
+const double _innerBorder = 1;
+
+/// Share.dc.html line 90: the column's `gap:2px`.
+const double _gap = 2;
+
+/// The colours each look takes, pinned: paper is the board's widget, night its
+/// dark-mode mapping (Share.dc.html lines 89-92; D-093, reading 1).
+AppColors _colorsOf(WidgetLook look) => switch (look) {
+  WidgetLook.paper => AppColors.paper,
+  WidgetLook.night => AppColors.night,
+};
 
 /// The highest ayah number of the Quran, for a reference as long as any.
 const int _longestAyahNumber = 286;
@@ -163,6 +182,11 @@ void main() {
   });
 
   group('colours', () {
+    test('paper is the paper theme and night the night theme', () {
+      expect(WidgetLook.paper.theme, ReadingTheme.paper);
+      expect(WidgetLook.night.theme, ReadingTheme.night);
+    });
+
     final ambients = <String, Widget Function(Widget)>{
       'alone': (child) => Center(child: child),
       'in a sepia app': (child) => goldenApp(ReadingTheme.sepia, child),
@@ -173,7 +197,7 @@ void main() {
         testWidgets('${look.name} takes its own theme\'s colours, $ambient', (
           tester,
         ) async {
-          final colors = AppColors.byId[look.theme.name]!;
+          final colors = _colorsOf(look);
           await tester.pumpWidget(wrap(face(ayat.first, look: look)));
           final inFace = find.descendant(
             of: find.byType(AyahWidgetFace),
@@ -240,8 +264,65 @@ void main() {
         await tester.pumpWidget(Center(child: face(ayat.first, size: size)));
         final faceRect = tester.getRect(find.byType(AyahWidgetFace));
         expect(faceRect.size, size);
+        final outer = tester.getRect(_frameFinder.at(0));
         final inner = tester.getRect(_frameFinder.at(1));
+        expect(outer, faceRect.deflate(_padding));
+        expect(inner, outer.deflate(_outerToInner));
         expect(inner, faceRect.deflate(_innerFrameInset));
+      });
+
+      testWidgets('at $size the ayah and the reference sit centred in the '
+          'inner frame, $_gap apart', (tester) async {
+        for (final ayah in ayat) {
+          final quranSize = fitQuranSize(
+            ayah.text,
+            AyahWidgetFace.ayahBoxOf(size),
+          );
+          if (quranSize == null) continue;
+          await tester.pumpWidget(
+            Center(
+              child: face(ayah, size: size, quranSize: quranSize),
+            ),
+          );
+          final content = tester
+              .getRect(_frameFinder.at(1))
+              .deflate(_innerBorder);
+          final text = tester.getRect(_quranRichText);
+          final reference = tester.getRect(_referenceRichText);
+          final where = '${ayah.address} at $size';
+          expect(
+            reference.top - text.bottom,
+            moreOrLessEquals(_gap),
+            reason: where,
+          );
+          expect(
+            text.top - content.top,
+            moreOrLessEquals(content.bottom - reference.bottom),
+            reason: where,
+          );
+          expect(
+            text.center.dx,
+            moreOrLessEquals(content.center.dx),
+            reason: where,
+          );
+          expect(
+            reference.center.dx,
+            moreOrLessEquals(content.center.dx),
+            reason: where,
+          );
+        }
+      });
+    }
+
+    for (final look in WidgetLook.values) {
+      testWidgets('${look.name}: the reference is the sans at 13, weight 600, '
+          'in the accent', (tester) async {
+        await tester.pumpWidget(Center(child: face(ayat.first, look: look)));
+        final style = tester.widget<RichText>(_referenceRichText).text.style;
+        expect(style?.fontFamily, AppFonts.sans);
+        expect(style?.fontSize, 13);
+        expect(style?.fontWeight, FontWeight.w600);
+        expect(style?.color, _colorsOf(look).accent);
       });
     }
 
@@ -258,7 +339,10 @@ void main() {
         final reference = tester.getSize(_referenceRichText).height;
         expect(
           AyahWidgetFace.ayahBoxOf(size).height,
-          size.height - 2 * (_innerFrameInset + 1) - 2 - reference,
+          size.height -
+              2 * (_innerFrameInset + _innerBorder) -
+              _gap -
+              reference,
         );
       }
     });
@@ -309,7 +393,7 @@ void main() {
                 bytes.getUint8(i + 2);
           }
 
-          final ground = AppColors.byId[look.theme.name]!.ground.toARGB32();
+          final ground = _colorsOf(look).ground.toARGB32();
           expect(argbAt(5, height ~/ 2), ground, reason: 'padding band');
           expect(argbAt(width ~/ 2, 5), ground, reason: 'padding band');
           expect(argbAt(0, 0), ground, reason: 'square corner');
@@ -354,8 +438,8 @@ void main() {
     for (final size in _sizes) {
       final line =
           size.height -
-          2 * (_innerFrameInset + 1) -
-          2 -
+          2 * (_innerFrameInset + _innerBorder) -
+          _gap -
           AyahWidgetFace.ayahBoxOf(size).height;
       for (final ayah in ayat) {
         for (final number in [ayah.address.ayah, _longestAyahNumber]) {
