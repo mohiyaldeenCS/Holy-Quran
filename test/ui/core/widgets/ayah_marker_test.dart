@@ -78,6 +78,16 @@ void main() {
     expect(_digits(tester).style!.color, Ramps.emerald950);
   });
 
+  testWidgets('takes a thicker ring when asked, as AyahRow does', (
+    tester,
+  ) async {
+    await _pump(tester, const AyahMarker(number: 7, size: 36, ringWidth: 1.5));
+    expect(
+      _ring(tester).border,
+      Border.all(color: AppColors.paper.ornament, width: 1.5),
+    );
+  });
+
   testWidgets('sizes its digits from the diameter', (tester) async {
     await _pump(tester, const AyahMarker(number: 42));
     expect(_diameter(tester), const Size.square(AppSizes.ayahMarker));
