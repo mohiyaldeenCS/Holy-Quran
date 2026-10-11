@@ -53,8 +53,8 @@ void main() {
   test('no output holds an Arabic character or the sample text', () async {
     final outputs = await generateAll(_repoRoot);
     final arabic = RegExp(
-      '[؀-ۿݐ-ݿࢠ-ࣿ'
-      'ﭐ-﷿ﹰ-﻿]',
+      '[\u0600-\u06FF\u0750-\u077F\u0870-\u089F\u08A0-\u08FF'
+      '\uFB50-\uFDFF\uFE70-\uFEFF]',
     );
     for (final MapEntry(key: path, value: content) in outputs.entries) {
       expect(arabic.hasMatch(content), isFalse, reason: path);
