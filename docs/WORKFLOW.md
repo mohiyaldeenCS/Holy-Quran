@@ -99,6 +99,37 @@ Milestones run one at a time. A second branch is opened only for a small fix.
 An agent starts with no memory of the conversation. Put everything it needs in the
 brief or point to the file that has it.
 
+## Tasks run by agents in GitHub Actions
+
+Since 2026-10-11 the owner has implementation tasks run by agents inside GitHub
+Actions, paid from his API accounts (D-092). The lead session plans, writes the task
+texts, reviews the pull requests and keeps the documents; it does not write
+application code itself.
+
+- **Workflow.** `.github/workflows/agent.yml`, started by hand from the Actions tab
+  (Run workflow) with: the task text, a branch starting with `agent/`, the key slot
+  (1 or 2, one per API account), a budget cap in dollars, the project agent for the
+  main thread, the model and the effort. `.github/agent.mjs` runs the task with the
+  Claude Agent SDK, loading `CLAUDE.md`, the agents and the skills (`settingSources:
+  ["project"]`) under the cap (`maxBudgetUsd`).
+- **What the workflow does.** The agent commits on the task branch but never pushes.
+  The workflow then refuses commits that hold a key, a golden image or a change under
+  `.github/`; runs format, analyze and the tests; pushes the branch; opens a pull
+  request (a draft when anything failed) or comments on the open one; and starts
+  `ci.yml` with the task `check`, because a pull request opened by the workflow token
+  starts no `pull_request` run.
+- **Parallel runs.** Two runs, one per key, can work at once. Their tasks must own
+  different files. Agents do not edit `docs/PROJECT_STATUS.md` or
+  `docs/DECISIONS.md`; their reports say what those files should record, and the lead
+  records it.
+- **A task text** contains everything an agent needs: the goal, the requirement IDs
+  and acceptance criteria, the files it may change and those it must not, the project
+  agent to use, the checks to run and what to report. It is self-contained: the agent
+  has no memory of the lead's session.
+- **Review.** The lead (or `code-reviewer`) reviews each pull request against the
+  project rules and CI and tells the owner which can be merged. Nothing is merged
+  without the owner's approval.
+
 ## Git and GitHub
 
 - `main` is always analysable, tested and runnable. Nothing is committed to it
