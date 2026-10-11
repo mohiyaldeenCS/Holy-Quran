@@ -6,12 +6,14 @@ on:
   pull_request:
   # Started by hand from the Actions tab or the API. The check runs except when
   # golden images are being made; the chosen task runs after it (D-049, D-056).
+  # `check` runs the check alone; the agent workflow starts it on the pull
+  # requests it opens, which start no pull_request run of their own.
   workflow_dispatch:
     inputs:
       task:
         description: What to do besides the checks
         type: choice
-        options: [apk, goldens]
+        options: [apk, goldens, check]
         default: apk
       scope:
         description: Milestone or requirement ID for the golden commit message, e.g. M0.2
@@ -25,7 +27,7 @@ permissions:
   contents: read
 
 env:
-  # Pinned by D-040; also in .claude/hooks/session-start.sh.
+  # Pinned by D-040; also in agent.yml and .claude/hooks/session-start.sh.
   FLUTTER_VERSION: 3.44.7
 
 jobs:

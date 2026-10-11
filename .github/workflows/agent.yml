@@ -1,0 +1,347 @@
+name: Agent
+
+# Runs one task with the Claude Agent SDK (.github/agent.mjs) on a branch of
+# its own, checks the result, pushes it and opens a pull request. Started by
+# hand from the Actions tab. Nothing is merged here: the owner merges.
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: The task, written in full (requirement IDs, acceptance criteria, files allowed)
+        required: true
+        type: string
+      branch:
+        description: Branch for the result, starting with agent/ (created from base, or continued if it exists)
+        required: true
+        type: string
+      base:
+        description: Branch a new task branch starts from, and the pull request's target (main, or a milestone branch)
+        required: true
+        type: string
+        default: main
+      key:
+        description: Which API key pays for the run
+        required: true
+        type: choice
+        options: ['1', '2']
+        default: '1'
+      budget_usd:
+        description: Spending cap for this run, in US dollars (at most 50)
+        required: true
+        type: string
+        default: '5'
+      agent:
+        description: Project agent for the main thread (.claude/agents), or none for the lead
+        type: choice
+        options: [none, ui-builder, data-builder, audio-builder, content-engineer, test-engineer]
+        default: none
+      model:
+        description: Model
+        type: choice
+        options: [claude-opus-5-5, claude-sonnet-5-5, claude-fable-5-1]
+        default: claude-opus-5-5
+      effort:
+        description: Reasoning effort
+        type: choice
+        options: [high, xhigh, medium, low, max]
+        default: high
+
+concurrency:
+  group: agent-${{ inputs.branch }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # Pinned by D-040; also in ci.yml and .claude/hooks/session-start.sh.
+  FLUTTER_VERSION: 3.44.7
+  AGENT_SDK_VERSION: 0.3.296
+
+jobs:
+  run:
+    name: Run the task
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - name: Check the inputs
+        env:
+          BRANCH: ${{ inputs.branch }}
+          BASE: ${{ inputs.base }}
+          BUDGET: ${{ inputs.budget_usd }}
+        run: |
+          if ! printf '%s' "$BASE" | grep -Eq '^[A-Za-z0-9._/-]+$' || printf '%s' "$BASE" | grep -q '\.\.'; then
+            echo "::error::base must use only letters, digits and . _ / -"
+            exit 1
+          fi
+          if ! printf '%s' "$BRANCH" | grep -Eq '^agent/[A-Za-z0-9._/-]+$' || printf '%s' "$BRANCH" | grep -q '\.\.'; then
+            echo "::error::branch must start with agent/ and use only letters, digits and . _ / -"
+            exit 1
+          fi
+          if ! printf '%s' "$BUDGET" | grep -Eq '^[0-9]+(\.[0-9]+)?$'; then
+            echo "::error::budget_usd must be a number"
+            exit 1
+          fi
+
+      - name: Find the starting point
+        id: base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ inputs.branch }}
+          BASE: ${{ inputs.base }}
+        run: |
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${BRANCH}" --silent 2>/dev/null; then
+            echo "ref=${BRANCH}" >> "$GITHUB_OUTPUT"
+          elif gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${BASE}" --silent 2>/dev/null; then
+            echo "ref=${BASE}" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::The base branch ${BASE} does not exist."
+            exit 1
+          fi
+
+      # The token is not left in .git/config while the agent and packages run;
+      # only the push and pull-request steps receive it.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ steps.base.outputs.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Put the work on the task branch
+        env:
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          git checkout -B "$BRANCH"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rev-parse HEAD > "$RUNNER_TEMP/start-sha"
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      # The script comes from the commit the workflow runs from (main), never
+      # from the task branch, which an earlier run may have changed.
+      - name: Install the Agent SDK
+        run: |
+          mkdir -p "$RUNNER_TEMP/agent-sdk"
+          npm install --prefix "$RUNNER_TEMP/agent-sdk" --no-audit --no-fund --no-save \
+            "@anthropic-ai/claude-agent-sdk@${AGENT_SDK_VERSION}"
+          git show "${GITHUB_SHA}:.github/agent.mjs" > "$RUNNER_TEMP/agent-sdk/agent.mjs"
+
+      # Exactly one key reaches the agent. An empty secret stops the run
+      # instead of falling back to the other account.
+      - name: Run the agent
+        id: agent
+        continue-on-error: true
+        env:
+          KEY_1: ${{ secrets.ANTHROPIC_API_KEY }}
+          KEY_2: ${{ secrets.ANTHROPIC_API_KEY2 }}
+          AGENT_TASK: ${{ inputs.task }}
+          AGENT_BRANCH: ${{ inputs.branch }}
+          AGENT_BASE: ${{ inputs.base }}
+          AGENT_KEY_SLOT: ${{ inputs.key }}
+          AGENT_BUDGET_USD: ${{ inputs.budget_usd }}
+          AGENT_NAME: ${{ inputs.agent }}
+          AGENT_MODEL: ${{ inputs.model }}
+          AGENT_EFFORT: ${{ inputs.effort }}
+        run: |
+          if [ "$AGENT_KEY_SLOT" = "2" ]; then
+            export ANTHROPIC_API_KEY="$KEY_2"
+          else
+            export ANTHROPIC_API_KEY="$KEY_1"
+          fi
+          unset KEY_1 KEY_2
+          export AGENT_OUTCOME_FILE="$RUNNER_TEMP/agent-outcome.json"
+          node "$RUNNER_TEMP/agent-sdk/agent.mjs"
+
+      - name: Commit what the run left uncommitted
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -q -m "chore(agent): commit work the run left uncommitted" -m "Run: $RUN_URL"
+          fi
+
+      # Nothing is pushed that holds a key, a golden image (D-056) or a change
+      # under .github/, which only the lead edits.
+      - name: Guard the commits
+        id: guard
+        env:
+          KEY_1: ${{ secrets.ANTHROPIC_API_KEY }}
+          KEY_2: ${{ secrets.ANTHROPIC_API_KEY2 }}
+        run: |
+          start="$(cat "$RUNNER_TEMP/start-sha")"
+          changed="$(git diff --name-only "$start" HEAD)"
+          if [ -z "$changed" ]; then
+            echo "changes=false" >> "$GITHUB_OUTPUT"
+            echo "The run made no commits."
+            exit 0
+          fi
+          for key in "$KEY_1" "$KEY_2"; do
+            if [ -n "$key" ] && git log -p "$start..HEAD" | grep -qF -- "$key"; then
+              echo "::error::A secret value appears in the commits. Nothing is pushed."
+              exit 1
+            fi
+          done
+          if printf '%s\n' "$changed" | grep -Eq '^test/.*/goldens/.*\.png$'; then
+            echo "::error::The run committed golden images; they are made only by the CI goldens task. Nothing is pushed."
+            exit 1
+          fi
+          if printf '%s\n' "$changed" | grep -Eq '^\.github/'; then
+            echo "::error::The run changed files under .github/, which only the lead changes. Nothing is pushed."
+            exit 1
+          fi
+          echo "changes=true" >> "$GITHUB_OUTPUT"
+
+      - name: Run the checks
+        id: checks
+        if: steps.guard.outputs.changes == 'true'
+        run: |
+          set +e
+          verdict() { if [ "$1" -eq 0 ]; then echo pass; else echo fail; fi; }
+          dart format --output=none --set-exit-if-changed .; format=$?
+          flutter analyze; analyze=$?
+          # Spike code lives in spike/ on a milestone branch only (D-068).
+          paths="test tools/gen/test"
+          if [ -d spike ]; then paths="$paths spike"; fi
+          # shellcheck disable=SC2086
+          flutter test --exclude-tags golden $paths; tests=$?
+          flutter test --tags golden test; goldens=$?
+          {
+            echo "format=$(verdict $format)"
+            echo "analyze=$(verdict $analyze)"
+            echo "tests=$(verdict $tests)"
+            echo "goldens=$(verdict $goldens)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Push the branch
+        if: steps.guard.outputs.changes == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          BRANCH: ${{ inputs.branch }}
+        run: git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${BRANCH}"
+
+      - name: Open or update the pull request
+        id: pr
+        if: steps.guard.outputs.changes == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ inputs.branch }}
+          BASE: ${{ inputs.base }}
+          TASK: ${{ inputs.task }}
+          KEY_SLOT: ${{ inputs.key }}
+          BUDGET: ${{ inputs.budget_usd }}
+          AGENT: ${{ inputs.agent }}
+          MODEL: ${{ inputs.model }}
+          EFFORT: ${{ inputs.effort }}
+          AGENT_OUTCOME: ${{ steps.agent.outcome }}
+          FORMAT: ${{ steps.checks.outputs.format }}
+          ANALYZE: ${{ steps.checks.outputs.analyze }}
+          TESTS: ${{ steps.checks.outputs.tests }}
+          GOLDENS: ${{ steps.checks.outputs.goldens }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          outcome="$RUNNER_TEMP/agent-outcome.json"
+          [ -f "$outcome" ] || echo '{"subtype":"no_result"}' > "$outcome"
+          subtype="$(jq -r '.subtype // "unknown"' "$outcome")"
+          ok="$(jq -r 'if .subtype == "success" and (.is_error | not) then "yes" else "no" end' "$outcome")"
+          cost="$(jq -r 'if (.total_cost_usd|type) == "number" then "$" + ((.total_cost_usd*100|round)/100|tostring) else "unknown" end' "$outcome")"
+          turns="$(jq -r '.num_turns // "unknown"' "$outcome")"
+          body="$RUNNER_TEMP/pr-body.md"
+          {
+            echo "## Agent's report"
+            echo
+            jq -r '.report // "The run ended without a report."' "$outcome"
+            echo
+            echo "## Checks run by the workflow"
+            echo
+            echo "| Check | Result |"
+            echo "| --- | --- |"
+            echo "| \`dart format\` | ${FORMAT} |"
+            echo "| \`flutter analyze\` | ${ANALYZE} |"
+            echo "| \`flutter test --exclude-tags golden test tools/gen/test\` (and \`spike\` where it exists) | ${TESTS} |"
+            echo "| \`flutter test --tags golden test\` (new golden tests fail until the CI goldens task makes their images) | ${GOLDENS} |"
+            echo
+            echo "## Run"
+            echo
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| Result | \`${subtype}\`, finished cleanly: ${ok} (step outcome: ${AGENT_OUTCOME}) |"
+            echo "| Estimated cost | ${cost} of a \$${BUDGET} cap |"
+            echo "| Turns | ${turns} |"
+            echo "| Model | ${MODEL}, effort ${EFFORT} |"
+            echo "| Agent | ${AGENT} |"
+            echo "| Key slot | ${KEY_SLOT} |"
+            echo "| Log | ${RUN_URL} |"
+            echo
+            echo "<details><summary>Task as given</summary>"
+            echo
+            printf '%s\n' "$TASK"
+            echo
+            echo "</details>"
+          } > "$body"
+          number="$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$number" ]; then
+            gh pr comment "$number" --body-file "$body"
+            echo "url=$(gh pr view "$number" --json url --jq .url)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          title="$(printf '%s\n' "$TASK" | sed -n '/[^[:space:]]/{p;q;}' | cut -c1-72)"
+          draft=""
+          if [ "$ok" != "yes" ] || [ "$FORMAT" != "pass" ] || [ "$ANALYZE" != "pass" ] || [ "$TESTS" != "pass" ]; then
+            draft="--draft"
+          fi
+          if url="$(gh pr create --base "$BASE" --head "$BRANCH" --title "$title" --body-file "$body" $draft)"; then
+            echo "url=$url" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::The pull request could not be opened (Settings → Actions → General → allow GitHub Actions to create pull requests). Open it from https://github.com/${GITHUB_REPOSITORY}/compare/${BASE}...${BRANCH}"
+          fi
+
+      # A pull request opened with the workflow token starts no pull_request
+      # run, so the checks are started here; they report on the branch's head.
+      - name: Start CI on the branch
+        if: steps.guard.outputs.changes == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ inputs.branch }}
+        run: gh workflow run ci.yml --ref "$BRANCH" -f task=check
+
+      - name: Report
+        if: always()
+        env:
+          AGENT_OUTCOME: ${{ steps.agent.outcome }}
+          CHANGES: ${{ steps.guard.outputs.changes }}
+          FORMAT: ${{ steps.checks.outputs.format }}
+          ANALYZE: ${{ steps.checks.outputs.analyze }}
+          TESTS: ${{ steps.checks.outputs.tests }}
+          GOLDENS: ${{ steps.checks.outputs.goldens }}
+          PR_URL: ${{ steps.pr.outputs.url }}
+        run: |
+          {
+            echo "## Workflow"
+            echo
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| Agent step | ${AGENT_OUTCOME:-not run} |"
+            echo "| Commits | ${CHANGES:-unknown} |"
+            echo "| format / analyze / tests / goldens | ${FORMAT:-–} / ${ANALYZE:-–} / ${TESTS:-–} / ${GOLDENS:-–} |"
+            echo "| Pull request | ${PR_URL:-none} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$AGENT_OUTCOME" != "success" ]; then
+            echo "::error::The agent did not finish successfully; see its result above."
+            exit 1
+          fi
+          if [ "$CHANGES" = "true" ] && { [ "$FORMAT" != "pass" ] || [ "$ANALYZE" != "pass" ] || [ "$TESTS" != "pass" ]; }; then
+            echo "::error::The result does not pass the checks."
+            exit 1
+          fi

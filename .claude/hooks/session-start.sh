@@ -8,7 +8,7 @@ if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
 fi
 
-# Pinned by D-040; also in .github/workflows/ci.yml.
+# Pinned by D-040; also in .github/workflows/ci.yml and agent.yml.
 FLUTTER_VERSION="3.44.7"
 SDK_DIR="$HOME/sdk/flutter"
 ARCHIVE="https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"

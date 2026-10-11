@@ -12,7 +12,7 @@ corrected first.
 | Phase | 0 — Foundation. Gate 0 not met |
 | Stream A — app | M0.1, M0.2 and M0.3 merged, with human checks pending (pull requests #2, #3 and #4). **M0.4 part 1** merged as partial (pull request #6): spikes S1, S5 and the S3 playback part are done on Linux and await the owner's device run. **M0.5** merged (pull request #10): the remaining design-system widgets; the owner confirmed D-089 and D-091 on 2026-10-11; human checks pending. Next: M0.4 part 2 (S4, S7) |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | None open. Start the next part from `main` (on the branch the session is bound to, D-045) |
+| Working branch | `ci/agent-workflow`, pull request #13: the agent workflow of D-092. Implementation now runs as agent tasks in GitHub Actions on `agent/*` branches, started by the owner |
 | Last session | Implementing session, 2026-10-11, from two accounts: the first built M0.5 steps 0a, A, B and D; the second took the branch over mid-milestone, finished batch C and steps E to G, and applied two rounds of review (#10). Before it, planning session: books 473 and 440 (#11) |
 
 ## What is in the repository
@@ -179,14 +179,21 @@ raw extraction output; signing keys. The 13 logo SVG files are in
 
 ## In progress
 
-Nothing in stream A: M0.4 part 1 and M0.5 wait on the owner's device run and his look
-at the gallery images.
+Stream A: the agent workflow (D-092, pull request #13) waits for the owner's merge; it
+appears in the Actions tab only once it is on `main`. Then: one trial run on each key
+with a small cap, and M0.4 part 2 (S7 gestures, S4 home-screen widget, the S1 rerun on
+the D-079 file) split into agent tasks whose files do not overlap. M0.4 part 1 and M0.5
+still wait on the owner's device run and his look at the gallery images.
 
 Stream B: the owner is extracting book 466 (التهذيب في التفسير, about 7,325 site
 pages). Nothing else is open in stream B.
 
 ## Next actions — stream A (the implementing account)
 
+0. Implementation runs as agent tasks in GitHub Actions (D-092, `docs/WORKFLOW.md`,
+   "Tasks run by agents in GitHub Actions"): the lead session writes self-contained
+   task texts with a key slot each, the owner starts them, the lead reviews the pull
+   requests and records the results here. The lead does not write application code.
 1. Read, in this order: `CLAUDE.md`, this file, `docs/WORKFLOW.md`, the whole of
    `docs/prd/PRD.ar.md` once, `docs/IMPLEMENTATION_PLAN.md`, `docs/ARCHITECTURE.md`,
    `docs/DESIGN_SYSTEM.md`, `docs/SOURCES.md`, `docs/DECISIONS.md`,
@@ -358,6 +365,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-10-11 | Implementing session (second account), continued | On the owner's instruction, set up implementation by agents in GitHub Actions on his two API accounts: `agent.yml` and `agent.mjs` (Claude Agent SDK 0.3.296, option names read from its type definitions), the `check` task in CI, D-092, the workflow section. Linted with actionlint and shellcheck; the script was smoke-tested locally with an invalid key. | Pull request #13 |
 | 2026-10-11 | Implementing session (second account) | Found the first account's session still at work on the M0.5 branch; the owner chose this session to continue and the other handed over cleanly. Adopted its work (0a, A, B, D) and dropped a duplicate 0a; finished batch C; showed the five sections in the gallery (E); tested that the widgets draw a pack's bytes unchanged and kept the ramp allow-list current (F); code review and identity audit of every batch until both passed, findings applied; D-091; golden images by CI runs 103 and 110; merged; the owner confirmed D-089 and D-091. | Pull requests #10 and #12 |
 | 2026-10-11 | Implementing session (continued) | M0.5: step 0a with code review applied; batches A, B and D (14 widgets, five gallery sections); batch C partial; stopped at the owner's request to continue from the other account. | Draft pull request #10 |
 | 2026-10-07 | Planning session | Linked books 473 (surahs in the book's own order, ayah numbers inside quotations) and 440 (footnotes that name the surah and ayah); found that 737 and 165 cannot be linked to ayat from what they print; D-090; independent review applied; PRD at revision 151. Recorded from Git where the implementing session stopped (draft pull request #10). | Pull request #11 |
