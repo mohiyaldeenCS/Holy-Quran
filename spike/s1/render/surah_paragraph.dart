@@ -741,25 +741,29 @@ final class SurahParagraph {
       final range = _wordRange(index, span.single);
       return range == null ? const [] : _merged(_rawBoxes(range.$1, range.$2));
     }
+    return _merged(_ayahBoxes(index));
+  }
+
+  /// The body boxes of the ayah at [index]: its text and its marker.
+  List<TextBox> _ayahBoxes(int index) {
     final text = _textOf[index];
-    return _merged([
+    return [
       if (text != null) ..._rawBoxes(text.start, text.end),
       _asTextBox(_markerRaw(index)),
-    ]);
+    ];
   }
 
   /// The extent of the ayah [ayah]'s text and marker on the line after the
   /// shown ones, as tall as that line's band, in block coordinates: where
-  /// the next block draws it. Null when no line follows or the ayah is not
-  /// on it.
+  /// the next block draws it. Null when the ayah is not on that line, or
+  /// when no line follows or it is the paragraph's last: a last line is not
+  /// justified here, while the next block justifies it.
   Rect? nextLineBoxOf(QuranAddress ayah) {
     final index = content.indexOf(ayah);
-    if (index == null || ayah.isWord || _end >= _metrics.length) return null;
-    final text = _textOf[index];
-    final boxes = [
-      if (text != null) ..._rawBoxes(text.start, text.end),
-      _asTextBox(_markerRaw(index)),
-    ].where((box) => _lineOfBox(box) == _end);
+    if (index == null || ayah.isWord || _end >= _metrics.length - 1) {
+      return null;
+    }
+    final boxes = _ayahBoxes(index).where((box) => _lineOfBox(box) == _end);
     if (boxes.isEmpty) return null;
     return Rect.fromLTRB(
       math.max(boxes.map((box) => box.left).reduce(math.min), 0),

@@ -187,6 +187,55 @@ void main() {
     }
   }
 
+  for (final scale in _scales) {
+    for (final width in _widths) {
+      final where = '${width.toInt()} wide at ${scale}x';
+      test('a V2 block knows where the next block draws each ayah on its '
+          'first line, unless that line is its own last ($where)', () {
+        final planner = SurahFlowPlanner(
+          surah: marked,
+          width: width,
+          textScaler: TextScaler.linear(scale),
+          pageMarkSize: _pageMark,
+        );
+        final blocks = planner.all;
+        var matched = 0;
+        var lastLine = 0;
+        for (var k = 0; k + 1 < blocks.length; k++) {
+          final shown = planner.paragraphFor(blocks[k]);
+          final next = planner.paragraphFor(blocks[k + 1]);
+          final hiddenIsLast =
+              shown.firstShownLine + shown.visibleLineCount ==
+              shown.lineCount - 1;
+          if (hiddenIsLast) lastLine++;
+          final content = shown.content;
+          for (var i = 0; i < content.length; i++) {
+            final ayah = content.ayahAt(i);
+            final predicted = shown.nextLineBoxOf(ayah);
+            if (hiddenIsLast) {
+              expect(predicted, isNull, reason: 'block $k, $ayah');
+            }
+            if (predicted == null) continue;
+            final drawn = next.boxesOf(ayah).first;
+            expect(next.lineBands.first.contains(drawn.center), isTrue);
+            expect(predicted.left, closeTo(drawn.left, _px), reason: '$ayah');
+            expect(predicted.right, closeTo(drawn.right, _px));
+            expect(predicted.top, closeTo(shown.height, _px));
+            matched++;
+          }
+          shown.dispose();
+          next.dispose();
+        }
+        expect(matched, greaterThan(blocks.length ~/ 2));
+        // ignore: avoid_print
+        print(
+          'next-line boxes $where: $matched matched over ${blocks.length} '
+          'blocks; $lastLine blocks whose hidden line is their last',
+        );
+      });
+    }
+  }
+
   test('a V2 block whose first line starts at a word shaped with the word '
       'before it shows that word as V1 does', () {
     // Amiri Quran shapes some words narrower after another word (a

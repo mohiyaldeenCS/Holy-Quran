@@ -346,7 +346,7 @@ final class RenderSurahTextBlock extends RenderBox
         for (final ayah in _selected)
           if (!ayah.isWord && paragraph.content.indexOf(ayah) != null)
             _selectionOf(paragraph, ayah),
-      ].where((ayah) => ayah.boxes.isNotEmpty),
+      ].where((ayah) => ayah.boxes.isNotEmpty || ayah.next != null),
       width: size.width,
     );
     paragraph.paint(context.canvas, offset);
