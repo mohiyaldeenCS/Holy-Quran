@@ -22,6 +22,7 @@ import 'target_geometry.dart';
 
 const _width = 360.0;
 const _height = 800.0;
+const _scrolled = 200.0;
 
 SpikeSurahText _first(SpikeSurahText surah, int ayat) => SpikeSurahText(
   firstAyah: surah.firstAyah,
@@ -313,6 +314,15 @@ void main() {
     await tester.pump();
   }
 
+  /// The V1 list scrolled to [_scrolled], so that a scroll either way
+  /// would show.
+  Future<(_Log, ScrollController)> pumpScrolled(WidgetTester tester) async {
+    final (log, controller) = await pumpV1(tester);
+    controller.jumpTo(_scrolled);
+    await tester.pump();
+    return (log, controller);
+  }
+
   void expectOnePinch(
     _Log log,
     ScrollController controller, {
@@ -325,7 +335,7 @@ void main() {
       outward ? greaterThan(1) : lessThan(1),
       reason: reason,
     );
-    expect(controller.offset, 0, reason: reason);
+    expect(controller.offset, _scrolled, reason: reason);
     expect(log.taps, isEmpty, reason: reason);
     expect(log.longPresses, isEmpty, reason: reason);
   }
@@ -335,7 +345,7 @@ void main() {
         '5 px steps, ${gap.toInt()} px apart, is one pinch, with no scroll '
         'and no tap', (tester) async {
       for (final outward in [true, false]) {
-        final (log, controller) = await pumpV1(tester);
+        final (log, controller) = await pumpScrolled(tester);
         await unevenPinch(
           tester,
           const Offset(180, 150),
@@ -356,7 +366,7 @@ void main() {
   testWidgets('a pinch whose fingers travel 1:4 is one pinch, with no scroll '
       'and no tap', (tester) async {
     for (final outward in [true, false]) {
-      final (log, controller) = await pumpV1(tester);
+      final (log, controller) = await pumpScrolled(tester);
       final sign = outward ? 1.0 : -1.0;
       await unevenPinch(
         tester,
@@ -377,7 +387,7 @@ void main() {
   testWidgets('a diagonal pinch with one finger still is one pinch, with no '
       'scroll and no tap', (tester) async {
     for (final outward in [true, false]) {
-      final (log, controller) = await pumpV1(tester);
+      final (log, controller) = await pumpScrolled(tester);
       final sign = outward ? 1.0 : -1.0;
       await unevenPinch(
         tester,
@@ -392,6 +402,25 @@ void main() {
         outward: outward,
         reason: outward ? 'out' : 'in',
       );
+    }
+  });
+
+  testWidgets('two fingers whose span changes by less than the scale slop '
+      'report nothing; past it, one pinch', (tester) async {
+    for (final (steps, reported) in [(17, 0), (19, 1)]) {
+      final (log, controller) = await pumpScrolled(tester);
+      await unevenPinch(
+        tester,
+        const Offset(180, 300),
+        const Offset(180, 340),
+        stepA: Offset.zero,
+        stepB: Offset(0, steps * 2 / 10),
+      );
+      // Two fingers: the span is half the gap, which grew by 2 * steps.
+      expect(log.pinches, hasLength(reported), reason: '$steps');
+      expect(controller.offset, _scrolled);
+      expect(log.taps, isEmpty);
+      expect(log.longPresses, isEmpty);
     }
   });
 
