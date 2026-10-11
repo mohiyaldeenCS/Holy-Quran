@@ -10,7 +10,7 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-11 |
 | Phase | 0 — Foundation. Gate 0 not met |
-| Stream A — app | M0.1, M0.2 and M0.3 merged, with human checks pending (pull requests #2, #3 and #4). **M0.4 part 1** merged as partial (pull request #6): spikes S1, S5 and the S3 playback part are done on Linux and await the owner's device run. **M0.5** merged (pull request #10): the remaining design-system widgets, with human checks and the owner's confirmation of D-089 and D-091 pending. Next: M0.4 part 2 (S4, S7) |
+| Stream A — app | M0.1, M0.2 and M0.3 merged, with human checks pending (pull requests #2, #3 and #4). **M0.4 part 1** merged as partial (pull request #6): spikes S1, S5 and the S3 playback part are done on Linux and await the owner's device run. **M0.5** merged (pull request #10): the remaining design-system widgets; the owner confirmed D-089 and D-091 on 2026-10-11; human checks pending. Next: M0.4 part 2 (S4, S7) |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | None open. Start the next part from `main` (on the branch the session is bound to, D-045) |
 | Last session | Implementing session, 2026-10-11, from two accounts: the first built M0.5 steps 0a, A, B and D; the second took the branch over mid-milestone, finished batch C and steps E to G, and applied two rounds of review (#10). Before it, planning session: books 473 and 440 (#11) |
@@ -174,8 +174,8 @@ raw extraction output; signing keys. The 13 logo SVG files are in
   second finished batch C and steps E to G. `code-reviewer` and `identity-auditor`
   read every batch until both passed it; their findings were applied (`b815f96`,
   `ecb71f6`, `b8e671d`, `6871ead`) and the readings recorded in D-091. Golden images
-  by CI runs 103 and 110. Pending: the checks below, and the owner's confirmation
-  of D-089 and five readings of D-091.
+  by CI runs 103 and 110. The owner confirmed D-089 and D-091 on 2026-10-11.
+  Pending: the checks below.
 
 ## In progress
 
@@ -217,9 +217,6 @@ pages). Nothing else is open in stream B.
 8. M0.5 is merged. Phase 1 starts only when Gate 0 is met
    (`docs/IMPLEMENTATION_PLAN.md`); until then stream A finishes M0.4 and answers
    what the gate asks of it, and does not start an M1 milestone.
-9. When the owner answers the D-089 and D-091 question below, record his answer in
-   `docs/DECISIONS.md` and change the widget constants he rejects, with their tests
-   and golden images.
 
 ## Next actions — stream B (planning session and the owner)
 
@@ -257,7 +254,6 @@ Open decisions that come later (full list in `docs/DECISIONS.md`):
 
 | ID | Question, as it should be put to him | Needed by |
 | --- | --- | --- |
-| D-089, D-091 | «حسمنا في المرحلة M0.5 نقاطًا لا تحددها الهوية بالخيار الموصى به كما طلبت، ونعرضها عليك للتأكيد، وصورها في معرض المكوّنات: (١) الرموز الصغيرة (أيقونة التطبيق في رأس الرئيسية، ورمز بطاقات المشاركة، وشاشة البداية) تتبع قاعدة الرمز نفسه في سُمك الخط وحذف النقطة العلوية تحت ٣٢، لا ما رُسم في اللوحات؛ (٢) زر المشغّل الذي لا عمل له يبقى بشكله ويُعلَن معطّلًا لقارئ الشاشة؛ (٣) تُقصّ نتيجة البحث الطويلة عند ٩٢ بكسل كما في المرجع، أي نحو سطرين، مع رابط «اعرضها كاملة»؛ (٤) زر تفريغ حقل البحث اسمه «مسح»؛ (٥) الكلمة في أعلى ورقة الكلمة لا تنكسر على سطرين أبدًا، وتصغُر إذا كانت أعرض من الورقة عند تكبير الخط؛ ومعها بنود D-089 العشرة (بطاقة المشاركة تبدأ بخط ٣٤ وتصغر حتى ٢٢، وبطاقتا ١:١ و٩:١٦ مؤجلتان، وغيرها). هل تعتمدها، أم تريد تغيير بند منها؟» | M1.1 |
 | O-01 | «معرّف التطبيق في المتجرين (مثل com.اسمك.quran) واسم الناشر الذي سيظهر للمستخدمين. المعرّف لا يمكن تغييره بعد النشر.» | Before the first store upload |
 | O-04 | «ما التلاوات التي تريدها في الإصدار الأول (خمس على الأقل، اثنتان منها بتوقيت كلمات)، ومن أين نأخذ ملفاتها، وهل يجيز إذن كل منها التنزيل دون اتصال والاستضافة على خادمك؟» | Phase 0 (B0.5) |
 | O-06 | «هل تبقى التفاسير السبعة العامة (الميسر، المختصر، السعدي، الجلالين، البغوي، ابن كثير، الطبري) بجانب كتب المكتبة الزيدية؟» | Phase 0 (B0.7) |
@@ -362,7 +358,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
-| 2026-10-11 | Implementing session (second account) | Found the first account's session still at work on the M0.5 branch; the owner chose this session to continue and the other handed over cleanly. Adopted its work (0a, A, B, D) and dropped a duplicate 0a; finished batch C; showed the five sections in the gallery (E); tested that the widgets draw a pack's bytes unchanged and kept the ramp allow-list current (F); code review and identity audit of every batch until both passed, findings applied; D-091; golden images by CI runs 103 and 110. | Pull request #10 |
+| 2026-10-11 | Implementing session (second account) | Found the first account's session still at work on the M0.5 branch; the owner chose this session to continue and the other handed over cleanly. Adopted its work (0a, A, B, D) and dropped a duplicate 0a; finished batch C; showed the five sections in the gallery (E); tested that the widgets draw a pack's bytes unchanged and kept the ramp allow-list current (F); code review and identity audit of every batch until both passed, findings applied; D-091; golden images by CI runs 103 and 110; merged; the owner confirmed D-089 and D-091. | Pull requests #10 and #12 |
 | 2026-10-11 | Implementing session (continued) | M0.5: step 0a with code review applied; batches A, B and D (14 widgets, five gallery sections); batch C partial; stopped at the owner's request to continue from the other account. | Draft pull request #10 |
 | 2026-10-07 | Planning session | Linked books 473 (surahs in the book's own order, ayah numbers inside quotations) and 440 (footnotes that name the surah and ayah); found that 737 and 165 cannot be linked to ayat from what they print; D-090; independent review applied; PRD at revision 151. Recorded from Git where the implementing session stopped (draft pull request #10). | Pull request #11 |
 | 2026-10-07 | Planning session | Built and tested the ayah linker for books 183, 514, 276 and 471, with a check of every link against the text printed in book 514; recounted the honorific codes (sixteen); D-081, D-082; PRD re-exported at revision 147; two rounds of independent review applied. | Pull request #8 |
