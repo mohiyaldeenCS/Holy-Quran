@@ -101,64 +101,69 @@ class _SearchResultState extends State<SearchResult> {
       size: QuranTextSize.compact,
       align: QuranTextAlign.start,
     );
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border.all(color: colors.line),
-        borderRadius: _radius,
-      ),
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.space4,
-        AppSpacing.space3,
-        AppSpacing.space4,
-        // The link's hit area reaches into the bottom padding.
-        cut
-            ? _bottomInset + AppSpacing.space1 - 2 * _moreHitOutset
-            : _bottomInset,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // .qk-result-top: align-items center; space-between.
-          Row(
-            children: [
-              Expanded(
-                child: SurahName(
-                  widget.surahName,
-                  format: SurahNameFormat.withAyah,
-                  ayah: widget.ayahNumber,
-                  style: _referenceStyle.copyWith(color: colors.primary),
+    return Semantics(
+      container: true,
+      explicitChildNodes: true,
+      // Container adds the 1px border to the padding, as CSS does.
+      child: Container(
+        decoration: BoxDecoration(
+          color: colors.surface,
+          border: Border.all(color: colors.line),
+          borderRadius: _radius,
+        ),
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.space4,
+          AppSpacing.space3,
+          AppSpacing.space4,
+          // The link's hit area reaches into the bottom padding.
+          cut
+              ? _bottomInset + AppSpacing.space1 - 2 * _moreHitOutset
+              : _bottomInset,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // .qk-result-top: align-items center; space-between.
+            Row(
+              children: [
+                Expanded(
+                  child: SurahName(
+                    widget.surahName,
+                    format: SurahNameFormat.withAyah,
+                    ayah: widget.ayahNumber,
+                    style: _referenceStyle.copyWith(color: colors.primary),
+                  ),
                 ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                spacing: _actionsGap,
-                children: [
-                  IconButton(
-                    icon: IconName.context,
-                    label: l10n.searchResultContext,
-                    iconSize: _actionIconSize,
-                    onPressed: widget.onContext,
-                  ),
-                  IconButton(
-                    icon: IconName.mushaf,
-                    label: l10n.searchResultOpen,
-                    iconSize: _actionIconSize,
-                    onPressed: widget.onOpen,
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.space1),
-          if (cut) _Clamped(ayah: ayah) else ayah,
-          if (cut)
-            _ShowWhole(
-              label: l10n.searchResultShowWhole,
-              onPressed: () => setState(() => _whole = true),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: _actionsGap,
+                  children: [
+                    IconButton(
+                      icon: IconName.context,
+                      label: l10n.searchResultContext,
+                      iconSize: _actionIconSize,
+                      onPressed: widget.onContext,
+                    ),
+                    IconButton(
+                      icon: IconName.mushaf,
+                      label: l10n.searchResultOpen,
+                      iconSize: _actionIconSize,
+                      onPressed: widget.onOpen,
+                    ),
+                  ],
+                ),
+              ],
             ),
-        ],
+            const SizedBox(height: AppSpacing.space1),
+            if (cut) _Clamped(ayah: ayah) else ayah,
+            if (cut)
+              _ShowWhole(
+                label: l10n.searchResultShowWhole,
+                onPressed: () => setState(() => _whole = true),
+              ),
+          ],
+        ),
       ),
     );
   }

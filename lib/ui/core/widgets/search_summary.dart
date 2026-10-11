@@ -73,6 +73,7 @@ class SearchSummary extends StatelessWidget {
       children: [
         Expanded(
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title, style: _titleStyle.copyWith(color: colors.ink)),
@@ -127,6 +128,7 @@ class _Sort extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: AppSizes.targetMin),
           child: Center(
             widthFactor: 1,
+            heightFactor: 1,
             child: Pressable(
               onPressed: onPressed,
               focusRadius: _sortRadius,

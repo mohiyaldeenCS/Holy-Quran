@@ -51,6 +51,17 @@ TextEditingController _controller([String text = '']) {
   return controller;
 }
 
+SearchField _field({
+  String text = '',
+  TextEditingController? controller,
+  ValueChanged<String>? onChanged,
+  ValueChanged<String>? onSubmitted,
+}) => SearchField(
+  controller: controller ?? _controller(text),
+  onChanged: onChanged ?? (_) {},
+  onSubmitted: onSubmitted ?? (_) {},
+);
+
 BoxDecoration _ring(WidgetTester tester) =>
     tester
             .widget<DecoratedBox>(
@@ -85,10 +96,7 @@ void main() {
   testWidgets('56 high on surface, radius 16, a 1.5 line-strong ring', (
     tester,
   ) async {
-    await _pump(
-      tester,
-      SearchField(controller: _controller(), onChanged: (_) {}),
-    );
+    await _pump(tester, _field());
     expect(tester.getSize(find.byType(SearchField)).height, 56);
     final ring = _ring(tester);
     expect(ring.color, _colors.surface);
@@ -99,27 +107,41 @@ void main() {
   testWidgets('the ring turns 2 px primary while the field has focus', (
     tester,
   ) async {
-    await _pump(
-      tester,
-      SearchField(controller: _controller(), onChanged: (_) {}),
-    );
+    await _pump(tester, _field());
     await tester.tap(find.byType(TextField));
     await tester.pump();
+    expect(_ring(tester).border, Border.all(color: _colors.primary, width: 2));
+
+    FocusManager.instance.primaryFocus!.unfocus();
+    await tester.pump();
+    expect(
+      _ring(tester).border,
+      Border.all(color: _colors.lineStrong, width: 1.5),
+    );
+  });
+
+  testWidgets('the ring is primary while the clear button has focus too', (
+    tester,
+  ) async {
+    await _pump(tester, _field(text: _query));
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    final focused = FocusManager.instance.primaryFocus!.context!;
+    expect(focused.findAncestorWidgetOfExactType<IconButton>(), isNotNull);
     expect(_ring(tester).border, Border.all(color: _colors.primary, width: 2));
   });
 
   testWidgets('right to left: the icon 16 in, 10 before the text', (
     tester,
   ) async {
-    await _pump(
-      tester,
-      SearchField(controller: _controller(), onChanged: (_) {}),
-    );
+    await _pump(tester, _field());
     final field = tester.getRect(find.byType(SearchField));
     final icon = tester.getRect(_searchIcon());
     final input = tester.getRect(find.byType(TextField));
     expect(icon.size, const Size.square(22));
     expect(field.right - icon.right, AppSpacing.space4);
+    expect(icon.center.dy, field.center.dy);
     expect(icon.left - input.right, 10);
     expect(input.left - field.left, 6);
     expect(tester.widget<Icon>(_searchIcon()).color, _colors.inkMuted);
@@ -129,17 +151,28 @@ void main() {
     );
   });
 
+  testWidgets('the input is a 48 target centred in the field', (tester) async {
+    await _pump(tester, _field());
+    final field = tester.getRect(find.byType(SearchField));
+    final input = tester.getRect(find.byType(TextField));
+    expect(input.height, AppSizes.targetMin);
+    expect(input.center.dy, field.center.dy);
+    final text = tester.getRect(find.byType(EditableText));
+    expect(text.center.dy, closeTo(field.center.dy, 0.5));
+  });
+
   testWidgets('text is 18/600 ink; the hint is the label, 18/400 muted', (
     tester,
   ) async {
-    await _pump(
-      tester,
-      SearchField(controller: _controller(), onChanged: (_) {}),
-    );
+    await _pump(tester, _field());
     final field = tester.widget<TextField>(find.byType(TextField));
     expect(field.style!.fontSize, 18);
     expect(field.style!.fontWeight, FontWeight.w600);
     expect(field.style!.color, _colors.ink);
+    expect(field.style!.height, isNull);
+    expect(field.cursorColor, _colors.primary);
+    expect(field.decoration!.border, InputBorder.none);
+    expect(field.decoration!.filled, isNot(isTrue));
     expect(field.decoration!.hintText, _l10n.searchFieldHint);
     expect(field.decoration!.hintStyle!.fontSize, 18);
     expect(field.decoration!.hintStyle!.fontWeight, FontWeight.w400);
@@ -148,15 +181,26 @@ void main() {
     expect(find.text(_l10n.searchFieldHint), findsOneWidget);
   });
 
+  testWidgets('reports typing and the search key', (tester) async {
+    final changes = <String>[];
+    final submitted = <String>[];
+    await _pump(
+      tester,
+      _field(onChanged: changes.add, onSubmitted: submitted.add),
+    );
+    await tester.enterText(find.byType(TextField), _query);
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pump();
+    expect(changes, [_query]);
+    expect(submitted, [_query]);
+  });
+
   testWidgets('no button while empty; a 48 clear button once it has text', (
     tester,
   ) async {
     final controller = _controller();
     final changes = <String>[];
-    await _pump(
-      tester,
-      SearchField(controller: controller, onChanged: changes.add),
-    );
+    await _pump(tester, _field(controller: controller, onChanged: changes.add));
     expect(find.byType(IconButton), findsNothing);
 
     await tester.enterText(find.byType(TextField), _query);
@@ -184,12 +228,9 @@ void main() {
     tester,
   ) async {
     final handle = tester.ensureSemantics();
-    await _pump(
-      tester,
-      SearchField(controller: _controller(_query), onChanged: (_) {}),
-    );
+    await _pump(tester, _field(text: _query));
     final field = tester.getSemantics(find.byType(EditableText));
-    expect(field.label, contains(_l10n.searchFieldHint));
+    expect(field.label, _l10n.searchFieldHint);
     expect(field.value, _query);
     expect(field.flagsCollection.isTextField, isTrue);
     expect(
@@ -207,11 +248,19 @@ void main() {
     handle.dispose();
   });
 
+  testWidgets('the empty field is named once, by its hint', (tester) async {
+    final handle = tester.ensureSemantics();
+    await _pump(tester, _field());
+    final field = tester.getSemantics(find.byType(EditableText));
+    expect(field.label, _l10n.searchFieldHint);
+    expect(field.value, isEmpty);
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    handle.dispose();
+  });
+
   testWidgets('the clear button rings in keyboard mode only', (tester) async {
-    await _pump(
-      tester,
-      SearchField(controller: _controller(_query), onChanged: (_) {}),
-    );
+    await _pump(tester, _field(text: _query));
     expect(_ringDrawn(tester), isFalse);
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
@@ -224,16 +273,17 @@ void main() {
     expect(_ringDrawn(tester), isFalse);
   });
 
-  testWidgets('nothing clips at 200% on 360 wide', (tester) async {
-    await _pump(
-      tester,
-      SearchField(controller: _controller(_query), onChanged: (_) {}),
-      textScale: 2,
-    );
-    expect(tester.takeException(), isNull);
-    expect(
-      tester.getSize(find.byType(SearchField)).height,
-      greaterThanOrEqualTo(56),
-    );
+  testWidgets('nothing clips at 200% on 360 wide, empty or with text', (
+    tester,
+  ) async {
+    for (final text in ['', _query]) {
+      await _pump(tester, _field(text: text), textScale: 2);
+      expect(tester.takeException(), isNull);
+      final field = tester.getRect(find.byType(SearchField));
+      expect(field.height, greaterThanOrEqualTo(56));
+      final input = tester.getRect(find.byType(EditableText));
+      expect(input.top, greaterThanOrEqualTo(field.top));
+      expect(input.bottom, lessThanOrEqualTo(field.bottom));
+    }
   });
 }

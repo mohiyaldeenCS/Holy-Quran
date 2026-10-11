@@ -32,12 +32,13 @@ const TextStyle _inputStyle = TextStyle(
   fontWeight: FontWeight.w600,
   letterSpacing: 0,
   leadingDistribution: TextLeadingDistribution.even,
+  textBaseline: TextBaseline.alphabetic,
 );
 
 /// The search field (`SearchField`, `.qk-search`): the search icon and the
 /// text, 56 high on `surface` with a `line-strong` ring that turns into a
-/// 2 px `primary` ring while the field has focus. Its hint and spoken name
-/// are «ابحث في القرآن».
+/// 2 px `primary` ring while anything in it has focus. Its hint and spoken
+/// name are «ابحث في القرآن»; the keyboard's action key searches.
 ///
 /// The voice button is deferred, so it is not drawn. While the field holds
 /// text, a plain 48 clear button stands in its place; when it is empty,
@@ -46,34 +47,24 @@ class SearchField extends StatefulWidget {
   const SearchField({
     required this.controller,
     required this.onChanged,
+    required this.onSubmitted,
     super.key,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final ValueChanged<String> onSubmitted;
 
   @override
   State<SearchField> createState() => _SearchFieldState();
 }
 
 class _SearchFieldState extends State<SearchField> {
-  final FocusNode _focus = FocusNode();
+  bool _focused = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _focus.addListener(_onFocus);
+  void _onFocusChange(bool focused) {
+    if (focused != _focused) setState(() => _focused = focused);
   }
-
-  @override
-  void dispose() {
-    _focus
-      ..removeListener(_onFocus)
-      ..dispose();
-    super.dispose();
-  }
-
-  void _onFocus() => setState(() {});
 
   void _clear() {
     widget.controller.clear();
@@ -84,62 +75,83 @@ class _SearchFieldState extends State<SearchField> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final l10n = AppLocalizations.of(context);
-    final focused = _focus.hasFocus;
-    return DecoratedBox(
-      // A border drawn inside the box, as an inset box-shadow: no layout.
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.radiusButton),
-        border: Border.all(
-          color: focused ? colors.primary : colors.lineStrong,
-          width: focused ? _focusedRingWidth : _ringWidth,
+    final input = Material(
+      // TextField draws through Material; the field itself has no Material
+      // look.
+      type: MaterialType.transparency,
+      child: TextField(
+        controller: widget.controller,
+        onChanged: widget.onChanged,
+        onSubmitted: widget.onSubmitted,
+        textDirection: TextDirection.rtl,
+        textInputAction: TextInputAction.search,
+        style: _inputStyle.copyWith(color: colors.ink),
+        cursorColor: colors.primary,
+        // Not collapsed: the decorator keeps the input at least target-min
+        // high, centred, so the text is a 48 target as `.qk-search-input`'s
+        // `height: 100%` makes it one.
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.zero,
+          hintText: l10n.searchFieldHint,
+          hintStyle: _inputStyle.copyWith(
+            color: colors.inkMuted,
+            fontWeight: FontWeight.w400,
+          ),
         ),
       ),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: _height),
-        child: Padding(
-          padding: const EdgeInsetsDirectional.only(
-            start: AppSpacing.space4,
-            end: _endInset,
+    );
+    // :focus-within: the clear button's focus turns the ring too.
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      includeSemantics: false,
+      onFocusChange: _onFocusChange,
+      child: DecoratedBox(
+        // A border drawn inside the box, as an inset box-shadow: no layout.
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.radiusButton),
+          border: Border.all(
+            color: _focused ? colors.primary : colors.lineStrong,
+            width: _focused ? _focusedRingWidth : _ringWidth,
           ),
-          child: ValueListenableBuilder<TextEditingValue>(
-            valueListenable: widget.controller,
-            builder: (context, value, field) => Row(
-              spacing: _gap,
-              children: [
-                Icon(IconName.search, size: _iconSize, color: colors.inkMuted),
-                Expanded(child: field!),
-                if (value.text.isNotEmpty)
-                  IconButton(
-                    icon: IconName.close,
-                    label: l10n.searchFieldClear,
-                    iconSize: _iconSize,
-                    onPressed: _clear,
-                  ),
-              ],
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: _height),
+          child: Padding(
+            padding: const EdgeInsetsDirectional.only(
+              start: AppSpacing.space4,
+              end: _endInset,
             ),
-            child: Semantics(
-              label: l10n.searchFieldHint,
-              // TextField draws through Material; the field itself has
-              // no Material look.
-              child: Material(
-                type: MaterialType.transparency,
-                child: TextField(
-                  controller: widget.controller,
-                  focusNode: _focus,
-                  onChanged: widget.onChanged,
-                  textDirection: TextDirection.rtl,
-                  textInputAction: TextInputAction.search,
-                  style: _inputStyle.copyWith(color: colors.ink),
-                  decoration: InputDecoration.collapsed(
-                    hintText: l10n.searchFieldHint,
-                    hintStyle: _inputStyle.copyWith(
-                      color: colors.inkMuted,
-                      fontWeight: FontWeight.w400,
+            child: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: widget.controller,
+              builder: (context, value, field) => Row(
+                spacing: _gap,
+                children: [
+                  Icon(
+                    IconName.search,
+                    size: _iconSize,
+                    color: colors.inkMuted,
+                  ),
+                  Expanded(
+                    child: Semantics(
+                      // `aria-label`: the shown hint names the empty field;
+                      // once it holds text, the hint is gone and this does.
+                      label: value.text.isEmpty ? null : l10n.searchFieldHint,
+                      child: field,
                     ),
                   ),
-                ),
+                  if (value.text.isNotEmpty)
+                    IconButton(
+                      icon: IconName.close,
+                      label: l10n.searchFieldClear,
+                      iconSize: _iconSize,
+                      onPressed: _clear,
+                    ),
+                ],
               ),
+              child: input,
             ),
           ),
         ),

@@ -101,8 +101,12 @@ class _StudySearchGalleryState extends State<StudySearchGallery> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             spacing: AppSpacing.space4,
             children: [
-              SearchField(controller: _filled, onChanged: _ignore),
-              SearchField(controller: _empty, onChanged: _ignore),
+              for (final controller in [_filled, _empty])
+                SearchField(
+                  controller: controller,
+                  onChanged: _ignore,
+                  onSubmitted: _ignore,
+                ),
             ],
           ),
         ),

@@ -296,7 +296,7 @@ void main() {
   testWidgets('hides what has no data: rows, empty values and the note', (
     tester,
   ) async {
-    await _pump(tester, _sheet(rows: const [], note: null));
+    await _pump(tester, _sheet(rows: const []));
     expect(_rowsBox(), findsNothing);
     expect(find.text(_l10n.sampleNote), findsNothing);
 
