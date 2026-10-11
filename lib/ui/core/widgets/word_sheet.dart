@@ -1,4 +1,6 @@
-import 'package:flutter/semantics.dart' show SemanticsRole;
+import 'dart:math' as math;
+
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/domain/models/pack_text.dart';
@@ -8,6 +10,7 @@ import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/focus_ring.dart';
 import 'package:holyquran/ui/core/widgets/quran_text.dart';
+import 'package:holyquran/ui/core/widgets/reveal_on_focus.dart';
 
 // .qk-sheet: padding var(--space-3) 22px 22px; gap var(--space-4).
 const double _sheetSide = 22;
@@ -16,8 +19,10 @@ const double _sheetBottom = 22;
 const Size _handleSize = Size(44, 5);
 const BorderRadius _handleRadius = BorderRadius.all(Radius.circular(3));
 // The tabs scroll like `.qk-chips` (D-087): padding 4px 2px, taken back by
-// its margin. The 4px above and below hold the tabs' 48 hit area; the 2px at
-// the ends keep the focus ring off the scroll edge.
+// its margin. The 4px above and below hold the tabs' 48 hit area. At the
+// ends the strip is placed 2px out and padded 2px in, so the tabs sit flush
+// with the sheet's content and only the edge the scrolled tabs are cut at
+// lies 2px further out.
 const double _stripInsetX = 2;
 const double _hitOutset = AppSpacing.space1;
 // .qk-sheet-tab: height 40px; border-radius 20px is half of it.
@@ -88,9 +93,14 @@ final class WordSheetRow {
 /// caller's.
 ///
 /// [tabs] are those whose pack is installed (PRD §7.8); they are shown in the
-/// identity's order and scroll sideways, so none is hidden at 200% (D-087).
-/// [word] is drawn by [QuranText] in `accent` (D-085). Rows with an empty
-/// value, an empty [rows] and a null or empty [note] show nothing.
+/// identity's order and scroll sideways, so none is hidden at 200% (D-087);
+/// [selectedTab] is one of them.
+/// [word] is drawn by [QuranText] in `accent` (D-085), whole on one line:
+/// when it and its place do not fit side by side the place goes under it,
+/// and a word wider than the sheet is scaled down to fit.
+/// [rows] come with the [note] that names their source (WordSheet README).
+/// Rows with an empty value, an empty [rows] and a null or empty [note] show
+/// nothing.
 class WordSheet extends StatelessWidget {
   const WordSheet({
     required this.word,
@@ -103,7 +113,8 @@ class WordSheet extends StatelessWidget {
     this.note,
     super.key,
   }) : assert(wordNumber >= 1 && wordNumber <= wordCount),
-       assert(tabs.length > 0);
+       assert(tabs.length > 0),
+       assert(rows.length == 0 || (note?.length ?? 0) > 0);
 
   final PackText word;
   final int wordNumber;
@@ -116,6 +127,8 @@ class WordSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Here, not in the const constructor, which cannot call a method.
+    assert(tabs.contains(selectedTab), 'The selected tab is not shown.');
     final colors = context.colors;
     final l10n = AppLocalizations.of(context);
     final rows = [
@@ -174,28 +187,25 @@ class WordSheet extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               spacing: gap,
               children: [
-                // .qk-sheet-word: align-items baseline; space-between.
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: QuranText(
-                        word,
-                        size: QuranTextSize.focus,
-                        align: QuranTextAlign.start,
-                        colour: QuranTextColour.accent,
-                      ),
+                _WordLine(
+                  // Scaled, never wrapped: a Quran word is drawn whole.
+                  word: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: QuranText(
+                      word,
+                      size: QuranTextSize.focus,
+                      align: QuranTextAlign.start,
+                      colour: QuranTextColour.accent,
                     ),
-                    Text(
-                      l10n.wordSheetPosition(
-                        arabicDigits(wordNumber),
-                        arabicDigits(wordCount),
-                      ),
-                      style: _positionStyle.copyWith(color: colors.inkMuted),
+                  ),
+                  position: Text(
+                    l10n.wordSheetPosition(
+                      arabicDigits(wordNumber),
+                      arabicDigits(wordCount),
                     ),
-                  ],
+                    style: _positionStyle.copyWith(color: colors.inkMuted),
+                  ),
                 ),
                 if (rows.isNotEmpty) _Rows(rows: rows),
                 if (note != null && note.isNotEmpty)
@@ -240,10 +250,12 @@ class _Tabs extends StatelessWidget {
           spacing: AppSpacing.space2,
           children: [
             for (final tab in tabs)
-              _Tab(
-                label: _labelOf(l10n, tab),
-                selected: tab == selected,
-                onTap: () => onSelected(tab),
+              RevealOnFocus(
+                child: _Tab(
+                  label: _labelOf(l10n, tab),
+                  selected: tab == selected,
+                  onTap: () => onSelected(tab),
+                ),
               ),
           ],
         ),
@@ -359,17 +371,18 @@ class _Rows extends StatelessWidget {
                   : BoxDecoration(
                       border: Border(bottom: BorderSide(color: colors.line)),
                     ),
+              // .qk-sheet-row: display flex, so the label keeps its width and
+              // the value takes the rest; items stretch, so both start at the
+              // row's top.
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 spacing: AppSpacing.space4,
                 children: [
-                  Flexible(
-                    child: Text(
-                      row.label,
-                      style: _rowStyle.copyWith(color: colors.inkMuted),
-                    ),
+                  Text(
+                    row.label,
+                    style: _rowStyle.copyWith(color: colors.inkMuted),
                   ),
-                  Flexible(
+                  Expanded(
                     child: Text(
                       row.value,
                       // .qk-sheet-row b: text-align left, the row's end.
@@ -386,5 +399,114 @@ class _Rows extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+enum _WordPart { word, position }
+
+/// `.qk-sheet-word`: [word] at the start and [position] at the end, on one
+/// baseline (`align-items: baseline; justify-content: space-between`). When
+/// the two do not fit side by side, [position] goes under [word], at the
+/// start, rather than squeezing the word.
+class _WordLine
+    extends SlottedMultiChildRenderObjectWidget<_WordPart, RenderBox> {
+  const _WordLine({required this.word, required this.position});
+
+  final Widget word;
+  final Widget position;
+
+  @override
+  Iterable<_WordPart> get slots => _WordPart.values;
+
+  @override
+  Widget childForSlot(_WordPart slot) => switch (slot) {
+    _WordPart.word => word,
+    _WordPart.position => position,
+  };
+
+  @override
+  _RenderWordLine createRenderObject(BuildContext context) =>
+      _RenderWordLine(Directionality.of(context));
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderWordLine renderObject) {
+    renderObject.textDirection = Directionality.of(context);
+  }
+}
+
+class _RenderWordLine extends RenderBox
+    with SlottedContainerRenderObjectMixin<_WordPart, RenderBox> {
+  _RenderWordLine(this._textDirection);
+
+  TextDirection _textDirection;
+  set textDirection(TextDirection value) {
+    if (value == _textDirection) return;
+    _textDirection = value;
+    markNeedsLayout();
+  }
+
+  @override
+  void performLayout() {
+    final word = childForSlot(_WordPart.word)!;
+    final position = childForSlot(_WordPart.position)!;
+    final width = constraints.maxWidth;
+    final within = BoxConstraints(maxWidth: width);
+    word.layout(within, parentUsesSize: true);
+    position.layout(within, parentUsesSize: true);
+    double start(RenderBox child) => switch (_textDirection) {
+      TextDirection.rtl => width - child.size.width,
+      TextDirection.ltr => 0,
+    };
+    double end(RenderBox child) => width - child.size.width - start(child);
+
+    final Offset wordAt;
+    final Offset positionAt;
+    if (word.size.width + position.size.width > width) {
+      wordAt = Offset(start(word), 0);
+      positionAt = Offset(start(position), word.size.height);
+    } else {
+      final wordBaseline = word.getDistanceToBaseline(TextBaseline.alphabetic)!;
+      final positionBaseline = position.getDistanceToBaseline(
+        TextBaseline.alphabetic,
+      )!;
+      final baseline = math.max(wordBaseline, positionBaseline);
+      wordAt = Offset(start(word), baseline - wordBaseline);
+      positionAt = Offset(end(position), baseline - positionBaseline);
+    }
+    (word.parentData! as BoxParentData).offset = wordAt;
+    (position.parentData! as BoxParentData).offset = positionAt;
+    size = constraints.constrain(
+      Size(
+        width,
+        math.max(
+          wordAt.dy + word.size.height,
+          positionAt.dy + position.size.height,
+        ),
+      ),
+    );
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    for (final child in children) {
+      context.paintChild(
+        child,
+        offset + (child.parentData! as BoxParentData).offset,
+      );
+    }
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    for (final child in children) {
+      final hit = result.addWithPaintOffset(
+        offset: (child.parentData! as BoxParentData).offset,
+        position: position,
+        hitTest: (result, transformed) =>
+            child.hitTest(result, position: transformed),
+      );
+      if (hit) return true;
+    }
+    return false;
   }
 }

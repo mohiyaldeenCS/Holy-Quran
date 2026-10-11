@@ -28,6 +28,7 @@ Future<void> _pump(
   Widget child, {
   double textScale = 1,
   double width = 360,
+  bool disableAnimations = false,
 }) async {
   tester.view
     ..physicalSize = Size(width, 800)
@@ -38,9 +39,10 @@ Future<void> _pump(
       ReadingTheme.paper,
       Builder(
         builder: (context) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(textScale),
+            disableAnimations: disableAnimations,
+          ),
           child: child,
         ),
       ),
@@ -72,6 +74,38 @@ BoxDecoration _decoration(WidgetTester tester, String option) =>
 TextStyle _style(WidgetTester tester, String option) =>
     tester.widget<Text>(find.text(option)).style!;
 
+/// Whether the focus ring of the chip labelled [option] is drawn.
+bool _ringOn(WidgetTester tester, String option) =>
+    tester
+        .widget<CustomPaint>(
+          find
+              .descendant(
+                of: find.ancestor(
+                  of: find.text(option),
+                  matching: find.byType(FocusRing),
+                ),
+                matching: find.byType(CustomPaint),
+              )
+              .first,
+        )
+        .foregroundPainter !=
+    null;
+
+ScrollPosition _scroll(WidgetTester tester) => tester
+    .state<ScrollableState>(
+      find.descendant(
+        of: find.byType(ModeChips),
+        matching: find.byType(Scrollable),
+      ),
+    )
+    .position;
+
+Future<void> _shiftTab(WidgetTester tester) async {
+  await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+  await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+  await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+}
+
 bool _ringDrawn(WidgetTester tester) => tester
     .widgetList<CustomPaint>(
       find.descendant(
@@ -87,7 +121,7 @@ void main() {
         FocusHighlightStrategy.automatic,
   );
 
-  testWidgets('a 48 strip of 40 high chips, 8 apart, inset 2 at the ends', (
+  testWidgets('a 48 strip of 40 high chips, 8 apart, flush at rest', (
     tester,
   ) async {
     await _pump(tester, _live());
@@ -97,9 +131,26 @@ void main() {
     final second = tester.getRect(_face(_options[1]));
     expect(first.height, 40);
     expect(first.top - strip.top, 4);
-    // Right to left: the first chip is on the right.
-    expect(strip.right - first.right, 2);
+    // Right to left: the first chip is on the right, flush with the strip's
+    // edge, as .qk-chips' padding and margin net out.
+    expect(first.right, strip.right);
     expect(first.left - second.right, AppSpacing.space2);
+
+    final position = _scroll(tester);
+    position.jumpTo(position.maxScrollExtent);
+    await tester.pump();
+    expect(tester.getRect(_face(_options.last)).left, strip.left);
+  });
+
+  testWidgets('the chips are cut 2 px past each end, where the '
+      "reference's margin puts its scroll edge", (tester) async {
+    await _pump(tester, _live());
+    final strip = tester.getSize(find.byType(ModeChips));
+    expect(
+      find.byType(ModeChips),
+      paints..clipRect(rect: Rect.fromLTRB(-2, 0, strip.width + 2, 48)),
+    );
+    expect(find.byType(ModeChips), paintsExactlyCountTimes(#clipRect, 1));
   });
 
   testWidgets('an unselected chip: surface, line border, 15/500 ink', (
@@ -236,5 +287,47 @@ void main() {
       tester.getRect(_face(_options.last)).left,
       greaterThanOrEqualTo(strip.left),
     );
+  });
+
+  for (final scale in [1.0, 2.0]) {
+    testWidgets('keyboard focus scrolls each chip into view, at '
+        '${(scale * 100).round()}% on 360 wide', (tester) async {
+      await _pump(tester, _live(), textScale: scale);
+      final strip = tester.getRect(find.byType(ModeChips));
+      expect(tester.getRect(_face(_options.last)).left, lessThan(strip.left));
+
+      for (final option in _options) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+        expect(_ringOn(tester, option), isTrue, reason: option);
+        final face = tester.getRect(_face(option));
+        expect(face.left, greaterThanOrEqualTo(strip.left), reason: option);
+        expect(face.right, lessThanOrEqualTo(strip.right), reason: option);
+      }
+      for (final option in _options.reversed.skip(1)) {
+        await _shiftTab(tester);
+        await tester.pumpAndSettle();
+        expect(_ringOn(tester, option), isTrue, reason: option);
+        final face = tester.getRect(_face(option));
+        expect(face.left, greaterThanOrEqualTo(strip.left), reason: option);
+        expect(face.right, lessThanOrEqualTo(strip.right), reason: option);
+      }
+    });
+  }
+
+  testWidgets('with reduced motion the strip jumps to the focused chip', (
+    tester,
+  ) async {
+    await _pump(tester, _live(), disableAnimations: true);
+    final strip = tester.getRect(find.byType(ModeChips));
+    for (var i = 0; i < _options.length; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    }
+    await tester.pump();
+    expect(
+      tester.getRect(_face(_options.last)).left,
+      greaterThanOrEqualTo(strip.left),
+    );
+    expect(tester.hasRunningAnimations, isFalse);
   });
 }

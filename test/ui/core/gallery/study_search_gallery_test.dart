@@ -4,10 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
+import 'package:holyquran/ui/core/gallery/gallery_screen.dart';
 import 'package:holyquran/ui/core/gallery/gallery_section.dart';
 import 'package:holyquran/ui/core/gallery/sections/study_search_gallery.dart';
 import 'package:holyquran/ui/core/widgets/icon_button.dart';
 import 'package:holyquran/ui/core/widgets/mode_chips.dart';
+import 'package:holyquran/ui/core/widgets/quran_text.dart';
 import 'package:holyquran/ui/core/widgets/search_field.dart';
 import 'package:holyquran/ui/core/widgets/search_result.dart';
 import 'package:holyquran/ui/core/widgets/search_summary.dart';
@@ -41,7 +43,65 @@ Future<void> _pump(
   );
 }
 
+Finder _clampedAyah() => find.descendant(
+  of: find.descendant(
+    of: find.byType(SearchResult).last,
+    matching: find.byType(QuranText),
+  ),
+  matching: find.byType(RichText),
+);
+
+RenderObject _lastResult(WidgetTester tester) =>
+    tester.renderObject(find.byType(SearchResult).last);
+
+/// The part of [box] that its ancestors up to [within] let paint, in global
+/// coordinates.
+Rect _shown(RenderBox box, RenderObject within) {
+  var shown = MatrixUtils.transformRect(
+    box.getTransformTo(null),
+    Offset.zero & box.size,
+  );
+  for (RenderObject child = box; child != within; child = child.parent!) {
+    final parent = child.parent!;
+    final clip = parent.describeApproximatePaintClip(child);
+    if (clip != null) {
+      shown = shown.intersect(
+        MatrixUtils.transformRect(parent.getTransformTo(null), clip),
+      );
+    }
+  }
+  return shown;
+}
+
 void main() {
+  // 400 is the width of the section's golden image.
+  for (final width in [400.0, 360.0]) {
+    testWidgets('the long result is cut where the gallery draws it, '
+        '${width.round()} wide', (tester) async {
+      tester.view
+        ..physicalSize = Size(width, 2000)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        goldenApp(
+          ReadingTheme.paper,
+          const SingleChildScrollView(
+            child: GalleryThemed(
+              theme: ReadingTheme.paper,
+              child: StudySearchGallery(),
+            ),
+          ),
+        ),
+      );
+      final ayah = tester.renderObject<RenderBox>(_clampedAyah());
+      expect(
+        ayah.size.height - _shown(ayah, _lastResult(tester)).height,
+        greaterThanOrEqualTo(1),
+      );
+      expect(find.text(_l10n.searchResultShowWhole), findsOneWidget);
+    });
+  }
+
   for (final theme in ReadingTheme.values) {
     for (final scale in [1.0, 2.0]) {
       testWidgets('lays out without overflow in ${theme.name} at '
@@ -138,15 +198,14 @@ void main() {
     expect(clear, findsNothing);
 
     final more = find.text(_l10n.searchResultShowWhole);
-    final clip = find.descendant(
-      of: find.byType(SearchResult).last,
-      matching: find.byType(ClipRect),
-    );
-    expect(clip, findsOneWidget);
     await tester.ensureVisible(more);
     await tester.tap(more);
     await tester.pump();
     expect(more, findsNothing);
-    expect(clip, findsNothing);
+    final ayah = tester.renderObject<RenderBox>(_clampedAyah());
+    expect(
+      _shown(ayah, _lastResult(tester)).height,
+      closeTo(ayah.size.height, 0.01),
+    );
   });
 }

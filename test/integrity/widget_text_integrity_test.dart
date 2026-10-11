@@ -41,10 +41,10 @@ const _arabicScriptName =
     '\u{627}\u{633}\u{645}\u{64E} \u{62A}\u{62C}\u{631}\u{64A}\u{628}\u{64A}'
     '\u{200F}';
 
-/// Long enough that a result [_resultWidth] wide clamps it, short enough
-/// that a share card holds it at [_cardAyahSize].
+/// Long enough that a result [_resultWidth] wide cuts it, short enough that
+/// a share card holds it at [_cardAyahSize].
 const _longAyah = SyntheticAyah(
-  'Synthetic long ayah that wraps past the three lines of a clamped result',
+  'Synthetic long ayah that wraps past the height of a clamped result',
 );
 
 /// The default synthetic surahs under [_names], the last with [_longAyah]
@@ -63,7 +63,7 @@ final _surahs = [
     ),
 ];
 
-/// Narrow enough that [_longAyah] wraps past the three lines a clamp shows.
+/// Narrow enough that [_longAyah] wraps past the height a clamp shows.
 const double _resultWidth = 200;
 
 /// The least size a caller may fit a share card's ayah to (D-085).
@@ -400,18 +400,30 @@ bool _holds(List<int> bytes, List<int> part) {
   return false;
 }
 
-/// Whether the ayah inside the [SearchResult] [result] is laid out taller
-/// than the clip nearest it, the last of its clipping ancestors in the
-/// result.
+/// Whether the ayah inside the [SearchResult] [result] is laid out at least
+/// a pixel taller than the clips of its ancestors up to the result let it
+/// paint.
 bool _isCut(WidgetTester tester, Finder result) {
-  final quranText = find.descendant(
-    of: result,
-    matching: find.byType(QuranText),
+  final ayah = tester.renderObject<RenderBox>(
+    find.descendant(
+      of: find.descendant(of: result, matching: find.byType(QuranText)),
+      matching: find.byType(RichText),
+    ),
   );
-  final clip = find.descendant(
-    of: result,
-    matching: find.ancestor(of: quranText, matching: find.byType(ClipRect)),
+  final whole = MatrixUtils.transformRect(
+    ayah.getTransformTo(null),
+    Offset.zero & ayah.size,
   );
-  if (clip.evaluate().isEmpty) return false;
-  return tester.getSize(quranText).height > tester.getSize(clip.last).height;
+  var shown = whole;
+  final within = tester.renderObject(result);
+  for (RenderObject child = ayah; child != within; child = child.parent!) {
+    final parent = child.parent!;
+    final clip = parent.describeApproximatePaintClip(child);
+    if (clip != null) {
+      shown = shown.intersect(
+        MatrixUtils.transformRect(parent.getTransformTo(null), clip),
+      );
+    }
+  }
+  return whole.height - shown.height >= 1;
 }

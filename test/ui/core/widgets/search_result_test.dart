@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' hide Icon, IconButton;
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -28,8 +29,8 @@ const _longValue =
     'نص تجريبي طويل يمتد على أسطر كثيرة ليظهر قطع الكلام في البطاقة، '
     'وهو نص تجريبي ليس آية ولا مأخوذًا من أي مصدر، ويتكرر ليطول.';
 const _long = PackText.fromPack(_longValue);
-// .qk-quran-compact: 22px at line height 2.2; three lines (D-089, 7).
-const _line = 22 * 2.2;
+// .qk-result-body.is-clamped: max-height 92px, scaled with the text.
+const _clampHeight = 92;
 
 Future<void> _pump(
   WidgetTester tester,
@@ -80,10 +81,35 @@ Finder _card() => find
 BoxDecoration _cardDecoration(WidgetTester tester) =>
     tester.widget<Container>(_card()).decoration! as BoxDecoration;
 
-Finder _clip() => find.descendant(
-  of: find.byType(SearchResult),
-  matching: find.byType(ClipRect),
+Finder _ayahText() => find.descendant(
+  of: find.byType(QuranText),
+  matching: find.byType(RichText),
 );
+
+RenderParagraph _ayah(WidgetTester tester) =>
+    tester.renderObject<RenderParagraph>(_ayahText());
+
+RenderObject _resultBox(WidgetTester tester) =>
+    tester.renderObject(find.byType(SearchResult));
+
+/// The part of [box] that its ancestors up to [within] let paint, in global
+/// coordinates.
+Rect _shown(RenderBox box, RenderObject within) {
+  var shown = MatrixUtils.transformRect(
+    box.getTransformTo(null),
+    Offset.zero & box.size,
+  );
+  for (RenderObject child = box; child != within; child = child.parent!) {
+    final parent = child.parent!;
+    final clip = parent.describeApproximatePaintClip(child);
+    if (clip != null) {
+      shown = shown.intersect(
+        MatrixUtils.transformRect(parent.getTransformTo(null), clip),
+      );
+    }
+  }
+  return shown;
+}
 
 Finder _fade() => find.descendant(
   of: find.byType(SearchResult),
@@ -169,7 +195,11 @@ void main() {
     expect(quran.size, QuranTextSize.compact);
     expect(quran.align, QuranTextAlign.start);
     expect(quran.colour, QuranTextColour.quranInk);
-    expect(_clip(), findsNothing);
+    final ayah = _ayah(tester);
+    expect(
+      _shown(ayah, _resultBox(tester)).height,
+      closeTo(ayah.size.height, 0.01),
+    );
     expect(_fade(), findsNothing);
     expect(_more(), findsNothing);
   });
@@ -215,30 +245,59 @@ void main() {
     expect(calls, ['context', 'open']);
   });
 
-  testWidgets('clamped: three lines of 22 × 2.2 under a 40 px fade', (
-    tester,
-  ) async {
-    await _pump(tester, _result(text: _long, clamp: true));
-    final whole = tester.getSize(find.byType(QuranText)).height;
-    expect(whole, greaterThan(3 * _line));
-    final clip = tester.getRect(_clip());
-    expect(clip.height, closeTo(3 * _line, 0.01));
-    final fade = tester.getRect(_fade());
-    expect(fade.height, 40);
-    expect(fade.bottom, clip.bottom);
-    expect(fade.left, clip.left);
-    expect(fade.right, clip.right);
-    final gradient =
-        (tester.widget<DecoratedBox>(_fade()).decoration as BoxDecoration)
-                .gradient!
-            as LinearGradient;
-    expect(gradient.begin, Alignment.topCenter);
-    expect(gradient.end, Alignment.bottomCenter);
-    expect(gradient.colors, [
-      _colors.surface.withValues(alpha: 0),
-      _colors.surface,
-    ]);
-  });
+  for (final scale in [1.0, 2.0]) {
+    testWidgets('a long ayah is cut at 92 × the text scale under a 40 px '
+        'fade, at ${(scale * 100).round()}%', (tester) async {
+      await _pump(tester, _result(text: _long, clamp: true), textScale: scale);
+      expect(tester.takeException(), isNull);
+      final ayah = _ayah(tester);
+      final whole = tester.getRect(_ayahText());
+      final shown = _shown(ayah, _resultBox(tester));
+      expect(ayah.size.height, greaterThan(_clampHeight * scale));
+      expect(shown.top, whole.top);
+      expect(shown.height, closeTo(_clampHeight * scale, 0.01));
+      final card = tester.getRect(_card());
+      expect(shown.left, card.left + 1 + AppSpacing.space4);
+      expect(shown.right, card.right - 1 - AppSpacing.space4);
+
+      final fade = tester.getRect(_fade());
+      expect(fade.height, 40);
+      expect(fade.bottom, closeTo(shown.bottom, 0.01));
+      expect(fade.left, shown.left);
+      expect(fade.right, shown.right);
+      final gradient =
+          (tester.widget<DecoratedBox>(_fade()).decoration as BoxDecoration)
+                  .gradient!
+              as LinearGradient;
+      expect(gradient.begin, Alignment.topCenter);
+      expect(gradient.end, Alignment.bottomCenter);
+      expect(gradient.colors, [
+        _colors.surface.withValues(alpha: 0),
+        _colors.surface,
+      ]);
+      expect(_more(), findsOneWidget);
+    });
+  }
+
+  for (final scale in [1.0, 2.0]) {
+    testWidgets('a short ayah asked to clamp shows whole, with no fade and '
+        'no link, at ${(scale * 100).round()}%', (tester) async {
+      await _pump(tester, _result(clamp: true), textScale: scale);
+      final ayah = _ayah(tester);
+      expect(ayah.size.height, lessThanOrEqualTo(_clampHeight * scale));
+      expect(
+        _shown(ayah, _resultBox(tester)).height,
+        closeTo(ayah.size.height, 0.01),
+      );
+      expect(_fade(), findsNothing);
+      expect(_more(), findsNothing);
+      final card = tester.getRect(_card());
+      expect(card.bottom - tester.getRect(_ayahText()).bottom, 1 + 14);
+
+      await _pump(tester, _result(), textScale: scale);
+      expect(tester.getRect(_card()), card);
+    });
+  }
 
   testWidgets('the link: 14/600 primary at the start, 4 under the ayah, '
       'a 48 target 8 past its 32', (tester) async {
@@ -248,7 +307,7 @@ void main() {
     expect(style.fontWeight, FontWeight.w600);
     expect(style.color, _colors.primary);
     final card = tester.getRect(_card());
-    final clip = tester.getRect(_clip());
+    final shown = _shown(_ayah(tester), _resultBox(tester));
     final target = tester.getRect(_moreTarget());
     final face = tester.getRect(
       find.descendant(of: _moreTarget(), matching: find.byType(Pressable)),
@@ -257,7 +316,7 @@ void main() {
     expect(face.height, 32);
     expect(face.top - target.top, 8);
     expect(target.bottom - face.bottom, 8);
-    expect(face.top - clip.bottom, AppSpacing.space1);
+    expect(face.top - shown.bottom, closeTo(AppSpacing.space1, 0.01));
     expect(card.bottom - face.bottom, 1 + 14);
     expect(card.right - target.right, 1 + AppSpacing.space4);
     expect(tester.getRect(_more()).right, target.right);
@@ -285,16 +344,19 @@ void main() {
     final target = tester.getRect(_moreTarget());
     await tester.tapAt(Offset(target.center.dx, target.top + 1));
     await tester.pump();
-    expect(_clip(), findsNothing);
     expect(_fade(), findsNothing);
     expect(_more(), findsNothing);
     final quran = tester.widget<QuranText>(find.byType(QuranText));
     expect(identical(quran.text, _long), isTrue);
     expect(find.bySemanticsLabel(_longValue), findsOneWidget);
+    final ayah = _ayah(tester);
+    expect(ayah.size.height, greaterThan(_clampHeight));
+    expect(
+      _shown(ayah, _resultBox(tester)).height,
+      closeTo(ayah.size.height, 0.01),
+    );
     final card = tester.getRect(_card());
-    final ayah = tester.getRect(find.byType(QuranText));
-    expect(ayah.height, greaterThan(3 * _line));
-    expect(card.bottom - ayah.bottom, 1 + 14);
+    expect(card.bottom - tester.getRect(_ayahText()).bottom, 1 + 14);
     handle.dispose();
   });
 
@@ -324,6 +386,17 @@ void main() {
       ),
     );
     expect(_more(), findsOneWidget);
+    expect(
+      _shown(_ayah(tester), _resultBox(tester)).height,
+      closeTo(_clampHeight, 0.01),
+    );
+
+    await _pump(tester, _result(clamp: true));
+    expect(_more(), findsNothing);
+    expect(_fade(), findsNothing);
+    await _pump(tester, _result(text: _long, clamp: true));
+    expect(_more(), findsOneWidget);
+    expect(_fade(), findsOneWidget);
   });
 
   testWidgets('reads the reference, two labelled buttons and the ayah', (
@@ -353,6 +426,33 @@ void main() {
     handle.dispose();
   });
 
+  testWidgets('a screen reader hears the reference, the ayah, then the '
+      'actions', (tester) async {
+    final handle = tester.ensureSemantics();
+    List<String> heard() => [
+      for (final node in tester.semantics.simulatedAccessibilityTraversal())
+        if (node.label.isNotEmpty) node.label,
+    ];
+    final reference = _l10n.surahAyahReference('اسم تجريبي', '٤٥');
+    await _pump(tester, _result());
+    expect(heard(), [
+      reference,
+      _shortValue,
+      _l10n.searchResultContext,
+      _l10n.searchResultOpen,
+    ]);
+
+    await _pump(tester, _result(text: _long, clamp: true));
+    expect(heard(), [
+      reference,
+      _longValue,
+      _l10n.searchResultShowWhole,
+      _l10n.searchResultContext,
+      _l10n.searchResultOpen,
+    ]);
+    handle.dispose();
+  });
+
   testWidgets('draws focus rings in keyboard mode only', (tester) async {
     await _pump(tester, _result(text: _long, clamp: true));
     final context = _ring(find.byType(IconButton).first);
@@ -374,12 +474,9 @@ void main() {
     expect(_ringDrawn(tester, more), isFalse);
   });
 
-  testWidgets('at 200% on 360 wide: nothing clips; three scaled lines', (
-    tester,
-  ) async {
+  testWidgets('at 200% on 360 wide: nothing else clips', (tester) async {
     await _pump(tester, _result(text: _long, clamp: true), textScale: 2);
     expect(tester.takeException(), isNull);
-    expect(tester.getRect(_clip()).height, closeTo(3 * 2 * _line, 0.01));
     expect(
       tester.getSize(_moreTarget()).height,
       greaterThanOrEqualTo(AppSizes.targetMin),

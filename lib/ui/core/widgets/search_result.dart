@@ -1,4 +1,4 @@
-import 'package:flutter/rendering.dart' show OverflowBoxFit;
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart' hide Icon;
 
 import 'package:holyquran/domain/models/pack_text.dart';
@@ -19,16 +19,25 @@ const double _bottomInset = 14;
 const double _actionsGap = 2;
 // SearchResult in index.jsx: <IconButton … iconSize={22} />.
 const double _actionIconSize = 22;
-// .qk-quran-compact: font-size 22px; line-height 2.2. A clamped ayah shows
-// three of its lines (D-089, 7).
-const double _ayahFontSize = 22;
-const double _ayahLineHeight = 2.2;
-const int _clampLines = 3;
-// .qk-result-fade: height 40px.
+// .qk-result-body.is-clamped: max-height 92px, the concrete value, which
+// decides over the README's «نحو ثلاثة أسطر». It is scaled by the text
+// scaler, as the ayah is, so a clamp keeps its share of the ayah at 200%.
+const double _clampHeight = 92;
+// .qk-result-fade: height 40px, fixed in the reference.
 const double _fadeHeight = 40;
 // .qk-result-more: min-height 32px; ::after inset -8px 0, a 48 hit area.
 const double _moreHeight = 32;
 const double _moreHitOutset = 8;
+// The link's 48 reaches 8 under the 32 it draws, into the card's bottom
+// padding, so a clamped card keeps only the rest of it; an ayah that turns
+// out to fit gives those 8 back under itself.
+const double _clampedBottomInset = _bottomInset - _moreHitOutset;
+
+// The screen reader's order (AX-01, as in AyahRow): the reference, the ayah
+// with its link, then the actions.
+const double _referenceOrder = 0;
+const double _ayahOrder = 1;
+const double _actionsOrder = 2;
 
 // No line height is set in `.qk-result*`, so each is the font's own (CSS
 // `normal`); the styles do not inherit, so the ambient body line height
@@ -57,9 +66,11 @@ const TextStyle _moreStyle = TextStyle(
 /// the compact Quran size, on a `surface` card.
 ///
 /// [ayahText] is one whole ayah from the pack, with no inline marker and no
-/// match highlight (D-087, D-088). With [clamp], the ayah is cut at three
-/// lines under a 40 px fade, with a link that shows it whole; the caller
-/// decides which ayah is long.
+/// match highlight (D-087, D-088). With [clamp], an ayah laid out taller than
+/// 92 px, scaled with the text, is cut there under a 40 px fade, with a link
+/// that shows it whole; one that fits is shown whole as without [clamp]. A
+/// screen reader always gets the whole ayah, after the reference and before
+/// the actions (AX-01).
 class SearchResult extends StatefulWidget {
   const SearchResult({
     required this.surahName,
@@ -95,7 +106,7 @@ class _SearchResultState extends State<SearchResult> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final l10n = AppLocalizations.of(context);
-    final cut = widget.clamp && !_whole;
+    final clamped = widget.clamp && !_whole;
     final ayah = QuranText(
       widget.ayahText,
       size: QuranTextSize.compact,
@@ -115,10 +126,7 @@ class _SearchResultState extends State<SearchResult> {
           AppSpacing.space4,
           AppSpacing.space3,
           AppSpacing.space4,
-          // The link's hit area reaches into the bottom padding.
-          cut
-              ? _bottomInset + AppSpacing.space1 - 2 * _moreHitOutset
-              : _bottomInset,
+          clamped ? _clampedBottomInset : _bottomInset,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -128,40 +136,58 @@ class _SearchResultState extends State<SearchResult> {
             Row(
               children: [
                 Expanded(
-                  child: SurahName(
-                    widget.surahName,
-                    format: SurahNameFormat.withAyah,
-                    ayah: widget.ayahNumber,
-                    style: _referenceStyle.copyWith(color: colors.primary),
+                  child: Semantics(
+                    container: true,
+                    sortKey: const OrdinalSortKey(_referenceOrder),
+                    child: SurahName(
+                      widget.surahName,
+                      format: SurahNameFormat.withAyah,
+                      ayah: widget.ayahNumber,
+                      style: _referenceStyle.copyWith(color: colors.primary),
+                    ),
                   ),
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  spacing: _actionsGap,
-                  children: [
-                    IconButton(
-                      icon: IconName.context,
-                      label: l10n.searchResultContext,
-                      iconSize: _actionIconSize,
-                      onPressed: widget.onContext,
-                    ),
-                    IconButton(
-                      icon: IconName.mushaf,
-                      label: l10n.searchResultOpen,
-                      iconSize: _actionIconSize,
-                      onPressed: widget.onOpen,
-                    ),
-                  ],
+                Semantics(
+                  container: true,
+                  sortKey: const OrdinalSortKey(_actionsOrder),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    spacing: _actionsGap,
+                    children: [
+                      IconButton(
+                        icon: IconName.context,
+                        label: l10n.searchResultContext,
+                        iconSize: _actionIconSize,
+                        onPressed: widget.onContext,
+                      ),
+                      IconButton(
+                        icon: IconName.mushaf,
+                        label: l10n.searchResultOpen,
+                        iconSize: _actionIconSize,
+                        onPressed: widget.onOpen,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.space1),
-            if (cut) _Clamped(ayah: ayah) else ayah,
-            if (cut)
-              _ShowWhole(
-                label: l10n.searchResultShowWhole,
-                onPressed: () => setState(() => _whole = true),
-              ),
+            Semantics(
+              container: true,
+              sortKey: const OrdinalSortKey(_ayahOrder),
+              child: clamped
+                  ? _Clamp(
+                      height: MediaQuery.textScalerOf(
+                        context,
+                      ).scale(_clampHeight),
+                      ayah: ayah,
+                      cut: _Cut(
+                        label: l10n.searchResultShowWhole,
+                        onPressed: () => setState(() => _whole = true),
+                      ),
+                    )
+                  : ayah,
+            ),
           ],
         ),
       ),
@@ -169,38 +195,145 @@ class _SearchResultState extends State<SearchResult> {
   }
 }
 
-/// `.qk-result-body.is-clamped` with its `.qk-result-fade`: the ayah cut at
-/// three lines, fading into `surface` over its last 40 px. The cut text
-/// stays whole for screen readers.
-class _Clamped extends StatelessWidget {
-  const _Clamped({required this.ayah});
+enum _ClampPart { ayah, cut }
 
+/// `.qk-result-body.is-clamped`: [ayah] laid out whole, then shown whole if
+/// it fits in [height], or else cut at [height] with [cut] laid over its last
+/// [_fadeHeight] and below it.
+///
+/// Whether the ayah fits is known only once it is laid out, so [cut] is
+/// built then, by a [LayoutBuilder] that is given room only for a cut ayah:
+/// one frame, and no link or fade for an ayah that fits.
+class _Clamp
+    extends SlottedMultiChildRenderObjectWidget<_ClampPart, RenderBox> {
+  const _Clamp({required this.height, required this.ayah, required this.cut});
+
+  final double height;
   final Widget ayah;
+  final Widget cut;
+
+  @override
+  Iterable<_ClampPart> get slots => _ClampPart.values;
+
+  @override
+  Widget childForSlot(_ClampPart slot) => switch (slot) {
+    _ClampPart.ayah => ayah,
+    _ClampPart.cut => LayoutBuilder(
+      builder: (context, constraints) =>
+          constraints.maxHeight > 0 ? cut : const SizedBox.shrink(),
+    ),
+  };
+
+  @override
+  _RenderClamp createRenderObject(BuildContext context) => _RenderClamp(height);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderClamp renderObject) {
+    renderObject.height = height;
+  }
+}
+
+class _RenderClamp extends RenderBox
+    with SlottedContainerRenderObjectMixin<_ClampPart, RenderBox> {
+  _RenderClamp(this._height);
+
+  double _height;
+  set height(double value) {
+    if (value == _height) return;
+    _height = value;
+    markNeedsLayout();
+  }
+
+  bool _isCut = false;
+  final LayerHandle<ClipRectLayer> _clip = LayerHandle<ClipRectLayer>();
+
+  RenderBox get _ayah => childForSlot(_ClampPart.ayah)!;
+  RenderBox get _cut => childForSlot(_ClampPart.cut)!;
+  Offset get _cutOffset => (_cut.parentData! as BoxParentData).offset;
+  Rect get _shown => Offset.zero & Size(size.width, _height);
+
+  @override
+  void performLayout() {
+    final width = constraints.widthConstraints();
+    _ayah.layout(width, parentUsesSize: true);
+    _isCut = _ayah.size.height > _height;
+    _cut.layout(
+      _isCut ? width : width.copyWith(maxHeight: 0),
+      parentUsesSize: true,
+    );
+    (_cut.parentData! as BoxParentData).offset = Offset(
+      0,
+      _isCut ? _height - _fadeHeight : 0,
+    );
+    size = constraints.constrain(
+      Size(
+        constraints.maxWidth,
+        _isCut
+            ? _height - _fadeHeight + _cut.size.height
+            : _ayah.size.height + _bottomInset - _clampedBottomInset,
+      ),
+    );
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (!_isCut) {
+      _clip.layer = null;
+      context.paintChild(_ayah, offset);
+      return;
+    }
+    _clip.layer = context.pushClipRect(
+      needsCompositing,
+      offset,
+      _shown,
+      (context, offset) => context.paintChild(_ayah, offset),
+      oldLayer: _clip.layer,
+    );
+    context.paintChild(_cut, offset + _cutOffset);
+  }
+
+  @override
+  Rect? describeApproximatePaintClip(RenderObject child) =>
+      _isCut && child == _ayah ? _shown : null;
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    if (_isCut) {
+      final onCut = result.addWithPaintOffset(
+        offset: _cutOffset,
+        position: position,
+        hitTest: (result, transformed) =>
+            _cut.hitTest(result, position: transformed),
+      );
+      if (onCut) return true;
+      if (!_shown.contains(position)) return false;
+    }
+    return _ayah.hitTest(result, position: position);
+  }
+
+  @override
+  void dispose() {
+    _clip.layer = null;
+    super.dispose();
+  }
+}
+
+/// What a cut ayah shows over and under its end: `.qk-result-fade` over its
+/// last 40 px, and `.qk-result-more` 4 px under it, whose 48 target reaches
+/// 8 px up into the gap and the fade.
+class _Cut extends StatelessWidget {
+  const _Cut({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     final surface = context.colors.surface;
-    final lines =
-        MediaQuery.textScalerOf(context).scale(_ayahFontSize) *
-        _ayahLineHeight *
-        _clampLines;
     return Stack(
       children: [
-        ClipRect(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: lines),
-            child: OverflowBox(
-              maxHeight: double.infinity,
-              alignment: AlignmentDirectional.topStart,
-              fit: OverflowBoxFit.deferToChild,
-              child: ayah,
-            ),
-          ),
-        ),
-        PositionedDirectional(
-          start: 0,
-          end: 0,
-          bottom: 0,
+        SizedBox(
+          width: double.infinity,
           height: _fadeHeight,
           child: IgnorePointer(
             child: ExcludeSemantics(
@@ -217,15 +350,20 @@ class _Clamped extends StatelessWidget {
             ),
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.only(
+            top: _fadeHeight + AppSpacing.space1 - _moreHitOutset,
+          ),
+          child: _ShowWhole(label: label, onPressed: onPressed),
+        ),
       ],
     );
   }
 }
 
-/// `.qk-result-more`: the link under a clamped ayah, at the row's start. Its
-/// 48 hit area reaches 8 px above and below the 32 it draws, as the
-/// reference's `::after` does: the box is shifted up into the gap and the
-/// fade, which take no touch, and the card's bottom padding gives up the rest.
+/// `.qk-result-more`: the link under a cut ayah, at the row's start. Its 48
+/// hit area reaches 8 px above and below the 32 it draws, as the reference's
+/// `::after` does.
 class _ShowWhole extends StatelessWidget {
   const _ShowWhole({required this.label, required this.onPressed});
 
@@ -247,28 +385,23 @@ class _ShowWhole extends StatelessWidget {
         ),
       ),
     );
-    // Transform outermost: it hit-tests its shifted child, where a box
-    // would test only its own unshifted bounds.
-    return Transform.translate(
-      offset: const Offset(0, AppSpacing.space1 - _moreHitOutset),
-      child: Align(
-        alignment: AlignmentDirectional.centerStart,
-        child: Semantics(
-          container: true,
-          label: label,
-          // Pressable covers the drawn face, where the focus ring goes; this
-          // detector makes the rest of the 48 press it too.
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            excludeFromSemantics: true,
-            onTap: onPressed,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: _moreHitOutset),
-              child: Pressable(
-                onPressed: onPressed,
-                focusRadius: _focusRadius,
-                child: ExcludeSemantics(child: face),
-              ),
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: Semantics(
+        container: true,
+        label: label,
+        // Pressable covers the drawn face, where the focus ring goes; this
+        // detector makes the rest of the 48 press it too.
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          excludeFromSemantics: true,
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: _moreHitOutset),
+            child: Pressable(
+              onPressed: onPressed,
+              focusRadius: _focusRadius,
+              child: ExcludeSemantics(child: face),
             ),
           ),
         ),

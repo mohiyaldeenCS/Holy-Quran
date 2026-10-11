@@ -32,4 +32,32 @@ void main() {
       );
     }, surfaceSize: const Size(430, 520));
   });
+
+  testWidgets('a long word at 200%: scaled to the sheet, its place under it', (
+    tester,
+  ) async {
+    await expectGoldensInThemes(
+      tester,
+      'word_sheet_long_word',
+      (context) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: const TextScaler.linear(2)),
+        child: SizedBox(
+          width: 390,
+          child: WordSheet(
+            // Synthetic, never Quran text: 14 letters, wider than the sheet
+            // at 200%.
+            word: const PackText.fromPack('تجريبيةتجريبية'),
+            wordNumber: 2,
+            wordCount: 2,
+            tabs: const {WordSheetTab.text, WordSheetTab.irab},
+            selectedTab: WordSheetTab.irab,
+            onTabSelected: (_) {},
+          ),
+        ),
+      ),
+      surfaceSize: const Size(430, 420),
+    );
+  });
 }
