@@ -103,9 +103,10 @@ uses a short list of fixed brand values, and the matching widgets use the same o
 | `Lockup` on emerald | Name in `paper-100` |
 | `Button`, tonal variant | Background `gold-100`, text `gold-text-strong` |
 | `AyahMarker` while its ayah plays | Number in `emerald-950` on `ornament` |
-| `MiniPlayer` | Main button and repeat count in `emerald-950` on `player-accent`; track and speed chip are `paper-100` at 22% and 14% |
+| `ProgressBar`, player tone | Track `paper-100` at 22% (`.qk-progress-player`); used inside `MiniPlayer` and `ContinueCard` |
+| `MiniPlayer` | Main button and repeat count in `emerald-950` on `player-accent`; speed chip `paper-100` at 14%; its track is the player tone of `ProgressBar` |
 | `SessionBar` | Main button in `emerald-950` on `player-accent`; next button `paper-100` at 14% |
-| `ContinueCard` | Decorative stars in `gold-400` at 28% |
+| `ContinueCard` | Decorative stars in `gold-400` at 28%; its track is the player tone of `ProgressBar` |
 | `RepeatDots`, `PlanStep` | Current step filled with `gold-100` |
 | `Tag`, built-in categories | The category colour is passed in by the caller. The preview uses `emerald-700` for حفظ, `gold-600` for مراجعة, `info` for دراسة and `error` for آيات مهمة. Two of these are ramp steps that do not change with the theme; confirm the set with the owner (O-14) |
 
@@ -114,7 +115,7 @@ brand and not the reading surface:
 
 | Element | Fixed value on the board |
 | --- | --- |
-| Share card, emerald design | Ground `emerald-700`; ayah `paper-100`; reference line `gold-400` |
+| Share card, emerald design | Ground `emerald-700`; ayah `paper-100`; reference line `gold-400`; decorative stars `gold-400` at 28% and 18%; the emerald `Mark` and the app name in `paper-100` at the foot |
 | Share cards, paper and night designs | The `paper` and `night` themes' tokens, whatever theme the app is in |
 | Splash | Ground `emerald-700` with the emerald lockup |
 | App-icon tile in the home header | Tile `emerald-700`, star `gold-400`, book `paper-100` (the emerald `Mark` on a rounded tile) |
