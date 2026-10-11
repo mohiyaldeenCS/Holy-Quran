@@ -12,8 +12,8 @@ corrected first.
 | Phase | 0 — Foundation. Gate 0 not met |
 | Stream A — app | M0.1, M0.2 and M0.3 merged, with human checks pending (pull requests #2, #3 and #4). **M0.4 part 1** merged as partial (pull request #6): spikes S1, S5 and the S3 playback part are done on Linux and await the owner's device run. Next: M0.4 part 2 (S4, S7), then M0.5 |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | `claude/great-hamilton-9n23mt`, draft pull request #10 (**M0.5**, in progress). Done: the plan `docs/plans/M0.5.md`, D-084 to D-089, step 0b (contrast pairs), step 0a (QuranText colour roles and card form, `SurahName`, `SurahHeader` on `PackText`, `Pressable`, `timesCount`, gallery samples, every ARB key; reviewed, golden images made by the CI task). Running: batches A to D (the widgets). Then E, F, G |
-| Last session | Planning session: ayah linking of books 473 and 440 (pull request #11). Before it, implementing session: M0.4 part 1 (#6), the pack format changes (#9), and the start of M0.5 (#10, draft) |
+| Working branch | `claude/great-hamilton-9n23mt`, draft pull request #10 (**M0.5**, partial; stopped at the owner's request on 2026-10-11 to continue from the other account). Done: plan, D-084 to D-089, steps 0a and 0b, batches A, B and D (14 widgets). Partial: batch C (commit `8565f23`, CI red until it is finished). Not started: E, F, G. See "In progress" |
+| Last session | Implementing session, 2026-10-11: M0.5 steps 0a, A, B, D and a partial C on #10. Before it, planning session: books 473 and 440 (#11) |
 
 ## What is in the repository
 
@@ -159,7 +159,77 @@ raw extraction output; signing keys. The 13 logo SVG files are in
 
 ## In progress
 
-Stream A: **M0.5** on draft pull request #10. Steps 0a and 0b are committed; batches A to D (19 widgets) are being built; then the gallery registration (E), the ramp-importer and integrity checks (F), and the CI golden images, reviews and documents (G). M0.4 part 1 still waits on the owner's device run; part 2 follows it so that he installs one APK.
+Stream A: **M0.5** on draft pull request #10, stopped mid-milestone at the owner's
+request (2026-10-11). Every agent was stopped at a safe point and all work is
+committed and pushed; nothing is left only in a container.
+
+Committed and checked (format, analyze, `flutter test --exclude-tags golden test
+tools/gen/test`, all passing in a clean worktree, 1497 tests before batch C):
+
+- Step 0b (contrast pairs and exceptions, `25a9f2e`); step 0a (`f6af81d`, `82f983e`,
+  `f6d2941`): `QuranText` colour roles and card form, `SurahName`, `SurahHeader` on
+  `PackText`, `Pressable`, `timesCount`, `gallery_samples.dart`, every ARB key; its
+  code review found no blocking issue and its should-fix items are applied. Its two
+  golden images were made by the CI task (`1e5f025`).
+- Batch D (`09b70b1`): `HomeHeader` with `AppIconTile`, `HomeDoor`,
+  `ContinueListeningRow`, `ShareCard` (emerald, paper, night; 4:5; fixed card themes),
+  `Splash`; section `home_share_gallery.dart`.
+- Batch A (`705c2f0`): `AyahRow`, `SurahListItem`, `Tag`, `Stepper`,
+  `AyahMarker.ringWidth`; sections `mushaf_gallery.dart`, `controls_gallery.dart`.
+- Batch B (`9c80747`): `ProgressBar`, `MiniPlayer` (with the shared `PlayerButton`),
+  `ContinueCard`, `ResourceRow`, `ReaderPlayerBar`; section `audio_gallery.dart`.
+- No golden image yet for batches A, B, C and D: CI's check job fails on them until
+  the `goldens` task is run (step 6 below).
+
+**Partial: batch C** (`8565f23`). `ModeChips` and `WordSheet` are done with passing
+tests. To finish it:
+
+1. `search_field.dart`: add `textBaseline: TextBaseline.alphabetic` to `_inputStyle`
+   (all eight tests in `search_field_test.dart` fail on build with "inherit false
+   style must supply fontSize and textBaseline"), then fix what those tests show.
+2. `test/ui/core/widgets/word_sheet_test.dart:299`: remove the redundant `note: null`
+   (the one analyze info).
+3. Write `search_summary_test.dart` and `search_result_test.dart` on the pattern of
+   `mode_chips_test.dart`: one semantics node, tap targets, 200% on 360 wide, focus
+   ring in keyboard mode only, right to left; for `SearchResult` also the clamp of
+   three lines at 22 × 2.2 with the 40 px fade, «اعرضها كاملة», and that `SurahName`
+   (`withAyah`) and `QuranText` receive the exact `PackText`.
+4. Golden tests (tag `golden`) for the five batch C widgets; then `test/guards`.
+
+Then, in order: **E** register the five sections in `gallery_screen.dart` with one
+golden per section per theme; **F** (test-engineer) the existence check for the
+planned ramp importers in `test/guards/import_rules_test.dart` and the integrity
+widget test of `docs/plans/M0.5.md`; run the CI `goldens` task once and pull its
+commit; **G** `code-reviewer` on the whole branch, `identity-auditor`, then record the
+identity readings below as a decision (next free number after D-090, by the D-076
+rule) and update `docs/DESIGN_SYSTEM.md` where they change it; status; pull request
+description; merge with a merge commit.
+
+Identity readings made by the batches, to record in that decision:
+
+- The app-icon tile and the small marks on the share cards and the splash follow
+  `Mark`'s own rule (as D-087 does for the small mark), not the board's drawn strokes.
+- Share cards: mark and name built from `Mark` and a Kufi 700 text (the board's gap
+  and sizes do not fit `Lockup`); the night card uses the paper `Mark` variant, which
+  matches the board; the reference line uses `SurahNameFormat.withAyah` as the board
+  writes it; overflow of a long ayah is SH-03, M1.6.
+- `ContinueListeningRow` and `ReaderPlayerBar` have no progress bar, because the board
+  draws none; `ReaderPlayerBar` uses `PlayerButton`, not `IconButton` (whose colours
+  are fixed to `primary`).
+- `HomeHeader` is the header row only; the greeting «السلام عليكم» and «أكمل من حيث
+  توقفت» have no ARB keys yet (M1.1 needs them).
+- Null player callbacks disable a button without hiding it; `ProgressBar` exposes a
+  label and value without `SemanticsRole.progressBar` (Flutter's check rejects
+  Arabic-Indic values).
+- `Tag`: check mark before the shape, 40 face in a 48 target; `SurahListItem`: the
+  quarter star grows with text scale, the badge wraps under a long name.
+- `WordSheet` and `ModeChips` strips are 48 tall for their hit areas; sheet tabs are
+  40 as `docs/DESIGN_SYSTEM.md` says; the search result clamp is three lines at 22 ×
+  2.2 (D-089, 7), not the reference's 92 px; the caller decides `clamp`.
+
+Pending owner items are unchanged: install the spike APK (CI run 68) and run the
+protocols in `docs/spikes/`, send the phone model, Android version and memory, and
+confirm D-089.
 
 Stream B: the owner is extracting book 466 (التهذيب في التفسير, about 7,325 site
 pages). Nothing else is open in stream B.
@@ -318,6 +388,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-10-11 | Implementing session (continued) | M0.5: step 0a with code review applied; batches A, B and D (14 widgets, five gallery sections); batch C partial; stopped at the owner's request to continue from the other account. | Draft pull request #10 |
 | 2026-10-07 | Planning session | Linked books 473 (surahs in the book's own order, ayah numbers inside quotations) and 440 (footnotes that name the surah and ayah); found that 737 and 165 cannot be linked to ayat from what they print; D-090; independent review applied; PRD at revision 151. Recorded from Git where the implementing session stopped (draft pull request #10). | Pull request #11 |
 | 2026-10-07 | Planning session | Built and tested the ayah linker for books 183, 514, 276 and 471, with a check of every link against the text printed in book 514; recounted the honorific codes (sixteen); D-081, D-082; PRD re-exported at revision 147; two rounds of independent review applied. | Pull request #8 |
 | 2026-10-07 | Planning session | Reviewed pack format v1 and answered P1–P7 and stream A's question about the Tanzil file; D-076 to D-080; a rule for two sessions working at once in `docs/WORKFLOW.md`. | Pull request #7 |
