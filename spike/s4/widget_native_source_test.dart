@@ -136,6 +136,23 @@ void main() {
     expect(_read(_manifest), contains('android:name=".$name"'));
   });
 
+  test('Flutter deep linking is off, so the widget link is not a route', () {
+    final activity = RegExp(
+      r'<activity\s[^>]*android:name="\.MainActivity"[^>]*>([\s\S]*?)</activity>',
+    ).firstMatch(_read(_manifest))![1]!;
+    expect(
+      RegExp(
+        r'<meta-data\s+android:name="flutter_deeplinking_enabled"'
+        r'\s+android:value="false"\s*/>',
+      ).allMatches(activity),
+      hasLength(1),
+    );
+    expect(
+      'flutter_deeplinking_enabled'.allMatches(_read(_manifest)),
+      hasLength(1),
+    );
+  });
+
   test('the native files are ASCII', () {
     final ascii = RegExp(r'^[\x09\x0a\x0d\x20-\x7e]*$');
     for (final path in _nativeFiles) {
