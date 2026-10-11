@@ -187,6 +187,17 @@ double _baseline(WidgetTester tester, Finder text) {
       paragraph.getDryBaseline(paragraph.constraints, TextBaseline.alphabetic)!;
 }
 
+/// The render object of the line holding the word and its place.
+RenderBox _line(WidgetTester tester) =>
+    tester.renderObject<RenderBox>(find.byType(FittedBox)).parent! as RenderBox;
+
+/// Whether the word's place is drawn under the word rather than beside it.
+bool _placeUnder(WidgetTester tester) =>
+    (tester.getRect(find.text(_position())).top -
+            tester.getRect(_wordText()).bottom)
+        .abs() <
+    0.01;
+
 Future<void> _shiftTab(WidgetTester tester) async {
   await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
   await tester.sendKeyEvent(LogicalKeyboardKey.tab);
@@ -534,6 +545,79 @@ void main() {
     expect(beside, greaterThan(0));
     expect(under, greaterThan(0));
     expect(scaled, greaterThan(0));
+  });
+
+  for (final (word, scale, under, scaled) in [
+    (_l10n.sampleWord, 1.0, false, false),
+    ('تجريبيتان', 2.0, true, false),
+    ('تجريبيةتجريبية', 2.0, true, true),
+  ]) {
+    final layout = under
+        ? 'under the word${scaled ? ', scaled down' : ''}'
+        : 'beside the word';
+    testWidgets('measures as it lays out with the place $layout: intrinsic '
+        'height, dry layout and baseline', (tester) async {
+      final sheet = _sheet(word: PackText.fromPack(word));
+      await _pump(tester, sheet, textScale: scale);
+      expect(_placeUnder(tester), under);
+      final paragraph = tester.renderObject<RenderParagraph>(_wordText());
+      expect(_naturalWidth(paragraph) > 360 - 2 * 22, scaled);
+
+      final box = tester.renderObject<RenderBox>(find.byType(WordSheet));
+      final laidOut = box.size;
+      expect(box.getDryLayout(box.constraints), laidOut);
+      expect(box.getMinIntrinsicHeight(laidOut.width), laidOut.height);
+      expect(box.getMaxIntrinsicHeight(laidOut.width), laidOut.height);
+      final line = _line(tester);
+      expect(line.getDryLayout(line.constraints), line.size);
+      expect(line.getMinIntrinsicHeight(line.size.width), line.size.height);
+      expect(line.getMaxIntrinsicHeight(line.size.width), line.size.height);
+      if (!scaled) {
+        // The line's baseline is the word's, where it is drawn; a scaled
+        // word's is given unscaled, as FittedBox gives it.
+        expect(
+          line.getDryBaseline(line.constraints, TextBaseline.alphabetic),
+          closeTo(
+            _baseline(tester, _wordText()) - line.localToGlobal(Offset.zero).dy,
+            0.01,
+          ),
+        );
+      }
+
+      await _pump(tester, IntrinsicHeight(child: sheet), textScale: scale);
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getSize(find.byType(IntrinsicHeight)).height,
+        laidOut.height,
+      );
+      expect(tester.getSize(find.byType(WordSheet)), laidOut);
+    });
+  }
+
+  testWidgets("the word line's intrinsic widths: at the widest the place "
+      'fits beside the word, at the narrowest the word is not scaled', (
+    tester,
+  ) async {
+    // No rows, which a narrow sheet would crowd.
+    final sheet = _sheet(rows: const []);
+    await _pump(tester, sheet);
+    final line = _line(tester);
+    final widest = line.getMaxIntrinsicWidth(double.infinity);
+    final narrowest = line.getMinIntrinsicWidth(double.infinity);
+    expect(narrowest, lessThan(widest));
+
+    await _pump(tester, sheet, width: widest + 2 * 22);
+    expect(_placeUnder(tester), isFalse);
+    await _pump(tester, sheet, width: widest + 2 * 22 - 1);
+    expect(_placeUnder(tester), isTrue);
+    await _pump(tester, sheet, width: narrowest + 2 * 22);
+    expect(tester.takeException(), isNull);
+    expect(_placeUnder(tester), isTrue);
+    final paragraph = tester.renderObject<RenderParagraph>(_wordText());
+    expect(
+      tester.getSize(_wordText()).width,
+      closeTo(_naturalWidth(paragraph), 0.01),
+    );
   });
 
   testWidgets('selects a tab by tap, across the 48 target, and keyboard', (

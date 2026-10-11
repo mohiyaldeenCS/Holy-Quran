@@ -65,6 +65,10 @@ final class QuranText extends StatelessWidget {
        size = QuranTextSize.focus,
        align = QuranTextAlign.center;
 
+  /// The font size of [QuranTextSize.compact] before the text scale, for
+  /// what is sized to that text.
+  static const double compactFontSize = 22;
+
   final PackText text;
   final QuranTextSize size;
   final QuranTextAlign align;
@@ -124,7 +128,7 @@ const Locale _arabic = Locale('ar');
 // does not define; built like the generated ones.
 const TextStyle _quranCompact = TextStyle(
   fontFamily: AppFonts.quran,
-  fontSize: 22,
+  fontSize: QuranText.compactFontSize,
   height: 2.2,
   fontWeight: FontWeight.w400,
   letterSpacing: 0,

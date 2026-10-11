@@ -15,9 +15,12 @@ import 'package:holyquran/ui/core/widgets/search_result.dart';
 import 'package:holyquran/ui/core/widgets/search_summary.dart';
 import 'package:holyquran/ui/core/widgets/word_sheet.dart';
 
+import '../../../../testing/clip.dart';
 import '../../../../testing/golden.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
+// .qk-result-body.is-clamped: max-height 92px at the default text size.
+const _clampHeight = 92.0;
 
 Future<void> _pump(
   WidgetTester tester, {
@@ -54,25 +57,6 @@ Finder _clampedAyah() => find.descendant(
 RenderObject _lastResult(WidgetTester tester) =>
     tester.renderObject(find.byType(SearchResult).last);
 
-/// The part of [box] that its ancestors up to [within] let paint, in global
-/// coordinates.
-Rect _shown(RenderBox box, RenderObject within) {
-  var shown = MatrixUtils.transformRect(
-    box.getTransformTo(null),
-    Offset.zero & box.size,
-  );
-  for (RenderObject child = box; child != within; child = child.parent!) {
-    final parent = child.parent!;
-    final clip = parent.describeApproximatePaintClip(child);
-    if (clip != null) {
-      shown = shown.intersect(
-        MatrixUtils.transformRect(parent.getTransformTo(null), clip),
-      );
-    }
-  }
-  return shown;
-}
-
 void main() {
   // 400 is the width of the section's golden image.
   for (final width in [400.0, 360.0]) {
@@ -95,9 +79,17 @@ void main() {
       );
       final ayah = tester.renderObject<RenderBox>(_clampedAyah());
       expect(
-        ayah.size.height - _shown(ayah, _lastResult(tester)).height,
+        ayah.size.height - shownRect(ayah, _lastResult(tester)).height,
         greaterThanOrEqualTo(1),
       );
+      // The cut is painted, not only declared.
+      final result = find.byType(SearchResult).last;
+      expect(
+        result,
+        paints
+          ..clipRect(rect: cutClip(ayah, _lastResult(tester), _clampHeight)),
+      );
+      expect(result, paintsExactlyCountTimes(#clipRect, 1));
       expect(find.text(_l10n.searchResultShowWhole), findsOneWidget);
     });
   }
@@ -204,7 +196,7 @@ void main() {
     expect(more, findsNothing);
     final ayah = tester.renderObject<RenderBox>(_clampedAyah());
     expect(
-      _shown(ayah, _lastResult(tester)).height,
+      shownRect(ayah, _lastResult(tester)).height,
       closeTo(ayah.size.height, 0.01),
     );
   });

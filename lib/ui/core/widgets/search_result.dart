@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart' hide Icon;
 
 import 'package:holyquran/domain/models/pack_text.dart';
@@ -20,8 +23,10 @@ const double _actionsGap = 2;
 // SearchResult in index.jsx: <IconButton … iconSize={22} />.
 const double _actionIconSize = 22;
 // .qk-result-body.is-clamped: max-height 92px, the concrete value, which
-// decides over the README's «نحو ثلاثة أسطر». It is scaled by the text
-// scaler, as the ayah is, so a clamp keeps its share of the ayah at 200%.
+// decides over the README's «نحو ثلاثة أسطر». It grows by the factor the text
+// scaler gives the ayah's own size, so a clamp keeps its share of the ayah at
+// any text size. A non-linear scaler (Android 14 and later) grows a size of
+// 92 far less than the ayah's 22, so it does not scale 92 itself.
 const double _clampHeight = 92;
 // .qk-result-fade: height 40px, fixed in the reference.
 const double _fadeHeight = 40;
@@ -67,10 +72,10 @@ const TextStyle _moreStyle = TextStyle(
 ///
 /// [ayahText] is one whole ayah from the pack, with no inline marker and no
 /// match highlight (D-087, D-088). With [clamp], an ayah laid out taller than
-/// 92 px, scaled with the text, is cut there under a 40 px fade, with a link
-/// that shows it whole; one that fits is shown whole as without [clamp]. A
-/// screen reader always gets the whole ayah, after the reference and before
-/// the actions (AX-01).
+/// 92 px, grown as the ayah's text is, is cut there under a 40 px fade, with
+/// a link that shows it whole; one that fits is shown whole as without
+/// [clamp]. A screen reader always gets the whole ayah, after the reference
+/// and before the actions (AX-01).
 class SearchResult extends StatefulWidget {
   const SearchResult({
     required this.surahName,
@@ -95,11 +100,27 @@ class SearchResult extends StatefulWidget {
 
 class _SearchResultState extends State<SearchResult> {
   bool _whole = false;
+  final _cutFocus = _CutFocusNode();
 
   @override
   void didUpdateWidget(SearchResult oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.ayahText != widget.ayahText) _whole = false;
+  }
+
+  @override
+  void dispose() {
+    _cutFocus.dispose();
+    super.dispose();
+  }
+
+  /// [_clampHeight] grown by the factor the text scaler gives the compact
+  /// Quran size.
+  double _clampAt(BuildContext context) {
+    const compact = QuranText.compactFontSize;
+    return _clampHeight *
+        MediaQuery.textScalerOf(context).scale(compact) /
+        compact;
   }
 
   @override
@@ -177,9 +198,8 @@ class _SearchResultState extends State<SearchResult> {
               sortKey: const OrdinalSortKey(_ayahOrder),
               child: clamped
                   ? _Clamp(
-                      height: MediaQuery.textScalerOf(
-                        context,
-                      ).scale(_clampHeight),
+                      height: _clampAt(context),
+                      cutFocus: _cutFocus,
                       ayah: ayah,
                       cut: _Cut(
                         label: l10n.searchResultShowWhole,
@@ -197,18 +217,38 @@ class _SearchResultState extends State<SearchResult> {
 
 enum _ClampPart { ayah, cut }
 
+/// The focus node over a cut ayah's fade and link. What is under it can take
+/// focus only while the clamp shows it, which the clamp learns at layout and
+/// sets in [shown]; focus traversal reads it when it runs, so nothing is
+/// rebuilt for it.
+final class _CutFocusNode extends FocusNode {
+  _CutFocusNode() : super(canRequestFocus: false, skipTraversal: true);
+
+  bool shown = false;
+
+  @override
+  bool get descendantsAreFocusable => shown && super.descendantsAreFocusable;
+}
+
 /// `.qk-result-body.is-clamped`: [ayah] laid out whole, then shown whole if
 /// it fits in [height], or else cut at [height] with [cut] laid over its last
 /// [_fadeHeight] and below it.
 ///
 /// Whether the ayah fits is known only once it is laid out, so [cut] is
-/// built then, by a [LayoutBuilder] that is given room only for a cut ayah:
-/// one frame, and no link or fade for an ayah that fits.
+/// always built and laid out, and shown only under a cut ayah: painted, hit,
+/// read and focusable then and only then. One frame, and no link or fade for
+/// an ayah that fits.
 class _Clamp
     extends SlottedMultiChildRenderObjectWidget<_ClampPart, RenderBox> {
-  const _Clamp({required this.height, required this.ayah, required this.cut});
+  const _Clamp({
+    required this.height,
+    required this.cutFocus,
+    required this.ayah,
+    required this.cut,
+  });
 
   final double height;
+  final _CutFocusNode cutFocus;
   final Widget ayah;
   final Widget cut;
 
@@ -218,29 +258,57 @@ class _Clamp
   @override
   Widget childForSlot(_ClampPart slot) => switch (slot) {
     _ClampPart.ayah => ayah,
-    _ClampPart.cut => LayoutBuilder(
-      builder: (context, constraints) =>
-          constraints.maxHeight > 0 ? cut : const SizedBox.shrink(),
+    _ClampPart.cut => Focus.withExternalFocusNode(
+      focusNode: cutFocus,
+      includeSemantics: false,
+      child: cut,
     ),
   };
 
   @override
-  _RenderClamp createRenderObject(BuildContext context) => _RenderClamp(height);
+  _ClampElement createElement() => _ClampElement(this);
+
+  @override
+  _RenderClamp createRenderObject(BuildContext context) =>
+      _RenderClamp(height, cutFocus);
 
   @override
   void updateRenderObject(BuildContext context, _RenderClamp renderObject) {
-    renderObject.height = height;
+    renderObject
+      ..height = height
+      ..cutFocus = cutFocus;
+  }
+}
+
+/// Counts the cut as offstage while the ayah fits, as [Offstage] does, so
+/// that finders and the inspector see what is shown.
+class _ClampElement extends SlottedRenderObjectElement<_ClampPart, RenderBox> {
+  _ClampElement(_Clamp super.widget);
+
+  @override
+  void debugVisitOnstageChildren(ElementVisitor visitor) {
+    final cutShown = (renderObject as _RenderClamp)._isCut;
+    visitChildren((child) {
+      if (cutShown || child.slot == _ClampPart.ayah) visitor(child);
+    });
   }
 }
 
 class _RenderClamp extends RenderBox
     with SlottedContainerRenderObjectMixin<_ClampPart, RenderBox> {
-  _RenderClamp(this._height);
+  _RenderClamp(this._height, this._cutFocus);
 
   double _height;
   set height(double value) {
     if (value == _height) return;
     _height = value;
+    markNeedsLayout();
+  }
+
+  _CutFocusNode _cutFocus;
+  set cutFocus(_CutFocusNode value) {
+    if (value == _cutFocus) return;
+    _cutFocus = value;
     markNeedsLayout();
   }
 
@@ -252,27 +320,103 @@ class _RenderClamp extends RenderBox
   Offset get _cutOffset => (_cut.parentData! as BoxParentData).offset;
   Rect get _shown => Offset.zero & Size(size.width, _height);
 
+  bool _cuts(double ayahHeight) => ayahHeight > _height;
+
+  /// The clamp's height over an ayah [ayahHeight] high, with [cutHeight]
+  /// asked only for a cut ayah. Layout, dry layout and the intrinsic heights
+  /// all take it from here.
+  double _heightOver(double ayahHeight, double Function() cutHeight) =>
+      _cuts(ayahHeight)
+      ? _height - _fadeHeight + cutHeight()
+      : ayahHeight + _bottomInset - _clampedBottomInset;
+
   @override
   void performLayout() {
     final width = constraints.widthConstraints();
     _ayah.layout(width, parentUsesSize: true);
-    _isCut = _ayah.size.height > _height;
-    _cut.layout(
-      _isCut ? width : width.copyWith(maxHeight: 0),
-      parentUsesSize: true,
-    );
+    // Laid out and placed even when hidden, so that whatever asks where it
+    // is, as focus traversal does, gets an answer.
+    _cut.layout(width, parentUsesSize: true);
     (_cut.parentData! as BoxParentData).offset = Offset(
       0,
-      _isCut ? _height - _fadeHeight : 0,
+      _height - _fadeHeight,
     );
+    _isCut = _cuts(_ayah.size.height);
     size = constraints.constrain(
       Size(
         constraints.maxWidth,
-        _isCut
-            ? _height - _fadeHeight + _cut.size.height
-            : _ayah.size.height + _bottomInset - _clampedBottomInset,
+        _heightOver(_ayah.size.height, () => _cut.size.height),
       ),
     );
+    _cutFocus.shown = _isCut;
+    if (!_isCut && _cutFocus.hasFocus) {
+      // The link went out of view with focus on it: focus leaves it, as it
+      // leaves a widget that is removed.
+      final cutFocus = _cutFocus;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (!cutFocus.shown) cutFocus.unfocus();
+      });
+    }
+  }
+
+  @override
+  Size computeDryLayout(covariant BoxConstraints constraints) {
+    final width = constraints.widthConstraints();
+    return constraints.constrain(
+      Size(
+        constraints.maxWidth,
+        _heightOver(
+          _ayah.getDryLayout(width).height,
+          () => _cut.getDryLayout(width).height,
+        ),
+      ),
+    );
+  }
+
+  // The ayah starts at the top, so its first baseline is the clamp's.
+  @override
+  double? computeDistanceToActualBaseline(TextBaseline baseline) =>
+      _ayah.getDistanceToActualBaseline(baseline);
+
+  @override
+  double? computeDryBaseline(
+    covariant BoxConstraints constraints,
+    TextBaseline baseline,
+  ) => _ayah.getDryBaseline(constraints.widthConstraints(), baseline);
+
+  // Both children span the clamp, and where the ayah is cut the link shows
+  // too, so the clamp needs the wider of the two.
+  @override
+  double computeMinIntrinsicWidth(double height) => math.max(
+    _ayah.getMinIntrinsicWidth(height),
+    _cut.getMinIntrinsicWidth(height),
+  );
+
+  @override
+  double computeMaxIntrinsicWidth(double height) => math.max(
+    _ayah.getMaxIntrinsicWidth(height),
+    _cut.getMaxIntrinsicWidth(height),
+  );
+
+  @override
+  double computeMinIntrinsicHeight(double width) => _heightOver(
+    _ayah.getMinIntrinsicHeight(width),
+    () => _cut.getMinIntrinsicHeight(width),
+  );
+
+  @override
+  double computeMaxIntrinsicHeight(double width) => _heightOver(
+    _ayah.getMaxIntrinsicHeight(width),
+    () => _cut.getMaxIntrinsicHeight(width),
+  );
+
+  @override
+  bool paintsChild(RenderBox child) => _isCut || child == _ayah;
+
+  @override
+  void visitChildrenForSemantics(RenderObjectVisitor visitor) {
+    visitor(_ayah);
+    if (_isCut) visitor(_cut);
   }
 
   @override

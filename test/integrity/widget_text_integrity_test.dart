@@ -16,6 +16,7 @@ import 'package:holyquran/ui/core/widgets/share_card.dart';
 import 'package:holyquran/ui/core/widgets/surah_name.dart';
 import 'package:holyquran/utils/result.dart';
 
+import '../../testing/clip.dart';
 import '../../testing/golden.dart';
 import '../../testing/packs/synthetic_pack.dart';
 import 'pack_integrity_suite.dart';
@@ -65,6 +66,10 @@ final _surahs = [
 
 /// Narrow enough that [_longAyah] wraps past the height a clamp shows.
 const double _resultWidth = 200;
+
+/// The height a clamp shows at the default text size
+/// (`.qk-result-body.is-clamped`).
+const double _clampHeight = 92;
 
 /// The least size a caller may fit a share card's ayah to (D-085).
 const double _cardAyahSize = 22;
@@ -402,7 +407,7 @@ bool _holds(List<int> bytes, List<int> part) {
 
 /// Whether the ayah inside the [SearchResult] [result] is laid out at least
 /// a pixel taller than the clips of its ancestors up to the result let it
-/// paint.
+/// paint. A cut must also be painted, at the clamp's height.
 bool _isCut(WidgetTester tester, Finder result) {
   final ayah = tester.renderObject<RenderBox>(
     find.descendant(
@@ -410,20 +415,12 @@ bool _isCut(WidgetTester tester, Finder result) {
       matching: find.byType(RichText),
     ),
   );
-  final whole = MatrixUtils.transformRect(
-    ayah.getTransformTo(null),
-    Offset.zero & ayah.size,
-  );
-  var shown = whole;
   final within = tester.renderObject(result);
-  for (RenderObject child = ayah; child != within; child = child.parent!) {
-    final parent = child.parent!;
-    final clip = parent.describeApproximatePaintClip(child);
-    if (clip != null) {
-      shown = shown.intersect(
-        MatrixUtils.transformRect(parent.getTransformTo(null), clip),
-      );
-    }
-  }
-  return whole.height - shown.height >= 1;
+  if (ayah.size.height - shownRect(ayah, within).height < 1) return false;
+  expect(
+    result,
+    paints..clipRect(rect: cutClip(ayah, within, _clampHeight)),
+    reason: 'the ayah is declared cut, so the cut must be painted',
+  );
+  return true;
 }

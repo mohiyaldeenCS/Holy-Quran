@@ -434,6 +434,9 @@ class _WordLine
   }
 }
 
+/// Where the word and its place go on a line, and the line's size.
+typedef _Line = ({Offset word, Offset position, Size size});
+
 class _RenderWordLine extends RenderBox
     with SlottedContainerRenderObjectMixin<_WordPart, RenderBox> {
   _RenderWordLine(this._textDirection);
@@ -445,54 +448,130 @@ class _RenderWordLine extends RenderBox
     markNeedsLayout();
   }
 
-  @override
-  void performLayout() {
-    final word = childForSlot(_WordPart.word)!;
-    final position = childForSlot(_WordPart.position)!;
+  RenderBox get _word => childForSlot(_WordPart.word)!;
+  RenderBox get _position => childForSlot(_WordPart.position)!;
+
+  static Offset _offsetOf(RenderBox child) =>
+      (child.parentData! as BoxParentData).offset;
+
+  /// What each child is laid out in: the line's width, at most.
+  static BoxConstraints _childConstraints(BoxConstraints constraints) =>
+      BoxConstraints(maxWidth: constraints.maxWidth);
+
+  /// The line under [constraints], by [layoutChild] and [baselineOf]: real
+  /// and dry layout share it, so they cannot place the two differently.
+  _Line _arrange(
+    BoxConstraints constraints,
+    ChildLayouter layoutChild,
+    ChildBaselineGetter baselineOf,
+  ) {
     final width = constraints.maxWidth;
-    final within = BoxConstraints(maxWidth: width);
-    word.layout(within, parentUsesSize: true);
-    position.layout(within, parentUsesSize: true);
-    double start(RenderBox child) => switch (_textDirection) {
-      TextDirection.rtl => width - child.size.width,
+    final within = _childConstraints(constraints);
+    final word = layoutChild(_word, within);
+    final position = layoutChild(_position, within);
+    double start(Size child) => switch (_textDirection) {
+      TextDirection.rtl => width - child.width,
       TextDirection.ltr => 0,
     };
-    double end(RenderBox child) => width - child.size.width - start(child);
+    double end(Size child) => width - child.width - start(child);
 
     final Offset wordAt;
     final Offset positionAt;
-    if (word.size.width + position.size.width > width) {
+    if (word.width + position.width > width) {
       wordAt = Offset(start(word), 0);
-      positionAt = Offset(start(position), word.size.height);
+      positionAt = Offset(start(position), word.height);
     } else {
-      final wordBaseline = word.getDistanceToBaseline(TextBaseline.alphabetic)!;
-      final positionBaseline = position.getDistanceToBaseline(
-        TextBaseline.alphabetic,
-      )!;
+      final wordBaseline =
+          baselineOf(_word, within, TextBaseline.alphabetic) ?? word.height;
+      final positionBaseline =
+          baselineOf(_position, within, TextBaseline.alphabetic) ??
+          position.height;
       final baseline = math.max(wordBaseline, positionBaseline);
       wordAt = Offset(start(word), baseline - wordBaseline);
       positionAt = Offset(end(position), baseline - positionBaseline);
     }
-    (word.parentData! as BoxParentData).offset = wordAt;
-    (position.parentData! as BoxParentData).offset = positionAt;
-    size = constraints.constrain(
-      Size(
-        width,
-        math.max(
-          wordAt.dy + word.size.height,
-          positionAt.dy + position.size.height,
+    return (
+      word: wordAt,
+      position: positionAt,
+      size: constraints.constrain(
+        Size(
+          width,
+          math.max(wordAt.dy + word.height, positionAt.dy + position.height),
         ),
       ),
     );
   }
 
+  _Line _dryArrange(BoxConstraints constraints) => _arrange(
+    constraints,
+    ChildLayoutHelper.dryLayoutChild,
+    ChildLayoutHelper.getDryBaseline,
+  );
+
+  @override
+  void performLayout() {
+    final line = _arrange(
+      constraints,
+      ChildLayoutHelper.layoutChild,
+      ChildLayoutHelper.getBaseline,
+    );
+    (_word.parentData! as BoxParentData).offset = line.word;
+    (_position.parentData! as BoxParentData).offset = line.position;
+    size = line.size;
+  }
+
+  @override
+  Size computeDryLayout(covariant BoxConstraints constraints) =>
+      _dryArrange(constraints).size;
+
+  // The line's baseline is the word's, which is first in either layout.
+  @override
+  double? computeDistanceToActualBaseline(TextBaseline baseline) {
+    final distance = _word.getDistanceToActualBaseline(baseline);
+    return distance == null ? null : _offsetOf(_word).dy + distance;
+  }
+
+  @override
+  double? computeDryBaseline(
+    covariant BoxConstraints constraints,
+    TextBaseline baseline,
+  ) {
+    final distance = _word.getDryBaseline(
+      _childConstraints(constraints),
+      baseline,
+    );
+    return distance == null
+        ? null
+        : _dryArrange(constraints).word.dy + distance;
+  }
+
+  // Stacked, the line is as wide as the wider of the two; side by side, as
+  // both.
+  @override
+  double computeMinIntrinsicWidth(double height) => math.max(
+    _word.getMinIntrinsicWidth(height),
+    _position.getMinIntrinsicWidth(height),
+  );
+
+  @override
+  double computeMaxIntrinsicWidth(double height) =>
+      _word.getMaxIntrinsicWidth(height) +
+      _position.getMaxIntrinsicWidth(height);
+
+  // As high as the line laid out that wide: the word, scaled down or not,
+  // decides whether its place goes beside or under it.
+  @override
+  double computeMinIntrinsicHeight(double width) =>
+      _dryArrange(BoxConstraints(maxWidth: width)).size.height;
+
+  @override
+  double computeMaxIntrinsicHeight(double width) =>
+      _dryArrange(BoxConstraints(maxWidth: width)).size.height;
+
   @override
   void paint(PaintingContext context, Offset offset) {
     for (final child in children) {
-      context.paintChild(
-        child,
-        offset + (child.parentData! as BoxParentData).offset,
-      );
+      context.paintChild(child, offset + _offsetOf(child));
     }
   }
 
@@ -500,7 +579,7 @@ class _RenderWordLine extends RenderBox
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
     for (final child in children) {
       final hit = result.addWithPaintOffset(
-        offset: (child.parentData! as BoxParentData).offset,
+        offset: _offsetOf(child),
         position: position,
         hitTest: (result, transformed) =>
             child.hitTest(result, position: transformed),
