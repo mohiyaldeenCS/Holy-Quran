@@ -198,8 +198,26 @@ Stream A: **M0.4 part 2** on `claude/great-hamilton-9n23mt` (D-093).
 - The early `spike-apk` build passes with `home_widget` 0.10.0 on AGP 9 (run
   38160449095): a 90.5 MB profile APK. Flutter warns that `home_widget` applies the
   Kotlin Gradle plugin, which future Flutter versions will refuse (a Phase 2 risk).
-- Draft milestone pull request #14. Next: wave 1 (tasks A and B), then the waves of
-  `docs/plans/M0.4-part2.md`.
+- Draft milestone pull request #14.
+- Wave 1 merged into this branch:
+  - Task A, the S1 text path and checks brought to D-083 (#17, key 1, `content-engineer`,
+    $7.59). `code-reviewer`: ready to merge. `flutter test spike` went from 166 passed and
+    14 failed to 296 passed and 6 skipped (the six need the real pack). The integrity
+    suite passes on the tool's fixture pack.
+  - Task B, the S4 face and fit (#16, key 2, `ui-builder`, $2.05, plus $1.29 for the
+    review fixes). `identity-auditor`: conforms; its should-fix items (tests that could
+    not fail, the `caption` token) were applied, and six mutations of the face now fail.
+    The ayah box is 333 x 117 at 4x2 and 139 x 117 at 2x2.
+  - `ci.yml`'s check now runs `spike` too. On the merged branch: format clean, analysis
+    clean, 2,022 passed and 8 skipped (goldens included).
+- Two runs lost their detailed report: a late background notice started a new turn,
+  whose short answer replaced the report. Task texts now ask the agent to wait for
+  background tasks and to make its last message the whole report.
+- Until task C merges, the S1 screen must not run on a pack with marks: `PageBlocksV2`
+  passes no marks to `SurahTextBlock`, so a block that starts at a mark throws. The CI
+  measurement does not use the widgets.
+- Next: `spike-s1-text` on the D-079 file and the pinned hashes; wave 2 (task C on key 1,
+  task D on key 2).
 
 M0.4 part 1 and M0.5 still wait on the owner's device run and his look at the gallery
 images.
