@@ -33,7 +33,7 @@ corrected first.
   parser, signature seam, file service, the read-only `PackDatabase`, the pack and
   text repositories). Synthetic pack builder and independent reader in
   `testing/packs/`. The integrity suite in `test/integrity/`.
-- About 1,670 tests: 1,612 that run anywhere (unit, widget, integrity, guards for
+- About 1,680 tests: 1,625 that run anywhere (unit, widget, integrity, guards for
   fonts, imports, literals, design numbers, type rules, contrast, pack text, pack
   writes) and 57 golden tests with 168 images made on `ubuntu-24.04`. No content pack
   or feature yet.
@@ -338,9 +338,6 @@ Permission conditions to confirm with him when each is first needed are listed i
     together with the S1 finding of a pause mark cut off at a line start.
   - `SearchResult` keeps its expanded state inside the widget, so in a lazily built
     list a card scrolled away and back collapses again; M1.8 makes it the caller's.
-  - Under a non-linear text scaler (Android 14 and later) the 92 px clamp scales as
-    a font size, slightly less than the ayah's 22 px text, so a little less of the
-    ayah shows; check on the device (M1.8).
   - `timesCount` has no caller since the repeat label became its own plural
     (D-091, 11); the memorisation widgets of Phase 2 use it.
   - The greeting of the home board has no strings yet; M1.1 adds them with the home
