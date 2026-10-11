@@ -186,15 +186,20 @@ Stream A: **M0.4 part 2** on `claude/great-hamilton-9n23mt` (D-093).
   S5's native files, the `spike-s1-text` and `spike-apk` CI tasks with the D-079 URL.
   Analysis is clean; 14 spike tests in `spike/s1` fail until task A brings the writer
   to D-083, so `ci.yml`'s check does not run `spike` yet.
-- Blocked since 2026-10-11 17:13 UTC: every GitHub Actions run ends in
-  `startup_failure` before any job starts (CI runs 118 to 120, agent runs 1 and 2).
-  Run 118 is the push of `main` after #13, with the same `ci.yml` as the green run
-  117, so the cause is a repository or account setting, not a workflow file. The
-  session cannot read Actions permissions or billing; the owner is asked (M0.4-6).
-  Nothing has run, so no API credit has been spent.
-- Next, once a run starts: the two trial agent runs (key 1: the generator-test fix;
-  key 2: a no-change smoke run); an early `spike-apk` build with `home_widget`;
-  wave 1 (tasks A and B); then the waves of `docs/plans/M0.4-part2.md`.
+- From 17:13 to 17:37 UTC every Actions run ended in `startup_failure`; the owner
+  set "Actions permissions" back to allow all actions (M0.4-6, answered).
+- The agent workflow works on both keys (D-092). Key 1: the generator test now scans
+  the Arabic Extended-B block, as the code guard does (#15, merged; $0.22, 8 turns,
+  `content-engineer`). Key 2: a no-change smoke run ($0.09). Both sessions report
+  their key source as `ANTHROPIC_API_KEY`; the secrets show as `***` in the logs.
+  A pull request opened by the workflow also starts a `pull_request` CI run that
+  waits for approval (`action_required`); the workflow's own `check` run is the one
+  that counts.
+- The early `spike-apk` build passes with `home_widget` 0.10.0 on AGP 9 (run
+  38160449095): a 90.5 MB profile APK. Flutter warns that `home_widget` applies the
+  Kotlin Gradle plugin, which future Flutter versions will refuse (a Phase 2 risk).
+- Draft milestone pull request #14. Next: wave 1 (tasks A and B), then the waves of
+  `docs/plans/M0.4-part2.md`.
 
 M0.4 part 1 and M0.5 still wait on the owner's device run and his look at the gallery
 images.
@@ -280,7 +285,6 @@ Open decisions that come later (full list in `docs/DECISIONS.md`):
 | M0.4-3 | «اختبار الإيماءات: كم مشاركًا (نقترح خمسة، بينهم شخص فوق الستين وآخر يستخدم الخط الكبير)، وعلى أي هواتف، وهل تدير الاختبار بالنص العربي الذي نجهزه؟» | The S7 usability test |
 | M0.4-4 | «في الوثيقة تفتح لمسة فاصلة الآية «أدوات الآية»، وتفتح اللمسة المطوّلة «شريط أدواتها». هل هما الشريط نفسه بأفعاله الخمسة (موصى به، وبه تعمل التجربة الآن)، أم تفتح الفاصلة شيئًا آخر مثل ورقة الآية المصغّرة؟» | M1.6 (settled for the spike by the recommended option) |
 | M0.4-5 | «يشترط AX-02 ألا يقل هدف اللمس عن 48، والكلمة في النص المتدفق لا يتجاوز هدفها عرضها ونصف الفراغين حولها. هل تُستثنى الكلمات وعلامات الوقف داخل النص كما يستثنيها معيار WCAG 2.2 للأهداف داخل النص (موصى به، والتجربة تقيس الأثر)، أم يتغير تصميم الإيماءات؟» | M1.2 (settled for the spike by the recommended option) |
-| M0.4-6 | «منذ الساعة 17:13 بتوقيت UTC يفشل كل تشغيل في GitHub Actions قبل أن يبدأ (startup_failure)، ومنه فحص CI على main الذي نجح قبل ذلك بملفات العمل نفسها، فلا يعمل أي وكيل ولا أي فحص. أرجو التحقق من أمرين: (1) في المستودع: Settings ثم Actions ثم General، تحت «Actions permissions» اختر «Allow all actions and reusable workflows» (موصى به)، أو اسمح على الأقل بإجراءات GitHub وبالإجراء subosito/flutter-action. (2) في حسابك: Settings ثم Billing and licensing، تأكد أن دقائق Actions للمستودعات الخاصة لم تنفد وأن الدفع وحد الإنفاق سليمان.» | Every agent run and CI check |
 | O-01 | «معرّف التطبيق في المتجرين (مثل com.اسمك.quran) واسم الناشر الذي سيظهر للمستخدمين. المعرّف لا يمكن تغييره بعد النشر.» | Before the first store upload |
 | O-04 | «ما التلاوات التي تريدها في الإصدار الأول (خمس على الأقل، اثنتان منها بتوقيت كلمات)، ومن أين نأخذ ملفاتها، وهل يجيز إذن كل منها التنزيل دون اتصال والاستضافة على خادمك؟» | Phase 0 (B0.5) |
 | O-06 | «هل تبقى التفاسير السبعة العامة (الميسر، المختصر، السعدي، الجلالين، البغوي، ابن كثير، الطبري) بجانب كتب المكتبة الزيدية؟» | Phase 0 (B0.7) |
@@ -350,8 +354,6 @@ Permission conditions to confirm with him when each is first needed are listed i
     (D-060), so `ContextSheet` needs its own variant (M1.3).
   - `AyahMarker` is the touch target for the ayah tools; at 26 px it needs a 48 hit
     area when it becomes tappable (M1.6).
-  - `tools/gen/test/generator_test.dart` scans for Arabic without the U+0870–089F
-    block (the code guard covers it); add it with the next generator change.
   - `motionFast` and `motionSlow` have no caller yet; they are the identity's scale
     and are used by the first widgets that animate with them.
 - Left from the M0.5 reviews, for the milestone named:
