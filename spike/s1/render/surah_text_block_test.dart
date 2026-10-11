@@ -14,6 +14,7 @@ import 'package:holyquran/ui/core/widgets/ayah_marker.dart';
 import '../../s7/gesture_target.dart';
 import '../../s7/reader_gestures.dart';
 import '../../s7/tap_resolver.dart';
+import 'highlight_painter.dart';
 import 'page_blocks_v2.dart';
 import 'render_checks.dart';
 import 'spike_surah_text.dart';
@@ -37,6 +38,7 @@ Future<void> _pump(
   double width = 360,
   double scale = 1,
   ReadingTheme theme = ReadingTheme.paper,
+  ThemeData? themeData,
 }) async {
   tester.view
     ..physicalSize = Size(width, _height)
@@ -44,7 +46,7 @@ Future<void> _pump(
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     MaterialApp(
-      theme: buildAppTheme(theme),
+      theme: themeData ?? buildAppTheme(theme),
       locale: const Locale('ar'),
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -62,6 +64,41 @@ Future<void> _pump(
 
 RenderSurahTextBlock _block(WidgetTester tester, [Finder? finder]) => tester
     .renderObject<RenderSurahTextBlock>(finder ?? find.byType(SurahTextBlock));
+
+/// The selection's slice over [box]: its line's band, across the box.
+Rect _slice(SurahParagraph paragraph, Rect box) {
+  final band = paragraph.lineBands.singleWhere((b) => b.contains(box.center));
+  return Rect.fromLTRB(box.left, band.top, box.right, band.bottom);
+}
+
+/// The block's first V2 block, after the first, whose shown lines end
+/// inside an ayah (`cutAtEnd`) or start inside one, and that ayah.
+(int, QuranAddress) _blockCutInsideAyah(
+  SpikeSurahText surah, {
+  required bool cutAtEnd,
+}) {
+  final planner = SurahFlowPlanner(
+    surah: surah,
+    width: 360,
+    textScaler: const TextScaler.linear(1),
+    pageMarkSize: _pageMark,
+  );
+  for (var k = 1; k < planner.all.length; k++) {
+    final paragraph = planner.paragraphFor(planner.block(k)!);
+    final start = paragraph.lineStartPositions.first;
+    paragraph.dispose();
+    if (start.offset > 0 &&
+        start.offset < surah.ayat[start.ayah - 1].verbatim.length) {
+      final ayah = QuranAddress(
+        surah.firstAyah.riwaya,
+        surah.firstAyah.surah,
+        start.ayah,
+      );
+      return (cutAtEnd ? k - 1 : k, ayah);
+    }
+  }
+  throw StateError('no block starts inside an ayah');
+}
 
 SpikeSurahText _first(SpikeSurahText surah, int ayat) => SpikeSurahText(
   firstAyah: surah.firstAyah,
@@ -199,8 +236,8 @@ void main() {
 
   for (final theme in ReadingTheme.values) {
     testWidgets('a selected ayah is painted from ${theme.name} tokens over '
-        'the recitation highlight and under the text, sliced across its '
-        'lines', (tester) async {
+        'the ayah highlight, under the spoken word and the text, sliced '
+        'across its lines, each slice as tall as its line', (tester) async {
       final colors = AppColors.byId[theme.name]!;
       QuranAddress ayahOf(int n) =>
           QuranAddress(long.firstAyah.riwaya, long.firstAyah.surah, n);
@@ -210,21 +247,20 @@ void main() {
         3,
         2,
       );
-      await _pump(
-        tester,
-        SurahListV1(surah: _first(long, 10), highlighted: {word}),
-        theme: theme,
-      );
+      await _pump(tester, SurahListV1(surah: _first(long, 10)), theme: theme);
       final paragraph = _block(tester).paragraph;
       final selected = [
         for (var n = 1; n <= 10; n++) ayahOf(n),
       ].firstWhere((ayah) => paragraph.boxesOf(ayah).length >= 3);
-      final boxes = paragraph.boxesOf(selected);
+      final recited = ayahOf(selected.ayah == 1 ? 2 : 1);
+      final boxes = [
+        for (final box in paragraph.boxesOf(selected)) _slice(paragraph, box),
+      ];
       await _pump(
         tester,
         SurahListV1(
           surah: _first(long, 10),
-          highlighted: {word},
+          highlighted: {recited, word},
           selected: {selected},
         ),
         theme: theme,
@@ -233,16 +269,18 @@ void main() {
       final first = boxes.first;
       final middle = boxes[1];
       final last = boxes.last;
-      final pattern = paints
-        ..rrect(color: colors.highlightWord)
-        ..rect(color: colors.highlightWordLine)
+      final pattern = paints;
+      for (final _ in paragraph.boxesOf(recited)) {
+        pattern.rrect(color: colors.highlightAyah);
+      }
+      pattern
         ..rrect(
           color: colors.selection,
           rrect: RRect.fromRectAndCorners(
             Rect.fromLTRB(
               first.left,
               first.top,
-              math.min(first.right + 4, 360),
+              math.min(first.right + AppSpacing.space1, 360),
               first.bottom,
             ),
             topRight: r,
@@ -265,7 +303,7 @@ void main() {
           color: colors.selection,
           rrect: RRect.fromRectAndCorners(
             Rect.fromLTRB(
-              math.max(last.left - 4, 0),
+              math.max(last.left - AppSpacing.space1, 0),
               last.top,
               last.right,
               last.bottom,
@@ -275,10 +313,64 @@ void main() {
           ),
         )
         ..path(color: colors.selectionLine)
+        ..rrect(color: colors.highlightWord)
+        ..rect(color: colors.highlightWordLine)
         ..paragraph();
       expect(find.byType(SurahTextBlock), pattern);
     });
   }
+
+  testWidgets('on a line that starts with the selected ayah\'s marker, the '
+      'slice is as tall as the line, not the marker', (tester) async {
+    final surah = _first(long, 60);
+    for (final width in [360.0, 320.0, 412.0]) {
+      await _pump(tester, SurahListV1(surah: surah), width: width);
+      final paragraph = _block(tester).paragraph;
+      final k = [for (var k = 1; k < paragraph.visibleLineCount; k++) k].where((
+        k,
+      ) {
+        final start = paragraph.lineStartPositions[k];
+        return start.offset == surah.ayat[start.ayah - 1].verbatim.length;
+      }).firstOrNull;
+      if (k == null) continue;
+      final ayah = QuranAddress(
+        surah.firstAyah.riwaya,
+        surah.firstAyah.surah,
+        paragraph.lineStartPositions[k].ayah,
+      );
+      final marker = paragraph.markerRect(paragraph.content.indexOf(ayah)!);
+      final band = paragraph.lineBand(k);
+      expect(band.contains(marker.center), isTrue);
+      expect(marker.height, lessThan(band.height - 1));
+      final slices = paragraph.boxesOf(ayah).length;
+      await _pump(
+        tester,
+        SurahListV1(surah: surah, selected: {ayah}),
+        width: width,
+      );
+      final pattern = paints;
+      for (var i = 0; i < slices - 1; i++) {
+        pattern.rrect(color: AppColors.paper.selection);
+      }
+      const r = Radius.circular(AppRadius.radiusSm);
+      pattern.rrect(
+        color: AppColors.paper.selection,
+        rrect: RRect.fromRectAndCorners(
+          Rect.fromLTRB(
+            math.max(marker.left - AppSpacing.space1, 0),
+            band.top,
+            marker.right,
+            band.bottom,
+          ),
+          topLeft: r,
+          bottomLeft: r,
+        ),
+      );
+      expect(find.byType(SurahTextBlock), pattern);
+      return;
+    }
+    fail('no line starts with a marker at 320, 360 or 412');
+  });
 
   testWidgets('the selection frame is 1.5 px inside the slice, and open '
       'where the ayah runs on to another line', (tester) async {
@@ -289,52 +381,88 @@ void main() {
         QuranAddress(long.firstAyah.riwaya, long.firstAyah.surah, n),
     ].firstWhere((ayah) => paragraph.boxesOf(ayah).length >= 3);
     await _pump(tester, SurahListV1(surah: _first(long, 10), selected: {ayah}));
-    final middle = paragraph.boxesOf(ayah)[1];
+    final middle = _slice(paragraph, paragraph.boxesOf(ayah)[1]);
     final y = middle.center.dy;
     expect(
       find.byType(SurahTextBlock),
       paints
         ..path()
         ..path(
-          includes: [
-            Offset(middle.center.dx, middle.top + 0.75),
-            Offset(middle.center.dx, middle.bottom - 0.75),
-          ],
+          includes: [Offset(middle.center.dx, middle.top + 0.75)],
           excludes: [
             middle.center,
             Offset(middle.left + 0.75, y),
             Offset(middle.right - 0.75, y),
             Offset(middle.center.dx, middle.top + 2),
+            Offset(middle.center.dx, middle.bottom - 0.75),
           ],
         ),
     );
   });
 
+  test('between two selected lines one 1.5 px line is drawn, the lower '
+      'slice\'s top, and the upper slice keeps its bottom line where '
+      'nothing lies below it', () async {
+    const scale = 2.0;
+    const width = 360.0;
+    const band = 58.0;
+    const colors = AppColors.paper;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder)..scale(scale);
+    paintHighlights(
+      canvas,
+      Offset.zero,
+      colors: colors,
+      selected: [
+        (
+          boxes: const [
+            Rect.fromLTRB(0, 0, 200, band),
+            Rect.fromLTRB(150, band, width, 2 * band),
+          ],
+          starts: true,
+          ends: true,
+        ),
+      ],
+      width: width,
+    );
+    final image = recorder.endRecording().toImageSync(
+      (width * scale).toInt(),
+      (2 * band * scale).toInt(),
+    );
+    addTearDown(image.dispose);
+    final bytes = (await image.toByteData())!;
+    Color pixel(int x, int y) {
+      final i = (y * image.width + x) * 4;
+      return Color.fromARGB(
+        bytes.getUint8(i + 3),
+        bytes.getUint8(i),
+        bytes.getUint8(i + 1),
+        bytes.getUint8(i + 2),
+      );
+    }
+
+    /// The device rows of column [x], around the line between the slices,
+    /// painted in the frame's colour.
+    List<int> lineRows(double x) => [
+      for (var y = ((band - 6) * scale).toInt(); y < (band + 6) * scale; y++)
+        if (pixel((x * scale).toInt(), y) == colors.selectionLine) y,
+    ];
+    const edge = band * scale;
+    const line = 1.5 * scale;
+    final top = [for (var y = edge; y < edge + line; y++) y.toInt()];
+    final bottom = [for (var y = edge - line; y < edge; y++) y.toInt()];
+    expect(lineRows(175), top, reason: 'under both slices');
+    expect(lineRows(300), top, reason: 'only the lower slice');
+    expect(lineRows(75), bottom, reason: 'only the upper slice');
+    expect(pixel(175 * 2, (edge - 1).toInt()), colors.selection);
+  });
+
   testWidgets('a selected ayah that runs on from the block before is open '
       'there: no padding, frame side or corners', (tester) async {
     final surah = _first(long, 60);
-    final planner = SurahFlowPlanner(
-      surah: surah,
-      width: 360,
-      textScaler: const TextScaler.linear(1),
-      pageMarkSize: _pageMark,
-    );
-    final k = [for (var k = 1; k < planner.all.length; k++) k].firstWhere((k) {
-      final paragraph = planner.paragraphFor(planner.block(k)!);
-      final start = paragraph.lineStartPositions.first;
-      paragraph.dispose();
-      return start.offset > 0 &&
-          start.offset < surah.ayat[start.ayah - 1].verbatim.length;
-    });
+    final (k, ayah) = _blockCutInsideAyah(surah, cutAtEnd: false);
     final controller = ScrollController();
     addTearDown(controller.dispose);
-    final shown = planner.paragraphFor(planner.block(k)!);
-    final ayah = QuranAddress(
-      surah.firstAyah.riwaya,
-      surah.firstAyah.surah,
-      shown.lineStartPositions.first.ayah,
-    );
-    shown.dispose();
     await _pump(
       tester,
       PageBlocksV2(
@@ -358,7 +486,7 @@ void main() {
       paragraph.markerRect(paragraph.content.indexOf(ayah)!),
     );
     const r = Radius.circular(AppRadius.radiusSm);
-    final first = boxes.first;
+    final first = _slice(paragraph, boxes.first);
     expect(
       finder,
       paints..rrect(
@@ -366,7 +494,7 @@ void main() {
         rrect: boxes.length == 1 && ends
             ? RRect.fromRectAndCorners(
                 Rect.fromLTRB(
-                  math.max(first.left - 4, 0),
+                  math.max(first.left - AppSpacing.space1, 0),
                   first.top,
                   first.right,
                   first.bottom,

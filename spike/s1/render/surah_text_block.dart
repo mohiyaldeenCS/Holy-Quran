@@ -285,16 +285,24 @@ final class RenderSurahTextBlock extends RenderBox
     leadInLines: _leadInLines,
   );
 
-  /// The shown boxes of [ayah], and whether its start and its marker are
-  /// in them: an ayah that runs on from the block before, or past the
-  /// block's last shown line, is open there.
+  /// The selection's slices of [ayah], one per shown line, each as tall as
+  /// its line's band over the ayah's text and marker on it, as
+  /// `.qk-hl-select` is one inline box over both; and whether its start and
+  /// its marker are shown: an ayah that runs on from the block before, or
+  /// past the block's last shown line, is open there.
   static SelectedAyah _selectionOf(
     SurahParagraph paragraph,
     QuranAddress ayah,
   ) {
     final index = paragraph.content.indexOf(ayah)!;
+    final bands = paragraph.lineBands;
     return (
-      boxes: paragraph.boxesOf(ayah),
+      boxes: [
+        for (final box in paragraph.boxesOf(ayah))
+          if (bands.where((band) => band.contains(box.center)).firstOrNull
+              case final band?)
+            Rect.fromLTRB(box.left, band.top, box.right, band.bottom),
+      ],
       starts: paragraph.topOf(ayah) != null,
       ends: paragraph.isVisible(paragraph.markerRect(index)),
     );
