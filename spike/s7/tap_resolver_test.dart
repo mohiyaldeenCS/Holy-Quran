@@ -196,11 +196,11 @@ void main() {
         addTearDown(paragraph.dispose);
         final g = TargetGeometry.of(paragraph);
         var words = 0;
-        var skipped = 0;
+        final noWidth = <String>[];
         for (final MapEntry(key: word, value: rects) in g.words.entries) {
           for (final rect in rects) {
             if (rect.width <= 0) {
-              skipped++;
+              noWidth.add('$word');
               continue;
             }
             words++;
@@ -262,8 +262,10 @@ void main() {
         int median(List<int> values) => (values..sort())[values.length ~/ 2];
         // ignore: avoid_print
         print(
-          'resolver at 360, ${scale}x: $words word rects, $skipped of no '
-          'width, ${g.marks.length} marks, ${g.markers.length} markers, '
+          'resolver at 360, ${scale}x: $words word rects, '
+          '${noWidth.length} of no width $noWidth (boxes outside the block, '
+          'clamped to nothing), ${g.marks.length} marks, '
+          '${g.markers.length} markers, '
           '$probes band probes; median resolution (geometry within 48 px '
           'and rule) ${median(times)} us, by rule '
           '${{for (final e in rules.entries) e.key.name: median(e.value)}}',

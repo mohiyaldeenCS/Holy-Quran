@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 
@@ -13,19 +15,22 @@ import 'package:holyquran/ui/core/theme/tokens.g.dart';
 /// with a 6 px radius and an inset 2 px `highlight-word-line` along the
 /// bottom, the line being the state's non-colour signal.
 ///
-/// [selected] holds, per selected ayah, its rects in reading order:
-/// `.qk-hl-select`, `selection` with `radius-sm`, an inset 1.5 px
-/// `selection-line` frame (the non-colour signal) and `padding: 0 4px`,
-/// painted over the recitation highlights. Across lines it is sliced as
-/// CSS slices an inline box: the padding, the frame's sides and the
-/// rounded corners only at the ayah's two ends, its start on the right.
+/// [selected] holds, per selected ayah, its rects in reading order and
+/// whether its start and its end are among them: `.qk-hl-select`,
+/// `selection` with `radius-sm`, an inset 1.5 px `selection-line` frame
+/// (the non-colour signal) and `padding: 0 4px`, painted over the
+/// recitation highlights. Across lines it is sliced as CSS slices an
+/// inline box: the padding, the frame's sides and the rounded corners only
+/// at the ayah's two ends, its start on the right. Slices are held inside
+/// 0 to [width], so that the viewport never clips the frame's sides.
 void paintHighlights(
   Canvas canvas,
   Offset offset, {
   required AppColors colors,
   Iterable<List<Rect>> ayat = const [],
   Iterable<Rect> words = const [],
-  Iterable<List<Rect>> selected = const [],
+  Iterable<SelectedAyah> selected = const [],
+  double width = double.infinity,
 }) {
   final ayahPaint = Paint()..color = colors.highlightAyah;
   for (final boxes in ayat) {
@@ -67,27 +72,33 @@ void paintHighlights(
       )
       ..restore();
   }
-  _paintSelection(canvas, offset, colors, selected);
+  _paintSelection(canvas, offset, colors, selected, width);
 }
+
+/// A selected ayah's shown rects, in reading order, and whether its first
+/// character and its marker are among them.
+typedef SelectedAyah = ({List<Rect> boxes, bool starts, bool ends});
 
 void _paintSelection(
   Canvas canvas,
   Offset offset,
   AppColors colors,
-  Iterable<List<Rect>> selected,
+  Iterable<SelectedAyah> selected,
+  double width,
 ) {
   const radius = Radius.circular(AppRadius.radiusSm);
   const inner = Radius.circular(AppRadius.radiusSm - _selectLine);
   final fill = Paint()..color = colors.selection;
   final line = Paint()..color = colors.selectionLine;
-  for (final boxes in selected) {
+  for (final ayah in selected) {
+    final boxes = ayah.boxes;
     for (final (index, box) in boxes.indexed) {
-      final starts = index == 0;
-      final ends = index == boxes.length - 1;
+      final starts = ayah.starts && index == 0;
+      final ends = ayah.ends && index == boxes.length - 1;
       final slice = Rect.fromLTRB(
-        ends ? box.left - AppSpacing.space1 : box.left,
+        math.max(ends ? box.left - _selectPadding : box.left, 0),
         box.top,
-        starts ? box.right + AppSpacing.space1 : box.right,
+        math.min(starts ? box.right + _selectPadding : box.right, width),
         box.bottom,
       ).shift(offset);
       final shape = RRect.fromRectAndCorners(
@@ -134,3 +145,6 @@ const double _wordLine = 2;
 
 // .qk-hl-select: `box-shadow: inset 0 0 0 1.5px var(--selection-line)`.
 const double _selectLine = 1.5;
+
+// .qk-hl-select: `padding: 0 4px`.
+const double _selectPadding = 4;

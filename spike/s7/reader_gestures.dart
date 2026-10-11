@@ -82,9 +82,11 @@ final class _BlockGesturesState extends State<BlockGestures> {
 }
 
 /// A two-finger pinch over the reader (RD-07), reported once, when it
-/// ends: [onPinchEnd] gets the span's scale over the gesture and the global
-/// focal point where it took two fingers. The text does not follow the
-/// fingers; the caller steps the size (`text_size_ladder.dart`).
+/// ends: [onPinchEnd] gets the span's scale since the second finger came
+/// down and the global focal point where the pinch was recognised, past
+/// the scale slop. The text does not follow the fingers; the caller steps
+/// the size (`text_size_ladder.dart`). A third finger ends one pinch and
+/// starts no other.
 ///
 /// It sits around the scroll view, so its recogniser joins each pointer's
 /// arena after the scroll view's drag: a one-finger drag scrolls, and a

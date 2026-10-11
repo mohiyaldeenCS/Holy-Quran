@@ -62,7 +62,6 @@ void main() {
   });
   tearDownAll(() => root.delete(recursive: true));
 
-  var withoutBoxSeen = 0;
   for (final scale in [1.0, 2.0]) {
     for (final width in [320.0, 360.0, 412.0]) {
       final where = '${width.toInt()} wide at ${scale}x';
@@ -168,7 +167,6 @@ void main() {
           reason: 'after a space, mid-line, every mark has a box',
         );
         expect(g.marks.length + g.marksWithoutBox.length, shownMarks);
-        withoutBoxSeen += g.marksWithoutBox.length;
         final startingWithBox = startingLines.difference(
           g.marksWithoutBox.toSet(),
         );
@@ -187,8 +185,19 @@ void main() {
     }
   }
 
-  test('some shown mark starts a line and has no box', () {
-    expect(withoutBoxSeen, greaterThan(0));
+  test('some shown mark starts a line and has no box (360 wide at 2.0x)', () {
+    final paragraph = surahParagraph(
+      long,
+      width: 360,
+      textScaler: const TextScaler.linear(2),
+      pageMarkSize: _pageMark,
+    );
+    addTearDown(paragraph.dispose);
+    final g = TargetGeometry.of(paragraph);
+    expect(
+      _marksStartingLines(paragraph).intersection(g.marksWithoutBox.toSet()),
+      isNotEmpty,
+    );
   });
 
   test('a lone combining mark has no box of its own (Flutter 3.44.7 draws '

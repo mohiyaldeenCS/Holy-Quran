@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -238,7 +239,12 @@ void main() {
         ..rrect(
           color: colors.selection,
           rrect: RRect.fromRectAndCorners(
-            Rect.fromLTRB(first.left, first.top, first.right + 4, first.bottom),
+            Rect.fromLTRB(
+              first.left,
+              first.top,
+              math.min(first.right + 4, 360),
+              first.bottom,
+            ),
             topRight: r,
             bottomRight: r,
           ),
@@ -258,7 +264,12 @@ void main() {
         ..rrect(
           color: colors.selection,
           rrect: RRect.fromRectAndCorners(
-            Rect.fromLTRB(last.left - 4, last.top, last.right, last.bottom),
+            Rect.fromLTRB(
+              math.max(last.left - 4, 0),
+              last.top,
+              last.right,
+              last.bottom,
+            ),
             topLeft: r,
             bottomLeft: r,
           ),
@@ -296,6 +307,75 @@ void main() {
             Offset(middle.center.dx, middle.top + 2),
           ],
         ),
+    );
+  });
+
+  testWidgets('a selected ayah that runs on from the block before is open '
+      'there: no padding, frame side or corners', (tester) async {
+    final surah = _first(long, 60);
+    final planner = SurahFlowPlanner(
+      surah: surah,
+      width: 360,
+      textScaler: const TextScaler.linear(1),
+      pageMarkSize: _pageMark,
+    );
+    final k = [for (var k = 1; k < planner.all.length; k++) k].firstWhere((k) {
+      final paragraph = planner.paragraphFor(planner.block(k)!);
+      final start = paragraph.lineStartPositions.first;
+      paragraph.dispose();
+      return start.offset > 0 &&
+          start.offset < surah.ayat[start.ayah - 1].verbatim.length;
+    });
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    final shown = planner.paragraphFor(planner.block(k)!);
+    final ayah = QuranAddress(
+      surah.firstAyah.riwaya,
+      surah.firstAyah.surah,
+      shown.lineStartPositions.first.ayah,
+    );
+    shown.dispose();
+    await _pump(
+      tester,
+      PageBlocksV2(
+        surah: surah,
+        pageMark: _pageMarkOf,
+        pageMarkSize: _pageMark,
+        controller: controller,
+        selected: {ayah},
+        blockKey: (k) => ValueKey('block $k'),
+      ),
+    );
+    final finder = find.byKey(ValueKey('block $k'));
+    while (finder.evaluate().isEmpty) {
+      controller.jumpTo(controller.offset + _height / 2);
+      await tester.pump();
+    }
+    final paragraph = _block(tester, finder).paragraph;
+    final boxes = paragraph.boxesOf(ayah);
+    expect(paragraph.topOf(ayah), isNull, reason: 'starts before the block');
+    final ends = paragraph.isVisible(
+      paragraph.markerRect(paragraph.content.indexOf(ayah)!),
+    );
+    const r = Radius.circular(AppRadius.radiusSm);
+    final first = boxes.first;
+    expect(
+      finder,
+      paints..rrect(
+        color: AppColors.paper.selection,
+        rrect: boxes.length == 1 && ends
+            ? RRect.fromRectAndCorners(
+                Rect.fromLTRB(
+                  math.max(first.left - 4, 0),
+                  first.top,
+                  first.right,
+                  first.bottom,
+                ),
+                topLeft: r,
+                bottomLeft: r,
+              )
+            : RRect.fromRectAndCorners(first),
+      ),
     );
   });
 

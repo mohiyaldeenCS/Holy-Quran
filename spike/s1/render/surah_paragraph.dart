@@ -608,9 +608,16 @@ final class SurahParagraph {
   /// The visible lines' bands in block coordinates. They tile the body:
   /// each runs from the bottom of the one above to its own descent.
   List<Rect> get lineBands => [
-    for (var k = _first; k < _end; k++)
-      Rect.fromLTRB(0, _dy + _tops[k], _width, _dy + _bottoms[k]),
+    for (var k = 0; k < visibleLineCount; k++) lineBand(k),
   ];
+
+  /// The band of visible line [k], as in [lineBands].
+  Rect lineBand(int k) => Rect.fromLTRB(
+    0,
+    _dy + _tops[_first + k],
+    _width,
+    _dy + _bottoms[_first + k],
+  );
 
   /// The widths of the visible lines as laid out, and as they would be
   /// unjustified, which is the stretch justification adds to each.
@@ -631,8 +638,11 @@ final class SurahParagraph {
   List<int> get lineStarts => _lineStarts.sublist(_first, _end);
 
   List<LineStart> get lineStartPositions => [
-    for (final start in lineStarts) _positionOf(start),
+    for (var k = 0; k < visibleLineCount; k++) lineStartPosition(k),
   ];
+
+  /// Where visible line [k] starts, as in [lineStartPositions].
+  LineStart lineStartPosition(int k) => _positionOf(_lineStarts[_first + k]);
 
   LineStart _positionOf(int offset) {
     final segment = _segmentAt(offset)!;
@@ -744,7 +754,10 @@ final class SurahParagraph {
   /// shown line of this block. [box] is null when the engine gives no box
   /// of positive width there: a combining mark has no box of its own
   /// (Flutter 3.44.7 draws it on the space before it), so a mark that
-  /// starts a line, its space ending the line above, may have none.
+  /// starts a line, its space ending the line above, or that opens its
+  /// ayah, with no space before it, may have none; so may a mark on the
+  /// line above a line-start mark, whose boxes the engine puts past the
+  /// left edge.
   ///
   /// D-083 puts one separator between tokens, so the text is never read:
   /// there is none before a mark that is first in its ayah or in the block.

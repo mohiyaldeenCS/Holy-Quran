@@ -20,8 +20,9 @@ import 'surah_paragraph.dart';
 /// [highlighted] holds ayah and word addresses (the recitation) and
 /// [selected] ayah addresses (`.qk-hl-select`); both are painted under the
 /// text and never change it. The block takes no gestures: a
-/// `BlockGestures` around it resolves them from its geometry (D-095). The last line is centred when
-/// [centreLastLine], as `text-align-last: center` of `.qk-quran-page`.
+/// `BlockGestures` around it resolves them from its geometry (D-095). The
+/// last line is centred when [centreLastLine], as `text-align-last:
+/// center` of `.qk-quran-page`.
 /// [startOffset] and [maxLines] let a block continue the line flow of the
 /// block before it and stop on a full line (`page_blocks_v2.dart`).
 final class SurahTextBlock extends MultiChildRenderObjectWidget {
@@ -210,8 +211,6 @@ final class RenderSurahTextBlock extends RenderBox
   /// The laid-out paragraph, for checks and measurement.
   SurahParagraph get paragraph => _paragraph!;
 
-  QuranAddress? hit(Offset localPosition) => _paragraph?.hit(localPosition);
-
   List<Rect> boxesOf(QuranAddress address) =>
       _paragraph?.boxesOf(address) ?? const [];
 
@@ -286,6 +285,21 @@ final class RenderSurahTextBlock extends RenderBox
     leadInLines: _leadInLines,
   );
 
+  /// The shown boxes of [ayah], and whether its start and its marker are
+  /// in them: an ayah that runs on from the block before, or past the
+  /// block's last shown line, is open there.
+  static SelectedAyah _selectionOf(
+    SurahParagraph paragraph,
+    QuranAddress ayah,
+  ) {
+    final index = paragraph.content.indexOf(ayah)!;
+    return (
+      boxes: paragraph.boxesOf(ayah),
+      starts: paragraph.topOf(ayah) != null,
+      ends: paragraph.isVisible(paragraph.markerRect(index)),
+    );
+  }
+
   bool _shows(RenderBox child) {
     final offset = (child.parentData! as _BlockChildData).offset;
     return paragraph.isVisible(offset & child.size);
@@ -313,8 +327,10 @@ final class RenderSurahTextBlock extends RenderBox
       words: words,
       selected: [
         for (final ayah in _selected)
-          if (!ayah.isWord) paragraph.boxesOf(ayah),
-      ].where((boxes) => boxes.isNotEmpty),
+          if (!ayah.isWord && paragraph.content.indexOf(ayah) != null)
+            _selectionOf(paragraph, ayah),
+      ].where((ayah) => ayah.boxes.isNotEmpty),
+      width: size.width,
     );
     paragraph.paint(context.canvas, offset);
     for (var child = firstChild; child != null; child = childAfter(child)) {
