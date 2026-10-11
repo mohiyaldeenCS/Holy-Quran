@@ -216,8 +216,13 @@ Stream A: **M0.4 part 2** on `claude/great-hamilton-9n23mt` (D-093).
 - Until task C merges, the S1 screen must not run on a pack with marks: `PageBlocksV2`
   passes no marks to `SurahTextBlock`, so a block that starts at a mark throws. The CI
   measurement does not use the widgets.
-- Next: `spike-s1-text` on the D-079 file and the pinned hashes; wave 2 (task C on key 1,
-  task D on key 2).
+- The S1 rerun on the D-079 URL (run 38167073258): the `rub=false` URL serves part 1's
+  file byte for byte (same SHA-256), so the 199 U+06DE signs remain (M0.4-12, for
+  B0.2). The integrity suite passes on the real text with the D-083 checks (135
+  passed); layout fingerprints equal part 1's; the one unexplained hit,
+  `hafs:52:43:4` at 360/2.0x, is part 1's and keeps the task red. Both hashes are
+  pinned in `ci.yml`. Details on the S1 page.
+- Running: wave 2, task D on key 2; task C (key 1) is being drafted.
 
 M0.4 part 1 and M0.5 still wait on the owner's device run and his look at the gallery
 images.
@@ -309,6 +314,7 @@ Open decisions that come later (full list in `docs/DECISIONS.md`):
 | M0.4-9 | «في ودجة الآية: ارتفاع سطر الآية ٢٫٢ كما في بطاقات المشاركة وتُوسَّط أسطرها (موصى به، وبه تعمل التجربة)، أم ٢٫٠ كما في اللوحة مع محاذاة الأسطر إلى اليمين، وهذا يحتاج صيغة خاصة بالودجة من نص المصحف في المرحلة الثانية؟» | Phase 2 (settled for the spike by the recommended option) |
 | M0.4-10 | «ودجة الآية بمقاسين، صغير ٢×٢ ومتوسط ٤×٢. هل تكون ودجة واحدة في قائمة الودجات يغيّر المستخدم حجمها فتتبدل هيئتها (موصى به، وبها تعمل التجربة)، أم ودجتين منفصلتين في القائمة، لكل مقاس واحدة؟» | Phase 2 (settled for the spike by the recommended option) |
 | M0.4-11 | «الآية التي لا تتسع تُتخطى، والمقاس الصغير يتسع لآيات أقل من المتوسط. هل يختار كل مقاس آيته مما يتسع له وحده، فقد تختلف آية الودجتين في اليوم نفسه (موصى به، وبه تعمل التجربة)، أم تُختار الآية مما يتسع للمقاسين معًا فتتطابقان دائمًا وتقل الآيات المتاحة؟» | Phase 2 (settled for the spike by the recommended option) |
+| M0.4-12 | «نزّلنا نص تنزيل بخيار «بلا علامات الأحزاب» (rub=false) فجاء الملف مطابقًا بايتًا ببايت للملف الذي فيه العلامات، وفيه ١٩٩ علامة ۞. لا نحذفها نحن لأن النص لا يُعدَّل. هل يبحث فريق المحتوى (المسار ب) في B0.2 عن طريقة رسمية للحصول على الملف دون العلامة، كاستعمال نموذج التنزيل في الموقع نفسه أو مراسلة القائمين على موقع تنزيل (موصى به)، أم تبقى العلامة في الحزمة علامةً مستقلة ويقرر العرض كيف يتعامل معها؟» | B0.2 (D-079; the spike keeps the file as published) |
 | O-01 | «معرّف التطبيق في المتجرين (مثل com.اسمك.quran) واسم الناشر الذي سيظهر للمستخدمين. المعرّف لا يمكن تغييره بعد النشر.» | Before the first store upload |
 | O-04 | «ما التلاوات التي تريدها في الإصدار الأول (خمس على الأقل، اثنتان منها بتوقيت كلمات)، ومن أين نأخذ ملفاتها، وهل يجيز إذن كل منها التنزيل دون اتصال والاستضافة على خادمك؟» | Phase 0 (B0.5) |
 | O-06 | «هل تبقى التفاسير السبعة العامة (الميسر، المختصر، السعدي، الجلالين، البغوي، ابن كثير، الطبري) بجانب كتب المكتبة الزيدية؟» | Phase 0 (B0.7) |

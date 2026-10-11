@@ -19,8 +19,8 @@ on:
         description: Milestone or requirement ID for the golden commit message, e.g. M0.2
         required: false
       # Spike tasks of M0.4 (D-068, D-072); removed with the spike code. The
-      # D-079 file (rub=false); the expected hashes are pinned after its first
-      # run (docs/plans/M0.4-part2.md).
+      # D-079 URL (rub=false) serves the same file as part 1's rub=true URL;
+      # both hashes pinned from run 38167073258 (docs/spikes/S1-surah-rendering.md).
       tanzil_url:
         description: Tanzil Uthmani XML download URL (spike tasks)
         required: false
@@ -28,11 +28,11 @@ on:
       tanzil_sha256:
         description: Expected SHA-256 of that file; empty to only report it
         required: false
-        default: ''
+        default: 33f4113df84c1bab0ee2eb69616139fda619bdd56fc163a72532daaf0431bf57
       tanzil_pack_sha256:
         description: Expected SHA-256 of the spike pack's text.sqlite, checked on the device (spike-apk); empty to only report it
         required: false
-        default: ''
+        default: ff566f8fa2664b653fefd08c405f80f639c791845964042633a263ff4873e24a
 
 concurrency:
   group: ci-${{ github.ref }}-${{ inputs.task || 'check' }}
