@@ -8,11 +8,11 @@ corrected first.
 
 | | |
 | --- | --- |
-| Updated | 2026-10-07 |
+| Updated | 2026-10-11 |
 | Phase | 0 — Foundation. Gate 0 not met |
 | Stream A — app | M0.1, M0.2 and M0.3 merged, with human checks pending (pull requests #2, #3 and #4). **M0.4 part 1** merged as partial (pull request #6): spikes S1, S5 and the S3 playback part are done on Linux and await the owner's device run. Next: M0.4 part 2 (S4, S7), then M0.5 |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | `claude/great-hamilton-9n23mt`, draft pull request #10 (**M0.5**), opened by the implementing session before it reached its usage limit on 2026-10-07. Done there: the plan `docs/plans/M0.5.md`, D-084 to D-089, and step 0b (contrast pairs). Not started: step 0a (foundations) and steps A to G (the widgets). The status file on that branch does not mention M0.5 yet (noted by the planning session from Git) |
+| Working branch | `claude/great-hamilton-9n23mt`, draft pull request #10 (**M0.5**, in progress). Done: the plan `docs/plans/M0.5.md`, D-084 to D-089, step 0b (contrast pairs), step 0a (QuranText colour roles and card form, `SurahName`, `SurahHeader` on `PackText`, `Pressable`, `timesCount`, gallery samples, every ARB key; reviewed, golden images made by the CI task). Running: batches A to D (the widgets). Then E, F, G |
 | Last session | Planning session: ayah linking of books 473 and 440 (pull request #11). Before it, implementing session: M0.4 part 1 (#6), the pack format changes (#9), and the start of M0.5 (#10, draft) |
 
 ## What is in the repository
@@ -159,7 +159,7 @@ raw extraction output; signing keys. The 13 logo SVG files are in
 
 ## In progress
 
-Nothing in stream A: M0.4 part 1 waits on the owner's device run.
+Stream A: **M0.5** on draft pull request #10. Steps 0a and 0b are committed; batches A to D (19 widgets) are being built; then the gallery registration (E), the ramp-importer and integrity checks (F), and the CI golden images, reviews and documents (G). M0.4 part 1 still waits on the owner's device run; part 2 follows it so that he installs one APK.
 
 Stream B: the owner is extracting book 466 (التهذيب في التفسير, about 7,325 site
 pages). Nothing else is open in stream B.
