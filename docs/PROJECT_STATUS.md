@@ -167,14 +167,14 @@ raw extraction output; signing keys. The 13 logo SVG files are in
   `ContinueCard`, `ResourceRow`, `ReaderPlayerBar`, `WordSheet`, `SearchField`,
   `ModeChips`, `SearchSummary`, `SearchResult`, `HomeHeader`, `HomeDoor`,
   `ContinueListeningRow`, `ShareCard` (emerald, paper and night, 4:5) and `Splash`.
-  The gallery shows them in five sections, one golden image per section per theme
-  (CI run 103). Contrast pairs for every new colour pair; a test that the widgets draw
+  The gallery shows them in five sections, one golden image per section per theme. Contrast pairs for every new colour pair; a test that the widgets draw
   a synthetic pack's bytes unchanged; the ramp allow-list kept current. `Match`,
   `ContextSheet` and the copy sheet moved to M1.2, M1.3, M1.8 and M1.6 (D-088). Built
   from two accounts: the first wrote the plan, 0a, 0b and batches A, B and D; the
   second finished batch C and steps E to G. `code-reviewer` and `identity-auditor`
-  read every batch; their findings were applied (`b815f96`, `ecb71f6`) and the
-  readings recorded in D-091. Pending: the checks below, and the owner's confirmation
+  read every batch until both passed it; their findings were applied (`b815f96`,
+  `ecb71f6`, `b8e671d`, `6871ead`) and the readings recorded in D-091. Golden images
+  by CI runs 103 and 110. Pending: the checks below, and the owner's confirmation
   of D-089 and five readings of D-091.
 
 ## In progress
@@ -362,7 +362,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
-| 2026-10-11 | Implementing session (second account) | Found the first account's session still at work on the M0.5 branch; the owner chose this session to continue and the other handed over cleanly. Adopted its work (0a, A, B, D) and dropped a duplicate 0a; finished batch C; showed the five sections in the gallery (E); tested that the widgets draw a pack's bytes unchanged and kept the ramp allow-list current (F); two rounds of code review and identity audit applied; D-091; golden images by CI run 103. | Pull request #10 |
+| 2026-10-11 | Implementing session (second account) | Found the first account's session still at work on the M0.5 branch; the owner chose this session to continue and the other handed over cleanly. Adopted its work (0a, A, B, D) and dropped a duplicate 0a; finished batch C; showed the five sections in the gallery (E); tested that the widgets draw a pack's bytes unchanged and kept the ramp allow-list current (F); code review and identity audit of every batch until both passed, findings applied; D-091; golden images by CI runs 103 and 110. | Pull request #10 |
 | 2026-10-11 | Implementing session (continued) | M0.5: step 0a with code review applied; batches A, B and D (14 widgets, five gallery sections); batch C partial; stopped at the owner's request to continue from the other account. | Draft pull request #10 |
 | 2026-10-07 | Planning session | Linked books 473 (surahs in the book's own order, ayah numbers inside quotations) and 440 (footnotes that name the surah and ayah); found that 737 and 165 cannot be linked to ayat from what they print; D-090; independent review applied; PRD at revision 151. Recorded from Git where the implementing session stopped (draft pull request #10). | Pull request #11 |
 | 2026-10-07 | Planning session | Built and tested the ayah linker for books 183, 514, 276 and 471, with a check of every link against the text printed in book 514; recounted the honorific codes (sixteen); D-081, D-082; PRD re-exported at revision 147; two rounds of independent review applied. | Pull request #8 |
