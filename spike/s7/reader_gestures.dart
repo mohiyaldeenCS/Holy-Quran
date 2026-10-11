@@ -83,15 +83,18 @@ final class _BlockGesturesState extends State<BlockGestures> {
 
 /// A two-finger pinch over the reader (RD-07), reported once, when it
 /// ends: [onPinchEnd] gets the span's scale since the second finger came
-/// down and the global focal point where the pinch was recognised, past
-/// the scale slop. The text does not follow the fingers; the caller steps
-/// the size (`text_size_ladder.dart`). A third finger ends one pinch and
-/// starts no other.
+/// down and the global focal point between the two fingers then. The text
+/// does not follow the fingers; the caller steps the size
+/// (`text_size_ladder.dart`). One rule ends it: once a pinch has ended, by
+/// a finger lifting or a third coming down, nothing is reported until
+/// every finger is up.
 ///
 /// It sits around the scroll view, so its recogniser joins each pointer's
-/// arena after the scroll view's drag: a one-finger drag scrolls, and a
-/// symmetric pinch, whose movements cancel in the drag's sum, is won by the
-/// pinch once its span has changed by the scale slop.
+/// arena after the scroll view's drag and the block's tap. It accepts on
+/// the second finger's down and so claims both pointers then: waiting for
+/// the span to pass the scale slop lets the drag win any pinch whose
+/// fingers move unevenly, as the drag counts the fingers' summed vertical
+/// travel against the same slop. A single finger never reaches it.
 final class ReaderPinch extends StatefulWidget {
   const ReaderPinch({required this.child, required this.onPinchEnd, super.key});
 
@@ -105,32 +108,66 @@ final class ReaderPinch extends StatefulWidget {
 final class _ReaderPinchState extends State<ReaderPinch> {
   double? _scale;
   Offset? _focal;
+  bool _ended = false;
+
+  void _start(ScaleStartDetails details) {
+    if (_ended || details.pointerCount < 2) return;
+    _focal = details.focalPoint;
+  }
 
   void _update(ScaleUpdateDetails details) {
-    if (details.pointerCount < 2) return;
-    _focal ??= details.focalPoint;
+    if (_ended || _focal == null || details.pointerCount < 2) return;
     _scale = details.scale;
   }
 
   void _end(ScaleEndDetails details) {
+    if (_ended || _focal == null) return;
+    _ended = true;
     final scale = _scale;
-    final focal = _focal;
+    if (scale != null) widget.onPinchEnd(scale, _focal!);
+  }
+
+  void _allUp() {
+    _ended = false;
     _scale = _focal = null;
-    if (scale != null && focal != null) widget.onPinchEnd(scale, focal);
   }
 
   @override
   Widget build(BuildContext context) => RawGestureDetector(
     excludeFromSemantics: true,
     gestures: {
-      ScaleGestureRecognizer:
-          GestureRecognizerFactoryWithHandlers<ScaleGestureRecognizer>(
-            () => ScaleGestureRecognizer(debugOwner: this),
-            (recognizer) => recognizer
-              ..onUpdate = _update
-              ..onEnd = _end,
-          ),
+      _PinchRecognizer: GestureRecognizerFactoryWithHandlers<_PinchRecognizer>(
+        () => _PinchRecognizer(onAllUp: _allUp, debugOwner: this),
+        (recognizer) => recognizer
+          ..onStart = _start
+          ..onUpdate = _update
+          ..onEnd = _end,
+      ),
     },
     child: widget.child,
   );
+}
+
+/// A scale recogniser that wins the arena when a second finger comes down,
+/// and says when its last finger is up.
+final class _PinchRecognizer extends ScaleGestureRecognizer {
+  _PinchRecognizer({required this.onAllUp, super.debugOwner});
+
+  final VoidCallback onAllUp;
+
+  @override
+  void handleEvent(PointerEvent event) {
+    super.handleEvent(event);
+    // The down is routed here before its arena closes, so the new pointer
+    // is won eagerly and the earlier ones at once.
+    if (event is PointerDownEvent && pointerCount >= 2) {
+      resolve(GestureDisposition.accepted);
+    }
+  }
+
+  @override
+  void didStopTrackingLastPointer(int pointer) {
+    super.didStopTrackingLastPointer(pointer);
+    onAllUp();
+  }
 }

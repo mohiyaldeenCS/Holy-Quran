@@ -287,6 +287,160 @@ void main() {
     expect(log.longPresses, isEmpty);
   });
 
+  /// Two fingers down at [a] and [b], then ten rounds of steps [stepA] and
+  /// [stepB], each followed by a frame, and both up.
+  Future<void> unevenPinch(
+    WidgetTester tester,
+    Offset a,
+    Offset b, {
+    required Offset stepA,
+    required Offset stepB,
+  }) async {
+    final first = await tester.startGesture(a, pointer: 7);
+    final second = await tester.startGesture(b, pointer: 8);
+    for (var i = 0; i < 10; i++) {
+      if (stepA != Offset.zero) {
+        await first.moveBy(stepA);
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      if (stepB != Offset.zero) {
+        await second.moveBy(stepB);
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+    }
+    await first.up();
+    await second.up();
+    await tester.pump();
+  }
+
+  void expectOnePinch(
+    _Log log,
+    ScrollController controller, {
+    required bool outward,
+    String? reason,
+  }) {
+    expect(log.pinches, hasLength(1), reason: reason);
+    expect(
+      log.pinches.single.$1,
+      outward ? greaterThan(1) : lessThan(1),
+      reason: reason,
+    );
+    expect(controller.offset, 0, reason: reason);
+    expect(log.taps, isEmpty, reason: reason);
+    expect(log.longPresses, isEmpty, reason: reason);
+  }
+
+  for (final gap in [120.0, 300.0, 500.0]) {
+    testWidgets('a pinch with one finger still and the other moving 50 px in '
+        '5 px steps, ${gap.toInt()} px apart, is one pinch, with no scroll '
+        'and no tap', (tester) async {
+      for (final outward in [true, false]) {
+        final (log, controller) = await pumpV1(tester);
+        await unevenPinch(
+          tester,
+          const Offset(180, 150),
+          Offset(180, 150 + gap),
+          stepA: Offset.zero,
+          stepB: Offset(0, outward ? 5 : -5),
+        );
+        expectOnePinch(
+          log,
+          controller,
+          outward: outward,
+          reason: outward ? 'out' : 'in',
+        );
+      }
+    });
+  }
+
+  testWidgets('a pinch whose fingers travel 1:4 is one pinch, with no scroll '
+      'and no tap', (tester) async {
+    for (final outward in [true, false]) {
+      final (log, controller) = await pumpV1(tester);
+      final sign = outward ? 1.0 : -1.0;
+      await unevenPinch(
+        tester,
+        const Offset(180, 300),
+        const Offset(180, 500),
+        stepA: Offset(0, -1.25 * sign),
+        stepB: Offset(0, 5 * sign),
+      );
+      expectOnePinch(
+        log,
+        controller,
+        outward: outward,
+        reason: outward ? 'out' : 'in',
+      );
+    }
+  });
+
+  testWidgets('a diagonal pinch with one finger still is one pinch, with no '
+      'scroll and no tap', (tester) async {
+    for (final outward in [true, false]) {
+      final (log, controller) = await pumpV1(tester);
+      final sign = outward ? 1.0 : -1.0;
+      await unevenPinch(
+        tester,
+        const Offset(100, 250),
+        const Offset(250, 450),
+        stepA: Offset.zero,
+        stepB: Offset(3 * sign, 4 * sign),
+      );
+      expectOnePinch(
+        log,
+        controller,
+        outward: outward,
+        reason: outward ? 'out' : 'in',
+      );
+    }
+  });
+
+  testWidgets('a third finger ends the pinch: three fingers give one report, '
+      'and the next pinch is reported again', (tester) async {
+    final (log, controller) = await pumpV1(tester);
+    final first = await tester.startGesture(const Offset(180, 300), pointer: 7);
+    final second = await tester.startGesture(
+      const Offset(180, 420),
+      pointer: 8,
+    );
+    Future<void> spread(TestGesture a, TestGesture b) async {
+      for (var i = 0; i < 5; i++) {
+        await a.moveBy(const Offset(0, -5));
+        await tester.pump(const Duration(milliseconds: 16));
+        await b.moveBy(const Offset(0, 5));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+    }
+
+    await spread(first, second);
+    final third = await tester.startGesture(const Offset(80, 360), pointer: 9);
+    await tester.pump();
+    expect(log.pinches, hasLength(1), reason: 'ended by the third finger');
+    expect(log.pinches.single.$1, greaterThan(1));
+    await spread(first, second);
+    await third.moveBy(const Offset(0, 40));
+    await tester.pump(const Duration(milliseconds: 16));
+    await second.up();
+    await tester.pump();
+    await spread(first, third);
+    await first.up();
+    await third.up();
+    await tester.pump();
+    expect(log.pinches, hasLength(1));
+    expect(controller.offset, 0);
+    expect(log.taps, isEmpty);
+    expect(log.longPresses, isEmpty);
+
+    await pinch(
+      tester,
+      const Offset(180, 300),
+      const Offset(180, 420),
+      outward: false,
+    );
+    expect(log.pinches, hasLength(2));
+    expect(log.pinches.last.$1, lessThan(1));
+  });
+
   testWidgets('a pinch across two V2 blocks is reported once, with no scroll '
       'and no tap', (tester) async {
     final log = _Log();
