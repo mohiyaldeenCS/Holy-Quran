@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
@@ -42,8 +43,8 @@ final class WidgetPublication {
 
 /// A publish that stopped at [call]: nothing after it was done, and what was
 /// done before it stays. Images saved before the slots may replace files the
-/// old slots name; the native widget refuses an image whose length is not the
-/// slot's, so it shows nothing rather than another ayah's image.
+/// old slots name; the native widget refuses an image whose length or SHA-256
+/// is not the slot's, so it shows nothing rather than another ayah's image.
 final class WidgetPublishFailure implements Exception {
   const WidgetPublishFailure(this.call, this.cause);
 
@@ -74,6 +75,10 @@ final class WidgetPublisher {
   /// For each face, the first [days] of [candidates] that fit it, one per
   /// local day from today; [packTextSha256] is the verified manifest's
   /// digest of `text.sqlite`.
+  ///
+  /// A render or bridge call that throws an [Exception] ends the publish
+  /// with a [Failure] holding a [WidgetPublishFailure] that names it. An
+  /// [Error] is a programming fault and is thrown, not returned.
   Future<Result<WidgetPublication>> publish(
     List<WidgetAyah> candidates, {
     required String packTextSha256,
@@ -153,6 +158,8 @@ final class WidgetPublisher {
             packTextSha256: packTextSha256,
             lightBytes: light.length,
             darkBytes: dark.length,
+            lightSha256: sha256.convert(light).toString(),
+            darkSha256: sha256.convert(dark).toString(),
             renderMs: renderMs,
           ));
           // Spike only: the label is built here, outside SurahName (D-084),
@@ -198,12 +205,13 @@ final class WidgetPublisher {
 /// media query, localizations, direction and theme.
 Future<Uint8List> renderFacePng(AyahWidgetFace face, double pixelRatio) async {
   final boundary = RenderRepaintBoundary();
+  final positioned = RenderPositionedBox(child: boundary);
   final pipelineOwner = PipelineOwner();
   final focusManager = FocusManager();
   final buildOwner = BuildOwner(focusManager: focusManager);
   final renderView = RenderView(
     view: ui.PlatformDispatcher.instance.implicitView!,
-    child: RenderPositionedBox(child: boundary),
+    child: positioned,
     configuration: ViewConfiguration(
       logicalConstraints: BoxConstraints.tight(face.size),
       devicePixelRatio: pixelRatio,
@@ -243,6 +251,9 @@ Future<Uint8List> renderFacePng(AyahWidgetFace face, double pixelRatio) async {
         ..finalizeTree();
     }
     pipelineOwner.rootNode = null;
+    // RenderView.dispose leaves its descendants to their owner.
+    boundary.dispose();
+    positioned.dispose();
     renderView.dispose();
     pipelineOwner.dispose();
     focusManager.dispose();

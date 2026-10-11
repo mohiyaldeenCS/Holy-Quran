@@ -28,6 +28,35 @@ String _read(String path) => File(path).readAsStringSync();
 /// [text] as a Kotlin string literal.
 String _literal(String text) => '"$text"';
 
+const _slotFields = [
+  SlotField.address,
+  SlotField.slotStartMs,
+  SlotField.lightPath,
+  SlotField.darkPath,
+  SlotField.packTextSha256,
+  SlotField.lightBytes,
+  SlotField.darkBytes,
+  SlotField.lightSha256,
+  SlotField.darkSha256,
+  SlotField.renderMs,
+];
+
+/// What lies between the brace that opens after [head] in [source] and the
+/// brace that closes it.
+String _block(String source, String head) {
+  final start = source.indexOf(head);
+  if (start < 0) throw TestFailure('$head is not in the source');
+  final open = source.indexOf('{', start + head.length);
+  var depth = 0;
+  for (var at = open; at < source.length; at++) {
+    if (source[at] == '{') depth++;
+    if (source[at] == '}' && --depth == 0) {
+      return source.substring(open + 1, at);
+    }
+  }
+  throw StateError('$head has no closing brace');
+}
+
 void main() {
   test('the widget provider holds every key, field and link part', () {
     final source = _read(_provider);
@@ -37,14 +66,7 @@ void main() {
         WidgetFaceSize.medium,
       ).replaceFirst(WidgetFaceSize.medium.name, ''),
       labelsKey,
-      SlotField.address,
-      SlotField.slotStartMs,
-      SlotField.lightPath,
-      SlotField.darkPath,
-      SlotField.packTextSha256,
-      SlotField.lightBytes,
-      SlotField.darkBytes,
-      SlotField.renderMs,
+      ..._slotFields,
       WidgetLink.scheme,
       WidgetLink.host,
       WidgetLink.address,
@@ -52,17 +74,56 @@ void main() {
     for (final name in names) {
       expect(source, contains(_literal(name)), reason: name);
     }
-    expect(
-      source,
-      contains('file.length() != bytes'),
-      reason: 'an image whose length is not the slot\'s is refused',
-    );
     for (final size in WidgetFaceSize.values) {
       expect(
         slotsKey(size),
         slotsKey(WidgetFaceSize.medium).replaceFirst('medium', size.name),
       );
     }
+  });
+
+  test('a slot missing any field is unreadable', () {
+    final source = _read(_provider);
+    final constants = {
+      for (final match in RegExp(
+        r'const val (\w+) = "([^"]*)"',
+      ).allMatches(source))
+        match[1]!: match[2]!,
+    };
+    final list = RegExp(
+      r'val FIELDS = listOf\(([^)]*)\)',
+    ).firstMatch(source)![1]!;
+    final fields = [
+      for (final entry in list.split(','))
+        if (entry.trim() case final name when name.isNotEmpty)
+          name.startsWith('"')
+              ? name.substring(1, name.length - 1)
+              : constants[name]!,
+    ];
+    expect(fields, unorderedEquals(_slotFields));
+    expect(source, contains('if (FIELDS.any { !entry.has(it) })'));
+  });
+
+  test('an image is decoded from the bytes checked against its slot', () {
+    final body = _block(_read(_provider), 'private fun image(');
+    final read = body.indexOf('File(path).readBytes()');
+    final length = body.indexOf('if (data.size.toLong() != bytes) return null');
+    final digest = body.indexOf('if (sha256Hex(data) != sha256) return null');
+    final decode = body.indexOf(
+      'return BitmapFactory.decodeByteArray(data, 0, data.size)',
+    );
+    expect([read, length, digest, decode], everyElement(isNonNegative));
+    expect(read < length && length < digest && digest < decode, isTrue);
+    expect(body, contains('catch (unreadable: IOException)'));
+    expect(_read(_provider), isNot(contains('decodeFile')));
+    expect(
+      _read(_provider),
+      contains(
+        'MessageDigest.getInstance("SHA-256").digest(data)'
+        '.joinToString("") { "%02x".format(it) }',
+      ),
+      reason: 'lowercase hex, as the publisher stores it',
+    );
   });
 
   test('the provider class is the one the bridge names', () {
