@@ -165,6 +165,24 @@ bool _isArabic(int rune) =>
     (rune >= 0xFB50 && rune <= 0xFDFF) ||
     (rune >= 0xFE70 && rune <= 0xFEFF);
 
+/// Paper and night of each face, at its logical size whatever the text
+/// scale.
+void expectFaces(WidgetTester tester) {
+  final faces = find.byType(AyahWidgetFace);
+  expect(faces, findsNWidgets(4));
+  final sizes = [
+    for (final element in faces.evaluate())
+      (
+        (element.widget as AyahWidgetFace).look,
+        tester.getSize(find.byWidget(element.widget)),
+      ),
+  ];
+  expect(sizes, [
+    for (final size in WidgetFaceSize.values)
+      for (final look in WidgetLook.values) (look, faceSizeOf(size)),
+  ]);
+}
+
 /// Every text painted outside the face previews.
 Iterable<String> chromeTexts(WidgetTester tester) {
   final inFaces = find
@@ -243,6 +261,8 @@ void main() {
   }
 
   Future<void> tapButton(WidgetTester tester, String label) async {
+    // A focused field scrolls itself into view with an animation.
+    await tester.pump(const Duration(seconds: 1));
     await tester.scrollUntilVisible(
       find.text(label),
       100,
@@ -309,11 +329,25 @@ void main() {
     expect(_renderRatios.toSet(), {tester.view.devicePixelRatio});
     expect(bridge.calls.last, 'update');
     // Paper and night, both sizes: the faces the widget shows first.
-    expect(find.byType(AyahWidgetFace), findsNWidgets(4));
-    expect(
-      tester.getSize(find.byType(AyahWidgetFace).first),
-      faceSizeOf(WidgetFaceSize.medium),
-    );
+    expectFaces(tester);
+  });
+
+  testWidgets('the faces open one per page at the safe area origin', (
+    tester,
+  ) async {
+    await open(tester);
+    await tapButton(tester, 'Publish');
+    await tapButton(tester, 'Compare at whole pixels');
+    await tester.pumpAndSettle();
+    final face = find.byType(AyahWidgetFace);
+    expect(face, findsOneWidget);
+    expect(tester.getTopLeft(face), Offset.zero);
+    expect(tester.getSize(face), faceSizeOf(WidgetFaceSize.medium));
+    expect(find.textContaining('medium paper'), findsOneWidget);
+    await tester.fling(find.byType(PageView), const Offset(-600, 0), 2000);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('medium night'), findsOneWidget);
+    expect(tester.getTopLeft(find.byType(AyahWidgetFace)), Offset.zero);
   });
 
   testWidgets('the start filters the candidates', (tester) async {
@@ -440,10 +474,53 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await open(tester, packDirectory: built.directory.path);
     expect(find.textContaining('Synthetic pack (pinMissing)'), findsOne);
+
+    final bytes = built.textFile.readAsBytesSync();
+    built.textFile.writeAsBytesSync([...bytes]..[bytes.length ~/ 2] ^= 1);
+    await tester.pumpWidget(const SizedBox());
+    await open(
+      tester,
+      packDirectory: built.directory.path,
+      pinnedPackSha256: sha,
+    );
+    expect(find.textContaining('Synthetic pack (verifyFailed)'), findsOne);
+  });
+
+  testWidgets('a start that is not a surah and an ayah number is refused', (
+    tester,
+  ) async {
+    final bridge = await open(tester);
+    await tester.enterText(find.widgetWithText(TextField, 'Start surah'), 'x');
+    await tapButton(tester, 'Publish');
+    expect(find.text('the start needs a surah and an ayah number'), findsOne);
+    await tester.enterText(find.widgetWithText(TextField, 'Start surah'), '9');
+    await tapButton(tester, 'Publish');
+    expect(find.text('no ayah at or after 9:1'), findsOne);
+    expect(bridge.calls, isEmpty);
+  });
+
+  testWidgets('an unreadable results file is moved aside and S4 goes on', (
+    tester,
+  ) async {
+    File('${storage.path}/s4-results.json').writeAsStringSync('{"spike":');
+    await open(tester);
+    expect(find.textContaining('Synthetic pack (noPack)'), findsOneWidget);
+    await tapButton(tester, 'Pin the widget');
+    expect(find.textContaining('Pin requested at'), findsOneWidget);
+    expect(results()['pins'], hasLength(1));
+    final names = storage.listSync().map((f) => f.uri.pathSegments.last);
+    expect(
+      names.where((n) => n.startsWith('s4-results.json.unreadable-')),
+      hasLength(1),
+    );
+    expect(names, isNot(contains('s4-results.json.partial')));
   });
 
   testWidgets('opened by a tap it shows the address and records it with '
       'the ayah each face shows today (WG-02)', (tester) async {
+    tester.view.physicalSize = const Size(800, 3000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await open(tester);
     await tapButton(tester, 'Publish');
     final first = pack.ayat.first.address;
@@ -457,20 +534,19 @@ void main() {
             storage: storage,
             pack: pack,
           ),
-          openedBy: (address: first, cold: true),
+          openedBy: (address: first, launch: WidgetLaunch.cold),
         ),
       ),
     );
     await settleIo(tester);
-    expect(
-      find.text('Opened by a widget tap (cold start): $first'),
-      findsOneWidget,
-    );
+    expect(find.text('Opened by a widget tap (cold): $first'), findsOneWidget);
     final link =
         (results()['links']! as List<Object?>).single! as Map<String, Object?>;
     expect(link['address'], '$first');
     expect(link['launch'], 'cold');
     expect(link['shownToday'], {'medium': '$first', 'small': '$first'});
+    expect(find.byType(AyahWidgetFace), findsNWidgets(4));
+    expect(find.textContaining('medium, today $first'), findsOneWidget);
   });
 
   testWidgets('no text outside the faces holds an Arabic code point', (
@@ -510,7 +586,8 @@ void main() {
 
   testWidgets('at 200% text on a narrow phone the chrome lays out without '
       'overflow', (tester) async {
-    tester.view.physicalSize = const Size(360, 800) * 3;
+    // Narrow, and tall enough that the list builds every row at once.
+    tester.view.physicalSize = const Size(360, 4000) * 3;
     tester.view.devicePixelRatio = 3;
     tester.platformDispatcher.textScaleFactorTestValue = 2;
     addTearDown(tester.view.reset);
@@ -534,5 +611,6 @@ void main() {
       expect(paragraph.didExceedMaxLines, isFalse);
     }
     expect(_renderRatios.toSet(), {3.0});
+    expectFaces(tester);
   });
 }

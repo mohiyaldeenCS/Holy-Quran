@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
@@ -8,8 +10,9 @@ import 'package:holyquran/ui/core/gallery/gallery_screen.dart';
 
 import 'main.dart';
 import 's1/s1_screen.dart';
+import 's4/native_shaping_probe.dart';
 import 's4/s4_screen.dart';
-import 's4/s4_screen_test.dart' show FakeWidgetBridge, fakeS4Environment;
+import 's4/widget_bridge.dart';
 import 's4/widget_slots.dart';
 import 's4/widget_test_pack.dart';
 import 's5/s5_screen.dart';
@@ -28,14 +31,68 @@ const _entries = [
   'S5 downloads',
 ];
 
-/// Lets real file work finish between frames.
+/// Lets real file work finish between frames, until no busy bar is left
+/// or ten seconds have passed.
 Future<void> _settleIo(WidgetTester tester) async {
-  for (var i = 0; i < 5; i++) {
+  final clock = Stopwatch()..start();
+  var rounds = 0;
+  do {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 20)),
     );
     await tester.pump();
+    rounds++;
+  } while (rounds < 5 ||
+      find.byType(LinearProgressIndicator).evaluate().isNotEmpty &&
+          clock.elapsed < const Duration(seconds: 10));
+}
+
+/// The widget plugin as the launcher sees it: the link that launched the
+/// activity, asked for each time, and the taps while it runs, both parsed
+/// by the real link parser. Publishing is S4's tests' business.
+final class _LinkBridge implements WidgetBridge {
+  Uri? launchLink;
+  int launchAsks = 0;
+  final links = StreamController<Uri?>.broadcast();
+
+  Future<void> close() => links.close();
+
+  @override
+  Future<QuranAddress?> launchAddress() async {
+    launchAsks++;
+    return addressFromWidgetLink(launchLink);
   }
+
+  @override
+  Stream<QuranAddress?> get taps => links.stream.map(addressFromWidgetLink);
+
+  @override
+  Future<String> savePng(String key, Uint8List png) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> saveString(String key, String value) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> scheduleUpdates(List<DateTime> times) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> update() => throw UnimplementedError();
+
+  @override
+  Future<bool> requestPin() => throw UnimplementedError();
+}
+
+/// A probe the launcher's tests never run.
+final class _UnusedProbe implements ShapingProbe {
+  @override
+  Future<({ShapingMeasure measure, String fontSha256})> measure(
+    ShapingSample sample, {
+    required double fontSize,
+    required double maxWidth,
+  }) => throw UnimplementedError();
 }
 
 void main() {
@@ -43,7 +100,8 @@ void main() {
   late S1Environment environment;
   late Directory widgetRoot;
   late WidgetTestPack widgetPack;
-  late FakeWidgetBridge bridge;
+  late _LinkBridge bridge;
+  var bridgeOpens = 0;
 
   setUpAll(() async {
     widgetRoot = await Directory.systemTemp.createTemp('spike_main_widget');
@@ -61,15 +119,29 @@ void main() {
       storage: () async => root,
       font: () async => throw StateError('no font'),
     );
-    bridge = FakeWidgetBridge();
+    bridge = _LinkBridge();
+    bridgeOpens = 0;
   });
   tearDown(() async {
     await bridge.close();
     await root.delete(recursive: true);
   });
 
-  S4Environment s4Environment() =>
-      fakeS4Environment(bridge: bridge, storage: root, pack: widgetPack);
+  S4Environment s4Environment() => S4Environment(
+    bridge: () async {
+      bridgeOpens++;
+      return bridge;
+    },
+    probe: _UnusedProbe(),
+    storage: () async => root,
+    packDirectory: () async => null,
+    synthetic: () async => (
+      ayat: widgetPack.ayat,
+      textSha256: widgetPack.textSha256,
+      close: () {},
+    ),
+    font: () async => throw StateError('no font'),
+  );
 
   Widget spikeRoot({ColdStartLaunch? coldStart}) => SpikeRoot(
     s3Screen: (_) => const Scaffold(body: Text('S3 stand-in')),
@@ -161,6 +233,7 @@ void main() {
     );
     expect(find.byType(S1ColdStartScreen), findsOneWidget);
     await _settleIo(tester);
+    expect(bridgeOpens, 0, reason: 'no plugin call beside the measurement');
     expect(find.textContaining('no prepared pack'), findsOneWidget);
 
     await tester.pageBack();
@@ -195,13 +268,13 @@ void main() {
   testWidgets('a widget tap that started the app opens S4 on its ayah, '
       'recorded as a cold start', (tester) async {
     final address = ayah(1, 2);
-    bridge = FakeWidgetBridge(launchLink: widgetLink(address));
+    bridge.launchLink = widgetLink(address);
     await tester.pumpWidget(spikeRoot());
     await tester.pump();
     await _settleIo(tester);
     expect(find.byType(S4Screen), findsOneWidget);
     expect(
-      find.text('Opened by a widget tap (cold start): $address'),
+      find.text('Opened by a widget tap (cold): $address'),
       findsOneWidget,
     );
     final results = File('${root.path}/s4-results.json').readAsStringSync();
@@ -222,7 +295,7 @@ void main() {
     await tester.pump();
     await _settleIo(tester);
     expect(
-      find.text('Opened by a widget tap (warm start): $address'),
+      find.text('Opened by a widget tap (warm): $address'),
       findsOneWidget,
     );
     expect(
@@ -232,9 +305,7 @@ void main() {
   });
 
   testWidgets('a foreign or malformed link opens nothing', (tester) async {
-    bridge = FakeWidgetBridge(
-      launchLink: Uri.parse('https://example.com/ayah?address=hafs:1:2'),
-    );
+    bridge.launchLink = Uri.parse('https://example.com/ayah?address=hafs:1:2');
     await tester.pumpWidget(spikeRoot());
     await tester.pump();
     for (final link in [
@@ -277,5 +348,49 @@ void main() {
       final size = tester.getSize(find.widgetWithText(ListTile, entry));
       expect(size.height, greaterThanOrEqualTo(48), reason: entry);
     }
+  });
+
+  testWidgets('a widget tap that starts a new activity on the running '
+      'engine opens S4, recorded as reattached', (tester) async {
+    await tester.pumpWidget(spikeRoot());
+    await tester.pump();
+    expect(bridge.launchAsks, 1);
+    final address = ayah(1, 3);
+    bridge.launchLink = widgetLink(address);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.detached);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    await _settleIo(tester);
+    expect(bridge.launchAsks, 2);
+    expect(
+      find.text('Opened by a widget tap (reattached): $address'),
+      findsOneWidget,
+    );
+    expect(
+      File('${root.path}/s4-results.json').readAsStringSync(),
+      contains('"launch": "reattached"'),
+    );
+  });
+
+  testWidgets('returning from the background without a new activity asks '
+      'for no link', (tester) async {
+    bridge.launchLink = widgetLink(ayah(1, 3));
+    await tester.pumpWidget(spikeRoot());
+    await tester.pump();
+    await _settleIo(tester);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(bridge.launchAsks, 1);
+    expect(find.byType(S4Screen), findsNothing);
   });
 }

@@ -53,11 +53,30 @@ const _pinnedPackSha256 = String.fromEnvironment('SPIKE_TANZIL_PACK_SHA256');
 File _resultsFile(Directory storage) =>
     File('${storage.path}/$_resultsFileName');
 
-/// What a widget tap opened: the ayah, and whether the tap started the app.
-typedef WidgetTap = ({QuranAddress address, bool cold});
+/// How a widget tap reached the app.
+enum WidgetLaunch {
+  /// It started the process.
+  cold,
+
+  /// The app was running; the tap came as a new intent.
+  warm,
+
+  /// The process and its engine lived on after the activity was closed; the
+  /// tap started a new activity on them.
+  reattached,
+}
+
+/// What a widget tap opened, and how the tap reached the app.
+typedef WidgetTap = ({QuranAddress address, WidgetLaunch launch});
 
 /// Why the screen uses the synthetic pack instead of S1's device pack.
-enum SyntheticReason { noPack, pinMissing, pinMismatch, verifyFailed }
+enum SyntheticReason {
+  noPack,
+  pinMissing,
+  pinMismatch,
+  verifyFailed,
+  readFailed,
+}
 
 /// The ayat [WidgetPublisher] may take, from a pack verified as the app
 /// verifies it.
@@ -176,9 +195,10 @@ Future<WidgetCandidates> _openCandidates(S4Environment env) async {
   }
   final text = opened.text;
   final sha = opened.verified.manifest.files
-      .singleWhere((file) => file.name == textFileName)
-      .sha256;
-  if (sha != env.pinnedPackSha256) {
+      .where((file) => file.name == textFileName)
+      .firstOrNull
+      ?.sha256;
+  if (sha == null || sha != env.pinnedPackSha256) {
     text.close();
     return _syntheticCandidates(env, SyntheticReason.pinMismatch);
   }
@@ -187,7 +207,7 @@ Future<WidgetCandidates> _openCandidates(S4Environment env) async {
       infos = value;
     case Failure():
       text.close();
-      return _syntheticCandidates(env, SyntheticReason.verifyFailed);
+      return _syntheticCandidates(env, SyntheticReason.readFailed);
   }
 
   Future<List<WidgetAyah>> read(int surah, int ayah, int count) async {
@@ -255,26 +275,45 @@ String encodeS4Results(Map<String, Object?> json) {
   return encoded;
 }
 
+/// The results file in [storage], empty when there is none. A file that
+/// does not decode as an object is moved aside, kept for the record, so
+/// that the screen can go on.
+Map<String, Object?> _readResults(Directory storage) {
+  final file = _resultsFile(storage);
+  if (!file.existsSync()) return {};
+  try {
+    final json = jsonDecode(file.readAsStringSync());
+    if (json is Map<String, Object?>) return json;
+  } on FormatException {
+    // Moved aside below.
+  }
+  file.renameSync(
+    '${file.path}.unreadable-${DateTime.now().millisecondsSinceEpoch}',
+  );
+  return {};
+}
+
 /// Appends [entry] to the list [key] of the results file in [storage] and
 /// returns the whole file as written. Synchronous, so that two S4 screens (a
-/// tap opens one over another) never interleave a read and a write.
+/// tap opens one over another) never interleave a read and a write; written
+/// beside and renamed over the old file, so a killed process leaves the old
+/// file whole.
 Map<String, Object?> _append(
   Directory storage,
   String key,
   Map<String, Object?> entry,
 ) {
   storage.createSync(recursive: true);
-  final file = _resultsFile(storage);
-  final Object? onDisk = file.existsSync()
-      ? jsonDecode(file.readAsStringSync())
-      : null;
   final results = <String, Object?>{
-    if (onDisk is Map<String, Object?>) ...onDisk,
+    ..._readResults(storage),
     'spike': 'S4',
     'format': _resultsFormat,
   };
   results[key] = [if (results[key] case final List<Object?> old) ...old, entry];
-  file.writeAsStringSync(encodeS4Results(results), flush: true);
+  final file = _resultsFile(storage);
+  File('${file.path}.partial')
+    ..writeAsStringSync(encodeS4Results(results), flush: true)
+    ..renameSync(file.path);
   return results;
 }
 
@@ -366,11 +405,7 @@ class _S4ScreenState extends State<S4Screen> {
   String get _at => _env.now().toUtc().toIso8601String();
 
   Future<void> _open() async {
-    final file = _resultsFile(await _env.storage());
-    if (await file.exists()) {
-      final json = jsonDecode(await file.readAsString());
-      if (json is Map<String, Object?>) _results = json;
-    }
+    _results = _readResults(await _env.storage());
     if (widget.openedBy case final tap?) await _recordTap(tap);
     final candidates = await _openCandidates(_env);
     if (!mounted) {
@@ -378,6 +413,7 @@ class _S4ScreenState extends State<S4Screen> {
       return;
     }
     setState(() => _candidates = candidates);
+    await _showPreviews();
     final bridge = await _env.bridge();
     if (mounted) setState(() => _bridge = bridge);
   }
@@ -402,7 +438,7 @@ class _S4ScreenState extends State<S4Screen> {
     await _record('links', {
       'at': _at,
       'address': tap.address.toString(),
-      'launch': tap.cold ? 'cold' : 'warm',
+      'launch': tap.launch.name,
       'shownToday': shown,
     });
   }
@@ -453,7 +489,6 @@ class _S4ScreenState extends State<S4Screen> {
       'days': _days,
       'elapsedMs': clock.elapsedMilliseconds,
     };
-    _previews.clear();
     switch (result) {
       case Ok(value: final publication):
         run['result'] = 'ok';
@@ -461,18 +496,6 @@ class _S4ScreenState extends State<S4Screen> {
           for (final size in WidgetFaceSize.values)
             size.name: _faceJson(publication, size),
         };
-        for (final size in WidgetFaceSize.values) {
-          final first = publication.slots[size]!.firstOrNull;
-          if (first == null) continue;
-          final ayah = ayat.firstWhere(
-            (a) => a.address.toString() == first.address,
-          );
-          final box = AyahWidgetFace.ayahBoxOf(faceSizeOf(size));
-          _previews[size] = (
-            ayah: ayah,
-            quranSize: fitQuranSize(ayah.ayah, box)!,
-          );
-        }
       case Failure(:final error):
         run['result'] = 'failure';
         run['failedCall'] = error is WidgetPublishFailure ? error.call : null;
@@ -481,6 +504,41 @@ class _S4ScreenState extends State<S4Screen> {
         );
     }
     await _record('publishes', run);
+    await _showPreviews();
+  }
+
+  /// The faces the widget shows today by the last publish, read again from
+  /// the open pack if that publish used it, so that a screen opened by a
+  /// widget tap shows them too.
+  Future<void> _showPreviews() async {
+    final candidates = _candidates;
+    final run = _last(_results, 'publishes');
+    final faces = run?['faces'];
+    final previews = <WidgetFaceSize, _Preview>{};
+    if (candidates != null &&
+        run?['packTextSha256'] == candidates.textSha256 &&
+        faces is Map<String, Object?>) {
+      for (final size in WidgetFaceSize.values) {
+        if (faces[size.name] case {'slots': final List<Object?> slots}) {
+          final shown = _shownAt(slots, _env.now().millisecondsSinceEpoch);
+          final address = shown == null ? null : QuranAddress.tryParse(shown);
+          if (address == null) continue;
+          final read = await candidates.read(address.surah, address.ayah, 1);
+          final ayah = read.where((a) => a.address == address).firstOrNull;
+          if (ayah == null) continue;
+          final box = AyahWidgetFace.ayahBoxOf(faceSizeOf(size));
+          final quranSize = fitQuranSize(ayah.ayah, box);
+          if (quranSize == null) continue;
+          previews[size] = (ayah: ayah, quranSize: quranSize);
+        }
+      }
+    }
+    if (!mounted) return;
+    setState(
+      () => _previews
+        ..clear()
+        ..addAll(previews),
+    );
   }
 
   /// The slots as stored natively, less the image paths.
@@ -580,9 +638,12 @@ class _S4ScreenState extends State<S4Screen> {
     'lineWidths': measure.lineWidths,
   };
 
+  /// The file as it is now: another S4 screen may have added to it.
   Future<void> _copyResults() async {
-    await Clipboard.setData(ClipboardData(text: encodeS4Results(_results)));
+    final results = _readResults(await _env.storage());
+    await Clipboard.setData(ClipboardData(text: encodeS4Results(results)));
     if (mounted) {
+      setState(() => _results = results);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Results JSON copied')));
@@ -616,10 +677,7 @@ class _S4ScreenState extends State<S4Screen> {
       children: [
         Text('Build: $_buildMode, pixel ratio ${_fixed(pixelRatio)}'),
         if (widget.openedBy case final tap?)
-          Text(
-            'Opened by a widget tap (${tap.cold ? 'cold' : 'warm'} start): '
-            '${tap.address}',
-          ),
+          Text('Opened by a widget tap (${tap.launch.name}): ${tap.address}'),
         const _Heading('1. Publish'),
         Text(switch (candidates) {
           null => 'No pack open.',
@@ -663,6 +721,17 @@ class _S4ScreenState extends State<S4Screen> {
         if (_last(_results, 'publishes') case final run?) _PublishSummary(run),
         for (final MapEntry(key: size, value: preview) in _previews.entries)
           _FacePreviews(size: size, preview: preview),
+        if (_previews.isNotEmpty)
+          _Actions([
+            OutlinedButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => _FaceComparison(previews: _previews),
+                ),
+              ),
+              child: const Text('Compare at whole pixels'),
+            ),
+          ]),
         const _Heading('2. Pin'),
         _Actions([
           FilledButton(
@@ -696,10 +765,7 @@ class _S4ScreenState extends State<S4Screen> {
         ]),
         if (links is List<Object?>)
           for (final link in links.whereType<Map<String, Object?>>())
-            Text(
-              'Tap ${link['at']}: ${link['address']}, ${link['launch']} '
-              'start',
-            ),
+            Text('Tap ${link['at']}: ${link['address']}, ${link['launch']}'),
       ],
     );
   }
@@ -760,8 +826,9 @@ class _FacePreviews extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
-        '${size.name}, first slot ${preview.ayah.address}, '
-        '${preview.quranSize.toInt()} px',
+        '${size.name}, today ${preview.ayah.address}, '
+        '${preview.quranSize.toInt()} px; square corners, the launcher '
+        'rounds them',
       ),
       SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -781,6 +848,44 @@ class _FacePreviews extends StatelessWidget {
         ),
       ),
     ],
+  );
+}
+
+/// One face per page at the safe area's top left: the inset is a whole
+/// number of physical pixels, so each face starts on a pixel as the
+/// published image does, unlike the previews in the scrolling list.
+class _FaceComparison extends StatelessWidget {
+  const _FaceComparison({required this.previews});
+
+  final Map<WidgetFaceSize, _Preview> previews;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: PageView(
+      children: [
+        for (final MapEntry(key: size, value: preview) in previews.entries)
+          for (final look in WidgetLook.values)
+            SafeArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AyahWidgetFace(
+                    ayah: preview.ayah.ayah,
+                    surahName: preview.ayah.surahName,
+                    ayahNumber: preview.ayah.address.ayah,
+                    quranSize: preview.quranSize,
+                    look: look,
+                    size: faceSizeOf(size),
+                  ),
+                  _Line(
+                    '${size.name} ${look.name}, ${preview.ayah.address}. '
+                    'Swipe for the next face.',
+                  ),
+                ],
+              ),
+            ),
+      ],
+    ),
   );
 }
 

@@ -15,6 +15,7 @@ import 's1/s1_screen.dart';
 import 's3/s3_screen.dart';
 import 's3/spike_audio_handler.dart';
 import 's4/s4_screen.dart';
+import 's4/widget_bridge.dart';
 import 's5/s5_screen.dart';
 
 // The profile spike APK (D-069):
@@ -84,42 +85,67 @@ class _SpikeRootState extends State<SpikeRoot> {
   final _navigator = GlobalKey<NavigatorState>();
   GoRouter? _router;
   StreamSubscription<QuranAddress?>? _taps;
+  AppLifecycleListener? _lifecycle;
+  WidgetBridge? _bridge;
+  bool _detached = false;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_listenToWidget());
+    // An armed S1 cold start is measured as part 1 measured it, with no
+    // widget plugin calls beside it.
+    if (widget.coldStart == null) unawaited(_listenToWidget());
   }
 
   @override
   void dispose() {
+    _lifecycle?.dispose();
     unawaited(_taps?.cancel());
     super.dispose();
   }
 
   /// A tap on the home-screen widget opens S4 on its ayah (WG-02): taps
-  /// while the app runs from the stream, the tap that started it from the
-  /// bridge once. Flutter's own deep linking is off (AndroidManifest.xml),
-  /// so the link never reaches the navigator as a route.
+  /// while the app runs from the stream, and the tap that started the app
+  /// or, when the activity was closed and the engine lived on (the audio
+  /// service keeps it), the tap that started the new activity from the
+  /// bridge. Flutter's own deep linking is off (AndroidManifest.xml), so the
+  /// link never reaches the navigator as a route.
   Future<void> _listenToWidget() async {
     try {
       final bridge = await widget.s4Environment.bridge();
       if (!mounted) return;
-      _taps = bridge.taps.listen((address) => _openLink(address, cold: false));
-      _openLink(await bridge.launchAddress(), cold: true);
-    } on Object {
+      _bridge = bridge;
+      _taps = bridge.taps.listen(
+        (address) => _openLink(address, WidgetLaunch.warm),
+        onError: (Object e) => debugPrint('S4 widget taps: ${e.runtimeType}'),
+      );
+      _lifecycle = AppLifecycleListener(onStateChange: _onLifecycle);
+      _openLink(await bridge.launchAddress(), WidgetLaunch.cold);
+    } on Object catch (e) {
       // Without the plugin the launcher still opens; S4 shows the error.
+      debugPrint('S4 widget link not started: ${e.runtimeType}');
+    }
+  }
+
+  Future<void> _onLifecycle(AppLifecycleState state) async {
+    if (state == AppLifecycleState.detached) _detached = true;
+    if (state != AppLifecycleState.resumed || !_detached) return;
+    _detached = false;
+    try {
+      _openLink(await _bridge?.launchAddress(), WidgetLaunch.reattached);
+    } on Object catch (e) {
+      debugPrint('S4 widget link not read: ${e.runtimeType}');
     }
   }
 
   /// Ignores a link that names no ayah, and every link once the app has
   /// replaced the launcher.
-  void _openLink(QuranAddress? address, {required bool cold}) {
+  void _openLink(QuranAddress? address, WidgetLaunch launch) {
     if (address == null || !mounted || _router != null) return;
     final navigator = _navigator.currentState;
     if (navigator == null) {
       WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _openLink(address, cold: cold),
+        (_) => _openLink(address, launch),
       );
       return;
     }
@@ -128,7 +154,7 @@ class _SpikeRootState extends State<SpikeRoot> {
         MaterialPageRoute<void>(
           builder: (_) => S4Screen(
             environment: widget.s4Environment,
-            openedBy: (address: address, cold: cold),
+            openedBy: (address: address, launch: launch),
           ),
         ),
       ),
