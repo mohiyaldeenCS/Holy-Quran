@@ -60,7 +60,7 @@ final class AyahWidgetFace extends StatelessWidget {
     final reference = TextPainter(
       text: TextSpan(
         text: arabicDigits(1),
-        style: _referenceStyle,
+        style: AppTextStyles.caption,
         locale: _arabic,
       ),
       textDirection: TextDirection.rtl,
@@ -126,7 +126,13 @@ final class _Frames extends StatelessWidget {
           ),
           child: Container(
             decoration: BoxDecoration(
-              border: Border.all(color: colors.ornamentSoft),
+              border: Border.all(
+                color: colors.ornamentSoft,
+                // The same constant as the inset sum, though it is the
+                // default.
+                // ignore: avoid_redundant_argument_values
+                width: _innerFrameWidth,
+              ),
               borderRadius: BorderRadius.circular(_innerRadius),
             ),
             child: Center(
@@ -140,7 +146,10 @@ final class _Frames extends StatelessWidget {
                     format: SurahNameFormat.withAyah,
                     ayah: ayahNumber,
                     textAlign: TextAlign.center,
-                    style: _referenceStyle.copyWith(color: colors.accent),
+                    // Share.dc.html line 92: 13px, weight 600, #8A6212
+                    // (accent), in the board root's IBM Plex Sans Arabic at
+                    // its normal 1.5 line height: the caption style.
+                    style: AppTextStyles.caption.copyWith(color: colors.accent),
                   ),
                 ],
               ),
@@ -164,26 +173,15 @@ const double _padding = 10;
 const double _frameWidth = 1.5;
 const double _framePadding = 3;
 
-// Share.dc.html line 90, the inner frame: `border:1px solid #D9AE5A`
-// (ornament-soft), `border-radius:13px`, its column `gap:2px`.
+// Share.dc.html line 90, the inner frame: `border-radius:13px`, its column
+// `gap:2px`.
 const double _innerRadius = 13;
 const double _gap = 2;
 
-/// The inner frame's 1px border.
+// Share.dc.html line 90, the inner frame: `border:1px solid #D9AE5A`
+// (ornament-soft).
 const double _innerFrameWidth = 1;
 
 /// From the face's edge to the inside of the inner frame.
 const double _contentInset =
     _padding + _frameWidth + _framePadding + _innerFrameWidth;
-
-// Share.dc.html line 92, the reference: `font-size:13px;font-weight:600`
-// in #8A6212 (accent), IBM Plex Sans Arabic from the board's root, no line
-// height set: the font's own, as a TextStyle with no height draws it.
-const TextStyle _referenceStyle = TextStyle(
-  inherit: false,
-  fontFamily: AppFonts.sans,
-  fontSize: 13,
-  fontWeight: FontWeight.w600,
-  letterSpacing: 0,
-  leadingDistribution: TextLeadingDistribution.even,
-);
