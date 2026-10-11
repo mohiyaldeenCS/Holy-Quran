@@ -28,6 +28,7 @@ Future<void> _pump(
   ShareCardDesign design, {
   ReadingTheme theme = ReadingTheme.paper,
   double textScale = 1,
+  bool boldText = false,
   double fontSize = 34,
 }) async {
   tester.view
@@ -39,9 +40,10 @@ Future<void> _pump(
       theme,
       Builder(
         builder: (context) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(textScale),
+            boldText: boldText,
+          ),
           child: ShareCard(
             ayah: _text,
             surahName: _packName,
@@ -288,6 +290,30 @@ void main() {
     );
     await expectLater(tester, meetsGuideline(textContrastGuideline));
     handle.dispose();
+  });
+
+  testWidgets('ignores the system bold-text setting', (tester) async {
+    FontWeight? drawnWeight(Finder text) => tester
+        .widget<RichText>(
+          find.descendant(of: text, matching: find.byType(RichText)),
+        )
+        .text
+        .style
+        ?.fontWeight;
+
+    for (final design in ShareCardDesign.values) {
+      await _pump(tester, design, boldText: true);
+      expect(
+        drawnWeight(find.byType(SurahName)),
+        FontWeight.w600,
+        reason: design.name,
+      );
+      expect(
+        drawnWeight(find.text(_l10n.appTitle)),
+        FontWeight.w700,
+        reason: design.name,
+      );
+    }
   });
 
   testWidgets('ignores the system text scale', (tester) async {

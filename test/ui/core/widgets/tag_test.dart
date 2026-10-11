@@ -201,7 +201,7 @@ void main() {
     expect(presses, 3);
   });
 
-  testWidgets('reads as one labelled toggle button with its state', (
+  testWidgets('reads as one labelled button with its selected state', (
     tester,
   ) async {
     final handle = tester.ensureSemantics();
@@ -220,8 +220,8 @@ void main() {
       matchesSemantics(
         label: _l10n.tagMemorise,
         isButton: true,
-        hasToggledState: true,
-        isToggled: true,
+        hasSelectedState: true,
+        isSelected: true,
         isFocusable: true,
         hasTapAction: true,
         hasFocusAction: true,
@@ -232,12 +232,19 @@ void main() {
       matchesSemantics(
         label: _l10n.tagReview,
         isButton: true,
-        hasToggledState: true,
+        hasSelectedState: true,
         isFocusable: true,
         hasTapAction: true,
         hasFocusAction: true,
       ),
     );
+    // Not a switch: neither has a toggled state.
+    for (final tag in [find.byType(Tag).first, find.byType(Tag).last]) {
+      expect(
+        tester.getSemantics(tag),
+        isNot(isSemantics(hasToggledState: true)),
+      );
+    }
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
     handle.dispose();

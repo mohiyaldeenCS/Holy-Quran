@@ -3,7 +3,6 @@ import 'package:flutter/widgets.dart' hide Icon;
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
-import 'package:holyquran/ui/core/l10n/times_count.dart';
 import 'package:holyquran/ui/core/theme/ramps.g.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
@@ -25,9 +24,10 @@ const double _mainIconSize = 28;
 const double _speedPaddingVertical = 6;
 const double _speedOpacity = 0.14;
 // .qk-player-count: top 2px; left 2px; min-width and height 18px;
-// border-radius 9px.
+// border-radius 9px, half the height; font-size 11px.
 const double _countInset = 2;
 const double _countSize = 18;
+const double _countFontSize = 11;
 
 // .qk-player-title: Reem Kufi, font-size 24px, line-height 1.4, the
 // surah-header style's size and line height; it sets no weight, so 400
@@ -48,7 +48,7 @@ const TextStyle _subStyle = TextStyle(
 );
 final TextStyle _speedStyle = _subStyle.copyWith(fontWeight: FontWeight.w600);
 final TextStyle _countStyle = _subStyle.copyWith(
-  fontSize: 11,
+  fontSize: _countFontSize,
   fontWeight: FontWeight.w700,
 );
 
@@ -162,10 +162,10 @@ class MiniPlayer extends StatelessWidget {
               PlayerButton(
                 icon: IconName.repeat,
                 label: repeat > 0
-                    ? l10n.playerRepeatTimes(timesCount(l10n, repeat))
+                    ? l10n.playerRepeatTimes(repeat, arabicDigits(repeat))
                     : l10n.playerRepeat,
                 onPressed: onRepeat,
-                badge: repeat > 0 ? _RepeatCount(repeat) : null,
+                count: repeat > 0 ? repeat : null,
               ),
               PlayerButton(
                 icon: IconName.previous,
@@ -209,7 +209,7 @@ class PlayerButton extends StatelessWidget {
     required this.onPressed,
     this.size = AppSizes.targetMin,
     this.iconSize = _iconSize,
-    this.badge,
+    this.count,
     super.key,
   }) : _main = false;
 
@@ -222,7 +222,7 @@ class PlayerButton extends StatelessWidget {
     required this.iconSize,
     super.key,
   }) : icon = playing ? IconName.pause : IconName.play,
-       badge = null,
+       count = null,
        _main = true;
 
   final IconName icon;
@@ -231,8 +231,9 @@ class PlayerButton extends StatelessWidget {
   final double size;
   final double iconSize;
 
-  /// Drawn over the top-left corner (`.qk-player-count`).
-  final Widget? badge;
+  /// A count drawn over the top-left corner (`.qk-player-count`), such as
+  /// the repeats; none when null.
+  final int? count;
   final bool _main;
 
   static final BorderRadius _radius = BorderRadius.circular(
@@ -242,7 +243,7 @@ class PlayerButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final badge = this.badge;
+    final count = this.count;
     final target = size < AppSizes.targetMin ? AppSizes.targetMin : size;
     final face = Container(
       width: size,
@@ -278,11 +279,11 @@ class PlayerButton extends StatelessWidget {
                 focusRadius: _radius,
                 child: face,
               ),
-              if (badge != null)
+              if (count != null)
                 Positioned(
                   top: _countInset,
                   left: _countInset,
-                  child: ExcludeSemantics(child: badge),
+                  child: ExcludeSemantics(child: _Count(count)),
                 ),
             ],
           ),
@@ -292,26 +293,38 @@ class PlayerButton extends StatelessWidget {
   }
 }
 
-/// The repeat count on the repeat button (`.qk-player-count`).
-class _RepeatCount extends StatelessWidget {
-  const _RepeatCount(this.count);
+/// The count on a player button (`.qk-player-count`): a circle, or a pill
+/// for a number too wide for it.
+///
+/// Like `AyahMarker`, its height follows the system text scale and the
+/// digits are sized from it and not scaled again, so the minimum width keeps
+/// up with the height at any scale.
+class _Count extends StatelessWidget {
+  const _Count(this.count);
 
   final int count;
 
   @override
-  Widget build(BuildContext context) => Container(
-    constraints: const BoxConstraints(
-      minWidth: _countSize,
-      minHeight: _countSize,
-    ),
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      color: context.colors.playerAccent,
-      borderRadius: BorderRadius.circular(_countSize / 2),
-    ),
-    child: Text(
-      arabicDigits(count),
-      style: _countStyle.copyWith(color: Ramps.emerald950),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final side = MediaQuery.textScalerOf(context).scale(_countSize);
+    return Container(
+      height: side,
+      constraints: BoxConstraints(minWidth: side),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: context.colors.playerAccent,
+        borderRadius: BorderRadius.circular(side / 2),
+      ),
+      child: Text(
+        arabicDigits(count),
+        maxLines: 1,
+        softWrap: false,
+        textScaler: TextScaler.noScaling,
+        style: _countStyle.copyWith(
+          fontSize: side * _countFontSize / _countSize,
+          color: Ramps.emerald950,
+        ),
+      ),
+    );
+  }
 }

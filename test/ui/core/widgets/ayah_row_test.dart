@@ -221,6 +221,25 @@ void main() {
     handle.dispose();
   });
 
+  testWidgets('reads the ayah first, then its number, then the actions', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await _pump(tester, _row());
+    final labels = [
+      for (final node in tester.semantics.simulatedAccessibilityTraversal())
+        if (node.label.isNotEmpty) node.label,
+    ];
+    expect(labels, [
+      _text.verbatim,
+      'الآية ٥',
+      _l10n.ayahRowPlayFromHere,
+      _l10n.ayahRowBookmark,
+      _l10n.ayahRowStudy,
+    ]);
+    handle.dispose();
+  });
+
   testWidgets('draws the focus ring in keyboard mode only', (tester) async {
     await _pump(tester, _row());
     final ring = find

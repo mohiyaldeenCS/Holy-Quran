@@ -23,6 +23,7 @@ Future<void> _pump(
   WidgetTester tester,
   Widget child, {
   double textScale = 1,
+  TextScaler? textScaler,
 }) async {
   tester.view
     ..physicalSize = const Size(360, 800)
@@ -35,12 +36,37 @@ Future<void> _pump(
         builder: (context) => MediaQuery(
           data: MediaQuery.of(
             context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          ).copyWith(textScaler: textScaler ?? TextScaler.linear(textScale)),
           child: child,
         ),
       ),
     ),
   );
+}
+
+/// A non-linear system scale shaped like Android 14's at 200%: small sizes
+/// double, larger ones grow less (14 to 26, 44 to about 50), interpolated
+/// linearly between the points.
+final class _NonLinearScaler extends TextScaler {
+  const _NonLinearScaler();
+
+  static const _from = [8.0, 10.0, 12.0, 14.0, 18.0, 20.0, 24.0, 30.0, 100.0];
+  static const _to = [16.0, 20.0, 24.0, 26.0, 30.0, 34.0, 36.0, 38.0, 100.0];
+
+  @override
+  double scale(double fontSize) {
+    if (fontSize <= _from.first) return fontSize * _to.first / _from.first;
+    for (var i = 1; i < _from.length; i++) {
+      if (fontSize <= _from[i]) {
+        final t = (fontSize - _from[i - 1]) / (_from[i] - _from[i - 1]);
+        return _to[i - 1] + t * (_to[i] - _to[i - 1]);
+      }
+    }
+    return fontSize;
+  }
+
+  @override
+  double get textScaleFactor => 2;
 }
 
 SurahListItem _item({
@@ -69,7 +95,8 @@ Finder _badge() => find.descendant(
   matching: find.byWidgetPredicate(
     (widget) =>
         widget is Container &&
-        (widget.decoration as BoxDecoration?)?.color ==
+        widget.decoration is ShapeDecoration &&
+        (widget.decoration! as ShapeDecoration).color ==
             AppColors.paper.primarySoft,
   ),
 );
@@ -207,9 +234,10 @@ void main() {
 
     await _pump(tester, _item(lastRead: true));
     final badge = tester.widget<Container>(_badge().first);
-    final decoration = badge.decoration! as BoxDecoration;
+    final decoration = badge.decoration! as ShapeDecoration;
     expect(decoration.color, AppColors.paper.primarySoft);
-    expect(decoration.borderRadius, BorderRadius.circular(12));
+    // A pill: radius 12 on the 24 height.
+    expect(decoration.shape, const StadiumBorder());
     expect(tester.getSize(_badge().first).height, 24);
     final label = _textOf(tester, _l10n.surahListLastRead);
     expect(label.style!.fontSize, 12);
@@ -221,7 +249,8 @@ void main() {
       matching: find.byWidgetPredicate(
         (widget) =>
             widget is Container &&
-            (widget.decoration as BoxDecoration?)?.color ==
+            widget.decoration is BoxDecoration &&
+            (widget.decoration! as BoxDecoration).color ==
                 AppColors.paper.ornament,
       ),
     );
@@ -324,5 +353,40 @@ void main() {
     );
     expect(tester.takeException(), isNull);
     expect(tester.getSize(find.byType(StarOutline).first).width, 88);
+    // The badge grows with its text and stays a pill.
+    expect(tester.getSize(_badge()).height, greaterThan(24));
+    expect(
+      (tester.widget<Container>(_badge()).decoration! as ShapeDecoration).shape,
+      const StadiumBorder(),
+    );
+  });
+
+  testWidgets('keeps the number inside the star under a non-linear scale', (
+    tester,
+  ) async {
+    double ratio() =>
+        tester.getSize(find.text('١١٤')).width /
+        tester.getSize(find.byType(StarOutline)).width;
+
+    await _pump(tester, _item(number: 114));
+    final atFull = ratio();
+    expect(atFull, lessThan(1));
+
+    await _pump(
+      tester,
+      _item(number: 114),
+      textScaler: const _NonLinearScaler(),
+    );
+    expect(tester.takeException(), isNull);
+    final star = tester.getSize(find.byType(StarOutline)).width;
+    expect(star, closeTo(const _NonLinearScaler().scale(44), 0.01));
+    expect(ratio(), closeTo(atFull, 0.02));
+    final number = _textOf(tester, '١١٤');
+    expect(number.textScaler, TextScaler.noScaling);
+    expect(number.style!.fontSize, closeTo(star * 14 / 44, 0.01));
+    expect(
+      tester.getCenter(find.text('١١٤')),
+      tester.getCenter(find.byType(StarOutline)),
+    );
   });
 }

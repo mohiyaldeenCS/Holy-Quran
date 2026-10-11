@@ -42,6 +42,9 @@ final class ContinueListeningRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(_radius),
       ),
       child: Row(
+        // A reading: the board's row (Screens.dc.html l.41) is
+        // `justify-content:space-between` with no gap; without one a long
+        // title runs up to the play button, at 100% and at 200%.
         spacing: AppSpacing.space3,
         children: [
           Expanded(

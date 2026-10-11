@@ -120,13 +120,6 @@ void main() {
     expect(searches, 1);
   });
 
-  testWidgets('hides search when there is no onSearch', (tester) async {
-    await _pump(tester, const HomeHeader());
-    expect(find.byType(IconButton), findsNothing);
-    expect(find.byType(AppIconTile), findsOneWidget);
-    expect(find.text(_l10n.appTitle), findsOneWidget);
-  });
-
   testWidgets('reads the tile as the app icon and labels search', (
     tester,
   ) async {

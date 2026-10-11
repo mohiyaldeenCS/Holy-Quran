@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' hide Icon, IconButton;
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -203,6 +204,57 @@ void main() {
         FocusHighlightStrategy.alwaysTouch;
     await tester.pump();
     expect(_ringDrawn(tester), isFalse);
+  });
+
+  testWidgets('keeps the text 12 clear of the play button', (tester) async {
+    // The leftmost drawn glyph of the row's texts; spaces left hanging at a
+    // line's end are not drawn.
+    double textLeft() {
+      var left = double.infinity;
+      for (final element
+          in find
+              .descendant(
+                of: find.byType(ContinueListeningRow),
+                matching: find.byType(RichText),
+              )
+              .evaluate()) {
+        final paragraph = element.renderObject! as RenderParagraph;
+        final text = paragraph.text.toPlainText();
+        final origin = paragraph.localToGlobal(Offset.zero);
+        for (var i = 0; i < text.length; i++) {
+          if (text[i].trim().isEmpty) continue;
+          for (final box in paragraph.getBoxesForSelection(
+            TextSelection(baseOffset: i, extentOffset: i + 1),
+          )) {
+            if (origin.dx + box.left < left) left = origin.dx + box.left;
+          }
+        }
+      }
+      return left;
+    }
+
+    // Synthetic titles whose lines, with no gap, end within 3 of the button.
+    for (final (name, ayah, scale) in [
+      ('$_name $_name $_name', 286, 1.0),
+      ('نص تجريبي طويل', 255, 2.0),
+    ]) {
+      await _pump(
+        tester,
+        ContinueListeningRow(
+          surahName: PackText.fromPack(name),
+          ayah: ayah,
+          reciter: _reciter,
+          onPlay: _none,
+        ),
+        textScale: scale,
+      );
+      final button = tester.getRect(find.byType(IconButton));
+      expect(
+        textLeft() - button.right,
+        greaterThanOrEqualTo(AppSpacing.space3),
+        reason: '$scale',
+      );
+    }
   });
 
   testWidgets('wraps without overflow at 200% on 360 wide', (tester) async {

@@ -51,8 +51,10 @@ const TextStyle _valueStyle = TextStyle(
 /// a bound, the button that would pass it is disabled.
 ///
 /// Each button is named after the setting («زيادة …»), and the value is a
-/// live region, announced when it changes.
-class Stepper extends StatelessWidget {
+/// live region, announced when it changes. A keyboard user who steps to a
+/// bound is moved to the other button, rather than left with focus on a
+/// disabled one.
+class Stepper extends StatefulWidget {
   const Stepper({
     required this.label,
     required this.value,
@@ -70,14 +72,61 @@ class Stepper extends StatelessWidget {
   final String? unit;
   final ValueChanged<int> onChanged;
 
-  void _set(int next) => onChanged(next.clamp(min, max));
+  @override
+  State<Stepper> createState() => _StepperState();
+}
+
+class _StepperState extends State<Stepper> {
+  // Each wraps one button and has focus while that button does, as the
+  // focus ring's own node does.
+  final FocusNode _minus = FocusNode(
+    debugLabel: 'Stepper minus',
+    canRequestFocus: false,
+    skipTraversal: true,
+  );
+  final FocusNode _plus = FocusNode(
+    debugLabel: 'Stepper plus',
+    canRequestFocus: false,
+    skipTraversal: true,
+  );
+
+  @override
+  void didUpdateWidget(Stepper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Read before this build disables the button and drops its focus.
+    final minusOff = widget.value <= widget.min;
+    final plusOff = widget.value >= widget.max;
+    if (minusOff && !plusOff && _minus.hasFocus) _focusAfterBuild(_plus);
+    if (plusOff && !minusOff && _plus.hasFocus) _focusAfterBuild(_minus);
+  }
+
+  void _focusAfterBuild(FocusNode wrapper) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      for (final node in wrapper.descendants) {
+        if (node.canRequestFocus) {
+          node.requestFocus();
+          return;
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _minus.dispose();
+    _plus.dispose();
+    super.dispose();
+  }
+
+  void _set(int next) => widget.onChanged(next.clamp(widget.min, widget.max));
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final l10n = AppLocalizations.of(context);
+    final Stepper(:label, :value, :min, :max, :unit) = widget;
     final digits = arabicDigits(value);
-    final unit = this.unit;
     final valueText = unit == null
         ? digits
         : l10n.stepperValueWithUnit(digits, unit);
@@ -99,10 +148,14 @@ class Stepper extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               spacing: _controlGap,
               children: [
-                _StepButton(
-                  icon: IconName.minus,
-                  label: l10n.stepperDecrease(label),
-                  onPressed: value > min ? () => _set(value - 1) : null,
+                Focus(
+                  focusNode: _minus,
+                  includeSemantics: false,
+                  child: _StepButton(
+                    icon: IconName.minus,
+                    label: l10n.stepperDecrease(label),
+                    onPressed: value > min ? () => _set(value - 1) : null,
+                  ),
                 ),
                 Semantics(
                   container: true,
@@ -121,10 +174,14 @@ class Stepper extends StatelessWidget {
                     ),
                   ),
                 ),
-                _StepButton(
-                  icon: IconName.plus,
-                  label: l10n.stepperIncrease(label),
-                  onPressed: value < max ? () => _set(value + 1) : null,
+                Focus(
+                  focusNode: _plus,
+                  includeSemantics: false,
+                  child: _StepButton(
+                    icon: IconName.plus,
+                    label: l10n.stepperIncrease(label),
+                    onPressed: value < max ? () => _set(value + 1) : null,
+                  ),
                 ),
               ],
             ),

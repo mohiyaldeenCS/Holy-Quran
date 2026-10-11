@@ -99,8 +99,10 @@ class Tag extends StatelessWidget {
     );
     return Semantics(
       container: true,
-      // Pressable states the button role; aria-pressed is the toggled state.
-      toggled: selected,
+      // Pressable states the button role. The reference's aria-pressed is
+      // announced as selected, as chips are, not toggled, which reads as a
+      // switch.
+      selected: selected,
       label: label,
       // Pressable covers the drawn face, where the focus ring goes; this
       // detector makes the rest of the target-min height press it too.

@@ -21,11 +21,12 @@ const double _numberStarStroke = 4;
 const double _mainGap = 2;
 // .qk-surah-item-page: min-width 40px.
 const double _pageMinWidth = 40;
-// .qk-badge: gap 6px; height 24px; padding 0 10px; border-radius 12px.
+// .qk-badge: gap 6px; height 24px; padding 0 10px. Its border-radius 12px is
+// half that height, a pill: the badge is drawn as a stadium, so it stays one
+// when the text scale makes it taller.
 const double _badgeGap = 6;
 const double _badgeHeight = 24;
 const double _badgePadding = 10;
-const BorderRadius _badgeRadius = BorderRadius.all(Radius.circular(12));
 // .qk-badge-dot: width and height 6px; border-radius 3px.
 const double _badgeDotSize = 6;
 const BorderRadius _badgeDotRadius = BorderRadius.all(Radius.circular(3));
@@ -35,10 +36,11 @@ const BorderRadius _badgeDotRadius = BorderRadius.all(Radius.circular(3));
 // body line height cannot reach them.
 
 // .qk-surah-item-no span: font-size 14px; font-weight 600.
+const double _numberFontSize = 14;
 const TextStyle _numberStyle = TextStyle(
   inherit: false,
   fontFamily: AppFonts.sans,
-  fontSize: 14,
+  fontSize: _numberFontSize,
   fontWeight: FontWeight.w600,
   letterSpacing: 0,
   leadingDistribution: TextLeadingDistribution.even,
@@ -133,8 +135,10 @@ class SurahListItem extends StatelessWidget {
       ),
     };
     final page = this.page;
-    // The quarter star grows with the text, as AyahMarker's ring does, so the
-    // number stays inside it.
+    // The quarter star grows with the text, as AyahMarker's ring does. The
+    // number is sized from the star and not scaled again: a non-linear system
+    // scale enlarges 14 proportionally more than 44, which would push the
+    // number out of the star.
     final numberBox = MediaQuery.textScalerOf(context).scale(_numberBoxSize);
     final face = Container(
       decoration: BoxDecoration(
@@ -155,7 +159,11 @@ class SurahListItem extends StatelessWidget {
                   arabicDigits(number),
                   maxLines: 1,
                   softWrap: false,
-                  style: _numberStyle.copyWith(color: colors.accent),
+                  textScaler: TextScaler.noScaling,
+                  style: _numberStyle.copyWith(
+                    fontSize: numberBox * _numberFontSize / _numberBoxSize,
+                    color: colors.accent,
+                  ),
                 ),
               ],
             ),
@@ -227,9 +235,9 @@ class _LastReadBadge extends StatelessWidget {
     return Container(
       constraints: const BoxConstraints(minHeight: _badgeHeight),
       padding: const EdgeInsets.symmetric(horizontal: _badgePadding),
-      decoration: BoxDecoration(
+      decoration: ShapeDecoration(
         color: colors.primarySoft,
-        borderRadius: _badgeRadius,
+        shape: const StadiumBorder(),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

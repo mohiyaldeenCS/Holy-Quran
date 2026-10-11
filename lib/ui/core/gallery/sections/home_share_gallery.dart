@@ -15,7 +15,7 @@ import 'package:holyquran/ui/core/widgets/splash.dart';
 // 8px (space-2); the two Phase 1 doors take the first two columns (D-089, 9).
 const int _doorColumns = 4;
 
-// Screens.dc.html, «أكمل الاستماع» row: «سورة الكهف · الآية ١٠», the ayah.
+// Screens.dc.html l.42, the «أكمل الاستماع» row: the sample's ayah number.
 const int _listeningAyah = 10;
 
 // Share.dc.html, the three cards: the ayah at 34, 26 and 23px, and the
@@ -57,14 +57,7 @@ class HomeShareGallery extends StatelessWidget {
       children: [
         GallerySection(
           title: l10n.gallerySectionHomeHeader,
-          child: const Column(
-            mainAxisSize: MainAxisSize.min,
-            spacing: AppSpacing.space3,
-            children: [
-              HomeHeader(onSearch: _none),
-              HomeHeader(),
-            ],
-          ),
+          child: const HomeHeader(onSearch: _none),
         ),
         GallerySection(
           title: l10n.gallerySectionHomeDoor,

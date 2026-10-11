@@ -21,8 +21,9 @@ enum ShareCardDesign { emerald, paper, night }
 ///
 /// It is an exported image, so its colours are fixed per [design] whatever
 /// the app's theme (the paper and night cards take the `paper` and `night`
-/// themes' tokens), and it ignores the system text scale (D-085). The caller
-/// fits the ayah by [ayahFontSize] (SH-03).
+/// themes' tokens), and it ignores the system text scale (D-085) and the
+/// system's bold-text setting, which would draw the reference at 700. The
+/// caller fits the ayah by [ayahFontSize] (SH-03).
 final class ShareCard extends StatelessWidget {
   const ShareCard({
     required this.ayah,
@@ -48,7 +49,10 @@ final class ShareCard extends StatelessWidget {
       ayahFontSize: ayahFontSize,
       design: design,
     );
-    return MediaQuery.withNoTextScaling(
+    return MediaQuery(
+      data: MediaQuery.of(
+        context,
+      ).copyWith(textScaler: TextScaler.noScaling, boldText: false),
       child: SizedBox(
         width: _cardWidth,
         height: _cardHeight,

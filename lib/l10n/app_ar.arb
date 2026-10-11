@@ -147,11 +147,14 @@
   "@playerRepeat": {
     "description": "Spoken name of MiniPlayer's repeat button with no repetition set, as the identity's reference labels it."
   },
-  "playerRepeatTimes": "تكرار {times}",
+  "playerRepeatTimes": "{count, plural, =1{تكرار مرة واحدة} =2{تكرار مرتين} few{تكرار {digits} مرات} other{تكرار {digits} مرة}}",
   "@playerRepeatTimes": {
-    "description": "Spoken name of MiniPlayer's repeat button with a repetition count (D-087). times is the count from timesCount.",
+    "description": "Spoken name of MiniPlayer's repeat button with a repetition count (D-087). Its own plural message rather than «تكرار» followed by timesCount: the noun after «تكرار» is genitive («مرتين», not timesCount's «مرتان»). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.",
     "placeholders": {
-      "times": {
+      "count": {
+        "type": "int"
+      },
+      "digits": {
         "type": "String"
       }
     }

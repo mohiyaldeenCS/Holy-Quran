@@ -232,11 +232,11 @@ abstract class AppLocalizations {
   /// **'تكرار'**
   String get playerRepeat;
 
-  /// Spoken name of MiniPlayer's repeat button with a repetition count (D-087). times is the count from timesCount.
+  /// Spoken name of MiniPlayer's repeat button with a repetition count (D-087). Its own plural message rather than «تكرار» followed by timesCount: the noun after «تكرار» is genitive («مرتين», not timesCount's «مرتان»). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.
   ///
   /// In ar, this message translates to:
-  /// **'تكرار {times}'**
-  String playerRepeatTimes(String times);
+  /// **'{count, plural, =1{تكرار مرة واحدة} =2{تكرار مرتين} few{تكرار {digits} مرات} other{تكرار {digits} مرة}}'**
+  String playerRepeatTimes(int count, String digits);
 
   /// Spoken name of the player's previous-ayah button, as the identity's reference labels it.
   ///

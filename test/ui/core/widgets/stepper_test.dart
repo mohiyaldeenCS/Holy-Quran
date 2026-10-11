@@ -175,6 +175,47 @@ void main() {
     expect(changes, [4, 5]);
   });
 
+  testWidgets('moves keyboard focus to the other button at a bound', (
+    tester,
+  ) async {
+    final changes = <int>[];
+    final minusRing = find.ancestor(
+      of: _button(IconName.minus).first,
+      matching: find.byType(FocusRing),
+    );
+    final plusRing = find.ancestor(
+      of: _button(IconName.plus).first,
+      matching: find.byType(FocusRing),
+    );
+    await _pump(tester, _live(initial: 2, max: 3, changes: changes));
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(_ringDrawn(tester, minusRing), isTrue);
+
+    // Minus reaches the minimum and is disabled: plus takes the focus, and
+    // the keyboard goes on from there.
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(changes, [1]);
+    expect(_icon(tester, IconName.minus).color, _colors.inkDisabled);
+    expect(_ringDrawn(tester, minusRing), isFalse);
+    expect(_ringDrawn(tester, plusRing), isTrue);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+    expect(changes, [1, 2, 3]);
+
+    // Plus reaches the maximum: minus takes the focus.
+    expect(_icon(tester, IconName.plus).color, _colors.inkDisabled);
+    expect(_ringDrawn(tester, plusRing), isFalse);
+    expect(_ringDrawn(tester, minusRing), isTrue);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(changes, [1, 2, 3, 2]);
+  });
+
   testWidgets('writes the unit after the value', (tester) async {
     await _pump(
       tester,

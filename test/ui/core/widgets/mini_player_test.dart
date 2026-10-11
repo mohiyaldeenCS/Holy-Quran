@@ -6,7 +6,6 @@ import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
-import 'package:holyquran/ui/core/l10n/times_count.dart';
 import 'package:holyquran/ui/core/theme/ramps.g.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/focus_ring.dart';
@@ -279,6 +278,68 @@ void main() {
     final buttonRect = tester.getRect(_button(IconName.repeat));
     expect(badgeRect.size, const Size.square(18));
     expect(badgeRect.topLeft - buttonRect.topLeft, const Offset(2, 2));
+    expect(tester.widget<PlayerButton>(_button(IconName.repeat)).count, 3);
+  });
+
+  testWidgets('keeps the repeat count round at 200%, a pill only when wide', (
+    tester,
+  ) async {
+    Rect countRect(int repeat) => tester.getRect(
+      find
+          .ancestor(
+            of: find.text(arabicDigits(repeat)),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    BorderRadius? countRadius(int repeat) =>
+        (tester
+                        .widget<Container>(
+                          find
+                              .ancestor(
+                                of: find.text(arabicDigits(repeat)),
+                                matching: find.byType(Container),
+                              )
+                              .first,
+                        )
+                        .decoration!
+                    as BoxDecoration)
+                .borderRadius
+            as BorderRadius?;
+
+    await _pump(tester, _player(repeat: 3), textScale: 2);
+    final round = countRect(3);
+    expect(round.width, round.height);
+    expect(round.height, 36);
+    expect(countRadius(3), BorderRadius.circular(18));
+
+    // The count has no padding: only a long number is wider than the circle.
+    await _pump(tester, _player(repeat: 100000), textScale: 2);
+    final pill = countRect(100000);
+    expect(pill.height, 36);
+    expect(pill.width, greaterThan(pill.height));
+    expect(countRadius(100000), BorderRadius.circular(18));
+  });
+
+  testWidgets('names the repeat count in the genitive after «تكرار»', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    for (final (repeat, label) in [
+      (1, 'تكرار مرة واحدة'),
+      (2, 'تكرار مرتين'),
+      (3, 'تكرار ٣ مرات'),
+      (11, 'تكرار ١١ مرة'),
+    ]) {
+      expect(_l10n.playerRepeatTimes(repeat, arabicDigits(repeat)), label);
+      await _pump(tester, _player(repeat: repeat, onRepeat: () {}));
+      expect(
+        tester.getSemantics(_button(IconName.repeat)).label,
+        label,
+        reason: '$repeat',
+      );
+    }
+    handle.dispose();
   });
 
   testWidgets('calls each callback when tapped or activated by keyboard', (
@@ -346,7 +407,7 @@ void main() {
       ),
     );
     final labels = {
-      IconName.repeat: _l10n.playerRepeatTimes(timesCount(_l10n, 3)),
+      IconName.repeat: _l10n.playerRepeatTimes(3, arabicDigits(3)),
       IconName.previous: _l10n.playerPreviousAyah,
       IconName.pause: _l10n.playerPause,
       IconName.next: _l10n.playerNextAyah,

@@ -10,16 +10,14 @@ import 'package:holyquran/ui/core/widgets/mark.dart';
 
 /// The home screen's header (Screens.dc.html, the home board): the app-icon
 /// tile and the app's name at the start, the search button at the end.
-/// The search button is shown only when [onSearch] is given.
 final class HomeHeader extends StatelessWidget {
-  const HomeHeader({this.onSearch, super.key});
+  const HomeHeader({required this.onSearch, super.key});
 
-  final VoidCallback? onSearch;
+  final VoidCallback onSearch;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final onSearch = this.onSearch;
     return Row(
       children: [
         const AppIconTile(),
@@ -32,13 +30,12 @@ final class HomeHeader extends StatelessWidget {
             ),
           ),
         ),
-        if (onSearch != null)
-          IconButton(
-            icon: IconName.search,
-            label: l10n.homeSearch,
-            tone: IconButtonTone.tint,
-            onPressed: onSearch,
-          ),
+        IconButton(
+          icon: IconName.search,
+          label: l10n.homeSearch,
+          tone: IconButtonTone.tint,
+          onPressed: onSearch,
+        ),
       ],
     );
   }
@@ -71,9 +68,10 @@ final class AppIconTile extends StatelessWidget {
 }
 
 // Screens.dc.html, home header: `<svg width="40" height="40" viewBox="0 0 120
-// 120">` whose `<rect width="120" height="120" rx="28">` is the tile and
-// whose star and book fill the same viewBox, so the mark is as large as the
-// tile.
+// 120">` whose `<rect width="120" height="120" rx="28">` is the tile, with
+// the star and book in the same viewBox. The tile draws the emerald `Mark` at
+// its size by the mark's own size rule (index.jsx `markStroke`, D-087:
+// stroke 5 and the dot at 40), not by the board's strokes (stroke 3, no dot).
 const double _tileSize = 40;
 const double _tileRadius = 28 * _tileSize / 120;
 

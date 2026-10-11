@@ -110,8 +110,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get playerRepeat => 'تكرار';
 
   @override
-  String playerRepeatTimes(String times) {
-    return 'تكرار $times';
+  String playerRepeatTimes(int count, String digits) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'تكرار $digits مرة',
+      few: 'تكرار $digits مرات',
+      two: 'تكرار مرتين',
+      one: 'تكرار مرة واحدة',
+    );
+    return '$_temp0';
   }
 
   @override
