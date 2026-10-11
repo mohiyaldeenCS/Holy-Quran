@@ -212,7 +212,8 @@ final class PageBlocksV2 extends StatefulWidget {
   const PageBlocksV2({
     required this.surah,
     this.highlighted = const {},
-    this.onWordTap,
+    this.selected = const {},
+    this.wrapBlock,
     this.pageMark,
     this.pageMarkSize = Size.zero,
     this.controller,
@@ -222,7 +223,8 @@ final class PageBlocksV2 extends StatefulWidget {
 
   final SpikeSurahText surah;
   final Set<QuranAddress> highlighted;
-  final ValueChanged<QuranAddress>? onWordTap;
+  final Set<QuranAddress> selected;
+  final BlockWrapper? wrapBlock;
   final PageMarkBuilder? pageMark;
   final Size pageMarkSize;
   final ScrollController? controller;
@@ -275,7 +277,7 @@ final class _PageBlocksV2State extends State<PageBlocksV2> {
             final block = planner.block(k);
             if (block == null) return null;
             final content = planner.contentOf(block);
-            return SurahTextBlock(
+            final text = SurahTextBlock(
               key: widget.blockKey?.call(k),
               firstAyah: content.firstAyah,
               ayat: content.ayat,
@@ -294,11 +296,12 @@ final class _PageBlocksV2State extends State<PageBlocksV2> {
                 for (final ayah in content.pageMarks) ayah: marks[ayah]!,
               },
               highlighted: widget.highlighted,
-              onWordTap: widget.onWordTap,
+              selected: widget.selected,
               centreLastLine: block.maxLines == null,
               maxLines: block.maxLines,
               leadInLines: block.leadIn,
             );
+            return widget.wrapBlock?.call(context, text) ?? text;
           },
         );
       },

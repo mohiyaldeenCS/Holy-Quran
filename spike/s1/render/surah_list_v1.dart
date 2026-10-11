@@ -10,13 +10,19 @@ import 'surah_text_block.dart';
 /// a fixed size so that V1 and V2 lay out alike.
 typedef PageMarkBuilder = Widget Function(BuildContext context, int page);
 
+/// Wraps each text block a list builds, such as in a `BlockGestures`; the
+/// wrapper must keep the block's place and size.
+typedef BlockWrapper =
+    Widget Function(BuildContext context, SurahTextBlock block);
+
 /// V1: the whole surah as one [SurahTextBlock] in a scroll view. Layout
 /// is one paragraph of the whole surah; the viewport clips its painting.
 final class SurahListV1 extends StatelessWidget {
   const SurahListV1({
     required this.surah,
     this.highlighted = const {},
-    this.onWordTap,
+    this.selected = const {},
+    this.wrapBlock,
     this.pageMark,
     this.pageMarkSize = Size.zero,
     this.controller,
@@ -26,16 +32,16 @@ final class SurahListV1 extends StatelessWidget {
 
   final SpikeSurahText surah;
   final Set<QuranAddress> highlighted;
-  final ValueChanged<QuranAddress>? onWordTap;
+  final Set<QuranAddress> selected;
+  final BlockWrapper? wrapBlock;
   final PageMarkBuilder? pageMark;
   final Size pageMarkSize;
   final ScrollController? controller;
   final Key? blockKey;
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    controller: controller,
-    child: SurahTextBlock(
+  Widget build(BuildContext context) {
+    final block = SurahTextBlock(
       key: blockKey,
       firstAyah: surah.firstAyah,
       ayat: surah.ayat,
@@ -51,9 +57,13 @@ final class SurahListV1 extends StatelessWidget {
       ],
       pageMarks: pageMarksOf(context, surah, pageMark, pageMarkSize),
       highlighted: highlighted,
-      onWordTap: onWordTap,
-    ),
-  );
+      selected: selected,
+    );
+    return SingleChildScrollView(
+      controller: controller,
+      child: wrapBlock?.call(context, block) ?? block,
+    );
+  }
 
   QuranAddress _ayah(int index) => QuranAddress(
     surah.firstAyah.riwaya,

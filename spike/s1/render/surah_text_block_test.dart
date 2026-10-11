@@ -10,6 +10,9 @@ import 'package:holyquran/ui/core/theme/app_theme.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/ayah_marker.dart';
 
+import '../../s7/gesture_target.dart';
+import '../../s7/reader_gestures.dart';
+import '../../s7/tap_resolver.dart';
 import 'page_blocks_v2.dart';
 import 'render_checks.dart';
 import 'spike_surah_text.dart';
@@ -131,7 +134,16 @@ void main() {
     final tapped = <QuranAddress>[];
     await _pump(
       tester,
-      SurahListV1(surah: _first(long, 20), onWordTap: tapped.add),
+      SurahListV1(
+        surah: _first(long, 20),
+        wrapBlock: (context, block) => BlockGestures(
+          rule: TapRule.exact,
+          onTap: (target) {
+            if (target case WordTarget(:final word)) tapped.add(word);
+          },
+          child: block,
+        ),
+      ),
     );
     final block = _block(tester);
     final origin = tester.getTopLeft(find.byType(SurahTextBlock));
@@ -183,6 +195,109 @@ void main() {
       );
     });
   }
+
+  for (final theme in ReadingTheme.values) {
+    testWidgets('a selected ayah is painted from ${theme.name} tokens over '
+        'the recitation highlight and under the text, sliced across its '
+        'lines', (tester) async {
+      final colors = AppColors.byId[theme.name]!;
+      QuranAddress ayahOf(int n) =>
+          QuranAddress(long.firstAyah.riwaya, long.firstAyah.surah, n);
+      final word = QuranAddress(
+        long.firstAyah.riwaya,
+        long.firstAyah.surah,
+        3,
+        2,
+      );
+      await _pump(
+        tester,
+        SurahListV1(surah: _first(long, 10), highlighted: {word}),
+        theme: theme,
+      );
+      final paragraph = _block(tester).paragraph;
+      final selected = [
+        for (var n = 1; n <= 10; n++) ayahOf(n),
+      ].firstWhere((ayah) => paragraph.boxesOf(ayah).length >= 3);
+      final boxes = paragraph.boxesOf(selected);
+      await _pump(
+        tester,
+        SurahListV1(
+          surah: _first(long, 10),
+          highlighted: {word},
+          selected: {selected},
+        ),
+        theme: theme,
+      );
+      const r = Radius.circular(AppRadius.radiusSm);
+      final first = boxes.first;
+      final middle = boxes[1];
+      final last = boxes.last;
+      final pattern = paints
+        ..rrect(color: colors.highlightWord)
+        ..rect(color: colors.highlightWordLine)
+        ..rrect(
+          color: colors.selection,
+          rrect: RRect.fromRectAndCorners(
+            Rect.fromLTRB(first.left, first.top, first.right + 4, first.bottom),
+            topRight: r,
+            bottomRight: r,
+          ),
+        )
+        ..path(color: colors.selectionLine)
+        ..rrect(
+          color: colors.selection,
+          rrect: RRect.fromRectAndCorners(middle),
+        )
+        ..path(color: colors.selectionLine);
+      for (final _ in boxes.skip(3)) {
+        pattern
+          ..rrect(color: colors.selection)
+          ..path(color: colors.selectionLine);
+      }
+      pattern
+        ..rrect(
+          color: colors.selection,
+          rrect: RRect.fromRectAndCorners(
+            Rect.fromLTRB(last.left - 4, last.top, last.right, last.bottom),
+            topLeft: r,
+            bottomLeft: r,
+          ),
+        )
+        ..path(color: colors.selectionLine)
+        ..paragraph();
+      expect(find.byType(SurahTextBlock), pattern);
+    });
+  }
+
+  testWidgets('the selection frame is 1.5 px inside the slice, and open '
+      'where the ayah runs on to another line', (tester) async {
+    await _pump(tester, SurahListV1(surah: _first(long, 10)));
+    final paragraph = _block(tester).paragraph;
+    final ayah = [
+      for (var n = 1; n <= 10; n++)
+        QuranAddress(long.firstAyah.riwaya, long.firstAyah.surah, n),
+    ].firstWhere((ayah) => paragraph.boxesOf(ayah).length >= 3);
+    await _pump(tester, SurahListV1(surah: _first(long, 10), selected: {ayah}));
+    final middle = paragraph.boxesOf(ayah)[1];
+    final y = middle.center.dy;
+    expect(
+      find.byType(SurahTextBlock),
+      paints
+        ..path()
+        ..path(
+          includes: [
+            Offset(middle.center.dx, middle.top + 0.75),
+            Offset(middle.center.dx, middle.bottom - 0.75),
+          ],
+          excludes: [
+            middle.center,
+            Offset(middle.left + 0.75, y),
+            Offset(middle.right - 0.75, y),
+            Offset(middle.center.dx, middle.top + 2),
+          ],
+        ),
+    );
+  });
 
   for (final scale in [1.0, 2.0]) {
     for (final width in [320.0, 360.0, 412.0]) {
@@ -382,12 +497,12 @@ void main() {
   testWidgets(
     'V2 hides the lines it lays out past its last one, also from semantics',
     (tester) async {
-      final tapped = <QuranAddress>[];
       await _pump(
         tester,
         PageBlocksV2(
           surah: _first(long, 40),
-          onWordTap: tapped.add,
+          wrapBlock: (context, block) =>
+              BlockGestures(rule: TapRule.exact, onTap: (_) {}, child: block),
           blockKey: (k) => ValueKey('block $k'),
         ),
       );

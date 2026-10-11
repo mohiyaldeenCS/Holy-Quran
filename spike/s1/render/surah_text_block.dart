@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:holyquran/domain/models/mark_span.dart';
@@ -18,8 +17,10 @@ import 'surah_paragraph.dart';
 /// [markers], one `AyahMarker` per ayah, inline after each ayah, and
 /// [pageMarks] inline before the ayah each names (RD-06, D-071).
 ///
-/// [highlighted] holds ayah and word addresses; they are painted under the
-/// text and never change it. The last line is centred when
+/// [highlighted] holds ayah and word addresses (the recitation) and
+/// [selected] ayah addresses (`.qk-hl-select`); both are painted under the
+/// text and never change it. The block takes no gestures: a
+/// `BlockGestures` around it resolves them from its geometry (D-095). The last line is centred when
 /// [centreLastLine], as `text-align-last: center` of `.qk-quran-page`.
 /// [startOffset] and [maxLines] let a block continue the line flow of the
 /// block before it and stop on a full line (`page_blocks_v2.dart`).
@@ -32,8 +33,8 @@ final class SurahTextBlock extends MultiChildRenderObjectWidget {
     this.marks,
     this.basmala,
     this.highlighted = const {},
+    this.selected = const {},
     this.centreLastLine = true,
-    this.onWordTap,
     this.startOffset = 0,
     Map<QuranAddress, Widget> pageMarks = const {},
     this.wordColours = const {},
@@ -61,8 +62,10 @@ final class SurahTextBlock extends MultiChildRenderObjectWidget {
   final List<List<MarkSpan>>? marks;
   final PackText? basmala;
   final Set<QuranAddress> highlighted;
+
+  /// Selected ayat, by ayah address.
+  final Set<QuranAddress> selected;
   final bool centreLastLine;
-  final ValueChanged<QuranAddress>? onWordTap;
   final int startOffset;
   final List<QuranAddress> pageMarkAyat;
   final Map<QuranAddress, Color> wordColours;
@@ -91,10 +94,10 @@ final class SurahTextBlock extends MultiChildRenderObjectWidget {
         textScaler: MediaQuery.textScalerOf(context),
         colors: context.colors,
         highlighted: highlighted,
+        selected: selected,
         centreLastLine: centreLastLine,
         maxLines: maxLines,
         leadInLines: leadInLines,
-        onWordTap: onWordTap,
       );
 
   @override
@@ -107,10 +110,10 @@ final class SurahTextBlock extends MultiChildRenderObjectWidget {
     ..textScaler = MediaQuery.textScalerOf(context)
     ..colors = context.colors
     ..highlighted = highlighted
+    ..selected = selected
     ..centreLastLine = centreLastLine
     ..maxLines = maxLines
-    ..leadInLines = leadInLines
-    ..onWordTap = onWordTap;
+    ..leadInLines = leadInLines;
 
   static TextStyle _styleOf(BuildContext context) =>
       AppTextStyles.quranPage.copyWith(color: context.colors.quranInk);
@@ -132,15 +135,12 @@ final class RenderSurahTextBlock extends RenderBox
     required this._textScaler,
     required this._colors,
     required this._highlighted,
+    required this._selected,
     required this._centreLastLine,
     required this._maxLines,
     required this._leadInLines,
-    required this._onWordTap,
-  }) {
-    _tap = TapGestureRecognizer(debugOwner: this)..onTapUp = _tapped;
-  }
+  });
 
-  late final TapGestureRecognizer _tap;
   SurahParagraph? _paragraph;
   List<Size> _childSizes = const [];
 
@@ -179,6 +179,13 @@ final class RenderSurahTextBlock extends RenderBox
     markNeedsPaint();
   }
 
+  Set<QuranAddress> _selected;
+  set selected(Set<QuranAddress> value) {
+    if (setEquals(value, _selected)) return;
+    _selected = value;
+    markNeedsPaint();
+  }
+
   bool _centreLastLine;
   set centreLastLine(bool value) {
     if (value == _centreLastLine) return;
@@ -199,9 +206,6 @@ final class RenderSurahTextBlock extends RenderBox
     _leadInLines = value;
     _relayout();
   }
-
-  ValueChanged<QuranAddress>? _onWordTap;
-  set onWordTap(ValueChanged<QuranAddress>? value) => _onWordTap = value;
 
   /// The laid-out paragraph, for checks and measurement.
   SurahParagraph get paragraph => _paragraph!;
@@ -307,6 +311,10 @@ final class RenderSurahTextBlock extends RenderBox
       colors: _colors,
       ayat: ayat,
       words: words,
+      selected: [
+        for (final ayah in _selected)
+          if (!ayah.isWord) paragraph.boxesOf(ayah),
+      ].where((boxes) => boxes.isNotEmpty),
     );
     paragraph.paint(context.canvas, offset);
     for (var child = firstChild; child != null; child = childAfter(child)) {
@@ -346,18 +354,7 @@ final class RenderSurahTextBlock extends RenderBox
   }
 
   @override
-  void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
-    if (event is PointerDownEvent && _onWordTap != null) _tap.addPointer(event);
-  }
-
-  void _tapped(TapUpDetails details) {
-    final address = hit(details.localPosition);
-    if (address != null && address.isWord) _onWordTap?.call(address);
-  }
-
-  @override
   void dispose() {
-    _tap.dispose();
     _paragraph?.dispose();
     super.dispose();
   }
