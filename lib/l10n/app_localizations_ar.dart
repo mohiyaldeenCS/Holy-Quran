@@ -240,9 +240,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get searchModeTafsir => 'في التفاسير';
 
   @override
-  String get searchModeTopics => 'الموضوعات';
-
-  @override
   String get searchSortMushafOrder => 'ترتيب المصحف';
 
   @override

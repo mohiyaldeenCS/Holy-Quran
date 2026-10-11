@@ -460,12 +460,6 @@ abstract class AppLocalizations {
   /// **'في التفاسير'**
   String get searchModeTafsir;
 
-  /// The topics search mode in ModeChips, as the identity's reference names it.
-  ///
-  /// In ar, this message translates to:
-  /// **'الموضوعات'**
-  String get searchModeTopics;
-
   /// SearchSummary's sort control in mushaf order, as the identity's reference writes it.
   ///
   /// In ar, this message translates to:

@@ -345,10 +345,6 @@
   "@searchModeTafsir": {
     "description": "The search mode inside tafsir in ModeChips, as the identity's reference names it."
   },
-  "searchModeTopics": "الموضوعات",
-  "@searchModeTopics": {
-    "description": "The topics search mode in ModeChips, as the identity's reference names it."
-  },
   "searchSortMushafOrder": "ترتيب المصحف",
   "@searchSortMushafOrder": {
     "description": "SearchSummary's sort control in mushaf order, as the identity's reference writes it."
