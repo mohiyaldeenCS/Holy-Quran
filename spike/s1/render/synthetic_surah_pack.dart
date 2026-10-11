@@ -25,20 +25,38 @@ const syntheticLongAyat = 286;
 /// Writes a spike pack of nonsense under [root] with the spike writer,
 /// verifies it with [LocalPackRepository] and opens it with
 /// [PackQuranTextRepository], as the app would.
+///
+/// [withMarks] puts standalone one-code-point marks, U+06D6 to U+06DC,
+/// into the long surah's ayat: after about one word in eight (so at the
+/// end of some ayat too) and before the first word of every fortieth ayah
+/// from the second. They come from a Random of their own, so the words and
+/// the short surah are the same either way, and without marks every string
+/// is the same as before marks existed.
 Future<PackQuranTextRepository> openSyntheticSpikePack(
   Directory root, {
   int seed = 7,
+  bool withMarks = false,
 }) async {
   final nonsense = SyntheticArabicScript(seed);
   final lengths = Random(seed);
+  final marks = withMarks ? Random(seed + 1) : null;
+  String mark() => String.fromCharCode(0x06D6 + marks!.nextInt(7));
+  String ayah(int index) {
+    final count = 3 + lengths.nextInt(28);
+    // The same draws as nonsense.phrase(count).
+    final words = [for (var w = 0; w < count; w++) nonsense.word()];
+    if (marks == null) return words.join(' ');
+    return [
+      if (index % 40 == 1) mark(),
+      for (final word in words) ...[word, if (marks.nextInt(8) == 0) mark()],
+    ].join(' ');
+  }
+
   final bytes = tanzilFixtureXml([
     (
       name: nonsense.word(),
       bismillah: nonsense.phrase(4),
-      ayat: [
-        for (var a = 0; a < syntheticLongAyat; a++)
-          nonsense.phrase(3 + lengths.nextInt(28)),
-      ],
+      ayat: [for (var a = 0; a < syntheticLongAyat; a++) ayah(a)],
     ),
     (
       name: nonsense.word(),
@@ -76,12 +94,13 @@ Future<PackQuranTextRepository> openSyntheticSpikePack(
   };
 }
 
-/// Both synthetic surahs, read through the repository.
+/// Both synthetic surahs, read through the repository; [withMarks] as for
+/// [openSyntheticSpikePack].
 Future<
   ({SpikeSurahText long, SpikeSurahText short, PackQuranTextRepository pack})
 >
-readSyntheticSurahs(Directory root) async {
-  final pack = await openSyntheticSpikePack(root);
+readSyntheticSurahs(Directory root, {bool withMarks = false}) async {
+  final pack = await openSyntheticSpikePack(root, withMarks: withMarks);
   return (
     long: await readSpikeSurahText(pack, syntheticLongSurah),
     short: await readSpikeSurahText(pack, syntheticShortSurah),
