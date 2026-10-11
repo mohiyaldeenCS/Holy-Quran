@@ -94,6 +94,15 @@ Future<void> _move(
   }
 }
 
+/// Moves [gesture] by [by] in four quick steps and lifts at once: a fling.
+Future<void> _flick(WidgetTester tester, TestGesture gesture, Offset by) async {
+  for (var i = 0; i < 4; i++) {
+    await gesture.moveBy(by / 4, timeStamp: _tick(8));
+    await tester.pump();
+  }
+  await gesture.up(timeStamp: _tick(1));
+}
+
 /// Holds still for [ms] and lifts: a release with no velocity.
 Future<void> _holdAndLift(TestGesture gesture, {int ms = 100}) async {
   await gesture.moveBy(Offset.zero, timeStamp: _tick(ms));
@@ -129,14 +138,17 @@ Future<void> _pinch(
   await tester.pump();
 }
 
-/// Zoom exactly 2, the page at (-130, -360): one finger wins the arena with
-/// a vertical move that pans nothing at zoom 1, so the second finger's span
-/// of 50 is the pinch's baseline, and the pair spreads to 100.
+/// Zoom exactly 2 about (180, 360), the page at (-180, -360): one finger
+/// wins the arena with a vertical move that pans nothing at zoom 1, the
+/// second lands 100 away and a still move starts the pinch there, and the
+/// pair spreads from a span of 50 to 100.
 Future<void> _zoomTo2(WidgetTester tester) async {
   final a = await _down(tester, const Offset(130, 320));
   await a.moveBy(const Offset(0, 40), timeStamp: _tick());
   await tester.pump();
   final b = await _down(tester, const Offset(230, 360));
+  await a.moveBy(Offset.zero, timeStamp: _tick());
+  await tester.pump();
   await a.moveBy(const Offset(-50, 0), timeStamp: _tick());
   await b.moveBy(const Offset(50, 0), timeStamp: _tick());
   await tester.pump();
@@ -318,6 +330,44 @@ void main() {
       expect(_rect(tester, 0), _rectNear(Offset.zero & _view));
     });
 
+    testWidgets('a fling against the turn cancels it, even past half', (
+      tester,
+    ) async {
+      final gestures = await _pumpPages(tester);
+      for (final travel in const [0.6 * _w, 0.3 * _w]) {
+        final drag = await _down(tester, _centre);
+        await _move(tester, drag, Offset(travel, 0), stepMs: 50);
+        await _flick(tester, drag, const Offset(-30, 0));
+        await tester.pumpAndSettle();
+        expect(_built(tester), 1);
+        expect(_rect(tester, 0), _rectNear(Offset.zero & _view));
+      }
+      expect(gestures, [isA<PageTurnCancelled>(), isA<PageTurnCancelled>()]);
+    });
+
+    testWidgets('a turn released by an upward flick is no fling', (
+      tester,
+    ) async {
+      final gestures = await _pumpPages(tester);
+      final drag = await _down(tester, _centre);
+      await _move(tester, drag, const Offset(0.2 * _w, 0), stepMs: 50);
+      await _flick(tester, drag, const Offset(10, -200));
+      await tester.pumpAndSettle();
+      expect(gestures, [isA<PageTurnCancelled>()]);
+      expect(_rect(tester, 0), _rectNear(Offset.zero & _view));
+    });
+
+    testWidgets('an upward flick drifting sideways turns nothing', (
+      tester,
+    ) async {
+      final gestures = await _pumpPages(tester);
+      final flick = await _down(tester, _centre);
+      await _flick(tester, flick, const Offset(6, -200));
+      await tester.pumpAndSettle();
+      expect(gestures, isEmpty);
+      expect(_built(tester), 1);
+    });
+
     testWidgets('a short fling turns', (tester) async {
       final gestures = await _pumpPages(tester);
       await tester.fling(
@@ -368,6 +418,38 @@ void main() {
       });
     }
 
+    testWidgets('a pinch counts from its first move, about the fingers', (
+      tester,
+    ) async {
+      final gestures = await _pumpPages(tester);
+      final a = await _down(tester, const Offset(130, 320));
+      await a.moveBy(const Offset(0, 40), timeStamp: _tick());
+      await tester.pump();
+      final b = await _down(tester, const Offset(230, 360));
+      // The first move starts the pinch at focal (155, 360), span 75; the
+      // second ends it at (180, 360), span 100: zoom 4/3, and the page point
+      // (155, 360) is drawn under the fingers.
+      await a.moveBy(const Offset(-50, 0), timeStamp: _tick());
+      await tester.pump();
+      await b.moveBy(const Offset(50, 0), timeStamp: _tick());
+      await tester.pump();
+      await a.up(timeStamp: _tick());
+      await b.up(timeStamp: _tick());
+      await tester.pump();
+      expect((gestures.single as PageZoom).zoom, moreOrLessEquals(4 / 3));
+      expect(
+        _rect(tester, 0),
+        _rectNear(
+          const Rect.fromLTWH(
+            180 - 155 * 4 / 3,
+            360 - 360 * 4 / 3,
+            _w * 4 / 3,
+            _h * 4 / 3,
+          ),
+        ),
+      );
+    });
+
     testWidgets('zoomed, a drag pans to the edge before it turns', (
       tester,
     ) async {
@@ -376,11 +458,11 @@ void main() {
       expect(gestures, [isA<PageZoom>().having((g) => g.zoom, 'zoom', 2)]);
       expect(
         _rect(tester, 0),
-        _rectNear(const Rect.fromLTWH(-130, -360, 2 * _w, 2 * _h)),
+        _rectNear(const Rect.fromLTWH(-180, -360, 2 * _w, 2 * _h)),
       );
 
       final short = await _down(tester, _centre);
-      await _move(tester, short, const Offset(130, 0));
+      await _move(tester, short, const Offset(180, 0));
       expect(_built(tester), 1);
       expect(_rect(tester, 0).left, moreOrLessEquals(0));
       await _move(tester, short, const Offset(60, 0), steps: 3, stepMs: 50);
@@ -407,6 +489,59 @@ void main() {
       expect(gestures.last, _turn(to: 1, zoom: 2));
       expect(_built(tester), 1);
       expect(_rect(tester, 1), _rectNear(Offset.zero & _view));
+    });
+
+    testWidgets('zoomed, a fling turns only from the edge it began at', (
+      tester,
+    ) async {
+      final gestures = await _pumpPages(tester);
+      await _zoomTo2(tester);
+
+      final toEdge = await _down(tester, _centre);
+      await _flick(tester, toEdge, const Offset(190, 0));
+      await tester.pumpAndSettle();
+      expect(
+        gestures.last,
+        isA<PageTurnCancelled>().having((g) => g.zoom, 'zoom', 2),
+      );
+      expect(_built(tester), 1);
+      expect(_rect(tester, 0).left, moreOrLessEquals(0));
+
+      final up = await _down(tester, _centre);
+      await _flick(tester, up, const Offset(6, -200));
+      await tester.pumpAndSettle();
+      expect(gestures.whereType<PageTurn>(), isEmpty);
+      expect(_built(tester), 1);
+      expect(_rect(tester, 0).left, moreOrLessEquals(0));
+
+      final fromEdge = await _down(tester, _centre);
+      await _flick(tester, fromEdge, const Offset(60, 0));
+      await tester.pumpAndSettle();
+      expect(gestures.last, _turn(to: 1, zoom: 2));
+      expect(_rect(tester, 1), _rectNear(Offset.zero & _view));
+    });
+
+    testWidgets('after a pinch, the finger left drags without turning', (
+      tester,
+    ) async {
+      final gestures = await _pumpPages(tester);
+      final a = await _down(tester, _centre - const Offset(0, 30));
+      final b = await _down(tester, _centre + const Offset(0, 30));
+      for (var i = 0; i < 7; i++) {
+        await a.moveBy(const Offset(0, -4), timeStamp: _tick());
+        await b.moveBy(const Offset(0, 4), timeStamp: _tick());
+        await tester.pump();
+      }
+      await b.up(timeStamp: _tick());
+      await tester.pump();
+      final zoom = (gestures.single as PageZoom).zoom;
+      expect(zoom, greaterThan(1));
+      await _move(tester, a, const Offset(0.6 * _w, 0));
+      expect(_built(tester), 1);
+      expect(_rect(tester, 0).left, moreOrLessEquals(0));
+      await _holdAndLift(a);
+      await tester.pumpAndSettle();
+      expect(gestures, [isA<PageZoom>()]);
     });
 
     testWidgets('a pinch drifting 0.6 width turns nothing', (tester) async {
@@ -466,6 +601,10 @@ void main() {
       }
       expect(opacity(0) + opacity(1), moreOrLessEquals(1));
 
+      await tester.pump(
+        motionSlow - motionSlow ~/ 2 - const Duration(milliseconds: 1),
+      );
+      expect(_built(tester), 2);
       await tester.pumpAndSettle();
       expect(_built(tester), 1);
       expect(_page(1), findsOneWidget);

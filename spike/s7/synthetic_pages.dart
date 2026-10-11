@@ -182,21 +182,29 @@ class _SyntheticPagesState extends State<SyntheticPages>
 
   // The touch sequence: from the first finger down to the last up.
   int _pointers = 0;
+  Offset _downAt = Offset.zero;
   bool _tapsNothing = false;
   bool _pinched = false;
   bool _turned = false;
   bool _open = false;
   double _x = 0;
 
-  /// The zoom and the page point under the focal point when the current
-  /// pinch segment started.
-  ({double zoom, Offset point})? _pinch;
+  /// Whether the sequence's first drag ran more across than down; only such
+  /// a drag turns (RD-11).
+  bool? _horizontal;
 
-  @override
-  void didUpdateWidget(SyntheticPages oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (_page >= widget.pageCount) _page = widget.pageCount - 1;
-  }
+  /// Whether the drag began with the page at its left or right edge; only
+  /// then may a fling commit a turn that way.
+  bool _fromLeftEdge = false;
+  bool _fromRightEdge = false;
+
+  bool _pinching = false;
+
+  /// The zoom the pinch counts its scale from and the page point kept under
+  /// its focal point. Taken at the pinch's first update: the recogniser
+  /// starts it a move after the second finger lands, when the focal point has
+  /// shifted but the scale still counts from the landing.
+  ({double zoom, Offset point})? _pinch;
 
   @override
   void dispose() {
@@ -208,6 +216,8 @@ class _SyntheticPagesState extends State<SyntheticPages>
 
   void _onPointerDown(PointerDownEvent event) {
     if (_pointers++ == 0) {
+      _downAt = event.localPosition;
+      _horizontal = null;
       _tapsNothing = false;
       _pinched = false;
       _turned = false;
@@ -226,7 +236,7 @@ class _SyntheticPagesState extends State<SyntheticPages>
     // after another lifted. When an end does come, it is dispatched after
     // this listener but before the microtask, which then finds nothing open.
     scheduleMicrotask(() {
-      if (mounted && _open && _pointers == 0) _release(0);
+      if (mounted && _open && _pointers == 0) _release(Offset.zero);
     });
   }
 
@@ -252,18 +262,23 @@ class _SyntheticPagesState extends State<SyntheticPages>
 
   void _onScaleStart(ScaleStartDetails details) {
     _open = true;
-    if (details.pointerCount >= 2 && !_turned) {
+    _pinch = null;
+    _pinching = details.pointerCount >= 2 && !_turned;
+    if (_pinching) {
       _pinched = true;
-      _pinch = (zoom: _zoom, point: (details.localFocalPoint - _pan) / _zoom);
     } else {
-      _pinch = null;
       _x = _pan.dx + _turn;
+      _fromLeftEdge = _pan.dx >= 0;
+      _fromRightEdge = _pan.dx <= _size.width * (1 - _zoom);
     }
   }
 
   void _onScaleUpdate(ScaleUpdateDetails details) {
-    final pinch = _pinch;
-    if (pinch != null) {
+    if (_pinching) {
+      final pinch = _pinch ??= (
+        zoom: _zoom / details.scale,
+        point: (details.localFocalPoint - _pan) / _zoom,
+      );
       final zoom = clampPageZoom(pinch.zoom * details.scale);
       setState(() {
         _zoom = zoom;
@@ -275,13 +290,16 @@ class _SyntheticPagesState extends State<SyntheticPages>
       });
       return;
     }
+    final travel = details.localFocalPoint - _downAt;
+    final turns =
+        !_pinched && (_horizontal ??= travel.dx.abs() > travel.dy.abs());
     final delta = details.focalPointDelta;
     final split = splitDrag(
       _x + delta.dx,
       zoom: _zoom,
       width: _size.width,
-      hasPrevious: !_pinched && _page > 0,
-      hasNext: !_pinched && _page < widget.pageCount - 1,
+      hasPrevious: turns && _page > 0,
+      hasNext: turns && _page < widget.pageCount - 1,
     );
     setState(() {
       _x = split.pan + split.turn;
@@ -292,24 +310,24 @@ class _SyntheticPagesState extends State<SyntheticPages>
   }
 
   void _onScaleEnd(ScaleEndDetails details) {
-    if (_pinch != null && details.pointerCount < 2) {
+    if (_pinching && details.pointerCount < 2) {
+      _pinching = false;
       _pinch = null;
       _emit(PageZoom(page: _page, zoom: _zoom));
     }
     if (details.pointerCount == 0) {
-      _release(details.velocity.pixelsPerSecond.dx);
+      _release(details.velocity.pixelsPerSecond);
     }
   }
 
-  void _release(double velocity) {
+  void _release(Offset velocity) {
     _open = false;
+    _pinching = false;
     _pinch = null;
     final turn = _turn;
     if (turn == 0) return;
     final width = _size.width;
-    final commit =
-        turn.abs() > width / 2 || velocity * turn.sign > kMinFlingVelocity;
-    if (!commit) {
+    if (!_commits(turn, velocity)) {
       _emit(PageTurnCancelled(page: _page, zoom: _zoom));
       if (_reduceMotion) {
         setState(() => _turn = 0);
@@ -327,6 +345,17 @@ class _SyntheticPagesState extends State<SyntheticPages>
     final leaving = _Fade(_page, _pan, _zoom);
     _showPage(to);
     _start(leaving, motionSlow);
+  }
+
+  /// A horizontal fling decides by its direction, but commits only from the
+  /// edge the drag began at: a zoomed page flung to its edge stays. Any other
+  /// release commits past half the width.
+  bool _commits(double turn, Offset velocity) {
+    final vx = velocity.dx;
+    final fling = vx.abs() > kMinFlingVelocity && vx.abs() > velocity.dy.abs();
+    if (fling && vx.sign != turn.sign) return false;
+    if (fling && (turn > 0 ? _fromLeftEdge : _fromRightEdge)) return true;
+    return turn.abs() > _size.width / 2;
   }
 
   void _start(_Motion motion, Duration duration) {
