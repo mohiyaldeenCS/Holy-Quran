@@ -738,6 +738,41 @@ final class SurahParagraph {
     ]);
   }
 
+  /// Where mark [mark] (its stored number) of [ayah] is drawn: the U+0020
+  /// before it and the mark, on the shown line holding the mark's first
+  /// code unit; [line] indexes [lineBands]. Null when the mark is on no
+  /// shown line of this block. [box] is null when the engine gives no box
+  /// of positive width there: a combining mark has no box of its own
+  /// (Flutter 3.44.7 draws it on the space before it), so a mark that
+  /// starts a line, its space ending the line above, may have none.
+  ///
+  /// D-083 puts one separator between tokens, so the text is never read:
+  /// there is none before a mark that is first in its ayah or in the block.
+  ({int line, Rect? box})? markBoxOf(QuranAddress ayah, int mark) {
+    final index = content.indexOf(ayah);
+    if (index == null || ayah.isWord) return null;
+    final span = content.marks[index].where((m) => m.number == mark);
+    if (span.isEmpty) return null;
+    final base = content.baseOf(index);
+    final stored = span.single;
+    if (stored.start < base) return null;
+    final text = _textOf[index]!;
+    final start = text.start + stored.start - base;
+    final line = _lineOfOffset(start);
+    if (line < _first || line >= _end) return null;
+    final from = stored.start > base ? start - 1 : start;
+    final boxes = _merged(
+      _rawBoxes(
+        from,
+        text.start + stored.end - base,
+      ).where((box) => _lineOfBox(box) == line),
+    );
+    return (
+      line: line - _first,
+      box: boxes.isEmpty || boxes.single.width <= 0 ? null : boxes.single,
+    );
+  }
+
   /// The top of the line on which the ayah of [ayah] starts in this block,
   /// or null when it starts before the block or on a hidden line.
   double? topOf(QuranAddress ayah) {
