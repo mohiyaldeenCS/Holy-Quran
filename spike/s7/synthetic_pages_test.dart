@@ -176,11 +176,19 @@ void main() {
         final layout = syntheticPageLayout(size);
         const inset = AppSpacing.space5;
         final band = (size.height - 2 * inset) / 16;
+        final em = band / 2.3;
         expect(layout.lines, hasLength(15));
+        expect(layout.rules, hasLength(15));
         for (final (i, line) in layout.lines.indexed) {
           expect(line.left, inset);
           expect(line.right, moreOrLessEquals(size.width - inset));
-          expect(line.height, moreOrLessEquals(band * 0.62 / 2.3));
+          expect(line.height, moreOrLessEquals(0.62 * em));
+          expect(
+            layout.rules[i],
+            _rectNear(
+              Rect.fromLTWH(line.left, line.bottom + 0.05 * em, line.width, 2),
+            ),
+          );
           expect(
             line.center.dy,
             moreOrLessEquals(inset + band * (i + 0.5)),
@@ -725,11 +733,29 @@ void main() {
                 as SyntheticPagePainter;
         expect(painter.bar, colors.conceal);
         expect(painter.ground, colors.ground);
+        expect(painter.rule, colors.lineStrong);
+        final layout = syntheticPageLayout(_view);
+        final drawn = paints
+          ..rect(rect: Offset.zero & _view, color: colors.ground);
+        for (final line in layout.lines) {
+          drawn.rect(rect: line, color: colors.conceal);
+        }
+        for (final rule in layout.rules) {
+          drawn.rect(rect: rule, color: colors.lineStrong);
+        }
+        expect(
+          find.descendant(of: _page(0), matching: find.byType(CustomPaint)),
+          drawn,
+        );
         final number = tester.widget<Text>(
           find.descendant(of: _page(0), matching: find.byType(Text)),
         );
         expect(number.style!.color, colors.accent);
-        expect(number.style!.fontSize, AppTextStyles.caption.fontSize);
+        // Mushaf.dc.html draws the page number at 15 px, weight 600, in the
+        // interface face: the caption's face at the board's size.
+        expect(number.style!.fontSize, 15);
+        expect(number.style!.fontWeight, AppTextStyles.caption.fontWeight);
+        expect(number.style!.fontFamily, AppTextStyles.caption.fontFamily);
         expect(number.textScaler, TextScaler.noScaling);
         for (final box in tester.widgetList<ColoredBox>(
           find.descendant(

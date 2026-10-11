@@ -61,19 +61,30 @@ final class PageZoom extends PageGesture {
 const int _lineCount = 15;
 const int _bandCount = _lineCount + 1;
 
-/// A bar's height in its band: `.qk-conceal` paints a 0.62em strip
-/// (`background-size: 100% 0.62em`) in a line of `.qk-quran-page`, whose
-/// line-height is 2.3em.
-const double _barToBand = 0.62 / 2.3;
+/// A line of `.qk-quran-page` is 2.3em high; in it `.qk-conceal` paints a
+/// 0.62em strip (`background-size: 100% 0.62em`) and underlines it in
+/// `line-strong`, 2 px thick and 0.05em below
+/// (design/design-system/components/bundle.css).
+const double _bandEm = 2.3;
+const double _barEm = 0.62;
+const double _ruleGapEm = 0.05;
+const double _ruleThickness = 2;
+
+/// The page number's size at the foot of the drawn page
+/// (design/identity-boards/Mushaf.dc.html: 15 px, weight 600, dark gold).
+const double _pageNumberSize = 15;
 
 /// RD-07: page mode zooms by pinch up to four times.
 const double _minZoom = 1;
 const double _maxZoom = 4;
 
-/// The bars of a synthetic page of [page]'s size, top to bottom, and the
-/// band of its number: the page inset by `space-5`, cut into sixteen equal
-/// bands, a bar centred in each of the first fifteen.
-({List<Rect> lines, Rect number}) syntheticPageLayout(Size page) {
+/// The bars of a synthetic page of [page]'s size, top to bottom, the rule
+/// under each, and the band of its number: the page inset by `space-5`, cut
+/// into sixteen equal bands, a bar centred in each of the first fifteen. A
+/// bar stands for a line's run of words.
+({List<Rect> lines, List<Rect> rules, Rect number}) syntheticPageLayout(
+  Size page,
+) {
   const inset = AppSpacing.space5;
   final inner = Rect.fromLTRB(
     inset,
@@ -82,15 +93,26 @@ const double _maxZoom = 4;
     page.height - inset,
   );
   final band = inner.height / _bandCount;
-  final bar = band * _barToBand;
+  final em = band / _bandEm;
+  final bar = em * _barEm;
+  final lines = [
+    for (var i = 0; i < _lineCount; i++)
+      Rect.fromLTWH(
+        inner.left,
+        inner.top + band * i + (band - bar) / 2,
+        inner.width,
+        bar,
+      ),
+  ];
   return (
-    lines: [
-      for (var i = 0; i < _lineCount; i++)
+    lines: lines,
+    rules: [
+      for (final line in lines)
         Rect.fromLTWH(
-          inner.left,
-          inner.top + band * i + (band - bar) / 2,
-          inner.width,
-          bar,
+          line.left,
+          line.bottom + em * _ruleGapEm,
+          line.width,
+          _ruleThickness,
         ),
     ],
     number: Rect.fromLTWH(
@@ -462,8 +484,8 @@ class _SyntheticPagesState extends State<SyntheticPages>
       );
 }
 
-/// One synthetic page: fifteen `conceal` bars on `ground` and its number in
-/// `accent`. The number keeps its size whatever the text scale: a page grows
+/// One synthetic page: fifteen `conceal` bars underlined in `line-strong`
+/// on `ground`, and its number in `accent`. The number keeps its size whatever the text scale: a page grows
 /// by pinch only (design/design-system/README.md, type).
 class SyntheticPage extends StatelessWidget {
   const SyntheticPage(this.index, {super.key});
@@ -485,6 +507,7 @@ class SyntheticPage extends StatelessWidget {
                   painter: SyntheticPagePainter(
                     ground: colors.ground,
                     bar: colors.conceal,
+                    rule: colors.lineStrong,
                   ),
                 ),
               ),
@@ -494,7 +517,10 @@ class SyntheticPage extends StatelessWidget {
               child: Center(
                 child: Text(
                   arabicDigits(index + 1),
-                  style: AppTextStyles.caption.copyWith(color: colors.accent),
+                  style: AppTextStyles.caption.copyWith(
+                    fontSize: _pageNumberSize,
+                    color: colors.accent,
+                  ),
                   textScaler: TextScaler.noScaling,
                   maxLines: 1,
                 ),
@@ -507,23 +533,36 @@ class SyntheticPage extends StatelessWidget {
   }
 }
 
-/// Paints [syntheticPageLayout]'s bars, square, in [bar] on [ground].
+/// Paints [syntheticPageLayout]'s bars, square, in [bar] with their rules in
+/// [rule], on [ground].
 class SyntheticPagePainter extends CustomPainter {
-  const SyntheticPagePainter({required this.ground, required this.bar});
+  const SyntheticPagePainter({
+    required this.ground,
+    required this.bar,
+    required this.rule,
+  });
 
   final Color ground;
   final Color bar;
+  final Color rule;
 
   @override
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(Offset.zero & size, Paint()..color = ground);
-    final paint = Paint()..color = bar;
-    for (final line in syntheticPageLayout(size).lines) {
-      canvas.drawRect(line, paint);
+    final layout = syntheticPageLayout(size);
+    final barPaint = Paint()..color = bar;
+    for (final line in layout.lines) {
+      canvas.drawRect(line, barPaint);
+    }
+    final rulePaint = Paint()..color = rule;
+    for (final line in layout.rules) {
+      canvas.drawRect(line, rulePaint);
     }
   }
 
   @override
   bool shouldRepaint(SyntheticPagePainter oldDelegate) =>
-      oldDelegate.ground != ground || oldDelegate.bar != bar;
+      oldDelegate.ground != ground ||
+      oldDelegate.bar != bar ||
+      oldDelegate.rule != rule;
 }
