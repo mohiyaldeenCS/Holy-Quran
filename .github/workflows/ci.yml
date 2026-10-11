@@ -234,13 +234,13 @@ jobs:
           "--dart-define=SPIKE_PACK_DIR=$PWD/data/build/spike/spike-tanzil-uthmani/1"
 
       - name: S7 geometry on the real text
-        if: hashFiles('spike/s7/real_text_s7_test.dart') != ''
+        if: ${{ !cancelled() && hashFiles('spike/s7/real_text_s7_test.dart') != '' }}
         run: >-
           flutter test spike/s7/real_text_s7_test.dart
           "--dart-define=SPIKE_PACK_DIR=$PWD/data/build/spike/spike-tanzil-uthmani/1"
 
       - name: S4 fit on the real text
-        if: hashFiles('spike/s4/real_text_s4_test.dart') != ''
+        if: ${{ !cancelled() && hashFiles('spike/s4/real_text_s4_test.dart') != '' }}
         run: >-
           flutter test spike/s4/real_text_s4_test.dart
           "--dart-define=SPIKE_PACK_DIR=$PWD/data/build/spike/spike-tanzil-uthmani/1"

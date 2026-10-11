@@ -236,20 +236,29 @@ Stream A: **M0.4 part 2** on `claude/great-hamilton-9n23mt` (D-093).
   DST rule checked. Its two should-fix items (a digest per image, Flutter deep linking
   off) and four smaller ones run now as a follow-up on key 1. The APK build is the
   agent's claim; the next `spike-apk` run confirms it.
-- Task C (#19, key 1, `ui-builder`, $11.08): `code-reviewer` not ready (the scroll wins
-  a pinch with one finger still; a third finger gives a second report; a mark group too
-  broad; the selection's open end untested); `identity-auditor` does not conform (the
-  selection on a marker-only line is a small box; the frame between lines is drawn
-  twice; the selection hides the spoken word). One fix run on its branch takes them all
-  and runs both reviewers itself.
+- Task C merged (#19, key 1, `ui-builder`, $11.08 + $10.62 for the review fixes): the
+  lead session's reviews found the scroll winning a pinch with one finger still and the
+  selection drawn as a small box on a marker-only line, among others; the fix run
+  accepts the pinch on the second finger, draws the selection as one inline box with
+  band-high slices and one line between lines, paints word marks above it, and ran its
+  own code-reviewer and identity-auditor rounds (second code review: ready to merge).
+  2,034 passed.
+- Task E merged (#20, key 2, `ui-builder`, $3.94), after an independent review-and-fix
+  run on key 2 ($5.47): a near-vertical flick no longer turns the page, a fling back
+  cancels a turn, the conceal bars carry their line and the page number is 15 px as the
+  board draws it; 12 mutations caught; 2,013 passed.
+- Task D's review fixes merged (#21, key 2, `data-builder`, $2.43; a first run lost its
+  runner to a shutdown signal while building the APK beside the test suite): a SHA-256
+  per widget image checked on the decoded bytes, Flutter deep linking off, and four
+  smaller fixes, each proven by a mutation; the debug APK builds.
+- `ci.yml`: the S7 and S4 real-text steps now run after a red S1 step (`!cancelled()`).
+- Next: wave 3, task F (key 1) and task G (key 2; G is wave 4 in the plan but needs
+  only C and E).
 - From 2026-10-11 21:00 the owner asked to save this session's budget: reviews and task
   planning now run on the API keys too (each fix or task run reviews its own diff with
   `code-reviewer` and `identity-auditor` through the Task tool); the lead only writes
   short task texts, reads the reports and CI, merges and keeps this file.
-- Task F's text is ready (`test-engineer`); it starts after C merges. Before F's
-  real-text run, `ci.yml`'s S7 and S4 steps need `!cancelled() &&` in their `if`, or
-  they are skipped after the red S1 step; that change waits for a moment with no run
-  out.
+
 
 M0.4 part 1 and M0.5 still wait on the owner's device run and his look at the gallery
 images.
