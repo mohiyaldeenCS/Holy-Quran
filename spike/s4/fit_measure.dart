@@ -1,6 +1,8 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kProfileMode, kReleaseMode;
+import 'package:flutter/painting.dart' show Size;
+import 'package:holyquran/domain/models/pack_text.dart';
 
 import '../s1/measure/text_checks.dart' show keptProblems;
 import '../s1/render/spike_surah_text.dart';
@@ -18,6 +20,12 @@ import 'widget_slots.dart';
 /// the counts.
 const fitFrom = 28.0;
 const fitTo = 22.0;
+
+// The plan's range is passed although it is the default, so that the
+// counts' keys and the fit cannot drift apart.
+double? _fit(PackText ayah, Size box) =>
+    // ignore: avoid_redundant_argument_values
+    fitQuranSize(ayah, box, from: fitFrom, to: fitTo);
 
 /// The kinds of problem that make a run fail.
 enum FitProblem { counts, monotone }
@@ -106,8 +114,8 @@ final class FitMeasurement {
       final counts = _Counts();
       final fits = <List<double?>>[];
       for (final ayah in surah.ayat) {
-        final medium = fitQuranSize(ayah, boxes[WidgetFaceSize.medium]!);
-        final small = fitQuranSize(ayah, boxes[WidgetFaceSize.small]!);
+        final medium = _fit(ayah, boxes[WidgetFaceSize.medium]!);
+        final small = _fit(ayah, boxes[WidgetFaceSize.small]!);
         counts.add(medium, small);
         total.add(medium, small);
         fits.add([medium, small]);

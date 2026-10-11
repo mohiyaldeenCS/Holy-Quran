@@ -668,7 +668,7 @@ final class _ConfigRun {
         'under1px': lineStartThin,
       },
       'tokensPerLine': {
-        'lines': tokens.length,
+        'linesButEachSurahsLast': tokens.length,
         'p5': _rank(tokens, lowRank),
         'p50': _rank(tokens, midRank),
         'p95': _rank(tokens, highRank),
