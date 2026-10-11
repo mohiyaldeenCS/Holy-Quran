@@ -320,6 +320,33 @@ void main() {
     });
   }
 
+  testWidgets('the selection takes the theme\'s selection colours, not '
+      'another token of the same value', (tester) async {
+    const fill = Color(0xFF102030);
+    const line = Color(0xFF405060);
+    final base = buildAppTheme(ReadingTheme.paper);
+    final themeData = base.copyWith(
+      extensions: [
+        for (final extension in base.extensions.values)
+          extension is AppColors
+              ? extension.copyWith(selection: fill, selectionLine: line)
+              : extension,
+      ],
+    );
+    final ayah = QuranAddress(long.firstAyah.riwaya, long.firstAyah.surah, 2);
+    await _pump(
+      tester,
+      SurahListV1(surah: _first(long, 10), selected: {ayah}),
+      themeData: themeData,
+    );
+    expect(
+      find.byType(SurahTextBlock),
+      paints
+        ..rrect(color: fill)
+        ..path(color: line),
+    );
+  });
+
   testWidgets('on a line that starts with the selected ayah\'s marker, the '
       'slice is as tall as the line, not the marker', (tester) async {
     final surah = _first(long, 60);
@@ -505,6 +532,71 @@ void main() {
             : RRect.fromRectAndCorners(first),
       ),
     );
+  });
+
+  testWidgets('a selected ayah that runs past the block\'s last shown line '
+      'is open there: no padding, frame side or corners', (tester) async {
+    final surah = _first(long, 60);
+    final (k, ayah) = _blockCutInsideAyah(surah, cutAtEnd: true);
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    await _pump(
+      tester,
+      PageBlocksV2(
+        surah: surah,
+        pageMark: _pageMarkOf,
+        pageMarkSize: _pageMark,
+        controller: controller,
+        selected: {ayah},
+        blockKey: (k) => ValueKey('block $k'),
+      ),
+    );
+    final finder = find.byKey(ValueKey('block $k'));
+    while (finder.evaluate().isEmpty) {
+      controller.jumpTo(controller.offset + _height / 2);
+      await tester.pump();
+    }
+    final paragraph = _block(tester, finder).paragraph;
+    final index = paragraph.content.indexOf(ayah)!;
+    expect(
+      paragraph.isVisible(paragraph.markerRect(index)),
+      isFalse,
+      reason: 'its marker is past the block',
+    );
+    final boxes = paragraph.boxesOf(ayah);
+    final starts = paragraph.topOf(ayah) != null;
+    final last = _slice(paragraph, boxes.last);
+    expect(
+      paragraph.lineBands.last.contains(last.center),
+      isTrue,
+      reason: 'the last slice is on the last shown line',
+    );
+    const r = Radius.circular(AppRadius.radiusSm);
+    final pattern = paints;
+    for (final _ in boxes.skip(1)) {
+      pattern.rrect(color: AppColors.paper.selection);
+    }
+    pattern
+      ..rrect(
+        color: AppColors.paper.selection,
+        rrect: boxes.length == 1 && starts
+            ? RRect.fromRectAndCorners(
+                Rect.fromLTRB(
+                  last.left,
+                  last.top,
+                  math.min(last.right + AppSpacing.space1, 360),
+                  last.bottom,
+                ),
+                topRight: r,
+                bottomRight: r,
+              )
+            : RRect.fromRectAndCorners(last),
+      )
+      ..path(
+        color: AppColors.paper.selectionLine,
+        excludes: [Offset(last.left + 0.75, last.center.dy)],
+      );
+    expect(finder, pattern);
   });
 
   for (final scale in [1.0, 2.0]) {

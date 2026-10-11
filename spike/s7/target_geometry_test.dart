@@ -46,6 +46,47 @@ Set<(QuranAddress, int)> _marksStartingLines(SurahParagraph paragraph) {
 QuranAddress _ayah(SurahBlockContent content, int ayah) =>
     QuranAddress(content.firstAyah.riwaya, content.firstAyah.surah, ayah);
 
+/// The marks with no box, as `ayah:mark` in reading order, per width and
+/// scale for the first 100 ayat of the synthetic pack's long surah:
+/// starting a line, opening an ayah mid-line, or on the line above a
+/// line-start mark. Measured on Flutter 3.44.7.
+const _boxless = {
+  '320 wide at 1.0x': (
+    lineStart: '28:6 66:2 88:4 99:2',
+    ayahOpening: '42:1 82:1',
+    lineAbove: '',
+  ),
+  '360 wide at 1.0x': (
+    lineStart: '16:1 56:1 68:1 72:2 84:3 89:1 90:1',
+    ayahOpening: '42:1 82:1',
+    lineAbove: '',
+  ),
+  '412 wide at 1.0x': (
+    lineStart: '28:6 60:1 86:1',
+    ayahOpening: '42:1 82:1',
+    lineAbove: '28:5',
+  ),
+  '320 wide at 2.0x': (
+    lineStart:
+        '1:1 2:2 8:2 8:3 12:2 14:3 23:2 24:1 28:6 29:1 44:2 54:1 63:1 66:1 '
+        '68:1 71:3 74:1 77:1 83:1 84:2 88:2 89:3 95:3',
+    ayahOpening: '42:1 82:1',
+    lineAbove: '28:5',
+  ),
+  '360 wide at 2.0x': (
+    lineStart:
+        '2:3 2:4 18:4 20:2 27:3 31:4 36:4 44:1 55:3 75:2 76:2 82:3 88:3 '
+        '91:1 100:1',
+    ayahOpening: '42:1 82:1',
+    lineAbove: '',
+  ),
+  '412 wide at 2.0x': (
+    lineStart: '19:2 31:6 35:5 52:4 72:1 76:3 82:4',
+    ayahOpening: '42:1 82:1',
+    lineAbove: '',
+  ),
+};
+
 int _bandOf(List<Rect> bands, Rect rect) => bands.indexWhere(
   (b) => b.top <= rect.center.dy && rect.center.dy < b.bottom,
 );
@@ -66,9 +107,9 @@ void main() {
     for (final width in [320.0, 360.0, 412.0]) {
       final where = '${width.toInt()} wide at ${scale}x';
 
-      test('the geometry is the paragraph\'s boxes, markers and bands, and '
-          'every shown mark has a box between its neighbours unless it '
-          'starts a line ($where)', () {
+      test('the geometry is the paragraph\'s boxes, markers and bands; a '
+          'shown mark\'s box lies between its neighbours, and the marks '
+          'without one are the pinned ones ($where)', () {
         final paragraph = surahParagraph(
           long,
           width: width,
@@ -141,7 +182,8 @@ void main() {
         // mid-line; on the line before one that starts with a mark, the
         // engine puts the boxes of the last tokens past the left edge (part
         // 1's words beside a line-start mark); and a mark that starts a line
-        // now and then has a box.
+        // now and then has a box. Every other mark has one: the marks
+        // without a box are pinned, per group, for this synthetic pack.
         final startingLines = _marksStartingLines(paragraph);
         final opening = {
           for (var i = 0; i < content.length; i++)
@@ -152,20 +194,32 @@ void main() {
           for (final mark in startingLines)
             paragraph.markBoxOf(mark.$1, mark.$2)!.line - 1,
         };
-        final besideLineStart = {
-          for (final mark in g.marksWithoutBox)
-            if (beforeMarkLines.contains(
-              paragraph.markBoxOf(mark.$1, mark.$2)!.line,
-            ))
-              mark,
-        }.difference(startingLines).difference(opening);
-        expect(
-          g.marksWithoutBox.toSet().difference(startingLines),
-          opening
-              .union(besideLineStart)
-              .intersection(g.marksWithoutBox.toSet()),
-          reason: 'after a space, mid-line, every mark has a box',
-        );
+        final withoutBox = g.marksWithoutBox.toSet();
+        final lineStart = withoutBox.intersection(startingLines);
+        final ayahOpening = withoutBox
+            .intersection(opening)
+            .difference(lineStart);
+        final lineAbove = withoutBox
+            .difference(lineStart)
+            .difference(ayahOpening);
+        for (final mark in lineAbove) {
+          expect(
+            beforeMarkLines,
+            contains(paragraph.markBoxOf(mark.$1, mark.$2)!.line),
+            reason: 'mid-line, $mark has no box',
+          );
+        }
+        String named(Set<(QuranAddress, int)> marks) => [
+          for (final (ayah, mark)
+              in marks.toList()..sort(
+                (a, b) => a.$1 == b.$1 ? a.$2 - b.$2 : a.$1.compareTo(b.$1),
+              ))
+            '${ayah.ayah}:$mark',
+        ].join(' ');
+        final pinned = _boxless[where]!;
+        expect(named(lineStart), pinned.lineStart, reason: 'line-start');
+        expect(named(ayahOpening), pinned.ayahOpening, reason: 'opening');
+        expect(named(lineAbove), pinned.lineAbove, reason: 'line above');
         expect(g.marks.length + g.marksWithoutBox.length, shownMarks);
         final startingWithBox = startingLines.difference(
           g.marksWithoutBox.toSet(),
@@ -178,7 +232,7 @@ void main() {
           '(${startingWithBox.length} of them with a box: $startingWithBox), '
           '${opening.length} opening an ayah '
           '(${opening.difference(g.marksWithoutBox.toSet()).length} with a '
-          'box), ${besideLineStart.length} on the line before a line-start '
+          'box), ${lineAbove.length} on the line before a line-start '
           'mark, ${paragraph.lineCount} lines',
         );
       });
