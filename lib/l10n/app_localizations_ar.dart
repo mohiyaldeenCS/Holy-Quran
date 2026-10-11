@@ -476,4 +476,10 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get sampleNote => 'ملاحظة تجريبية عن المصدر';
+
+  @override
+  String get appIconLabel => 'شعار القرآن الكريم';
+
+  @override
+  String get markLabel => 'رمز القرآن الكريم';
 }

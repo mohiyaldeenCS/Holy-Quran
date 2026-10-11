@@ -933,6 +933,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'ملاحظة تجريبية عن المصدر'**
   String get sampleNote;
+
+  /// Spoken name of the app-icon tile in HomeHeader, as the Screens board labels it.
+  ///
+  /// In ar, this message translates to:
+  /// **'شعار القرآن الكريم'**
+  String get appIconLabel;
+
+  /// Spoken name of the Mark on a share card, as the Share and Logo boards label it.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز القرآن الكريم'**
+  String get markLabel;
 }
 
 class _AppLocalizationsDelegate

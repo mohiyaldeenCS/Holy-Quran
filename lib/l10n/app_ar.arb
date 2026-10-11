@@ -660,5 +660,13 @@
   "sampleNote": "ملاحظة تجريبية عن المصدر",
   "@sampleNote": {
     "description": "Debug gallery: a synthetic stand-in for WordSheet's source note. Not a real source."
+  },
+  "appIconLabel": "شعار القرآن الكريم",
+  "@appIconLabel": {
+    "description": "Spoken name of the app-icon tile in HomeHeader, as the Screens board labels it."
+  },
+  "markLabel": "رمز القرآن الكريم",
+  "@markLabel": {
+    "description": "Spoken name of the Mark on a share card, as the Share and Logo boards label it."
   }
 }
