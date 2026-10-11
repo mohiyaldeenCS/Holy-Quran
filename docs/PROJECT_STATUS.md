@@ -222,7 +222,13 @@ Stream A: **M0.4 part 2** on `claude/great-hamilton-9n23mt` (D-093).
   passed); layout fingerprints equal part 1's; the one unexplained hit,
   `hafs:52:43:4` at 360/2.0x, is part 1's and keeps the task red. Both hashes are
   pinned in `ci.yml`. Details on the S1 page.
-- Running: wave 2, task D on key 2 and task C on key 1.
+- Task D's first run (key 2, $5.94) finished with its checks green, but GitHub refused
+  its push: the branch carried the `ci.yml` of `8c15529`, and the lead had since
+  changed `ci.yml` on the base (the pinned hashes); the workflow token cannot push a
+  workflow file that differs. The work was lost and D was started again. Rule added to
+  `docs/WORKFLOW.md`: no change under `.github/workflows/` on a base while a run from it
+  is out.
+- Running: wave 2, task C on key 1 and task D (second run) on key 2.
 
 M0.4 part 1 and M0.5 still wait on the owner's device run and his look at the gallery
 images.
