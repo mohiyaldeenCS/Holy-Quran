@@ -27,11 +27,15 @@ final _fontSha256 = sha256
 
 SpikeSource _sourceOf(Uint8List bytes, TanzilXml xml) => (
   bytes: bytes,
-  url: 'https://example.invalid/synthetic.xml',
+  url: _url,
   version: tanzilUthmaniVersion,
   fetchedOn: '2026-01-01',
   notice: xml.notice,
 );
+
+const _url =
+    'https://example.invalid/synthetic.xml?quranType=synthetic&marks=true'
+    '&agree=true';
 
 Future<String> _write(Directory root, Uint8List bytes) {
   final xml = readTanzilXml(bytes);
@@ -43,10 +47,12 @@ Future<String> _write(Directory root, Uint8List bytes) {
   );
 }
 
-/// Enough ayat for several units of every synthetic division.
+/// The marks sura, and enough ayat for several units of every synthetic
+/// division.
 List<FixtureSura> _longerSuras() => [
   ...syntheticFixtureSuras(),
-  for (final (n, count) in [(4, 230), (5, 9)])
+  markFixtureSura(),
+  for (final (n, count) in [(5, 230), (6, 9)])
     (
       name: 'Synthetic sura $n',
       bismillah: 'Synthetic opening $n',
@@ -103,13 +109,108 @@ void main() {
     }
   });
 
-  test('takes words as the runs between U+0020, in UTF-16 units', () async {
+  test('stores the words and marks of every ayah, by D-083, in UTF-16 '
+      'units', () async {
     final raw = RawPack.open(File('${await written.future}/text.sqlite'));
     addTearDown(raw.close);
-    expect(raw.words(2, 1), [(1, 1, 10), (2, 12, 18), (3, 20, 26)]);
-    expect(raw.words(2, 2), [(1, 0, 2), (2, 3, 5), (3, 6, 8)]);
-    expect(spikeWordSpans('  '), isEmpty);
-    expect(spikeWordSpans('a'), [(0, 1)]);
+    final explicit = {
+      (2, 1): ([(1, 1, 10), (2, 12, 18), (3, 20, 26)], <StoredMark>[]),
+      (2, 2): ([(1, 0, 2), (2, 6, 8)], [(1, 1, 3, 5)]),
+      (4, 1): (
+        [(1, 0, 9), (2, 12, 17), (3, 22, 25)],
+        [(1, 1, 10, 11), (2, 2, 18, 19), (3, 2, 20, 21), (4, 3, 26, 27)],
+      ),
+      (4, 2): ([(1, 2, 5), (2, 6, 15)], [(1, 0, 0, 1)]),
+      (4, 3): (
+        [(1, 0, 9), (2, 19, 20), (3, 21, 26)],
+        [(1, 1, 10, 12), (2, 1, 13, 15), (3, 1, 16, 18)],
+      ),
+    };
+    for (final MapEntry(key: (surah, ayah), value: (words, marks))
+        in explicit.entries) {
+      expect(raw.words(surah, ayah), words, reason: '$surah:$ayah words');
+      expect(raw.marks(surah, ayah), marks, reason: '$surah:$ayah marks');
+    }
+    final wordCounts = {
+      (1, 1): 3,
+      (1, 2): 3,
+      (1, 3): 7,
+      (1, 4): 3,
+      (2, 3): 12,
+      (3, 1): 2,
+    };
+    for (final MapEntry(key: (surah, ayah), value: count)
+        in wordCounts.entries) {
+      expect(raw.words(surah, ayah), hasLength(count), reason: '$surah:$ayah');
+      expect(raw.marks(surah, ayah), isEmpty, reason: '$surah:$ayah');
+    }
+    for (final surah in [5, 6]) {
+      for (final (ayah, _) in raw.ayat(surah)) {
+        final digits = '$ayah'.length;
+        expect(raw.words(surah, ayah), [
+          (1, 0, 9),
+          (2, 14 + digits, 15 + digits),
+        ]);
+        expect(raw.marks(surah, ayah), [
+          (1, 1, 10, 11),
+          (2, 1, 12, 12 + digits),
+        ]);
+      }
+    }
+  });
+
+  test('sorts tokens into words and marks by general category L', () {
+    expect(spikeSpansOf('  ').words, isEmpty);
+    expect(spikeSpansOf('  ').marks, isEmpty);
+    expect(spikeSpansOf('a').words, [(0, 1)]);
+    expect(spikeSpansOf('\u0640').words, [(0, 1)], reason: 'U+0640 is Lm');
+    expect(spikeSpansOf('\u06E5 \u06E6').words, [(0, 1), (2, 3)]);
+    expect(spikeSpansOf('\u{1F600}').marks, [(afterWord: 0, start: 0, end: 2)]);
+    expect(spikeSpansOf(' \u06D6  a \u06D6\u06D7 ').marks, [
+      (afterWord: 0, start: 1, end: 2),
+      (afterWord: 1, start: 6, end: 8),
+    ]);
+  });
+
+  test('takes the options of a Tanzil URL, all but agree, as strings', () {
+    expect(
+      tanzilDownloadOptions(
+        'https://tanzil.net/pub/download/index.php?quranType=uthmani'
+        '&outType=xml&marks=true&sajdah=true&rub=false&agree=true',
+      ),
+      {
+        'quranType': 'uthmani',
+        'outType': 'xml',
+        'marks': 'true',
+        'sajdah': 'true',
+        'rub': 'false',
+      },
+    );
+    expect(tanzilDownloadOptions('https://example.invalid/a.xml'), isNull);
+    expect(tanzilDownloadOptions('https://example.invalid/a.xml?'), isNull);
+    expect(tanzilDownloadOptions('https://example.invalid/?agree=1'), isNull);
+    expect(
+      tanzilDownloadOptions('https://example.invalid/?a%20b=c+d%2Be&flag'),
+      {'a b': 'c d+e', 'flag': ''},
+    );
+    for (final (url, reason) in [
+      ('https://example.invalid/?a=1&a=2', 'repeats the query parameter a'),
+      ('https://example.invalid/?agree=1&agree=1', 'parameter agree'),
+      ('https://example.invalid/?a=1&=2', 'with no name'),
+      ('https://example.invalid/?a=1&&b=2', 'with no name'),
+    ]) {
+      expect(
+        () => tanzilDownloadOptions(url),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains(reason),
+          ),
+        ),
+        reason: url,
+      );
+    }
   });
 
   test(
@@ -135,8 +236,21 @@ void main() {
       final summary =
           ((manifest['changelog']! as List<Object?>).single! as Map)['summary']!
               as String;
-      expect(summary, allOf(contains('U+0020'), contains('synthetic')));
+      expect(
+        summary,
+        allOf(
+          contains('U+0020'),
+          contains('general category L (Lm included)'),
+          contains('B0.4'),
+          contains('synthetic'),
+        ),
+      );
+      expect(source['options'], {'quranType': 'synthetic', 'marks': 'true'});
       final counts = manifest['counts']! as Map;
+      // Suras 1 to 3, the marks sura, then two words and two digit marks
+      // in each of the 239 ayat of suras 5 and 6.
+      expect(counts['words'], 16 + 17 + 2 + 8 + 2 * 239);
+      expect(counts['marks'], 1 + 8 + 2 * 239);
       expect(counts['sajdas'], 0);
       expect(counts['divisions'], {'juz': 2, 'hizb': 3, 'rub': 10, 'page': 25});
       expect(manifest['reviews'], isEmpty);
@@ -255,6 +369,58 @@ void main() {
       }
     });
 
+    test('an ayah holding a separator other than U+0020', () async {
+      for (final (name, separator) in [
+        ('U+00A0', '\u00A0'),
+        ('U+2029', '\u2029'),
+        ('U+3000', '\u3000'),
+      ]) {
+        final spaced = tanzilFixtureXml([
+          ...syntheticFixtureSuras(),
+          (
+            name: 'Synthetic separators',
+            bismillah: null,
+            ayat: ['Synthetic one', 'Synthetic${separator}two'],
+          ),
+        ]);
+        final read = readTanzilXml(spaced);
+        await expectRefused(
+          name,
+          spikeSurahsOf(read),
+          'ayah 4:2 holds $name, a separator other than U+0020',
+          source: _sourceOf(spaced, read),
+        );
+      }
+    });
+
+    test('a source URL that repeats or leaves out a parameter name', () async {
+      for (final (name, url, reason) in [
+        (
+          'repeated',
+          'https://example.invalid/x?marks=true&marks=false',
+          'the source URL repeats the query parameter marks',
+        ),
+        (
+          'unnamed',
+          'https://example.invalid/x?marks=true&=false',
+          'the source URL has a query parameter with no name',
+        ),
+      ]) {
+        await expectRefused(
+          name,
+          surahs,
+          reason,
+          source: (
+            bytes: bytes,
+            url: url,
+            version: tanzilUthmaniVersion,
+            fetchedOn: '2026-01-01',
+            notice: xml.notice,
+          ),
+        );
+      }
+    });
+
     test(
       'on a SQLite failure after creating the directory, naming no value',
       () async {
@@ -273,7 +439,7 @@ void main() {
         expect(message, endsWith('/text.sqlite: SQLite error 14'));
         expect(Directory('$deep/$spikePackId').existsSync(), isFalse);
         expect(target.existsSync(), isTrue);
-        for (final sura in syntheticFixtureSuras()) {
+        for (final sura in _longerSuras()) {
           for (final value in [sura.name, ?sura.bismillah, ...sura.ayat]) {
             expect(message, isNot(contains(value)));
           }
@@ -312,7 +478,7 @@ void main() {
         fontSha256: _fontSha256,
         source: (
           bytes: bytes,
-          url: 'https://example.invalid/synthetic.xml',
+          url: _url,
           version: tanzilUthmaniVersion,
           fetchedOn: '2027-12-31',
           notice: xml.notice,
