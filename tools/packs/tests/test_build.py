@@ -195,6 +195,21 @@ class RefusalTest(BuildCase):
         )
         self.assert_refused(r"U\+06DE", config)
 
+    def test_a_sign_the_profile_excludes_whatever_the_url_says(self):
+        config = self.write_source(
+            text_xml=synthetic.synthetic_text_xml(surahs=surahs_with_basmala(3, "Synthetic \u06de line")),
+            mark_table=b'{"code_points": ["U+06D6", "U+06D7", "U+06DA", "U+06DE", "U+06E9"]}\n',
+        )
+        self.edit_config(config, lambda c: c["sources"]["text"].update(url="https://example.invalid/synthetic/text"))
+        self.assert_refused(r"surah 3 basmala holds U\+06DE, which the profile excludes", config)
+
+    def test_a_sign_the_profile_requires(self):
+        surahs = surahs_with_ayah(1, 2, "Synthetic \u06d6 two")
+        surahs = [list(s) for s in surahs]
+        surahs[1][2] = surahs[1][2][:2] + ("Synthetic-pair joined",)
+        config = self.text(surahs=[tuple(s) for s in surahs])
+        self.assert_refused(r"the text holds none of U\+06E9, which the profile requires", config)
+
     def test_a_separator_other_than_space(self):
         self.assert_refused(r"ayah 3:1 .*U\+00A0", self.text(surahs=surahs_with_ayah(3, 1, "Synthetic\u00a0last ayah")))
 

@@ -78,12 +78,14 @@ def build_pack(config_path, font_path, out_root):
         for sura in text.suras
         for aya in sura.ayat
     ]
+    drawn = list(_drawn_texts(text))
+    source_checks.check_profile_signs(profile, drawn)
     text_options = options_from_url(config.text.url)
-    problems = option_problems(text_options, [("ayah %d:%d" % a, t) for a, t in ayat])
+    problems = option_problems(text_options, drawn)
     if problems:
         raise PackError("the text does not match its options: " + "; ".join(problems))
     source_checks.check_sajda_signs(text_options, sajda_rows, ayat)
-    source_checks.check_font_coverage(font, _drawn_texts(text))
+    source_checks.check_font_coverage(font, drawn)
     surah_rows = _surah_rows(text, metadata, places, marks)
 
     out_root.mkdir(parents=True, exist_ok=True)

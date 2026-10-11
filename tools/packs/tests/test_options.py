@@ -8,7 +8,7 @@ TANZIL_STYLE = (
     "&outType=xml&agree=true"
 )
 NOON = "\u0646"
-PAUSES = [chr(cp) for cp in range(0x06D6, 0x06DD)]
+PAUSES = [chr(cp) for cp in range(0x06D6, 0x06DC)]
 SAJDA = "\u06e9"
 RUB = "\u06de"
 
@@ -111,9 +111,14 @@ class OptionProblemsTest(unittest.TestCase):
             problems,
             [
                 "option marks=true, but no text holds any of U+06D6, U+06D7, U+06D8, "
-                "U+06D9, U+06DA, U+06DB, U+06DC"
+                "U+06D9, U+06DA, U+06DB"
             ],
         )
+
+    def test_small_high_seen_is_not_taken_for_a_pause_mark(self):
+        # U+06DC is also written inside words, so it proves nothing about marks.
+        self.assertEqual(len(option_problems({"marks": "true"}, [("ayah 1:1", "\u06dc")])), 1)
+        self.assertEqual(option_problems({"marks": "false"}, [("ayah 1:1", "\u06dc")]), [])
 
     def test_every_pause_mark_satisfies_marks_true(self):
         for pause in PAUSES:
@@ -140,7 +145,7 @@ class OptionProblemsTest(unittest.TestCase):
             [
                 "option rub=false, but ayah 1:1 holds U+06DE (1 in all)",
                 "option marks=true, but no text holds any of U+06D6, U+06D7, U+06D8, "
-                "U+06D9, U+06DA, U+06DB, U+06DC",
+                "U+06D9, U+06DA, U+06DB",
             ],
         )
 

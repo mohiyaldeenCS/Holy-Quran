@@ -68,7 +68,7 @@ done, `64` usage, `65` a source or a pack breaks a rule, `70` anything else
 ```
 python3 tools/packs/pack.py build --config <build.json> --font assets/fonts/AmiriQuran-Regular.ttf --out data/build
 python3 tools/packs/pack.py verify <out>/<id>/<version> [--font <ttf>] [--mark-table <marks.json>]
-python3 tools/packs/pack.py sign <out>/<id>/<version> --key <ed25519 private key> [--font <ttf>] [--mark-table <marks.json>] [--openssl openssl]
+python3 tools/packs/pack.py sign <out>/<id>/<version> --key <ed25519 private key> --font <ttf> --mark-table <marks.json> [--openssl openssl]
 python3 tools/packs/pack.py verify-signature <out>/<id>/<version> --public-key <ed25519 public key> [--openssl openssl]
 ```
 
@@ -76,7 +76,7 @@ python3 tools/packs/pack.py verify-signature <out>/<id>/<version> --public-key <
 | --- | --- |
 | `build` | Reads the build description, runs every build check below, and writes `<out>/<id>/<version>/` with `manifest.json` and `text.sqlite`, unsigned. An existing version directory is refused: a released pack is never rebuilt in place |
 | `verify` | Runs the independent verifier on a pack directory; with `--font` and `--mark-table` it also checks the font pair and every mark |
-| `sign` | Verifies the pack, then writes `manifest.json.sig` with OpenSSL (D-080). Refuses a pack that already has one |
+| `sign` | Verifies the pack, with its font and mark table (both required), then writes `manifest.json.sig` with OpenSSL (D-080). Refuses a pack that already has one |
 | `verify-signature` | Checks `manifest.json.sig` against a public key |
 
 To try it on the synthetic source:
@@ -127,17 +127,22 @@ it into place, so every verifier check is also a build check.
 | Values stored byte for byte; no value begins with U+FEFF | `strict_xml.py` keeps each value's offset and length and refuses a leading U+FEFF; `build._read_back` compares the stored bytes with the source bytes; the database and manifest writers refuse a leading U+FEFF again |
 | SQLite 3.37 or later; its version printed | `database.require_sqlite`; `build` prints it |
 | `encoding`, `application_id`, `user_version`, `STRICT`, no WAL, `VACUUM` | `database.py`; verifier: header bytes 18, 19, 36, 56, 60, 68 and the schema through `pragma_table_list` and `pragma_table_xinfo` |
-| Words and marks (D-078, D-083): only U+0020 separates; a token with a letter (category L) is a word, any other a mark; UTF-16 offsets; `after_word` | `tokens.py`; the verifier recomputes every span and compares row by row |
+| Words and marks (D-078, D-083): only U+0020 separates (categories Z and Cc, and the zero-width U+200B and U+2060, are refused); a token with a letter (category L) is a word, any other a mark; UTF-16 offsets; `after_word` | `tokens.py`; the verifier recomputes every span and compares row by row |
 | P3: a letterless token outside the mark table stops the build | `tokens.spans` with `mark_table.py` |
 | P2: juz, quarters and pages from the metadata; a hizb is every fourth quarter by position | `source_checks.divisions`; refuses a quarter count that is not a multiple of 4. Comparing the pages with the KFGQPC file is the step not built yet (see above) |
 | P4: basmala from the separate field; none for surahs 1 and 9, present elsewhere | `tanzil_text.py` (only on ayah 1); `source_checks.check_structure` with the profile's `without_basmala` |
 | P6: revelation place through a fixed table, others refused; order from the metadata | `source_checks.revelation`: `Meccan` to `makki`, `Medinan` to `madani`; the orders must be 1 to n, each once |
 | D-077: `options` from the source | `options.options_from_url` |
-| D-079: no U+06DE; pause marks and sajda signs present when the options say so | `options.option_problems` (`rub`, `sajdah`, `marks`); `source_checks.check_sajda_signs`: with sajda signs, the ayat holding U+06E9 are exactly the metadata's sajdas |
+| D-079: no U+06DE; pause marks and sajda signs present | Whatever the URL says: `source_checks.check_profile_signs` with the profile's `forbidden_code_points` (U+06DE) and `required_code_points` (a pause mark U+06D6 to U+06DB, and U+06E9), over every ayah and basmala. In addition `options.option_problems` checks what the URL's `rub`, `sajdah` and `marks` say, and `source_checks.check_sajda_signs`, with sajda signs, that the ayat holding U+06E9 are exactly the metadata's sajdas |
 | Notice kept verbatim | The single comment of each file goes into `licence.notice`; the text's notice must name `Version <version>` of the description |
 | A code point the font lacks stops the build | `source_checks.check_font_coverage` over every ayah and basmala; the font must be Amiri Quran (PRD §9.1, text and font are one pair) |
 | `id` and `version` equal the directory names; strict manifest | Verifier, mirroring `lib/data/models/pack_manifest_json.dart` |
-| A failed build leaves nothing | Built in `<out>/.build-*`, moved into place only after the verifier passes; removed on any failure |
+| A failed build leaves no pack and no partial file | Built in `<out>/.build-*`, moved into place only after the verifier passes; removed on any failure (the output directories it created may stay, empty) |
+
+The font is read once, by `font.py`; the verifier and the build's coverage check
+both use what it read, so font coverage has one implementation. The font's hash,
+family and version are checked independently by the app's integrity suite against
+the pinned font file; the app has no coverage check.
 
 What the verifier adds to the app's checks: it refuses any file in the pack
 directory besides `manifest.json`, `text.sqlite` and `manifest.json.sig`; a
@@ -156,7 +161,8 @@ The seam is `signing.Signer`, with one method `sign(data) -> 64 bytes`.
 `OpenSslEd25519Signer(key_path)` runs `openssl pkeyutl -sign -rawin` (OpenSSL 3), so
 whoever holds the key needs nothing but OpenSSL; a test double stands in for it
 in the tests. `sign_pack` signs the exact bytes of `manifest.json` and refuses a
-pack already signed; `pack.py sign` verifies the pack first.
+pack already signed; `pack.py sign` verifies the pack first, with its font and
+mark table.
 
 O-03 still decides: who holds the private key and on which machine signing runs
 (the owner's computer, a CI secret, or a hardware token); how the key is backed

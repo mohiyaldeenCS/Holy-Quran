@@ -69,8 +69,8 @@ def _parser():
     _pack_inputs(verify)
     verify.set_defaults(run=_verify)
 
-    sign = commands.add_parser("sign", help="verify a pack, then write manifest.json.sig")
-    _pack_inputs(sign)
+    sign = commands.add_parser("sign", help="verify a pack with its font and mark table, then write manifest.json.sig")
+    _pack_inputs(sign, required=True)
     sign.add_argument("--key", required=True, type=Path, help="Ed25519 private key (PEM) of the key holder")
     sign.add_argument("--openssl", default="openssl", help="the OpenSSL 3 executable")
     sign.set_defaults(run=_sign)
@@ -83,10 +83,10 @@ def _parser():
     return parser
 
 
-def _pack_inputs(parser):
+def _pack_inputs(parser, required=False):
     parser.add_argument("pack", type=Path, help="the pack directory <id>/<version>")
-    parser.add_argument("--font", type=Path, help="also check the font's hash, name, version and coverage")
-    parser.add_argument("--mark-table", type=Path, help="also check every mark against the mark table")
+    parser.add_argument("--font", type=Path, required=required, help="check the font's hash, name, version and coverage")
+    parser.add_argument("--mark-table", type=Path, required=required, help="check every mark against the mark table")
 
 
 def _build(args, out):

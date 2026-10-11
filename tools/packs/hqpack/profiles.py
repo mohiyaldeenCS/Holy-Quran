@@ -11,8 +11,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .errors import PackError
+from .options import PAUSE_MARKS
 
 DIVISION_KINDS = ("juz", "hizb", "rub", "page")
+
+RUB_EL_HIZB = 0x06DE
+SAJDA_SIGN = 0x06E9
 
 
 @dataclass(frozen=True)
@@ -21,6 +25,10 @@ class Profile:
     ayat: int
     divisions: dict
     without_basmala: frozenset
+    # D-079, whatever the download URL says: code points the text must not
+    # hold, and groups of which it must hold at least one code point each.
+    forbidden_code_points: frozenset
+    required_code_points: tuple
     # PRD 9.4 compares a Hafs text with the KFGQPC text character by character,
     # and P2 compares the page list with the KFGQPC file; until B0.2 adds that
     # step, a profile that needs it cannot be built.
@@ -33,6 +41,8 @@ PROFILES = {
         ayat=6236,
         divisions={"juz": 30, "hizb": 60, "rub": 240, "page": 604},
         without_basmala=frozenset({1, 9}),
+        forbidden_code_points=frozenset({RUB_EL_HIZB}),
+        required_code_points=(frozenset(PAUSE_MARKS), frozenset({SAJDA_SIGN})),
         needs_kfgqpc_comparison=True,
     ),
     # The shape of synthetic_source.py, so that every build check runs in CI
@@ -42,6 +52,8 @@ PROFILES = {
         ayat=8,
         divisions={"juz": 2, "hizb": 2, "rub": 8, "page": 4},
         without_basmala=frozenset({2}),
+        forbidden_code_points=frozenset({RUB_EL_HIZB}),
+        required_code_points=(frozenset(PAUSE_MARKS), frozenset({SAJDA_SIGN})),
         needs_kfgqpc_comparison=False,
     ),
 }

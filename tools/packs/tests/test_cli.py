@@ -111,7 +111,9 @@ class SignTest(CliCase):
     def test_sign_then_verify_signature(self):
         pack, _ = self.build()
         private, public = self.keys("throwaway")
-        code, out, _ = self.run_cli("sign", pack, "--key", private, "--font", FONT)
+        code, out, _ = self.run_cli(
+            "sign", pack, "--key", private, "--font", FONT, "--mark-table", self.source / "marks.json"
+        )
         self.assertEqual(code, 0, out)
         self.assertEqual(len((pack / "manifest.json.sig").read_bytes()), 64)
         self.assertEqual(self.run_cli("verify-signature", pack, "--public-key", public)[0], 0)
@@ -123,11 +125,19 @@ class SignTest(CliCase):
         self.assertEqual(code, cli.EX_DATAERR)
         self.assertIn("INVALID", out)
 
+    def test_sign_needs_the_font_and_the_mark_table(self):
+        pack, _ = self.build()
+        private, _ = self.keys("throwaway")
+        self.assertEqual(self.run_cli("sign", pack, "--key", private, "--font", FONT)[0], cli.EX_USAGE)
+        self.assertFalse((pack / "manifest.json.sig").exists())
+
     def test_a_pack_that_does_not_verify_is_not_signed(self):
         pack, _ = self.build()
         (pack / "stray.txt").write_bytes(b"x")
         private, _ = self.keys("throwaway")
-        code, _, err = self.run_cli("sign", pack, "--key", private)
+        code, _, err = self.run_cli(
+            "sign", pack, "--key", private, "--font", FONT, "--mark-table", self.source / "marks.json"
+        )
         self.assertEqual(code, cli.EX_DATAERR)
         self.assertIn("not signed", err)
         self.assertFalse((pack / "manifest.json.sig").exists())

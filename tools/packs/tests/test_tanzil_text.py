@@ -9,7 +9,7 @@ DECLARATION = '<?xml version="1.0" encoding="utf-8" ?>\n'
 NOTICE = "<!-- synthetic notice\n  line two -->\n"
 SECRET = "Zqxjv"
 PHRASE = "\u0646\u0635 \u062a\u062c\u0631\u064a\u0628\u064a"
-OPENER = "\u0628\u0633\u0645 \u062a\u062c\u0631\u064a\u0628\u064a"
+OPENER = "\u0633\u0637\u0631 \u062a\u062c\u0631\u064a\u0628\u064a"
 
 
 def aya(index, text="lorem ipsum", extra=""):

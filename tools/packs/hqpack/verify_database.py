@@ -183,7 +183,8 @@ def numbering_problems(pack, manifest, problems):
     for index, (number, ayah_count, place, _, _) in enumerate(pack.surahs):
         if number != index + 1:
             problems.append("surah %d is numbered %d" % (index + 1, number))
-        if ayat_of.get(number, []) != list(range(1, ayah_count + 1)):
+        numbers = ayat_of.get(number, [])
+        if len(numbers) != ayah_count or numbers != list(range(1, len(numbers) + 1)):
             problems.append(
                 "surah %d: its ayat are not numbered 1 to %d"
                 % (number, ayah_count))

@@ -12,11 +12,14 @@ from .errors import PackError, code_point
 
 _TERMS = "agree"
 
-# The code points each Tanzil option adds to the text when "true".
+PAUSE_MARKS = (0x06D6, 0x06D7, 0x06D8, 0x06D9, 0x06DA, 0x06DB)
+
+# The code points each Tanzil option adds to the text when "true". U+06DC is
+# left out of the pause marks because it is also written inside words.
 _OPTION_CODE_POINTS = {
     "rub": (0x06DE,),
     "sajdah": (0x06E9,),
-    "marks": (0x06D6, 0x06D7, 0x06D8, 0x06D9, 0x06DA, 0x06DB, 0x06DC),
+    "marks": PAUSE_MARKS,
 }
 
 

@@ -10,12 +10,10 @@ from __future__ import annotations
 import re
 
 from .errors import PackError, code_point
-from .profiles import DIVISION_KINDS
+from .profiles import DIVISION_KINDS, SAJDA_SIGN
 
 # P6: the source's two place values, by a fixed table.
 REVELATION_PLACES = {"Meccan": "makki", "Medinan": "madani"}
-
-SAJDA_SIGN = 0x06E9
 
 
 def check_notice(notice, version, role):
@@ -156,6 +154,22 @@ def check_sajda_signs(options, sajda_rows, ayat):
                     ", ".join("%d:%d" % a for a in sorted(addresses)),
                     label % code_point(SAJDA_SIGN),
                 )
+            )
+
+
+def check_profile_signs(profile, texts):
+    """The signs D-079 excludes are absent and the ones it includes present, in every ayah and basmala."""
+    found = set()
+    for where, text in texts:
+        for c in text:
+            if ord(c) in profile.forbidden_code_points:
+                raise PackError("%s holds %s, which the profile excludes" % (where, code_point(c)))
+            found.add(ord(c))
+    for group in profile.required_code_points:
+        if not found & group:
+            raise PackError(
+                "the text holds none of %s, which the profile requires"
+                % ", ".join(code_point(c) for c in sorted(group))
             )
 
 

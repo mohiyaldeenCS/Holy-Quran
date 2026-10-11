@@ -11,6 +11,11 @@ class ProfileTest(unittest.TestCase):
         self.assertEqual(hafs.divisions, {"juz": 30, "hizb": 60, "rub": 240, "page": 604})
         self.assertEqual(hafs.without_basmala, frozenset({1, 9}))
         self.assertTrue(hafs.needs_kfgqpc_comparison)
+        self.assertEqual(hafs.forbidden_code_points, frozenset({0x06DE}))
+        self.assertEqual(
+            hafs.required_code_points,
+            (frozenset(range(0x06D6, 0x06DC)), frozenset({0x06E9})),
+        )
 
     def test_every_profile_names_every_division_kind(self):
         for profile in PROFILES.values():

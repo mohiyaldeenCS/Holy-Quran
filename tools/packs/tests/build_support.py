@@ -62,6 +62,7 @@ class BuildCase(unittest.TestCase):
 
     def assert_safe_message(self, message):
         self.assertTrue(message.isascii(), message)
+        self.assertNotIn("Synthetic", message)
         for _, _, ayat in synthetic.SYNTHETIC_SURAHS:
             for ayah in ayat:
                 for token in ayah.split(" "):

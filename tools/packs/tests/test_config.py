@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import os
 import json
 import tempfile
 import unittest
@@ -77,7 +78,7 @@ class ConfigTestCase(unittest.TestCase):
 class AcceptsTest(ConfigTestCase):
     def test_reads_the_synthetic_description(self):
         config = read_build_config(self.write(_default()))
-        self.assertEqual(config.path, self.path.resolve())
+        self.assertEqual(config.path, Path(os.path.abspath(self.path)))
         self.assertEqual(config.pack_id, "synthetic-text")
         self.assertEqual(config.version, 1)
         self.assertEqual(config.riwaya, "synthetic")

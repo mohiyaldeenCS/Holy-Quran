@@ -13,10 +13,9 @@ from .errors import PackError, code_point
 
 _SEPARATOR = 0x20
 _REFUSED_CATEGORIES = ("Zs", "Zl", "Zp", "Cc", "Cs")
-
-
-def utf16_length(s: str) -> int:
-    return len(s.encode("utf-16-le")) // 2
+# Format characters that act as invisible separators; other format characters
+# (such as the joiners) may belong to a word and are kept.
+_INVISIBLE_SEPARATORS = (0x200B, 0x2060)
 
 
 def is_letter(cp: int) -> bool:
@@ -64,7 +63,9 @@ def _check_characters(text: str, where: str) -> None:
     for c in text:
         cp = ord(c)
         category = unicodedata.category(c)
-        if cp != _SEPARATOR and category in _REFUSED_CATEGORIES:
+        if cp != _SEPARATOR and (
+            category in _REFUSED_CATEGORIES or cp in _INVISIBLE_SEPARATORS
+        ):
             raise PackError(
                 "%s holds %s (category %s) at offset %d; only U+0020 may "
                 "separate tokens" % (where, code_point(cp), category, offset)

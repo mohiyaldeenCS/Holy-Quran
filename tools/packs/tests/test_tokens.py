@@ -25,12 +25,16 @@ def slice16(text, start, end):
     return text.encode("utf-16-le")[2 * start : 2 * end].decode("utf-16-le")
 
 
-class Utf16LengthTest(unittest.TestCase):
-    def test_counts_code_units(self):
-        self.assertEqual(tokens.utf16_length(""), 0)
-        self.assertEqual(tokens.utf16_length("ab"), 2)
-        self.assertEqual(tokens.utf16_length(NOON + SAD), 2)
-        self.assertEqual(tokens.utf16_length("a" + EMOJI), 3)
+class InvisibleSeparatorTest(unittest.TestCase):
+    def test_zero_width_separators_are_refused(self):
+        for cp in (0x200B, 0x2060):
+            with self.assertRaises(PackError) as caught:
+                tokens.spans(NOON + chr(cp) + SAD, frozenset(), "ayah 1:1")
+            self.assertIn("U+%04X" % cp, str(caught.exception))
+
+    def test_a_joiner_stays_inside_its_word(self):
+        result = tokens.spans(NOON + "\u200d" + SAD, frozenset(), "ayah 1:1")
+        self.assertEqual(result.words, [(0, 3)])
 
 
 class IsLetterTest(unittest.TestCase):
