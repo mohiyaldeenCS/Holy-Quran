@@ -9,12 +9,12 @@ import 'package:holyquran/ui/core/widgets/surah_name.dart';
 const double _paddingY = 22;
 
 /// A stand-in for the waqf card a mark tap opens (PRD §7.4), as the Mushaf
-/// board draws it: a bottom sheet (`radius-sheet` at the top, `shadow-sheet`,
-/// no border) holding the ayah's reference through [SurahName] and the
-/// mark's number as a debug line. The rest of the board's card is hidden:
-/// the glyph would need a slice of the stored text (D-062), the title,
-/// meaning and link have no `Ready` source (registry row 19, B0.8), and the
-/// handle drags nothing here.
+/// board draws it, on a bottom sheet as `.qk-sheet` is (`radius-sheet` at
+/// the top, a `line` top border, `shadow-sheet`): the ayah's reference
+/// through [SurahName] and the mark's number as a debug line. The rest of
+/// the board's card is hidden: the glyph would need a slice of the stored
+/// text (D-062), the title, meaning and link have no `Ready` source
+/// (registry row 19, B0.8), and the handle drags nothing here.
 final class WaqfCardStandIn extends StatelessWidget {
   const WaqfCardStandIn({
     required this.surahName,
@@ -33,6 +33,7 @@ final class WaqfCardStandIn extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.surface,
+        border: Border(top: BorderSide(color: colors.line)),
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(AppRadius.radiusSheet),
         ),

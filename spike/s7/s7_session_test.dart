@@ -701,6 +701,17 @@ void main() {
       await second.up();
       await tester.pumpAndSettle();
       final after = tester.widget<PracticeRing>(find.byType(PracticeRing));
+      final resized = TargetGeometry.of(block(tester).paragraph);
+      expect(
+        [
+          for (final rects in resized.words.values) ...rects,
+          ...resized.marks.values,
+          ...resized.markers.values,
+        ],
+        contains(after.box),
+        reason: 'a target of the new size',
+      );
+      expect(after.box, isNot(ring.box));
       final shown = after.box.shift(origin(tester));
       final reader = tester.getRect(find.byType(SurahListV1));
       expect(reader.contains(shown.topLeft), isTrue, reason: 'picked again');

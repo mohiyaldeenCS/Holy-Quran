@@ -525,6 +525,7 @@ final class _S7SessionState extends State<S7Session> {
             onPinchEnd: _pinchEnd,
             child: LayoutBuilder(
               builder: (context, constraints) {
+                // Read by _wrap, which the list calls within this builder.
                 _viewportHeight = constraints.maxHeight;
                 return KeyedSubtree(
                   key: _viewportKey,
