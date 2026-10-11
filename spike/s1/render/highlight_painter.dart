@@ -80,10 +80,30 @@ void paintHighlights(
 }
 
 /// A selected ayah's shown rects, in reading order, and whether its first
-/// character and its marker are among them.
-typedef SelectedAyah = ({List<Rect> boxes, bool starts, bool ends});
+/// character and its marker are among them. [next] is the ayah's rect on
+/// the line after the shown ones, which another block draws, and whether
+/// its marker is there: it is not painted, but the last slice's bottom
+/// line opens over it as over a slice on the line below.
+typedef SelectedAyah = ({
+  List<Rect> boxes,
+  bool starts,
+  bool ends,
+  ({Rect box, bool ends})? next,
+});
 
 typedef _Slice = ({Rect rect, bool starts, bool ends});
+
+/// [slice]'s outline: `radius-sm` corners at the ayah's ends only.
+RRect _shapeOf(_Slice slice) {
+  const radius = Radius.circular(AppRadius.radiusSm);
+  return RRect.fromRectAndCorners(
+    slice.rect,
+    topRight: slice.starts ? radius : Radius.zero,
+    bottomRight: slice.starts ? radius : Radius.zero,
+    topLeft: slice.ends ? radius : Radius.zero,
+    bottomLeft: slice.ends ? radius : Radius.zero,
+  );
+}
 
 /// [box] with the padding at the ayah's ends, held inside [left] to
 /// [right].
@@ -111,7 +131,6 @@ void _paintSelection(
   Iterable<SelectedAyah> selected,
   double width,
 ) {
-  const radius = Radius.circular(AppRadius.radiusSm);
   const inner = Radius.circular(AppRadius.radiusSm - _selectLine);
   final fill = Paint()..color = colors.selection;
   final line = Paint()..color = colors.selectionLine;
@@ -126,14 +145,23 @@ void _paintSelection(
           right: offset.dx + width,
         ),
   ];
-  for (final (:rect, :starts, :ends) in slices) {
-    final shape = RRect.fromRectAndCorners(
-      rect,
-      topRight: starts ? radius : Radius.zero,
-      bottomRight: starts ? radius : Radius.zero,
-      topLeft: ends ? radius : Radius.zero,
-      bottomLeft: ends ? radius : Radius.zero,
-    );
+  final below = [
+    for (final slice in slices) _shapeOf(slice),
+    for (final ayah in selected)
+      if (ayah.next case (:final box, :final ends))
+        _shapeOf(
+          _sliceOf(
+            box.shift(offset),
+            starts: false,
+            ends: ends,
+            left: offset.dx,
+            right: offset.dx + width,
+          ),
+        ),
+  ];
+  for (final slice in slices) {
+    final (:rect, :starts, :ends) = slice;
+    final shape = _shapeOf(slice);
     // An open side's frame runs past the slice and is clipped away.
     final hole = RRect.fromRectAndCorners(
       Rect.fromLTRB(
@@ -151,21 +179,32 @@ void _paintSelection(
       ..fillType = PathFillType.evenOdd
       ..addRRect(shape)
       ..addRRect(hole);
-    for (final below in slices) {
-      final covered = Rect.fromLTRB(
-        math.max(rect.left, below.rect.left),
-        rect.bottom - _selectLine,
-        math.min(rect.right, below.rect.right),
-        rect.bottom,
+    // The line below's outline, raised by the line's width, takes the
+    // bottom line it covers, rounded corners included.
+    final strip = Path()
+      ..addRect(
+        Rect.fromLTRB(
+          rect.left,
+          rect.bottom - _selectLine,
+          rect.right,
+          rect.bottom,
+        ),
       );
-      if ((below.rect.top - rect.bottom).abs() < _touching &&
-          covered.width > 0) {
-        frame = Path.combine(
-          PathOperation.difference,
-          frame,
-          Path()..addRect(covered),
-        );
+    for (final other in below) {
+      if ((other.top - rect.bottom).abs() >= _touching ||
+          other.right <= rect.left ||
+          other.left >= rect.right) {
+        continue;
       }
+      frame = Path.combine(
+        PathOperation.difference,
+        frame,
+        Path.combine(
+          PathOperation.intersect,
+          strip,
+          Path()..addRRect(other.shift(const Offset(0, -_selectLine))),
+        ),
+      );
     }
     canvas
       ..drawRRect(shape, fill)

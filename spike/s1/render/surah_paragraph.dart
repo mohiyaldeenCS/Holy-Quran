@@ -748,6 +748,27 @@ final class SurahParagraph {
     ]);
   }
 
+  /// The extent of the ayah [ayah]'s text and marker on the line after the
+  /// shown ones, as tall as that line's band, in block coordinates: where
+  /// the next block draws it. Null when no line follows or the ayah is not
+  /// on it.
+  Rect? nextLineBoxOf(QuranAddress ayah) {
+    final index = content.indexOf(ayah);
+    if (index == null || ayah.isWord || _end >= _metrics.length) return null;
+    final text = _textOf[index];
+    final boxes = [
+      if (text != null) ..._rawBoxes(text.start, text.end),
+      _asTextBox(_markerRaw(index)),
+    ].where((box) => _lineOfBox(box) == _end);
+    if (boxes.isEmpty) return null;
+    return Rect.fromLTRB(
+      math.max(boxes.map((box) => box.left).reduce(math.min), 0),
+      _tops[_end],
+      math.min(boxes.map((box) => box.right).reduce(math.max), _width),
+      _bottoms[_end],
+    ).shift(Offset(_shiftOf(_end), _dy));
+  }
+
   /// Where mark [mark] (its stored number) of [ayah] is drawn: the U+0020
   /// before it and the mark, on the shown line holding the mark's first
   /// code unit; [line] indexes [lineBands]. Null when the mark is on no

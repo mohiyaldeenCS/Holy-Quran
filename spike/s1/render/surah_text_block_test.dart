@@ -428,8 +428,8 @@ void main() {
   });
 
   test('between two selected lines one 1.5 px line is drawn, the lower '
-      'slice\'s top, and the upper slice keeps its bottom line where '
-      'nothing lies below it', () async {
+      'slice\'s top; the upper slice keeps its bottom line where nothing '
+      'lies below it, up to the lower slice\'s rounded corner', () async {
     const scale = 2.0;
     const width = 360.0;
     const band = 58.0;
@@ -448,6 +448,7 @@ void main() {
           ],
           starts: true,
           ends: true,
+          next: null,
         ),
       ],
       width: width,
@@ -481,7 +482,29 @@ void main() {
     expect(lineRows(175), top, reason: 'under both slices');
     expect(lineRows(300), top, reason: 'only the lower slice');
     expect(lineRows(75), bottom, reason: 'only the upper slice');
-    expect(pixel(175 * 2, (edge - 1).toInt()), colors.selection);
+    expect(pixel((175 * scale).toInt(), (edge - 1).toInt()), colors.selection);
+
+    double distance(Color a, Color b) =>
+        (a.r - b.r).abs() + (a.g - b.g).abs() + (a.b - b.b).abs();
+    bool framed(int x, int y) {
+      final p = pixel(x, y);
+      return p.a > 0.5 &&
+          distance(p, colors.selectionLine) < distance(p, colors.selection);
+    }
+
+    // Across the lower slice's rounded top-left corner the outline runs on:
+    // the upper bottom line meets the corner's curve.
+    const corner = (150 - AppSpacing.space1) * scale;
+    for (var x = corner; x < corner + AppRadius.radiusSm * scale; x++) {
+      expect(
+        [
+          for (var y = edge - line; y < edge + 3 * line; y++)
+            if (framed(x.toInt(), y.toInt())) y,
+        ],
+        isNotEmpty,
+        reason: 'device column $x',
+      );
+    }
   });
 
   testWidgets('a selected ayah that runs on from the block before is open '
@@ -535,7 +558,8 @@ void main() {
   });
 
   testWidgets('a selected ayah that runs past the block\'s last shown line '
-      'is open there: no padding, frame side or corners', (tester) async {
+      'is open there: no padding, frame side or corners, and no bottom line '
+      'over the next block\'s first slice', (tester) async {
     final surah = _first(long, 60);
     final (k, ayah) = _blockCutInsideAyah(surah, cutAtEnd: true);
     final controller = ScrollController();
@@ -556,7 +580,13 @@ void main() {
       controller.jumpTo(controller.offset + _height / 2);
       await tester.pump();
     }
+    controller.jumpTo(
+      controller.offset + tester.getBottomLeft(finder).dy - _height / 2,
+    );
+    await tester.pump();
+    final nextFinder = find.byKey(ValueKey('block ${k + 1}'));
     final paragraph = _block(tester, finder).paragraph;
+    final next = _block(tester, nextFinder).paragraph;
     final index = paragraph.content.indexOf(ayah)!;
     expect(
       paragraph.isVisible(paragraph.markerRect(index)),
@@ -571,6 +601,14 @@ void main() {
       isTrue,
       reason: 'the last slice is on the last shown line',
     );
+    final nextFirst = _slice(next, next.boxesOf(ayah).first);
+    final predicted = paragraph.nextLineBoxOf(ayah)!;
+    expect(predicted.left, closeTo(nextFirst.left, 1));
+    expect(predicted.right, closeTo(nextFirst.right, 1));
+    expect(predicted.top, closeTo(last.bottom, 0.01));
+    final shared = (math.max(last.left, nextFirst.left), last.right);
+    expect(shared.$2 - shared.$1, greaterThan(4));
+    final x = (shared.$1 + shared.$2) / 2;
     const r = Radius.circular(AppRadius.radiusSm);
     final pattern = paints;
     for (final _ in boxes.skip(1)) {
@@ -594,9 +632,23 @@ void main() {
       )
       ..path(
         color: AppColors.paper.selectionLine,
-        excludes: [Offset(last.left + 0.75, last.center.dy)],
+        includes: [Offset(x, last.top + 0.75)],
+        excludes: [
+          Offset(last.left + 0.75, last.center.dy),
+          Offset(x, last.bottom - 0.75),
+        ],
       );
     expect(finder, pattern);
+    expect(
+      nextFinder,
+      paints
+        ..rrect(color: AppColors.paper.selection)
+        ..path(
+          color: AppColors.paper.selectionLine,
+          includes: [Offset(x, nextFirst.top + 0.75)],
+        ),
+      reason: 'the one line between the blocks is the lower slice\'s top',
+    );
   });
 
   for (final scale in [1.0, 2.0]) {

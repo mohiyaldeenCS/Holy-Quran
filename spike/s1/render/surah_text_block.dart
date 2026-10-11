@@ -289,23 +289,32 @@ final class RenderSurahTextBlock extends RenderBox
   /// its line's band over the ayah's text and marker on it, as
   /// `.qk-hl-select` is one inline box over both; and whether its start and
   /// its marker are shown: an ayah that runs on from the block before, or
-  /// past the block's last shown line, is open there.
+  /// past the block's last shown line, is open there. Past it, [next] is
+  /// where the next block draws the ayah's first slice.
   static SelectedAyah _selectionOf(
     SurahParagraph paragraph,
     QuranAddress ayah,
   ) {
-    final index = paragraph.content.indexOf(ayah)!;
+    final marker = paragraph.markerRect(paragraph.content.indexOf(ayah)!);
     final bands = paragraph.lineBands;
     return (
       boxes: [
-        for (final box in paragraph.boxesOf(ayah))
-          if (bands.where((band) => band.contains(box.center)).firstOrNull
-              case final band?)
-            Rect.fromLTRB(box.left, band.top, box.right, band.bottom),
+        for (final box in paragraph.boxesOf(ayah)) _acrossBand(box, bands),
       ],
       starts: paragraph.topOf(ayah) != null,
-      ends: paragraph.isVisible(paragraph.markerRect(index)),
+      ends: paragraph.isVisible(marker),
+      next: switch (paragraph.nextLineBoxOf(ayah)) {
+        final box? => (box: box, ends: box.contains(marker.center)),
+        null => null,
+      },
     );
+  }
+
+  /// [box] made as tall as the band of its line.
+  static Rect _acrossBand(Rect box, List<Rect> bands) {
+    final y = box.center.dy;
+    final band = bands.firstWhere((band) => band.top <= y && y < band.bottom);
+    return Rect.fromLTRB(box.left, band.top, box.right, band.bottom);
   }
 
   bool _shows(RenderBox child) {
