@@ -90,6 +90,31 @@ void main() {
       expect(later.upMs, 700);
       await tester.pump();
     });
+
+    testWidgets('the up is the last lift; the next down clears it', (
+      tester,
+    ) async {
+      final (:log, :at) = _fakeLog();
+      at(10);
+      log.pointerDown();
+      at(12);
+      log.pointerDown();
+      at(20);
+      log.pointerUp();
+      at(21);
+      expect(log.record(gesture: LoggedGesture.textPinch)!.upMs, isNull);
+      at(30);
+      log.pointerUp();
+      at(31);
+      expect(log.record(gesture: LoggedGesture.textPinch)!.upMs, 30);
+      at(40);
+      log.pointerDown();
+      at(41);
+      final next = log.record(gesture: LoggedGesture.longPress)!;
+      expect(next.downMs, 40);
+      expect(next.upMs, isNull);
+      await tester.pump();
+    });
   });
 
   group('JSON', () {
@@ -277,6 +302,13 @@ void main() {
       expect(latencyStats([5]), (n: 1, median: 5, p95: 5, max: 5));
       expect(latencyStats([3, 1, 2]), (n: 3, median: 2, p95: 3, max: 3));
       expect(latencyStats([1, 2, 3, 4]), (n: 4, median: 2, p95: 4, max: 4));
+      // Rank 10.45 is the 11th value; rounding would give the 10th.
+      expect(latencyStats([for (var i = 1; i <= 11; i++) i]), (
+        n: 11,
+        median: 6,
+        p95: 11,
+        max: 11,
+      ));
       expect(latencyStats([for (var i = 1; i <= 20; i++) i]), (
         n: 20,
         median: 10,
