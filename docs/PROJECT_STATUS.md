@@ -228,7 +228,16 @@ Stream A: **M0.4 part 2** on `claude/great-hamilton-9n23mt` (D-093).
   workflow file that differs. The work was lost and D was started again. Rule added to
   `docs/WORKFLOW.md`: no change under `.github/workflows/` on a base while a run from it
   is out.
-- Running: wave 2, task C on key 1 and task D (second run) on key 2.
+- Task D merged (#18, key 2, `data-builder`, $6.49): Flutter renders the S4 face to
+  PNGs per local day for 7 days, in both looks and both sizes; the native widget picks
+  the slot and the look (launcher-side on API 31+, at update time on 26 to 30) and
+  speaks «سورة {name} · الآية {n}»; the shaping probe measures native text against
+  Flutter's on synthetic samples. `code-reviewer`: ready to merge; 2,044 passed; the
+  DST rule checked. Its two should-fix items (a digest per image, Flutter deep linking
+  off) and four smaller ones run now as a follow-up on key 1. The APK build is the
+  agent's claim; the next `spike-apk` run confirms it.
+- Task C (#19, key 1, `ui-builder`, $11.08) is under review (`code-reviewer`,
+  `identity-auditor`). Task E runs on key 2; task F is being drafted.
 
 M0.4 part 1 and M0.5 still wait on the owner's device run and his look at the gallery
 images.
@@ -324,6 +333,7 @@ Open decisions that come later (full list in `docs/DECISIONS.md`):
 | M0.4-13 | «حجم النص في وضع السورة: ثماني درجات (٨٠٪، ٩٠٪، ١٠٠٪، ١١٥٪، ١٣٠٪، ١٥٠٪، ١٧٥٪، ٢٠٠٪) يقفز القرص إلى أقربها (موصى به، وبها تعمل التجربة)، أم درجات متساوية كل ١٠٪ من ٨٠٪ إلى ٢٠٠٪؟» | D-097, after the S7 usability test |
 | M0.4-14 | «مع تفعيل «تقليل الحركة» في النظام: تبقى الصفحة ثابتة أثناء السحب ثم تتلاشى إلى التالية عند رفع الإصبع (موصى به، وبه تعمل التجربة)، أم تتبع الصفحة الإصبع أثناء السحب ويقتصر التلاشي على إكمال القلب؟» | D-097, after the S7 usability test |
 | M0.4-15 | «إذا قُلبت الصفحة وهي مكبّرة: تُفتح الصفحة التالية بحجمها الكامل (موصى به، وبه تعمل التجربة)، أم بالتكبير نفسه؟» | D-097, after the S7 usability test |
+| M0.4-16 | «اسم الودجة «ودجة الآية» ووصفها في قائمة الودجات لا يوجدان في ملف النصوص، ولا طريق الآن لنقل نص عربي منه إلى موارد أندرويد. هل نؤجل الاسم والوصف إلى المرحلة الثانية (WG-01) فنضيفهما إلى ملف النصوص ونولّد منهما موارد أندرويد، وتبقى الودجة في التجربة باسم التطبيق (موصى به)، أم نضيفهما الآن يدويًا للتجربة وحدها؟» | WG-01, Phase 2 (settled for the spike by the recommended option) |
 | O-01 | «معرّف التطبيق في المتجرين (مثل com.اسمك.quran) واسم الناشر الذي سيظهر للمستخدمين. المعرّف لا يمكن تغييره بعد النشر.» | Before the first store upload |
 | O-04 | «ما التلاوات التي تريدها في الإصدار الأول (خمس على الأقل، اثنتان منها بتوقيت كلمات)، ومن أين نأخذ ملفاتها، وهل يجيز إذن كل منها التنزيل دون اتصال والاستضافة على خادمك؟» | Phase 0 (B0.5) |
 | O-06 | «هل تبقى التفاسير السبعة العامة (الميسر، المختصر، السعدي، الجلالين، البغوي، ابن كثير، الطبري) بجانب كتب المكتبة الزيدية؟» | Phase 0 (B0.7) |
