@@ -11,13 +11,16 @@ import 'dart_source.dart';
 const _packText = 'lib/domain/models/pack_text.dart';
 const _database = 'lib/data/services/pack_database.dart';
 
-/// The sinks that may read `PackText.verbatim`. Adding one is a reviewed
-/// change to this list.
-const _sinks = {'lib/ui/core/widgets/quran_text.dart'};
+/// The sinks that may read `PackText.verbatim` (D-062, D-084). Adding one is
+/// a reviewed change to this list.
+const _sinks = {
+  'lib/ui/core/widgets/quran_text.dart',
+  'lib/ui/core/widgets/surah_name.dart',
+};
 
 /// The files that may create a `PackText`: the database, and the debug
-/// gallery's synthetic sample.
-const _producers = {_database, 'lib/ui/core/gallery/gallery_screen.dart'};
+/// gallery's synthetic samples (D-086).
+const _producers = {_database, 'lib/ui/core/gallery/gallery_samples.dart'};
 
 /// The only files that may construct a `VerifiedPack`: the repository that
 /// verifies packs, and the model itself.

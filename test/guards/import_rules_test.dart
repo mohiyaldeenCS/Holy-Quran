@@ -18,11 +18,19 @@ const _nonPlugins = [
 
 /// The only files that may reach a raw colour ramp (docs/DESIGN_SYSTEM.md,
 /// "Colour"): fixed brand surfaces, and the gallery's preview backdrops.
+/// Each one exists and imports the ramps, so no permission outlives its use.
 const _rampImporters = {
   'lib/ui/core/widgets/mark.dart',
   'lib/ui/core/widgets/lockup.dart',
   'lib/ui/core/widgets/button.dart',
   'lib/ui/core/widgets/ayah_marker.dart',
+  'lib/ui/core/widgets/quran_text.dart',
+  'lib/ui/core/widgets/progress_bar.dart',
+  'lib/ui/core/widgets/mini_player.dart',
+  'lib/ui/core/widgets/continue_card.dart',
+  'lib/ui/core/widgets/share_card.dart',
+  'lib/ui/core/widgets/home_header.dart',
+  'lib/ui/core/widgets/splash.dart',
   'lib/ui/core/gallery/gallery_screen.dart',
 };
 
@@ -60,8 +68,23 @@ List<String> _violations(Map<String, String> sources) => [
       for (final rule in _rulesBroken(path, uri)) '$path: $uri ($rule)',
 ];
 
+/// Entries of [_rampImporters] that are not a file of [sources], or whose file
+/// does not import the ramps, as `path (why)`.
+Iterable<String> _staleRampImporters(Map<String, String> sources) sync* {
+  for (final path in _rampImporters) {
+    final source = sources[path];
+    if (source == null) {
+      yield '$path (no such file)';
+    } else if (!_importsOf(path, source).any(_isRamps)) {
+      yield '$path (no ramps import)';
+    }
+  }
+}
+
+bool _isRamps(String uri) => uri.endsWith('/ramps.g.dart');
+
 Iterable<String> _rulesBroken(String path, String uri) sync* {
-  if (uri.endsWith('/ramps.g.dart') && !_rampImporters.contains(path)) {
+  if (_isRamps(uri) && !_rampImporters.contains(path)) {
     yield 'ramps';
   }
   if (uri.startsWith('package:') &&
@@ -100,6 +123,10 @@ void main() {
     expect(_violations(sources), isEmpty);
   });
 
+  test('every file on the ramp allow-list exists and imports the ramps', () {
+    expect(_staleRampImporters(_libSources()), isEmpty);
+  });
+
   group('the checker flags', () {
     test('ramps.g.dart imported by a file not on the allow-list', () {
       const feature = 'lib/ui/features/home/views/home_screen.dart';
@@ -119,6 +146,26 @@ void main() {
           '$coreWidget: $ramps (ramps)',
           '$theme: $ramps (ramps)',
         ],
+      );
+    });
+
+    test('a ramp allow-list entry that is missing or imports no ramps', () {
+      final [missing, unused, ...used] = _rampImporters.toList();
+      expect(
+        _staleRampImporters({
+          unused: '''
+import 'package:holyquran/ui/core/theme/tokens.g.dart';
+// import 'package:holyquran/ui/core/theme/ramps.g.dart';
+final a = 'ramps.g.dart';
+''',
+          for (final (index, path) in used.indexed)
+            path: index.isEven
+                ? "import 'package:holyquran/ui/core/theme/ramps.g.dart';"
+                : "import '../theme/ramps.g.dart';",
+          'lib/ui/core/widgets/other.dart':
+              "import 'package:holyquran/ui/core/theme/ramps.g.dart';",
+        }),
+        ['$missing (no such file)', '$unused (no ramps import)'],
       );
     });
 

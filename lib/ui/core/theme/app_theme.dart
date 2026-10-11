@@ -73,7 +73,9 @@ ThemeData _build(ReadingTheme theme) {
       size: AppSizes.iconSize,
     ),
     textSelectionTheme: TextSelectionThemeData(
-      cursorColor: colors.primary,
+      // No caret-color in the identity, so the caret takes the text's ink, as
+      // in `.qk-search-input`.
+      cursorColor: colors.ink,
       selectionColor: colors.selection,
       selectionHandleColor: colors.primary,
     ),

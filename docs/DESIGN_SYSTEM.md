@@ -29,7 +29,7 @@ are part of the approved identity and are reproduced, not "corrected":
 | In the reference | Stated rule it differs from | What the app does |
 | --- | --- | --- |
 | Action button inside `ResourceRow`: 44 high, 15 px text, radius 14 (`.qk-btn-small`) | Buttons are 52 high with 17 px text | Reproduce it; the hit area is still 48 |
-| Chips and sheet tabs 40 high (`Tag`, `ModeChips`, `WordSheet` tabs, tajweed chip, sort control) | Touch targets are 48 | Reproduce the 40 visual; the hit area is 48 (`AX-02`) |
+| Chips 40 high (`Tag`, `ModeChips`, sort control: buttons, border-box), and 42 for the `WordSheet` tabs and the tajweed chip (40 plus a 1 px border on a content-box span) | Touch targets are 48 | Reproduce the visual; the hit area is 48 (`AX-02`) |
 | `SurahHeader` name 26 px, 30 px in the large size | `surah-header` style is 24 px | Component metric. The 24 px style is used where the README names it: player title, page header |
 | Text at 11, 14, 16, 19, 23, 26 and 30 px inside components, and 12 px outside the tab bar | The named styles; 13 px is the smallest; `tab-label` 12 px is for the tab bar only | Component metrics, declared in the widget |
 | Radii 10, 14, 18, 20 and 26 inside components | Radius scale 8, 12, 16, 24, 28, full | Component metrics |
@@ -103,9 +103,10 @@ uses a short list of fixed brand values, and the matching widgets use the same o
 | `Lockup` on emerald | Name in `paper-100` |
 | `Button`, tonal variant | Background `gold-100`, text `gold-text-strong` |
 | `AyahMarker` while its ayah plays | Number in `emerald-950` on `ornament` |
-| `MiniPlayer` | Main button and repeat count in `emerald-950` on `player-accent`; track and speed chip are `paper-100` at 22% and 14% |
+| `ProgressBar`, player tone | Track `paper-100` at 22% (`.qk-progress-player`); used inside `MiniPlayer` and `ContinueCard` |
+| `MiniPlayer` | Main button and repeat count in `emerald-950` on `player-accent`; speed chip `paper-100` at 14%; its track is the player tone of `ProgressBar` |
 | `SessionBar` | Main button in `emerald-950` on `player-accent`; next button `paper-100` at 14% |
-| `ContinueCard` | Decorative stars in `gold-400` at 28% |
+| `ContinueCard` | Decorative stars in `gold-400` at 28%; its track is the player tone of `ProgressBar` |
 | `RepeatDots`, `PlanStep` | Current step filled with `gold-100` |
 | `Tag`, built-in categories | The category colour is passed in by the caller. The preview uses `emerald-700` for حفظ, `gold-600` for مراجعة, `info` for دراسة and `error` for آيات مهمة. Two of these are ramp steps that do not change with the theme; confirm the set with the owner (O-14) |
 
@@ -114,7 +115,7 @@ brand and not the reading surface:
 
 | Element | Fixed value on the board |
 | --- | --- |
-| Share card, emerald design | Ground `emerald-700`; ayah `paper-100`; reference line `gold-400` |
+| Share card, emerald design | Ground `emerald-700`; ayah `paper-100`; reference line `gold-400`; decorative stars `gold-400` at 28% and 18%; the emerald `Mark` and the app name in `paper-100` at the foot |
 | Share cards, paper and night designs | The `paper` and `night` themes' tokens, whatever theme the app is in |
 | Splash | Ground `emerald-700` with the emerald lockup |
 | App-icon tile in the home header | Tile `emerald-700`, star `gold-400`, book `paper-100` (the emerald `Mark` on a rounded tile) |
@@ -356,6 +357,12 @@ test fails on any new shortfall and also when one of these changes:
 | `tj-*` on `surface`, in the tajweed key: sepia `tj-ghunna` 4.24, sepia `tj-madd-wajib` 4.39; every other theme passes (paper's lowest is `tj-ghunna` at 4.79) | 4.24 and 4.39 | Same question, Phase 2 |
 | `line` on `ground` and `surface`: the off track of `Switch` (`.qk-switch`), a control boundary that WCAG 2.2 1.4.11 holds to 3:1. Paper 1.35 and 1.45, night 1.54 and 1.36, sepia 1.31 and 1.45 | 1.31 to 1.54 | Below 3:1. Found in M0.2; added to O-12. The widget reproduces the reference meanwhile |
 | `surface` on `line`: the off knob of `Switch` (`.qk-switch-knob` on the off track). Paper 1.45, night 1.36, sepia 1.45 | 1.36 to 1.45 | Same as the off track; part of O-12 |
+| `player-accent` on `paper-100` at 22% over `player`: the fill of the player-tone `ProgressBar` against its track, paper and sepia (night 4.10, contrast 8.64) | 2.35 | Non-text below 3:1. Found in M0.5; added to O-12 (D-089, 8) |
+| `primary` on `line`: the fill of the primary `ProgressBar` against its track, contrast theme (paper 5.37, night 5.89, sepia 4.78) | 1.41 | Non-text below 3:1. Found in M0.5; part of O-12 |
+| `ornament` on `primary-soft`: the dot of the «آخر قراءة» badge in `SurahListItem`, paper (night 5.95, sepia 3.56, contrast 8.65) | 2.54 | Decorative; the badge's words carry the meaning |
+| `primary-soft` on `surface` and `ground`: the fill of a selected `Tag` | 1.03 to 1.72 | The fill does not carry the state: the check mark and the weight do (D-089, 6) |
+| `gold-400` on `emerald-700`: the reference line of the emerald share card | 3.90 | Fixed card colours; part of O-12 |
+| Paper `ornament` on paper `ground`: the frames of the paper share card | 2.90 | Decorative, as on the paper theme |
 
 The list is a starting point. When a widget is built, every text colour it draws on
 every background it sits on is added to the test (PRD §8.20 asks for an automatic
@@ -462,7 +469,7 @@ the first of them is needed:
 | --- | --- |
 | The category «تفسير» of `UD-01` has no shape or colour in the identity (`Tag` defines four: حفظ، مراجعة، دراسة، آيات مهمة); two of the four preview colours are raw ramp steps that do not follow the theme; and there is no palette for the colour of a user-made category | M1.6 |
 | The Mushaf board shows six waqf marks; `WQ-02` lists seven (it adds السكت). The list is checked against the mushaf's appendix in B0.8 | M1.6 |
-| Contrast below the required ratio in the identity's own values: the gold label of the continue-reading card, the number inside the filled ayah marker in sepia, six tajweed values, and the off track and knob of `Switch` (see "Contrast"; O-12) | M1.1 for the switch; M1.2 for the card; M1.10 for the marker; Phase 2 for tajweed |
+| Contrast below the required ratio in the identity's own values: the gold label of the continue-reading card, the number inside the filled ayah marker in sepia, six tajweed values, the off track and knob of `Switch`, the fill of `ProgressBar` against its track (player tone in paper and sepia, primary in the contrast theme), and the gold reference line of the emerald share card (see "Contrast"; O-12) | M1.1 for the switch; M1.2 for the card; M1.9 for the player bar; M1.6 for the share card; M1.10 for the marker; Phase 2 for tajweed |
 
 Settled in M0.2: "follow system dark" shows `night` while the system is dark, except
 that `contrast` stays (D-050, D-053); tab labels stop growing where they no longer fit

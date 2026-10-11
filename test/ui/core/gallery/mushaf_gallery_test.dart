@@ -1,0 +1,90 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:holyquran/domain/models/reading_theme.dart';
+import 'package:holyquran/l10n/app_localizations.dart';
+import 'package:holyquran/ui/core/gallery/gallery_samples.dart';
+import 'package:holyquran/ui/core/gallery/sections/mushaf_gallery.dart';
+import 'package:holyquran/ui/core/widgets/ayah_row.dart';
+import 'package:holyquran/ui/core/widgets/quran_text.dart';
+import 'package:holyquran/ui/core/widgets/surah_list_item.dart';
+import 'package:holyquran/ui/core/widgets/surah_name.dart';
+
+import '../../../../testing/golden.dart';
+
+final _l10n = lookupAppLocalizations(const Locale('ar'));
+
+Future<void> _pump(
+  WidgetTester tester, {
+  ReadingTheme theme = ReadingTheme.paper,
+  double textScale = 1,
+}) async {
+  tester.view
+    ..physicalSize = const Size(360, 800)
+    ..devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(
+    goldenApp(
+      theme,
+      Builder(
+        builder: (context) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: const SingleChildScrollView(child: MushafGallery()),
+        ),
+      ),
+    ),
+  );
+}
+
+void main() {
+  for (final theme in ReadingTheme.values) {
+    for (final scale in [1.0, 2.0]) {
+      testWidgets('lays out without overflow in ${theme.name} at '
+          '${(scale * 100).round()}% on 360 wide', (tester) async {
+        await _pump(tester, theme: theme, textScale: scale);
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
+
+  testWidgets('titles its two sections', (tester) async {
+    await _pump(tester);
+    expect(find.text(_l10n.gallerySectionAyahRow), findsOneWidget);
+    expect(find.text(_l10n.gallerySectionSurahListItem), findsOneWidget);
+  });
+
+  testWidgets('shows AyahRow with every action and with one', (tester) async {
+    await _pump(tester);
+    final rows = tester.widgetList<AyahRow>(find.byType(AyahRow)).toList();
+    expect(rows, hasLength(2));
+    expect(rows.first.onBookmark, isNotNull);
+    expect(rows.last.onBookmark, isNull);
+  });
+
+  testWidgets('shows SurahListItem plain, last read and without place or '
+      'page', (tester) async {
+    await _pump(tester);
+    final items = tester.widgetList<SurahListItem>(find.byType(SurahListItem));
+    expect(items.where((item) => item.lastRead), hasLength(1));
+    expect(
+      items.where((item) => item.page == null && item.revelation == null),
+      hasLength(1),
+    );
+  });
+
+  testWidgets('draws only the synthetic samples', (tester) async {
+    await _pump(tester);
+    final texts = {
+      for (final quran in tester.widgetList<QuranText>(find.byType(QuranText)))
+        quran.text,
+    };
+    expect(texts, {GallerySamples.text(_l10n), GallerySamples.longText(_l10n)});
+    final names = {
+      for (final name in tester.widgetList<SurahName>(find.byType(SurahName)))
+        name.name,
+    };
+    expect(names, {GallerySamples.surahName(_l10n)});
+  });
+}

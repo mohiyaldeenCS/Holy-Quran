@@ -8,12 +8,12 @@ corrected first.
 
 | | |
 | --- | --- |
-| Updated | 2026-10-07 |
+| Updated | 2026-10-11 |
 | Phase | 0 — Foundation. Gate 0 not met |
-| Stream A — app | M0.1, M0.2 and M0.3 merged, with human checks pending (pull requests #2, #3 and #4). **M0.4 part 1** merged as partial (pull request #6): spikes S1, S5 and the S3 playback part are done on Linux and await the owner's device run. Next: M0.4 part 2 (S4, S7), then M0.5 |
+| Stream A — app | M0.1, M0.2 and M0.3 merged, with human checks pending (pull requests #2, #3 and #4). **M0.4 part 1** merged as partial (pull request #6): spikes S1, S5 and the S3 playback part are done on Linux and await the owner's device run. **M0.5** merged (pull request #10): the remaining design-system widgets, with human checks and the owner's confirmation of D-089 and D-091 pending. Next: M0.4 part 2 (S4, S7) |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | `claude/great-hamilton-9n23mt`, draft pull request #10 (**M0.5**), opened by the implementing session before it reached its usage limit on 2026-10-07. Done there: the plan `docs/plans/M0.5.md`, D-084 to D-089, and step 0b (contrast pairs). Not started: step 0a (foundations) and steps A to G (the widgets). The status file on that branch does not mention M0.5 yet (noted by the planning session from Git) |
-| Last session | Planning session: ayah linking of books 473 and 440 (pull request #11). Before it, implementing session: M0.4 part 1 (#6), the pack format changes (#9), and the start of M0.5 (#10, draft) |
+| Working branch | None open. Start the next part from `main` (on the branch the session is bound to, D-045) |
+| Last session | Implementing session, 2026-10-11, from two accounts: the first built M0.5 steps 0a, A, B and D; the second took the branch over mid-milestone, finished batch C and steps E to G, and applied two rounds of review (#10). Before it, planning session: books 473 and 440 (#11) |
 
 ## What is in the repository
 
@@ -21,10 +21,11 @@ corrected first.
   `com.example.holyquran`, six platform folders of which only Android and iOS are
   built): an Arabic, right-to-left shell with five tabs and placeholder screens, on
   the design system. `lib/ui/core/theme/` (generated tokens and ramps, the four
-  themes, follow-system dark), `lib/ui/core/widgets/` (13 design-system widgets and
-  the generated icon paths), `lib/ui/core/tab_shell.dart` with the identity's
-  `TabBar`, a debug-only gallery at `/gallery` (More tab, debug builds),
-  `lib/ui/core/l10n/` (Arabic-Indic digits, ayah count), `lib/l10n/app_ar.arb`.
+  themes, follow-system dark), `lib/ui/core/widgets/` (the 13 widgets of M0.2, the 19 of M0.5,
+  `SurahName`, `Pressable`, `PlayerButton`, `AppIconTile`, `RevealOnFocus`, and the
+  generated icon paths), `lib/ui/core/tab_shell.dart` with the identity's
+  `TabBar`, a debug-only gallery at `/gallery` (More tab, debug builds) in
+  six parts (D-086), `lib/ui/core/l10n/` (Arabic-Indic digits, ayah and times counts), `lib/l10n/app_ar.arb`.
   Fonts and OFL texts in `assets/`.
 - The domain core and pack reader (M0.3): `lib/domain/models/` (addresses, ranges,
   `PackText`, manifest, verified pack, surah info, word spans, edition map, pack
@@ -32,9 +33,10 @@ corrected first.
   parser, signature seam, file service, the read-only `PackDatabase`, the pack and
   text repositories). Synthetic pack builder and independent reader in
   `testing/packs/`. The integrity suite in `test/integrity/`.
-- About 1,070 tests: unit, widget, integrity, guards (fonts, imports, literals,
-  design numbers, type rules, contrast, pack text, pack writes) and 60 golden images
-  made on `ubuntu-24.04`. No content pack or feature yet.
+- About 1,690 tests: 1,631 that run anywhere (unit, widget, integrity, guards for
+  fonts, imports, literals, design numbers, type rules, contrast, pack text, pack
+  writes) and 57 golden tests with 168 images made on `ubuntu-24.04`. No content pack
+  or feature yet.
 - Tooling: strict `analysis_options.yaml` (D-046); CI in `.github/workflows/ci.yml`
   (D-043), with hand-started tasks `apk` (D-049) and `goldens` (D-056, D-059); the
   token and icon generator `tools/gen/` (D-054); the cloud-session setup hook
@@ -157,9 +159,28 @@ raw extraction output; signing keys. The 13 logo SVG files are in
   linked to ayat. An independent agent checked both profiles; what it verified is in
   `docs/content/ZIYDIA_LIBRARY.md`, "Results". PRD §5.5 re-exported at revision 151.
 
+- **M0.5 Remaining design-system widgets** (pull request #10; plan
+  `docs/plans/M0.5.md`; D-084 to D-089 and D-091). Foundations: `QuranText` colour
+  roles and card form, `SurahName` (surah names travel as `PackText`), `SurahHeader`
+  on `PackText`, `Pressable`, `timesCount`, the gallery's sample producer. Nineteen
+  widgets: `AyahRow`, `SurahListItem`, `Tag`, `Stepper`, `ProgressBar`, `MiniPlayer`,
+  `ContinueCard`, `ResourceRow`, `ReaderPlayerBar`, `WordSheet`, `SearchField`,
+  `ModeChips`, `SearchSummary`, `SearchResult`, `HomeHeader`, `HomeDoor`,
+  `ContinueListeningRow`, `ShareCard` (emerald, paper and night, 4:5) and `Splash`.
+  The gallery shows them in five sections, one golden image per section per theme. Contrast pairs for every new colour pair; a test that the widgets draw
+  a synthetic pack's bytes unchanged; the ramp allow-list kept current. `Match`,
+  `ContextSheet` and the copy sheet moved to M1.2, M1.3, M1.8 and M1.6 (D-088). Built
+  from two accounts: the first wrote the plan, 0a, 0b and batches A, B and D; the
+  second finished batch C and steps E to G. `code-reviewer` and `identity-auditor`
+  read every batch until both passed it; their findings were applied (`b815f96`,
+  `ecb71f6`, `b8e671d`, `6871ead`) and the readings recorded in D-091. Golden images
+  by CI runs 103 and 110. Pending: the checks below, and the owner's confirmation
+  of D-089 and five readings of D-091.
+
 ## In progress
 
-Nothing in stream A: M0.4 part 1 waits on the owner's device run.
+Nothing in stream A: M0.4 part 1 and M0.5 wait on the owner's device run and his look
+at the gallery images.
 
 Stream B: the owner is extracting book 466 (التهذيب في التفسير, about 7,325 site
 pages). Nothing else is open in stream B.
@@ -178,8 +199,8 @@ pages). Nothing else is open in stream B.
    branch. If the APK fails on the device, revert the cleanup commit on the session
    branch, fix, and rebuild with the `spike-apk` task (D-068).
 4. Decision numbers: before taking one, fetch `main` and every open pull request and
-   take the number after the highest found (D-076). Stream A holds D-068 to D-075 and
-   D-083 to D-089; stream B D-076 to D-082 and D-090.
+   take the number after the highest found (D-076). Stream A holds D-068 to D-075,
+   D-083 to D-089 and D-091; stream B D-076 to D-082 and D-090.
 5. Then **M0.4 part 2**: S7 (gestures, needs only S1) and S4 (home-screen widget,
    for Phase 2) with the same spike folder (D-068). S2, S6 and the S3 highlight part
    wait for B0.3, packs and B0.5. With the spike code restored for part 2, run the S1
@@ -193,8 +214,12 @@ pages). Nothing else is open in stream B.
 7. Draw the eight new icons of D-051 on the identity's icon rules and show each to
    the owner before M1.6 needs them; add them to the generator's input only after he
    approves.
-8. If M0.4 is finished before Gate 0 is met, continue with **M0.5**, not with
-   Phase 1.
+8. M0.5 is merged. Phase 1 starts only when Gate 0 is met
+   (`docs/IMPLEMENTATION_PLAN.md`); until then stream A finishes M0.4 and answers
+   what the gate asks of it, and does not start an M1 milestone.
+9. When the owner answers the D-089 and D-091 question below, record his answer in
+   `docs/DECISIONS.md` and change the widget constants he rejects, with their tests
+   and golden images.
 
 ## Next actions — stream B (planning session and the owner)
 
@@ -232,6 +257,7 @@ Open decisions that come later (full list in `docs/DECISIONS.md`):
 
 | ID | Question, as it should be put to him | Needed by |
 | --- | --- | --- |
+| D-089, D-091 | «حسمنا في المرحلة M0.5 نقاطًا لا تحددها الهوية بالخيار الموصى به كما طلبت، ونعرضها عليك للتأكيد، وصورها في معرض المكوّنات: (١) الرموز الصغيرة (أيقونة التطبيق في رأس الرئيسية، ورمز بطاقات المشاركة، وشاشة البداية) تتبع قاعدة الرمز نفسه في سُمك الخط وحذف النقطة العلوية تحت ٣٢، لا ما رُسم في اللوحات؛ (٢) زر المشغّل الذي لا عمل له يبقى بشكله ويُعلَن معطّلًا لقارئ الشاشة؛ (٣) تُقصّ نتيجة البحث الطويلة عند ٩٢ بكسل كما في المرجع، أي نحو سطرين، مع رابط «اعرضها كاملة»؛ (٤) زر تفريغ حقل البحث اسمه «مسح»؛ (٥) الكلمة في أعلى ورقة الكلمة لا تنكسر على سطرين أبدًا، وتصغُر إذا كانت أعرض من الورقة عند تكبير الخط؛ ومعها بنود D-089 العشرة (بطاقة المشاركة تبدأ بخط ٣٤ وتصغر حتى ٢٢، وبطاقتا ١:١ و٩:١٦ مؤجلتان، وغيرها). هل تعتمدها، أم تريد تغيير بند منها؟» | M1.1 |
 | O-01 | «معرّف التطبيق في المتجرين (مثل com.اسمك.quran) واسم الناشر الذي سيظهر للمستخدمين. المعرّف لا يمكن تغييره بعد النشر.» | Before the first store upload |
 | O-04 | «ما التلاوات التي تريدها في الإصدار الأول (خمس على الأقل، اثنتان منها بتوقيت كلمات)، ومن أين نأخذ ملفاتها، وهل يجيز إذن كل منها التنزيل دون اتصال والاستضافة على خادمك؟» | Phase 0 (B0.5) |
 | O-06 | «هل تبقى التفاسير السبعة العامة (الميسر، المختصر، السعدي، الجلالين، البغوي، ابن كثير، الطبري) بجانب كتب المكتبة الزيدية؟» | Phase 0 (B0.7) |
@@ -258,6 +284,8 @@ Permission conditions to confirm with him when each is first needed are listed i
 | M0.3 | The integrity suite passes on the real base pack | Planning session, when B0.2 delivers it | The command in stream B's next actions |
 | M0.3 | The bundled SQLite of `sqlite3` runs on Android | Owner | The spike APK's S1 "Prepare text" opens the pack through it (the build itself passed in CI runs 51 and 66) |
 | M0.4 | S1, S3, S5 device protocols: shaping by eye, hit test, 200%, NF-01 cold start, NF-02 scroll, 60-minute locked playback and controls, downloads with Wi-Fi gating, resume, corrupt file, low space, rollback | Owner, on his phone (model, Android version and memory still to be told) | The three spike pages, "Device protocol"; run S1 before S5 |
+| M0.5 | The gallery images of the five new sections, in the four themes, match the identity. Shadows show as hard bands in these images because the test renderer turns blur off; in the app they are soft | Owner | `test/ui/core/gallery/goldens/gallery_<section>_<theme>.png` on `main`, or the gallery of the next APK |
+| M0.5 | TalkBack reading order and labels (the ayah first in `AyahRow` and `SearchResult`), keyboard focus with the chip and tab strips scrolling to the focused item, the bold-text setting and 200% text, for the M0.5 widgets | Owner, on his phone | The gallery of an APK built from `main` with the CI `apk` task; the spike APK of CI run 68 predates M0.5 |
 
 ## Environment
 
@@ -301,8 +329,24 @@ Permission conditions to confirm with him when each is first needed are listed i
     area when it becomes tappable (M1.6).
   - `tools/gen/test/generator_test.dart` scans for Arabic without the U+0870–089F
     block (the code guard covers it); add it with the next generator change.
-  - `motionFast`, `motionSlow` and `context.shadows` have no caller yet; they are the
-    identity's scale and are used by the first widgets that animate or float.
+  - `motionFast` and `motionSlow` have no caller yet; they are the identity's scale
+    and are used by the first widgets that animate with them.
+- Left from the M0.5 reviews, for the milestone named:
+  - A Quran word wider than its line is broken by the text engine wherever
+    `QuranText` wraps, which a long word at a large text size can be. `WordSheet`
+    prevents it for its one word (D-091, 12); M1.2 must prevent it in flowing text,
+    together with the S1 finding of a pause mark cut off at a line start.
+  - `SearchResult` keeps its expanded state inside the widget, so in a lazily built
+    list a card scrolled away and back collapses again; M1.8 makes it the caller's.
+  - After a search result's link has had keyboard focus and the view widens and
+    narrows again, the link's semantics may lose its focusable flag while Tab still
+    reaches it; Flutter's own `ExcludeFocus` behaves the same. Check with TalkBack
+    (M1.8).
+  - `timesCount` has no caller since the repeat label became its own plural
+    (D-091, 11); the memorisation widgets of Phase 2 use it.
+  - The greeting of the home board has no strings yet; M1.1 adds them with the home
+    screen, and the header padding and reader-bar margin go to the metrics files of
+    M1.1 and M1.2 (D-091, 4).
 - The identity's own values miss the 4.5:1 contrast of `AX-03` in a few places
   (O-12).
 - Three registry rows that Phase 1 needs are not `Ready` yet: 6, 8 and 19.
@@ -318,6 +362,8 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-10-11 | Implementing session (second account) | Found the first account's session still at work on the M0.5 branch; the owner chose this session to continue and the other handed over cleanly. Adopted its work (0a, A, B, D) and dropped a duplicate 0a; finished batch C; showed the five sections in the gallery (E); tested that the widgets draw a pack's bytes unchanged and kept the ramp allow-list current (F); code review and identity audit of every batch until both passed, findings applied; D-091; golden images by CI runs 103 and 110. | Pull request #10 |
+| 2026-10-11 | Implementing session (continued) | M0.5: step 0a with code review applied; batches A, B and D (14 widgets, five gallery sections); batch C partial; stopped at the owner's request to continue from the other account. | Draft pull request #10 |
 | 2026-10-07 | Planning session | Linked books 473 (surahs in the book's own order, ayah numbers inside quotations) and 440 (footnotes that name the surah and ayah); found that 737 and 165 cannot be linked to ayat from what they print; D-090; independent review applied; PRD at revision 151. Recorded from Git where the implementing session stopped (draft pull request #10). | Pull request #11 |
 | 2026-10-07 | Planning session | Built and tested the ayah linker for books 183, 514, 276 and 471, with a check of every link against the text printed in book 514; recounted the honorific codes (sixteen); D-081, D-082; PRD re-exported at revision 147; two rounds of independent review applied. | Pull request #8 |
 | 2026-10-07 | Planning session | Reviewed pack format v1 and answered P1–P7 and stream A's question about the Tanzil file; D-076 to D-080; a rule for two sessions working at once in `docs/WORKFLOW.md`. | Pull request #7 |

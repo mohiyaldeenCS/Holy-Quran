@@ -4,12 +4,13 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/ui/core/widgets/surah_header.dart';
 
 import '../../../../testing/golden.dart';
 
 // Synthetic name and information line.
-const _name = 'اسم تجريبي';
+const _name = PackText.fromPack('اسم تجريبي');
 const _info = 'سطر تجريبي · ٧ آيات';
 
 void main() {

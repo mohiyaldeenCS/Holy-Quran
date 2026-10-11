@@ -265,7 +265,7 @@ characters in app code, joining words with a separator of the app's own, re-enco
 attaching or cutting the basmala by string operations, keeping a modified copy.
 
 Mechanism, decided in M0.3 (D-062): pack strings travel as `PackText`. Only the
-listed sinks read its raw value: the `QuranText` widget today, and the copy and share
+listed sinks read its raw value: the `QuranText` and `SurahName` widgets today (D-084), and the copy and share
 formatter and the export writer when they exist. The check of PRD §9.4 ("no normalisation on text
 fields, with every code change") is then a test that fails when anything else
 unwraps a `PackText` or imports a normalisation API (`test/guards/pack_text_guard_test.dart`).

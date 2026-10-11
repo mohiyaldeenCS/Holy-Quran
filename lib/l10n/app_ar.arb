@@ -49,14 +49,412 @@
       }
     }
   },
-  "surahHeaderName": "سورة {name}",
-  "@surahHeaderName": {
-    "description": "The surah name inside the surah header, after the word for surah, as the identity's SurahHeader writes it. name is the surah's name without that word.",
+  "surahTitle": "سورة {name}",
+  "@surahTitle": {
+    "description": "A surah's name after the word for surah, as the identity's SurahHeader writes it. name is the pack's surah name, substituted whole and unchanged (D-084).",
     "placeholders": {
       "name": {
         "type": "String"
       }
     }
+  },
+  "surahAyahReference": "{name} · الآية {ayah}",
+  "@surahAyahReference": {
+    "description": "A surah's name with an ayah number, as the identity's search results and MiniPlayer write it. name is the pack's surah name, substituted whole and unchanged (D-084); ayah is the ayah number, already written in Arabic-Indic digits.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "ayah": {
+        "type": "String"
+      }
+    }
+  },
+  "surahTitleAyahReference": "سورة {name} · الآية {ayah}",
+  "@surahTitleAyahReference": {
+    "description": "A surah's name after the word for surah, with an ayah number. name is the pack's surah name, substituted whole and unchanged (D-084); ayah is the ayah number, already written in Arabic-Indic digits.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "ayah": {
+        "type": "String"
+      }
+    }
+  },
+  "ayahRowPlayFromHere": "تشغيل من هنا",
+  "@ayahRowPlayFromHere": {
+    "description": "Spoken name of AyahRow's play button, as the identity's reference labels it."
+  },
+  "ayahRowBookmark": "علامة مرجعية",
+  "@ayahRowBookmark": {
+    "description": "Spoken name of AyahRow's bookmark button, as the identity's reference labels it."
+  },
+  "ayahRowStudy": "مركز الدراسة",
+  "@ayahRowStudy": {
+    "description": "Spoken name of AyahRow's study button, as the identity's reference labels it."
+  },
+  "revelationMakki": "مكية",
+  "@revelationMakki": {
+    "description": "A Makki surah, in the SurahListItem meta line, as the identity writes it."
+  },
+  "revelationMadani": "مدنية",
+  "@revelationMadani": {
+    "description": "A Madani surah, in the SurahListItem meta line, as the identity writes it."
+  },
+  "surahListMeta": "{revelation} · {count}",
+  "@surahListMeta": {
+    "description": "SurahListItem's meta line, as the identity's reference writes it. revelation is revelationMakki or revelationMadani; count is the ayah count from ayahCount.",
+    "placeholders": {
+      "revelation": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "surahListLastRead": "آخر قراءة",
+  "@surahListLastRead": {
+    "description": "The badge on the last-read surah in SurahListItem, as the identity's reference writes it."
+  },
+  "surahListPage": "صفحة",
+  "@surahListPage": {
+    "description": "The word above a surah's start page in SurahListItem, as the identity's reference writes it."
+  },
+  "percentValue": "{digits}٪",
+  "@percentValue": {
+    "description": "A percentage, as ResourceRow shows download progress. digits is the number, already written in Arabic-Indic digits.",
+    "placeholders": {
+      "digits": {
+        "type": "String"
+      }
+    }
+  },
+  "timesCount": "{count, plural, =1{مرة واحدة} =2{مرتان} few{{digits} مرات} other{{digits} مرة}}",
+  "@timesCount": {
+    "description": "A count of times, such as repetitions, as the identity's timesCount writes it. count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "digits": {
+        "type": "String"
+      }
+    }
+  },
+  "playerRepeat": "تكرار",
+  "@playerRepeat": {
+    "description": "Spoken name of MiniPlayer's repeat button with no repetition set, as the identity's reference labels it."
+  },
+  "playerRepeatTimes": "{count, plural, =1{تكرار مرة واحدة} =2{تكرار مرتين} few{تكرار {digits} مرات} other{تكرار {digits} مرة}}",
+  "@playerRepeatTimes": {
+    "description": "Spoken name of MiniPlayer's repeat button with a repetition count (D-087). Its own plural message rather than «تكرار» followed by timesCount: the noun after «تكرار» is genitive («مرتين», not timesCount's «مرتان»). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "digits": {
+        "type": "String"
+      }
+    }
+  },
+  "playerPreviousAyah": "الآية السابقة",
+  "@playerPreviousAyah": {
+    "description": "Spoken name of the player's previous-ayah button, as the identity's reference labels it."
+  },
+  "playerPause": "إيقاف مؤقت",
+  "@playerPause": {
+    "description": "Spoken name of the player's main button while it plays, as the identity's reference labels it."
+  },
+  "playerPlay": "تشغيل",
+  "@playerPlay": {
+    "description": "Spoken name of the player's main button while it is paused, as the identity's reference labels it."
+  },
+  "playerNextAyah": "الآية التالية",
+  "@playerNextAyah": {
+    "description": "Spoken name of the player's next-ayah button, as the identity's reference labels it."
+  },
+  "playerSleepTimer": "مؤقت النوم",
+  "@playerSleepTimer": {
+    "description": "Spoken name of the player's sleep-timer button, as the identity's reference labels it."
+  },
+  "playerPosition": "موضع التلاوة",
+  "@playerPosition": {
+    "description": "Spoken name of the player's progress bar, as the identity's reference labels it."
+  },
+  "continueReadingLabel": "أكمل القراءة",
+  "@continueReadingLabel": {
+    "description": "The small label at the top of ContinueCard, as the identity's reference writes it."
+  },
+  "continueReadingAction": "تابع القراءة",
+  "@continueReadingAction": {
+    "description": "ContinueCard's button, as the identity's reference writes it."
+  },
+  "continueReadingPosition": "الموضع في المصحف",
+  "@continueReadingPosition": {
+    "description": "Spoken name of ContinueCard's progress bar, as the identity's reference labels it."
+  },
+  "resourceDownloadedMeta": "تم التنزيل · {size}",
+  "@resourceDownloadedMeta": {
+    "description": "ResourceRow's status line for a downloaded resource, as the identity's reference writes it. size is the resource's size.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "resourceDownloaded": "تم التنزيل",
+  "@resourceDownloaded": {
+    "description": "ResourceRow's status for a downloaded resource whose size is not known."
+  },
+  "resourceAvailableMeta": "متاحة · {size}",
+  "@resourceAvailableMeta": {
+    "description": "ResourceRow's status line for a resource that can be downloaded, as the identity's reference writes it. size is the resource's size.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "resourceAvailable": "متاحة",
+  "@resourceAvailable": {
+    "description": "ResourceRow's status for a resource that can be downloaded and whose size is not known."
+  },
+  "resourceDelete": "حذف",
+  "@resourceDelete": {
+    "description": "ResourceRow's button for a downloaded resource, as the identity's reference writes it."
+  },
+  "resourceDownload": "تنزيل",
+  "@resourceDownload": {
+    "description": "ResourceRow's button for an available resource, as the identity's reference writes it."
+  },
+  "resourceDownloading": "تنزيل {title}",
+  "@resourceDownloading": {
+    "description": "Spoken name of ResourceRow's progress bar while a resource downloads, as the identity's reference labels it. title is the resource's title.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "wordSheetTabText": "النص",
+  "@wordSheetTabText": {
+    "description": "WordSheet's text tab, as the identity's reference names it."
+  },
+  "wordSheetTabTafsir": "التفسير",
+  "@wordSheetTabTafsir": {
+    "description": "WordSheet's tafsir tab, as the identity's reference names it."
+  },
+  "wordSheetTabIrab": "الإعراب",
+  "@wordSheetTabIrab": {
+    "description": "WordSheet's i'rab tab, as the identity's reference names it."
+  },
+  "wordSheetTabSarf": "الصرف",
+  "@wordSheetTabSarf": {
+    "description": "WordSheet's morphology tab, as the identity's reference names it."
+  },
+  "wordSheetTabTajweed": "التجويد",
+  "@wordSheetTabTajweed": {
+    "description": "WordSheet's tajweed tab, as the identity's reference names it."
+  },
+  "wordSheetPosition": "الكلمة {n} من {m}",
+  "@wordSheetPosition": {
+    "description": "The word's position in its ayah in WordSheet, as the identity's preview writes it. n is the word's number and m the ayah's word count, both already written in Arabic-Indic digits.",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      },
+      "m": {
+        "type": "String"
+      }
+    }
+  },
+  "tagMemorise": "حفظ",
+  "@tagMemorise": {
+    "description": "The memorisation category of Tag, as the identity's preview names it."
+  },
+  "tagReview": "مراجعة",
+  "@tagReview": {
+    "description": "The review category of Tag, as the identity's preview names it."
+  },
+  "tagStudy": "دراسة",
+  "@tagStudy": {
+    "description": "The study category of Tag, as the identity's preview names it."
+  },
+  "tagImportant": "آيات مهمة",
+  "@tagImportant": {
+    "description": "The important-ayat category of Tag, as the identity's preview names it."
+  },
+  "stepperDecrease": "إنقاص {label}",
+  "@stepperDecrease": {
+    "description": "Spoken name of Stepper's minus button, as the identity's reference labels it. label is the setting's name.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "stepperIncrease": "زيادة {label}",
+  "@stepperIncrease": {
+    "description": "Spoken name of Stepper's plus button, as the identity's reference labels it. label is the setting's name.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "stepperValueWithUnit": "{value} {unit}",
+  "@stepperValueWithUnit": {
+    "description": "Stepper's value followed by its unit, as the identity's reference writes it. value is the number, already written in Arabic-Indic digits; unit is the unit's word.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "searchFieldHint": "ابحث في القرآن",
+  "@searchFieldHint": {
+    "description": "SearchField's placeholder and spoken name, as the identity's reference writes it."
+  },
+  "searchFieldClear": "مسح",
+  "@searchFieldClear": {
+    "description": "Spoken name of the button that clears the search field while it holds text (D-089, 5)."
+  },
+  "searchModesLabel": "نوع البحث",
+  "@searchModesLabel": {
+    "description": "Spoken name of the ModeChips group, as the identity's reference labels it."
+  },
+  "searchModeWord": "كلمة",
+  "@searchModeWord": {
+    "description": "The word search mode in ModeChips, as the identity's reference names it."
+  },
+  "searchModeRoot": "الجذر",
+  "@searchModeRoot": {
+    "description": "The root search mode in ModeChips, as the identity's reference names it."
+  },
+  "searchModeBare": "بلا تشكيل",
+  "@searchModeBare": {
+    "description": "The search mode without diacritics in ModeChips, as the identity's reference names it."
+  },
+  "searchModeDerived": "المشتقات",
+  "@searchModeDerived": {
+    "description": "The derived-forms search mode in ModeChips, as the identity's reference names it."
+  },
+  "searchModeTafsir": "في التفاسير",
+  "@searchModeTafsir": {
+    "description": "The search mode inside tafsir in ModeChips, as the identity's reference names it."
+  },
+  "searchSortMushafOrder": "ترتيب المصحف",
+  "@searchSortMushafOrder": {
+    "description": "SearchSummary's sort control in mushaf order, as the identity's reference writes it."
+  },
+  "searchResultContext": "سياق الآية",
+  "@searchResultContext": {
+    "description": "Spoken name of SearchResult's context button, as the identity's reference labels it."
+  },
+  "searchResultOpen": "افتح في المصحف",
+  "@searchResultOpen": {
+    "description": "Spoken name of SearchResult's open-in-the-mushaf button, as the identity's reference labels it."
+  },
+  "searchResultShowWhole": "الآية طويلة · اعرضها كاملة",
+  "@searchResultShowWhole": {
+    "description": "The link under a clamped SearchResult, as the identity's reference writes it."
+  },
+  "homeSearch": "بحث",
+  "@homeSearch": {
+    "description": "Spoken name of the search button in the home header, as the Screens board labels it."
+  },
+  "homeDoorIndex": "الفهرس",
+  "@homeDoorIndex": {
+    "description": "The index door on the home screen, as the Screens board names it."
+  },
+  "homeDoorBookmarks": "العلامات",
+  "@homeDoorBookmarks": {
+    "description": "The bookmarks door on the home screen, as the Screens board names it."
+  },
+  "continueListeningLabel": "أكمل الاستماع",
+  "@continueListeningLabel": {
+    "description": "The small label of the home screen's continue-listening row, as the Screens board writes it."
+  },
+  "gallerySectionAyahRow": "صف الآية",
+  "@gallerySectionAyahRow": {
+    "description": "Debug gallery: title of the AyahRow section, for the identity's AyahRow preview."
+  },
+  "gallerySectionSurahListItem": "صف الفهرس",
+  "@gallerySectionSurahListItem": {
+    "description": "Debug gallery: title of the SurahListItem section, for the identity's SurahListItem preview."
+  },
+  "gallerySectionTag": "الوسوم",
+  "@gallerySectionTag": {
+    "description": "Debug gallery: title of the Tag section, for the identity's Tag preview."
+  },
+  "gallerySectionStepper": "مُعدّل الرقم",
+  "@gallerySectionStepper": {
+    "description": "Debug gallery: title of the Stepper section, for the identity's Stepper preview."
+  },
+  "gallerySectionProgressBar": "شريط التقدّم",
+  "@gallerySectionProgressBar": {
+    "description": "Debug gallery: title of the ProgressBar section, for the identity's ProgressBar preview."
+  },
+  "gallerySectionMiniPlayer": "المشغّل",
+  "@gallerySectionMiniPlayer": {
+    "description": "Debug gallery: title of the MiniPlayer section, for the identity's MiniPlayer preview."
+  },
+  "gallerySectionContinueCard": "أكمل القراءة",
+  "@gallerySectionContinueCard": {
+    "description": "Debug gallery: title of the ContinueCard section, for the identity's ContinueCard preview."
+  },
+  "gallerySectionResourceRow": "مدير التنزيلات",
+  "@gallerySectionResourceRow": {
+    "description": "Debug gallery: title of the ResourceRow section, for the identity's ResourceRow preview."
+  },
+  "gallerySectionReaderPlayerBar": "شريط المشغّل في القارئ",
+  "@gallerySectionReaderPlayerBar": {
+    "description": "Debug gallery: title of the ReaderPlayerBar section, for the reader's floating player bar of the Screens board."
+  },
+  "gallerySectionWordSheet": "ورقة الكلمة",
+  "@gallerySectionWordSheet": {
+    "description": "Debug gallery: title of the WordSheet section, for the identity's WordSheet preview."
+  },
+  "gallerySectionSearchField": "حقل البحث",
+  "@gallerySectionSearchField": {
+    "description": "Debug gallery: title of the SearchField section, for the identity's SearchField preview."
+  },
+  "gallerySectionModeChips": "أنواع البحث",
+  "@gallerySectionModeChips": {
+    "description": "Debug gallery: title of the ModeChips section, for the identity's ModeChips preview."
+  },
+  "gallerySectionSearchSummary": "ملخص النتائج",
+  "@gallerySectionSearchSummary": {
+    "description": "Debug gallery: title of the SearchSummary section, for the identity's SearchSummary preview."
+  },
+  "gallerySectionSearchResult": "نتيجة البحث",
+  "@gallerySectionSearchResult": {
+    "description": "Debug gallery: title of the SearchResult section, for the identity's SearchResult preview."
+  },
+  "gallerySectionHomeHeader": "رأس الرئيسية",
+  "@gallerySectionHomeHeader": {
+    "description": "Debug gallery: title of the HomeHeader section, for the home header of the Screens board."
+  },
+  "gallerySectionHomeDoor": "أبواب الرئيسية",
+  "@gallerySectionHomeDoor": {
+    "description": "Debug gallery: title of the HomeDoor section, for the home doors of the Screens board."
+  },
+  "gallerySectionContinueListeningRow": "أكمل الاستماع",
+  "@gallerySectionContinueListeningRow": {
+    "description": "Debug gallery: title of the ContinueListeningRow section, for the continue-listening row of the Screens board."
+  },
+  "gallerySectionShareCard": "بطاقات مشاركة الآية",
+  "@gallerySectionShareCard": {
+    "description": "Debug gallery: title of the ShareCard section, for the share cards, as the Share board titles them."
+  },
+  "gallerySectionSplash": "شاشة البداية",
+  "@gallerySectionSplash": {
+    "description": "Debug gallery: title of the Splash section, for the splash, as the Share board titles it."
   },
   "galleryTitle": "معرض المكوّنات",
   "@galleryTitle": {
@@ -197,5 +595,77 @@
   "sampleInfo": "سطر تجريبي",
   "@sampleInfo": {
     "description": "Debug gallery: a synthetic stand-in for the information line under the SurahHeader sample. Not real surah facts."
+  },
+  "galleryStepperRepeat": "تكرار كل آية",
+  "@galleryStepperRepeat": {
+    "description": "Debug gallery: label of the first Stepper sample, as in the identity's Stepper preview."
+  },
+  "galleryStepperMerge": "تكرار الدمج",
+  "@galleryStepperMerge": {
+    "description": "Debug gallery: label of the second Stepper sample, as in the identity's Stepper preview."
+  },
+  "galleryStepperSilence": "الصمت بعد كل تكرار",
+  "@galleryStepperSilence": {
+    "description": "Debug gallery: label of the third Stepper sample, as in the identity's Stepper preview."
+  },
+  "galleryStepperSeconds": "ث",
+  "@galleryStepperSeconds": {
+    "description": "Debug gallery: the seconds unit of the third Stepper sample, as in the identity's Stepper preview."
+  },
+  "gallerySpeed": "١٫٠×",
+  "@gallerySpeed": {
+    "description": "Debug gallery: the playback speed of the MiniPlayer sample, as the identity's reference defaults it."
+  },
+  "sampleReciter": "قارئ تجريبي",
+  "@sampleReciter": {
+    "description": "Debug gallery: a synthetic stand-in for a reciter's name. Not a real reciter."
+  },
+  "sampleResourceTitle": "مورد تجريبي",
+  "@sampleResourceTitle": {
+    "description": "Debug gallery: a synthetic stand-in for a resource's title. Not a real source."
+  },
+  "sampleSize": "حجم تجريبي",
+  "@sampleSize": {
+    "description": "Debug gallery: a synthetic stand-in for a resource's size."
+  },
+  "sampleWord": "كلمة تجريبية",
+  "@sampleWord": {
+    "description": "Debug gallery: a synthetic stand-in for one word, shown in QuranText. It is not Quran text and must never be replaced by Quran text."
+  },
+  "sampleLongText": "نص تجريبي طويل يمتد على عدة أسطر ليظهر التفاف الكلام في المكوّنات، وهو ليس آية ولا مأخوذًا من أي مصدر",
+  "@sampleLongText": {
+    "description": "Debug gallery: a long synthetic sample shown in QuranText to display wrapping. It is not Quran text and must never be replaced by Quran text."
+  },
+  "sampleMeta": "موضع تجريبي · صفحة تجريبية",
+  "@sampleMeta": {
+    "description": "Debug gallery: a synthetic stand-in for a position line. Not a real position."
+  },
+  "sampleSearchTitle": "بحث تجريبي",
+  "@sampleSearchTitle": {
+    "description": "Debug gallery: a synthetic stand-in for SearchSummary's title."
+  },
+  "sampleSearchCount": "عدد تجريبي من النتائج",
+  "@sampleSearchCount": {
+    "description": "Debug gallery: a synthetic stand-in for SearchSummary's count line."
+  },
+  "sampleRowLabel": "عنوان تجريبي",
+  "@sampleRowLabel": {
+    "description": "Debug gallery: a synthetic stand-in for the label of a WordSheet row."
+  },
+  "sampleRowValue": "قيمة تجريبية",
+  "@sampleRowValue": {
+    "description": "Debug gallery: a synthetic stand-in for the value of a WordSheet row. Not real linguistic data."
+  },
+  "sampleNote": "ملاحظة تجريبية عن المصدر",
+  "@sampleNote": {
+    "description": "Debug gallery: a synthetic stand-in for WordSheet's source note. Not a real source."
+  },
+  "appIconLabel": "شعار القرآن الكريم",
+  "@appIconLabel": {
+    "description": "Spoken name of the app-icon tile in HomeHeader, as the Screens board labels it."
+  },
+  "markLabel": "رمز القرآن الكريم",
+  "@markLabel": {
+    "description": "Spoken name of the Mark on a share card, as the Share and Logo boards label it."
   }
 }

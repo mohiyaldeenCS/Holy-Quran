@@ -1,6 +1,6 @@
 /// A string read from a content pack, carried unchanged. Only the sinks listed
-/// in D-062 read [verbatim]; `test/guards/pack_text_guard_test.dart` enforces
-/// it.
+/// in D-062 and D-084 read [verbatim]; `test/guards/pack_text_guard_test.dart`
+/// enforces it.
 final class PackText {
   const PackText.fromPack(this._value);
 

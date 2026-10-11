@@ -95,9 +95,9 @@ void main() {
         }
       });
 
-      test('selects text in selection with a primary cursor', () {
+      test('selects text in selection with an ink cursor', () {
         expect(data.textSelectionTheme.selectionColor, colors.selection);
-        expect(data.textSelectionTheme.cursorColor, colors.primary);
+        expect(data.textSelectionTheme.cursorColor, colors.ink);
         expect(data.textSelectionTheme.selectionHandleColor, colors.primary);
       });
 

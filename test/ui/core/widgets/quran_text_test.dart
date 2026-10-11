@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
+import 'package:holyquran/ui/core/theme/app_theme.dart';
+import 'package:holyquran/ui/core/theme/ramps.g.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/quran_text.dart';
 
@@ -174,5 +176,105 @@ void main() {
 
     expect(find.bySemanticsLabel(_sample), findsOneWidget);
     handle.dispose();
+  });
+  testWidgets('draws each colour role from its source', (tester) async {
+    for (final theme in ReadingTheme.values) {
+      final colors = buildAppTheme(theme).extension<AppColors>()!;
+      final expected = {
+        QuranTextColour.quranInk: colors.quranInk,
+        QuranTextColour.accent: colors.accent,
+        QuranTextColour.onEmerald: Ramps.paper100,
+      };
+      for (final MapEntry(key: colour, value: color) in expected.entries) {
+        await tester.pumpWidget(
+          goldenApp(theme, QuranText(_packSample, colour: colour)),
+        );
+        expect(_style(tester).color, color, reason: '${theme.name} $colour');
+        await tester.pumpWidget(
+          goldenApp(
+            theme,
+            QuranText.card(_packSample, fontSize: 26, colour: colour),
+          ),
+        );
+        expect(_style(tester).color, color, reason: '${theme.name} $colour');
+      }
+    }
+  });
+
+  testWidgets('card: centred, at its size with line height 2.2', (
+    tester,
+  ) async {
+    for (final size in const [34.0, 26.0, 23.0, 22.0]) {
+      await _pump(tester, QuranText.card(_packSample, fontSize: size));
+      final paragraph = _paragraph(tester);
+      final style = _style(tester);
+      expect(paragraph.textAlign, TextAlign.center);
+      expect(paragraph.textDirection, TextDirection.rtl);
+      expect(paragraph.locale, const Locale('ar'));
+      expect(style.fontSize, size);
+      expect(style.height, 2.2);
+      expect(style.fontFamily, AppFonts.quran);
+      expect(style.fontFamilyFallback, isNull);
+      expect(style.leadingDistribution, TextLeadingDistribution.even);
+      expect(style.color, AppColors.paper.quranInk);
+    }
+  });
+
+  testWidgets('card: draws exactly the string it was given', (tester) async {
+    final packText = PackText.fromPack(String.fromCharCodes(_sample.codeUnits));
+    await _pump(tester, QuranText.card(packText, fontSize: 34));
+
+    final span = _paragraph(tester).text as TextSpan;
+    expect(identical(span.text, packText.verbatim), isTrue);
+    expect(span.children, isNull);
+  });
+
+  testWidgets('card: ignores the system text scale, as an exported image', (
+    tester,
+  ) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await _pump(tester, const QuranText.card(_packSample, fontSize: 34));
+
+    expect(_paragraph(tester).textScaler, TextScaler.noScaling);
+  });
+
+  testWidgets('card: still RichText, never bold, whatever the ambient style', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      Builder(
+        builder: (context) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(boldText: true),
+          child: const DefaultTextStyle(
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              letterSpacing: 3,
+              fontFamilyFallback: [AppFonts.sans],
+            ),
+            child: QuranText.card(
+              _packSample,
+              fontSize: 26,
+              colour: QuranTextColour.onEmerald,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(Text), findsNothing);
+    expect(find.byType(RichText), findsOneWidget);
+    final style = _style(tester);
+    expect(style.fontWeight, FontWeight.w400);
+    expect(style.letterSpacing, 0);
+    expect(style.fontFamilyFallback, isNull);
+  });
+
+  test('card: refuses a size below 22', () {
+    expect(
+      () => QuranText.card(_packSample, fontSize: 21.5),
+      throwsAssertionError,
+    );
   });
 }

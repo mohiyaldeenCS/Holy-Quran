@@ -17,12 +17,16 @@ final class AyahMarker extends StatelessWidget {
     required this.number,
     this.playing = false,
     this.size = AppSizes.ayahMarker,
+    this.ringWidth = _ringWidth,
     super.key,
   });
 
   final int number;
   final bool playing;
   final double size;
+
+  /// The ring's stroke; `AyahRow` draws it thicker (`.qk-ayah-row .qk-ayah-no`).
+  final double ringWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +47,7 @@ final class AyahMarker extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: playing ? colors.ornament : null,
-            border: Border.all(color: colors.ornament, width: _ringWidth),
+            border: Border.all(color: colors.ornament, width: ringWidth),
           ),
           child: Text(
             digits,
