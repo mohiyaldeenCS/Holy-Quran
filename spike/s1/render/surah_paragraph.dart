@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:holyquran/domain/models/mark_span.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/word_span.dart';
@@ -14,9 +15,9 @@ typedef LineStart = ({int ayah, int offset});
 
 /// What one block shows: consecutive ayat of one surah as whole pack values
 /// placed side by side, each followed by its marker. The first ayah may
-/// start at a stored word offset ([startOffset]) or at its marker (the
-/// text's length), which is how a block continues a line flow begun in the
-/// block before it. A page mark ([pageMarks]) sits before the ayah it
+/// start at a stored word or mark offset ([startOffset]) or at its marker
+/// (the text's length), which is how a block continues a line flow begun in
+/// the block before it. A page mark ([pageMarks]) sits before the ayah it
 /// names, inside the line.
 ///
 /// Spike code reads [PackText.verbatim] here; in M1.2 this becomes a
@@ -26,28 +27,34 @@ final class SurahBlockContent {
     required this.firstAyah,
     required List<PackText> ayat,
     required List<List<WordSpan>> words,
+    List<List<MarkSpan>>? marks,
     this.basmala,
     this.startOffset = 0,
     Set<QuranAddress> pageMarks = const {},
     Map<QuranAddress, Color> wordColours = const {},
   }) : ayat = List.unmodifiable(ayat),
        words = List.unmodifiable(words),
+       marks = List.unmodifiable(marks ?? [for (final _ in ayat) <MarkSpan>[]]),
        pageMarks = Set.unmodifiable(pageMarks),
        wordColours = Map.unmodifiable(wordColours) {
     if (firstAyah.isWord) {
       throw ArgumentError.value(firstAyah, 'firstAyah', 'is a word address');
     }
-    if (ayat.isEmpty || ayat.length != words.length) {
-      throw ArgumentError('one word list per ayah, and at least one ayah');
+    if (ayat.isEmpty ||
+        ayat.length != words.length ||
+        ayat.length != this.marks.length) {
+      throw ArgumentError(
+        'one word list and one mark list per ayah, and at least one ayah',
+      );
     }
     final length = ayat.first.verbatim.length;
     if (startOffset != 0 &&
         startOffset != length &&
-        !words.first.any((word) => word.start == startOffset)) {
+        !_isStoredStart(0, startOffset)) {
       throw ArgumentError.value(
         startOffset,
         'startOffset',
-        'is not a stored word start of ${firstAyah.ayahAddress}',
+        'is not a stored word or mark start of ${firstAyah.ayahAddress}',
       );
     }
     for (final ayah in pageMarks) {
@@ -61,6 +68,9 @@ final class SurahBlockContent {
   final QuranAddress firstAyah;
   final List<PackText> ayat;
   final List<List<WordSpan>> words;
+
+  /// The marks of each ayah (D-083); a line may start at one.
+  final List<List<MarkSpan>> marks;
   final PackText? basmala;
   final int startOffset;
   final Set<QuranAddress> pageMarks;
@@ -93,17 +103,24 @@ final class SurahBlockContent {
   /// The offset the ayah at [index] starts from in this block.
   int baseOf(int index) => index == 0 ? startOffset : 0;
 
+  /// Whether [offset] is the start of a stored word or mark of the ayah at
+  /// [index].
+  bool _isStoredStart(int index, int offset) =>
+      words[index].any((word) => word.start == offset) ||
+      marks[index].any((mark) => mark.start == offset);
+
   bool sameAs(SurahBlockContent other) =>
       identical(this, other) ||
       (other.firstAyah == firstAyah &&
           other.basmala == basmala &&
           other.startOffset == startOffset &&
           listEquals(other.ayat, ayat) &&
-          _sameWords(other.words, words) &&
+          _sameLists(other.words, words) &&
+          _sameLists(other.marks, marks) &&
           setEquals(other.pageMarks, pageMarks) &&
           mapEquals(other.wordColours, wordColours));
 
-  static bool _sameWords(List<List<WordSpan>> a, List<List<WordSpan>> b) {
+  static bool _sameLists<T>(List<List<T>> a, List<List<T>> b) {
     if (identical(a, b)) return true;
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
@@ -358,7 +375,7 @@ final class SurahParagraph {
 
   /// The paragraph's spans, with the text in the [hidden] ranges of
   /// paragraph offsets drawn transparent; each range starts and ends on a
-  /// segment boundary or a stored word start.
+  /// segment boundary or a stored word or mark start.
   TextSpan _spans([List<(int, int)> hidden = const []]) => TextSpan(
     style: _style,
     locale: _arabic,
@@ -388,13 +405,12 @@ final class SurahParagraph {
       _local(text, math.min(math.max(cut, text.start), text.end));
 
   /// Whether text may be cut at paragraph offset [offset]: a segment
-  /// boundary or a stored word start.
+  /// boundary or a stored word or mark start.
   bool _sliceable(int offset) {
     final segment = _segmentAt(offset);
     if (segment == null || segment.kind != _Kind.text) return true;
     if (offset == segment.start) return true;
-    final local = _local(segment, offset);
-    return content.words[segment.ayah].any((w) => w.start == local);
+    return content._isStoredStart(segment.ayah, _local(segment, offset));
   }
 
   int _local(_Segment text, int offset) =>
@@ -472,8 +488,9 @@ final class SurahParagraph {
 
   /// Lays the body out again with the lead-in and the text from the cut
   /// line on drawn transparent and, when centring, a copy in which only the
-  /// last line shows. Every cut must fall on a stored word start, a marker
-  /// or a page mark; elsewhere the block falls back to [BandCut.clip].
+  /// last line shows. Every cut must fall on a stored word or mark start, a
+  /// marker or a page mark; elsewhere the block falls back to
+  /// [BandCut.clip].
   void _recolour() {
     final before = _first > 0 ? _lineStarts[_first] : null;
     final from = _cutLine == null ? null : _lineStarts[_cutLine!];

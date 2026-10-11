@@ -4,9 +4,13 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holyquran/domain/models/mark_span.dart';
+import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
+import 'package:holyquran/domain/models/word_span.dart';
 
 import '../../../testing/packs/synthetic_pack.dart' show amiriQuranFontPath;
+import '../render/spike_surah_text.dart';
 import '../render/synthetic_surah_pack.dart';
 import '../text/gibberish.dart';
 import '../text/spike_pack_writer.dart';
@@ -15,8 +19,8 @@ import '../text/tanzil_xml.dart';
 import 'text_checks.dart';
 import 'unicode_categories.dart';
 
-// Every text here is synthetic: Arabic-script nonsense, and tokens made of
-// single code points named by number.
+// Every text here is synthetic: Arabic-script nonsense, Latin words, and
+// tokens made of code points named by number.
 
 /// A spike pack of [suras] under [root], verified and opened.
 Future<({String directory, TextPackMeasurement measurement})> _measure(
@@ -61,7 +65,7 @@ void main() {
   setUp(() async => root = await Directory.systemTemp.createTemp('s1_measure'));
   tearDown(() => root.delete(recursive: true));
 
-  test('a word with no letter is one whose code points are all known and '
+  test('a token with no letter is one whose code points are all known and '
       'none a letter', () {
     expect(isLetterless([0x06DE]), isTrue);
     expect(isLetterless([0x0651, 0x064E]), isTrue);
@@ -113,9 +117,11 @@ void main() {
       (cmap['used']! as Map<String, Object?>).keys,
       everyElement(matches(RegExp(r'^U\+[0-9A-F]{4,6}$'))),
     );
-    final tokens = results['markOnlyTokens']! as Map<String, Object?>;
-    expect(tokens['noLetter'], 0);
-    expect(tokens['unclassifiedTokens'], 0);
+    final tokens = results['tokens']! as Map<String, Object?>;
+    expect(tokens['marks'], 0);
+    expect(tokens['tokens'], tokens['words']);
+    expect(tokens['wordsWithoutLetter'], 0);
+    expect(tokens['unclassifiedWords'], 0);
     final surahs = results['surahs']! as List<Map<String, Object?>>;
     expect([for (final s in surahs) s['surah']], [1, 2]);
     final runs = surahs.first['runs']! as List<Map<String, Object?>>;
@@ -144,8 +150,8 @@ void main() {
     expect(summary, contains(startsWith('360/1.0x: ')));
   });
 
-  test('a code point the font lacks and tokens without a letter are found, '
-      'by code point and address', () async {
+  test('a code point the font lacks and marks are found, by code point and '
+      'address', () async {
     final nonsense = SyntheticArabicScript(5);
     final tokens = [
       '\u06DE',
@@ -177,30 +183,39 @@ void main() {
         'firstAt': ['hafs:1:2'],
       },
     ]);
-    final found = m.results['markOnlyTokens']! as Map<String, Object?>;
+    final found = m.results['tokens']! as Map<String, Object?>;
     expect(found['tokens'], 3 + 2 + tokens.length);
-    expect(found['noLetter'], 4);
-    expect(found['marksOnly'], 2);
-    expect(found['unclassifiedTokens'], 1);
+    expect(found['words'], 3 + 2);
+    expect(found['marks'], tokens.length);
+    expect(found['wordsWithoutLetter'], 0);
+    expect(found['marksWithLetter'], 0);
+    expect(found['unclassifiedWords'], 0);
+    expect(found['unclassifiedMarks'], 1);
     expect(found['unclassifiedCodePoints'], {'U+1F600': 1});
-    expect(found['groups'], [
+    expect(found['markGroups'], [
       {
         'codePoints': ['U+064E', 'U+0651'],
         'categories': ['Mn', 'Mn'],
         'count': 2,
-        'addresses': ['hafs:1:2:3', 'hafs:1:2:4'],
+        'addresses': ['hafs:1:2 mark 2', 'hafs:1:2 mark 3'],
       },
       {
         'codePoints': ['U+0661', 'U+0662'],
         'categories': ['Nd', 'Nd'],
         'count': 1,
-        'addresses': ['hafs:1:2:5'],
+        'addresses': ['hafs:1:2 mark 4'],
       },
       {
         'codePoints': ['U+06DE'],
         'categories': ['So'],
         'count': 1,
-        'addresses': ['hafs:1:2:2'],
+        'addresses': ['hafs:1:2 mark 1'],
+      },
+      {
+        'codePoints': ['U+1F600'],
+        'categories': [null],
+        'count': 1,
+        'addresses': ['hafs:1:2 mark 5'],
       },
     ]);
     expect(jsonEncode(m.results).runes.where((c) => c > 0x7E), isEmpty);
@@ -209,22 +224,53 @@ void main() {
                 as List<Map<String, Object?>>)
             .single;
     final hit = layout['hit']! as Map<String, Object?>;
-    expect(hit['letterlessWords'], 4, reason: 'U+1F600 is unclassified');
     expect(
-      m.problemCounts[ProblemKind.hitRoundTrip],
-      hit['letterProblems'],
-      reason: 'only words with a letter fail',
+      hit['wordProblems'],
+      0,
+      reason: 'marks lie outside every word span and are not hit as words',
     );
-    expect(
-      hit['letterlessKinds'],
-      {'noBox': 2},
-      reason: 'combining marks alone get no box (Flutter 3.44.7)',
-    );
-    expect(hit['letterlessExamples'], ['hafs:1:2:3', 'hafs:1:2:4']);
+    expect(m.problemCounts[ProblemKind.hitRoundTrip], 0);
   });
 
-  test('hit problems split into words without a letter, words beside one '
-      'that starts a line, and the rest', () {
+  test('every kind of D-083 token of the fixture is counted as the pack '
+      'stores it; Latin words are unclassified by the Arabic table', () async {
+    final run = await _measure(root, [markFixtureSura()]);
+    final found = run.measurement.results['tokens']! as Map<String, Object?>;
+    expect(found['words'], 8);
+    expect(found['marks'], 8);
+    expect(found['wordsWithoutLetter'], 0, reason: 'U+0640 is Lm');
+    expect(found['marksWithLetter'], 0);
+    expect(found['unclassifiedWords'], 6, reason: 'Latin');
+    expect(found['unclassifiedMarks'], 1, reason: 'U+1F600');
+    expect(
+      [
+        for (final g in found['markGroups']! as List<Map<String, Object?>>)
+          [(g['codePoints']! as List<Object?>).join(' '), g['count']],
+      ],
+      [
+        ['U+064E U+0651', 1],
+        ['U+0661 U+0662', 1],
+        ['U+06D6', 1],
+        ['U+06D7', 1],
+        ['U+06D8', 1],
+        ['U+06DA', 1],
+        ['U+06E9', 1],
+        ['U+1F600', 1],
+      ],
+    );
+    expect(
+      (found['markGroups']! as List<Map<String, Object?>>)
+          .expand((g) => g['addresses']! as List<Object?>)
+          .toSet(),
+      {
+        for (final (ayah, marks) in [(1, 4), (2, 1), (3, 3)])
+          for (var n = 1; n <= marks; n++) 'hafs:1:$ayah mark $n',
+      },
+    );
+  });
+
+  test('hit problems split into those of a word beside a mark that starts a '
+      'line, and the rest', () {
     QuranAddress at(int ayah, int word) => QuranAddress('hafs', 1, ayah, word);
     final split = splitHitProblems(
       [
@@ -234,17 +280,25 @@ void main() {
         '${at(2, 1)}: centre hits ${at(2, 2)}',
         '${at(2, 4)}: outside its line band',
       ],
-      {at(1, 3), at(2, 2)},
-      {at(1, 3)},
+      {at(1, 2), at(1, 3)},
     );
-    expect(split.letter, [
+    expect(split.unexplained, [
       '${at(2, 1)}: centre hits ${at(2, 2)}',
       '${at(2, 4)}: outside its line band',
     ]);
-    expect(split.json['letterProblems'], 4);
-    expect(split.json['hitBesideLineStartMark'], 2);
-    expect(split.json['hitBesideLineStartMarkWords'], 1);
-    expect(split.json['hitBesideLineStartMarkKinds'], {
+    expect(split.json['wordProblems'], 5);
+    expect(split.json['wordsWithProblem'], 4);
+    expect(split.json['wordKinds'], {
+      'noBox': 1,
+      'empty': 1,
+      'centreHitsNull': 1,
+      'centreHitsOther': 1,
+      'outsideBand': 1,
+    });
+    expect(split.json['explainedProblems'], 3);
+    expect(split.json['explainedWords'], 2);
+    expect(split.json['explainedKinds'], {
+      'noBox': 1,
       'empty': 1,
       'centreHitsNull': 1,
     });
@@ -252,17 +306,38 @@ void main() {
       'centreHitsOther': 1,
       'outsideBand': 1,
     });
-    expect(split.json['unexplained'], [
+    expect(split.json['unexplainedFirst'], [
       'hafs:1:2:1 centreHitsOther',
       'hafs:1:2:4 outsideBand',
     ]);
-    expect(split.json['letterWordsBesideLetterless'], 2);
-    expect(split.json['letterHitsLetterless'], 1);
-    expect(split.json['letterlessKinds'], {'noBox': 1});
   });
 
-  test('lines that start with a lone mark are counted, and no word with a '
-      'letter fails beside one', () async {
+  test('the words beside a mark are the one it follows and the one after '
+      'it', () {
+    final ayah = QuranAddress('hafs', 1, 1);
+    QuranAddress word(int number) => QuranAddress('hafs', 1, 1, number);
+    final surah = SpikeSurahText(
+      firstAyah: ayah,
+      ayat: const [PackText.fromPack('Synthetic a b')],
+      words: const [
+        [
+          WordSpan(number: 1, start: 0, end: 9),
+          WordSpan(number: 2, start: 10, end: 11),
+          WordSpan(number: 3, start: 12, end: 13),
+        ],
+      ],
+      basmala: null,
+      pageStarts: const {},
+    );
+    MarkSpan mark(int afterWord) =>
+        MarkSpan(number: 1, afterWord: afterWord, start: 0, end: 0);
+    expect(wordsBesideMarks(surah, [(ayah, mark(0))]), {word(1)});
+    expect(wordsBesideMarks(surah, [(ayah, mark(1))]), {word(1), word(2)});
+    expect(wordsBesideMarks(surah, [(ayah, mark(3))]), {word(3)});
+  });
+
+  test('lines that start with a lone mark are counted, and no word fails '
+      'beside one, V2 breaking as V1', () async {
     final nonsense = SyntheticArabicScript(17);
     final lengths = Random(17);
     final run = await _measure(root, [
@@ -285,34 +360,46 @@ void main() {
             .single;
     final breaks = layout['lineBreaks']! as Map<String, Object?>;
     final hit = layout['hit']! as Map<String, Object?>;
-    expect(breaks['startsWithLetterless'], greaterThan(0));
-    expect(breaks['endsBeforeLetterless'], breaks['startsWithLetterless']);
-    expect(hit['letterlessWords'], 200);
+    expect(breaks['startsWithMark'], greaterThan(0));
+    expect(breaks['endsBeforeMark'], breaks['startsWithMark']);
+    expect(
+      (m.results['tokens']! as Map<String, Object?>)['marks'],
+      200,
+      reason: 'one mark at the end of each ayah',
+    );
     expect(hit['unexplainedProblems'], 0);
     expect(m.problemCounts[ProblemKind.hitRoundTrip], 0);
+    expect(m.problemCounts[ProblemKind.layout], 0);
+    expect(m.problemCounts[ProblemKind.slicing], 0);
+    expect(
+      (layout['v2']! as Map<String, Object?>)['sameLineStartsAsV1'],
+      isTrue,
+    );
     final summary = summaryLines(m.results);
-    expect(summary, contains(startsWith('  lines starting with a word')));
+    expect(summary, contains(startsWith('  lines starting with a mark: ')));
     expect(summary.join('\n').runes.where((c) => c > 0x7E), isEmpty);
   });
 
-  test('the long surah of the render tests, V2 included, at one width and '
-      'scale', () async {
-    final pack = await openSyntheticSpikePack(root);
-    final surah = (await readWholePack(pack)).surahs.first;
-    pack.close();
-    final run = await measureSurahLayout(surah, width: 412, scale: 2);
-    for (final kind in ProblemKind.values) {
-      expect(
-        run.problems[kind] ?? const <String>[],
-        isEmpty,
-        reason: kind.name,
-      );
-    }
-    final v2 = run.json['v2']! as Map<String, Object?>;
-    expect(v2['sameLineStartsAsV1'], isTrue);
-    expect(v2['fingerprint'], run.json['fingerprint']);
-    expect(v2['blocks'], greaterThan(10));
-    expect(run.json['slicedAyat'], syntheticLongAyat);
-    expect(jsonEncode(run.json).runes.where((c) => c > 0x7E), isEmpty);
-  });
+  for (final withMarks in [false, true]) {
+    test('the long surah of the render tests, V2 included, at one width and '
+        'scale${withMarks ? ', with marks' : ''}', () async {
+      final pack = await openSyntheticSpikePack(root, withMarks: withMarks);
+      final surah = (await readWholePack(pack)).surahs.first;
+      pack.close();
+      final run = await measureSurahLayout(surah, width: 412, scale: 2);
+      for (final kind in ProblemKind.values) {
+        expect(
+          run.problems[kind] ?? const <String>[],
+          isEmpty,
+          reason: kind.name,
+        );
+      }
+      final v2 = run.json['v2']! as Map<String, Object?>;
+      expect(v2['sameLineStartsAsV1'], isTrue);
+      expect(v2['fingerprint'], run.json['fingerprint']);
+      expect(v2['blocks'], greaterThan(10));
+      expect(run.json['slicedAyat'], syntheticLongAyat);
+      expect(jsonEncode(run.json).runes.where((c) => c > 0x7E), isEmpty);
+    });
+  }
 }

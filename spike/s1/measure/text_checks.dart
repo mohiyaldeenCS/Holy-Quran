@@ -10,6 +10,7 @@ import 'package:holyquran/data/repositories/pack_quran_text_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/data/services/manifest_signature.dart';
 import 'package:holyquran/data/services/pack_file_service.dart';
+import 'package:holyquran/domain/models/mark_span.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/surah_info.dart';
 import 'package:holyquran/domain/models/verified_pack.dart';
@@ -166,50 +167,71 @@ String _missingProblem(int c, int count, List<String> at) =>
     '${codePointName(c)} is not in the font: $count times, first at '
     '${at.first}';
 
-/// (b) Word spans with no letter: only combining marks, or marks, symbols,
-/// digits and punctuation. Input to D-038 and CONTENT_PACKS P3. Grouped by
-/// the set of their code points; a span with a code point outside the
-/// category table is counted apart as unclassified, not guessed at.
-Map<String, Object?> markOnlyTokens(List<SpikeSurahText> surahs) {
-  var tokens = 0;
-  var empty = 0;
+/// (b) The tokens of every ayah as the pack stores them (D-083): words and
+/// marks. Marks are grouped by the set of their code points, each with its
+/// general category from unicode_categories.dart (null outside the table),
+/// with their count and addresses (`<ayah> mark <number>`), most frequent
+/// first. As a check independent of the writer, words with no letter and
+/// marks with one by that table are counted, both expected 0; a token with
+/// a code point outside the table is counted apart as unclassified, and is
+/// neither, never guessed at.
+Map<String, Object?> tokenReport(List<SpikeSurahText> surahs) {
+  var words = 0;
+  var marks = 0;
   final groups = <String, ({List<int> codePoints, List<String> at})>{};
   final unclassified = <int, int>{};
-  var unclassifiedTokens = 0;
+  var unclassifiedWords = 0;
+  var unclassifiedMarks = 0;
+  final wordsWithoutLetter = <String>[];
+  final marksWithLetter = <String>[];
+
+  /// Counts the code points of [codePoints] outside the table; whether
+  /// there was one.
+  bool hasUnknown(Set<int> codePoints) {
+    final unknown = codePoints.where((c) => generalCategory(c) == null);
+    for (final c in unknown) {
+      unclassified[c] = (unclassified[c] ?? 0) + 1;
+    }
+    return unknown.isNotEmpty;
+  }
+
+  bool hasLetter(Set<int> codePoints) =>
+      codePoints.any((c) => generalCategory(c)?.startsWith('L') ?? false);
+
   for (final surah in surahs) {
     for (final (i, ayah) in surah.ayat.indexed) {
       final value = ayah.verbatim;
       final address = _ayah(surah, i);
+      Set<int> codePointsOf(int start, int end) =>
+          value.substring(start, end).runes.toSet();
       for (final span in surah.words[i]) {
-        tokens++;
-        final at = QuranAddress(
-          address.riwaya,
-          address.surah,
-          address.ayah,
-          span.number,
-        );
-        if (span.start == span.end) {
-          empty++;
-          continue;
+        words++;
+        final codePoints = codePointsOf(span.start, span.end);
+        if (hasUnknown(codePoints)) {
+          unclassifiedWords++;
+        } else if (isLetterless(codePoints)) {
+          wordsWithoutLetter.add(
+            '${QuranAddress(address.riwaya, address.surah, address.ayah, span.number)}',
+          );
         }
-        final codePoints = value.substring(span.start, span.end).runes.toSet();
-        final unknown = codePoints.where((c) => generalCategory(c) == null);
-        if (unknown.isNotEmpty) {
-          unclassifiedTokens++;
-          for (final c in unknown) {
-            unclassified[c] = (unclassified[c] ?? 0) + 1;
-          }
-          continue;
-        }
-        if (codePoints.any((c) => generalCategory(c)!.startsWith('L'))) {
-          continue;
+      }
+      for (final mark in surah.marks[i]) {
+        marks++;
+        final at = '$address mark ${mark.number}';
+        final codePoints = codePointsOf(mark.start, mark.end);
+        if (hasUnknown(codePoints)) {
+          unclassifiedMarks++;
+        } else if (hasLetter(codePoints)) {
+          marksWithLetter.add(at);
         }
         final sorted = codePoints.toList()..sort();
-        final key = sorted.map(codePointName).join(' ');
         groups
-            .putIfAbsent(key, () => (codePoints: sorted, at: []))
+            .putIfAbsent(
+              sorted.map(codePointName).join(' '),
+              () => (codePoints: sorted, at: []),
+            )
             .at
-            .add('$at');
+            .add(at);
       }
     }
   }
@@ -218,17 +240,12 @@ Map<String, Object?> markOnlyTokens(List<SpikeSurahText> surahs) {
       final byCount = groups[b]!.at.length.compareTo(groups[a]!.at.length);
       return byCount != 0 ? byCount : a.compareTo(b);
     });
-  final noLetter = groups.values.fold(0, (n, g) => n + g.at.length);
-  final marksOnly = groups.values
-      .where((g) => g.codePoints.every((c) => generalCategory(c)![0] == 'M'))
-      .fold(0, (n, g) => n + g.at.length);
   final unknown = unclassified.keys.toList()..sort();
   return {
-    'tokens': tokens,
-    'empty': empty,
-    'noLetter': noLetter,
-    'marksOnly': marksOnly,
-    'groups': [
+    'tokens': words + marks,
+    'words': words,
+    'marks': marks,
+    'markGroups': [
       for (final key in keys)
         {
           'codePoints': [
@@ -241,185 +258,125 @@ Map<String, Object?> markOnlyTokens(List<SpikeSurahText> surahs) {
           'addresses': groups[key]!.at,
         },
     ],
-    'unclassifiedTokens': unclassifiedTokens,
+    'wordsWithoutLetter': wordsWithoutLetter.length,
+    'wordsWithoutLetterFirst': wordsWithoutLetter.take(20).toList(),
+    'marksWithLetter': marksWithLetter.length,
+    'marksWithLetterFirst': marksWithLetter.take(20).toList(),
+    'unclassifiedWords': unclassifiedWords,
+    'unclassifiedMarks': unclassifiedMarks,
     'unclassifiedCodePoints': {
       for (final c in unknown) codePointName(c): unclassified[c],
     },
   };
 }
 
-/// Whether a word of [codePoints] has no letter: every code point is in
-/// the category table and none is a letter. An empty word has none.
+/// Whether a token of [codePoints] has no letter: every code point is in
+/// the category table and none is a letter. An empty token has none.
 bool isLetterless(Iterable<int> codePoints) => codePoints.every((c) {
   final category = generalCategory(c);
   return category != null && !category.startsWith('L');
 });
 
-/// The words of [surah] with no letter ([isLetterless]).
-Set<QuranAddress> letterlessWords(SpikeSurahText surah) => {
-  for (final (i, ayah) in surah.ayat.indexed)
-    for (final span in surah.words[i])
-      if (isLetterless(ayah.verbatim.substring(span.start, span.end).runes))
-        QuranAddress(
-          surah.firstAyah.riwaya,
-          surah.firstAyah.surah,
-          surah.firstAyah.ayah + i,
-          span.number,
-        ),
-};
-
 /// The kind of a problem of `hitRoundTripProblems`, which reads
-/// `<address>: <what>`, and the address it names and the one it hit.
-({QuranAddress address, String kind, QuranAddress? hit}) _hitProblem(
-  String problem,
-) {
+/// `<address>: <what>`, and the address it names.
+({QuranAddress address, String kind}) _hitProblem(String problem) {
   final colon = problem.indexOf(': ');
   final address = QuranAddress.parse(problem.substring(0, colon));
   final what = problem.substring(colon + 2);
-  const hits = 'centre hits ';
-  if (what.startsWith(hits)) {
-    final target = what.substring(hits.length);
-    return target == 'null'
-        ? (address: address, kind: 'centreHitsNull', hit: null)
-        : (
-            address: address,
-            kind: 'centreHitsOther',
-            hit: QuranAddress.parse(target),
-          );
-  }
   final kind = switch (what) {
     'no box' => 'noBox',
     'empty' => 'empty',
     'outside its line band' => 'outsideBand',
     'outside the width' => 'outsideWidth',
+    'centre hits null' => 'centreHitsNull',
+    _ when what.startsWith('centre hits ') => 'centreHitsOther',
     _ when what.startsWith('on ') => 'onSeveralLines',
     _ => 'other',
   };
-  return (address: address, kind: kind, hit: null);
+  return (address: address, kind: kind);
 }
 
-/// The words without a letter that start a line of [starts], and how many
-/// lines end right before a word without a letter: where a pause mark is
-/// separated from the word it follows.
-({Set<QuranAddress> startMarks, int endsBefore}) _breaksAtLetterless(
+/// The stored marks that start a line of [starts], and how many lines
+/// after the first start at a mark inside its ayah, so that the line before
+/// ends right before it, as part 1 counted: where a pause mark is separated
+/// from the word it follows.
+({List<(QuranAddress, MarkSpan)> startMarks, int endsBefore}) _breaksAtMarks(
   SpikeSurahText surah,
   List<LineStart> starts,
-  Set<QuranAddress> letterless,
 ) {
-  final startMarks = <QuranAddress>{};
+  final startMarks = <(QuranAddress, MarkSpan)>[];
   var endsBefore = 0;
   for (final (k, start) in starts.indexed) {
     final i = start.ayah - surah.firstAyah.ayah;
-    final words = surah.words[i];
-    if (words.isEmpty) continue;
-    QuranAddress word(int number) => QuranAddress(
-      surah.firstAyah.riwaya,
-      surah.firstAyah.surah,
-      start.ayah,
-      number,
-    );
-    for (final span in words) {
-      if (span.start == start.offset &&
-          letterless.contains(word(span.number))) {
-        startMarks.add(word(span.number));
-      }
-    }
-    if (k == 0 || start.offset <= 0) continue;
-    final before = words.lastWhere(
-      (w) => w.start < start.offset,
-      orElse: () => words.first,
-    );
-    if (before.start < start.offset &&
-        letterless.contains(word(before.number + 1))) {
-      endsBefore++;
+    for (final mark in surah.marks[i]) {
+      if (mark.start != start.offset) continue;
+      startMarks.add((_ayah(surah, i), mark));
+      if (k > 0 && start.offset > 0) endsBefore++;
     }
   }
   return (startMarks: startMarks, endsBefore: endsBefore);
 }
 
-/// The hit round trip problems of words without a letter, counted by kind
-/// (D-038); of words with a letter beside one that starts a line
-/// ([lineStartMarks]), counted as explained by that line break; and the
-/// rest, which fail a run.
-({List<String> letter, Map<String, Object?> json}) splitHitProblems(
+/// The words beside a mark of [startMarks]: the word it follows
+/// (`after_word` = w) and the word after it (`after_word` = w - 1).
+Set<QuranAddress> wordsBesideMarks(
+  SpikeSurahText surah,
+  Iterable<(QuranAddress, MarkSpan)> startMarks,
+) => {
+  for (final (ayah, mark) in startMarks)
+    for (final word in [mark.afterWord, mark.afterWord + 1])
+      if (word >= 1 &&
+          word <= surah.words[ayah.ayah - surah.firstAyah.ayah].length)
+        QuranAddress(ayah.riwaya, ayah.surah, ayah.ayah, word),
+};
+
+/// The hit round trip problems of words, counted by kind; those of a word
+/// beside a mark that starts a line ([besideLineStartMark]) are explained
+/// by that line break, and the rest fail a run.
+({List<String> unexplained, Map<String, Object?> json}) splitHitProblems(
   List<String> problems,
-  Set<QuranAddress> letterless,
-  Set<QuranAddress> lineStartMarks,
+  Set<QuranAddress> besideLineStartMark,
 ) {
+  final kinds = <String, int>{};
+  final words = <QuranAddress>{};
   final explainedKinds = <String, int>{};
   final explainedWords = <QuranAddress>{};
   final unexplainedKinds = <String, int>{};
   final unexplained = <String>[];
-  var letterProblems = 0;
-  final letter = <String>[];
-  final letterKinds = <String, int>{};
-  final letterlessKinds = <String, int>{};
-  final letterlessWithProblem = <QuranAddress>{};
-  var hitsLetterless = 0;
-  final hitsLetterlessAt = <String>[];
-  final letterWords = <QuranAddress>{};
-  final besideLetterless = <QuranAddress>{};
   for (final problem in problems) {
     final found = _hitProblem(problem);
-    if (letterless.contains(found.address)) {
-      letterlessKinds[found.kind] = (letterlessKinds[found.kind] ?? 0) + 1;
-      letterlessWithProblem.add(found.address);
-      continue;
-    }
-    letterProblems++;
-    letterKinds[found.kind] = (letterKinds[found.kind] ?? 0) + 1;
-    final a = found.address;
-    letterWords.add(a);
-    var besideLineStart = false;
-    for (final next in [a.word! - 1, a.word! + 1]) {
-      if (next < 1) continue;
-      final neighbour = QuranAddress(a.riwaya, a.surah, a.ayah, next);
-      if (letterless.contains(neighbour)) besideLetterless.add(a);
-      if (lineStartMarks.contains(neighbour)) besideLineStart = true;
-    }
-    if (besideLineStart) {
+    kinds[found.kind] = (kinds[found.kind] ?? 0) + 1;
+    words.add(found.address);
+    if (besideLineStartMark.contains(found.address)) {
       explainedKinds[found.kind] = (explainedKinds[found.kind] ?? 0) + 1;
-      explainedWords.add(a);
+      explainedWords.add(found.address);
     } else {
-      letter.add(problem);
+      unexplained.add(problem);
       unexplainedKinds[found.kind] = (unexplainedKinds[found.kind] ?? 0) + 1;
-      if (unexplained.length < 20) unexplained.add('$a ${found.kind}');
-    }
-    if (found.hit case final hit? when letterless.contains(hit)) {
-      hitsLetterless++;
-      if (hitsLetterlessAt.length < 5) hitsLetterlessAt.add('${found.address}');
     }
   }
+  int sum(Map<String, int> counts) => counts.values.fold(0, (a, b) => a + b);
   return (
-    letter: letter,
+    unexplained: unexplained,
     json: {
-      'letterProblems': letterProblems,
-      'letterKinds': letterKinds,
-      'hitBesideLineStartMark': explainedKinds.values.fold<int>(
-        0,
-        (a, b) => a + b,
-      ),
-      'hitBesideLineStartMarkWords': explainedWords.length,
-      'hitBesideLineStartMarkKinds': explainedKinds,
-      'unexplainedProblems': letter.length,
+      'wordProblems': problems.length,
+      'wordKinds': kinds,
+      'wordsWithProblem': words.length,
+      'explainedProblems': sum(explainedKinds),
+      'explainedWords': explainedWords.length,
+      'explainedKinds': explainedKinds,
+      'unexplainedProblems': unexplained.length,
       'unexplainedKinds': unexplainedKinds,
-      'unexplained': unexplained,
-      'letterWordsWithProblem': letterWords.length,
-      'letterWordsBesideLetterless': besideLetterless.length,
-      'letterHitsLetterless': hitsLetterless,
-      'letterHitsLetterlessAt': hitsLetterlessAt,
-      'letterlessWords': letterless.length,
-      'letterlessWithProblem': letterlessWithProblem.length,
-      'letterlessProblems': letterlessKinds.values.fold<int>(
-        0,
-        (a, b) => a + b,
-      ),
-      'letterlessKinds': letterlessKinds,
-      'letterlessExamples': [
-        for (final a in letterlessWithProblem.take(3)) '$a',
+      'unexplainedFirst': [
+        for (final p in unexplained.take(20)) _hitProblemLabel(p),
       ],
     },
   );
+}
+
+String _hitProblemLabel(String problem) {
+  final found = _hitProblem(problem);
+  return '${found.address} ${found.kind}';
 }
 
 /// (c) [surah] laid out [width] wide at [scale]: V1 with page marks, its
@@ -427,7 +384,8 @@ Set<QuranAddress> letterlessWords(SpikeSurahText surah) => {
 /// time; the same layout uncentred for the ink at band edges; V2's plan and
 /// whether its blocks break as V1 does, for a surah with a page mark; and
 /// every ayah alone, sliced at its stored offsets, against itself whole.
-/// Hit round trip problems of words without a letter are counted, not
+/// Lines that start at a stored mark are counted, and the hit round trip
+/// problems of a word beside such a mark are counted as explained, not
 /// failed on.
 Future<SurahLayoutResult> measureSurahLayout(
   SpikeSurahText surah, {
@@ -460,14 +418,12 @@ Future<SurahLayoutResult> measureSurahLayout(
     );
   }
   final v1Ms = _ms(clock);
-  final letterless = letterlessWords(surah);
-  final breaks = _breaksAtLetterless(surah, v1.lineStartPositions, letterless);
+  final breaks = _breaksAtMarks(surah, v1.lineStartPositions);
   final hits = splitHitProblems(
     hitRoundTripProblems(v1),
-    letterless,
-    breaks.startMarks,
+    wordsBesideMarks(surah, breaks.startMarks),
   );
-  final hit = hits.letter;
+  final hit = hits.unexplained;
   final order = markOrderProblems(v1);
   final starts = v1.lineStartPositions;
   final stretch = lineStretch(v1);
@@ -510,6 +466,7 @@ Future<SurahLayoutResult> measureSurahLayout(
           firstAyah: ayah,
           ayat: [surah.ayat[i]],
           words: [words],
+          marks: [surah.marks[i]],
         ),
         word: QuranAddress(
           ayah.riwaya,
@@ -550,8 +507,12 @@ Future<SurahLayoutResult> measureSurahLayout(
       'v2': v2,
       'hit': hits.json,
       'lineBreaks': {
-        'startsWithLetterless': breaks.startMarks.length,
-        'endsBeforeLetterless': breaks.endsBefore,
+        'startsWithMark': breaks.startMarks.length,
+        'endsBeforeMark': breaks.endsBefore,
+        'startMarksFirst': [
+          for (final (ayah, mark) in breaks.startMarks.take(20))
+            '$ayah mark ${mark.number}',
+        ],
       },
       'slicedAyat': sliced,
       'slicingMs': slicingMs,
@@ -622,6 +583,7 @@ final class TextPackMeasurement {
         'surahs': manifest.counts.surahs,
         'ayat': manifest.counts.ayat,
         'words': manifest.counts.words,
+        'marks': manifest.counts.marks,
         'fontFamily': text.font.family,
         'fontVersion': text.font.version,
       }
@@ -643,7 +605,7 @@ final class TextPackMeasurement {
     );
     _add(cmap.problems);
     results['cmap'] = cmap.json;
-    results['markOnlyTokens'] = markOnlyTokens(whole.surahs);
+    results['tokens'] = tokenReport(whole.surahs);
 
     final perSurah = <Map<String, Object?>>[];
     results['surahs'] = perSurah;
@@ -683,6 +645,7 @@ final class TextPackMeasurement {
         'surah': number,
         'ayat': surah.ayat.length,
         'words': surah.words.fold<int>(0, (n, w) => n + w.length),
+        'marks': surah.marks.fold<int>(0, (n, m) => n + m.length),
         'pageMarks': surah.pageStarts.length,
         'runs': runs,
       });
@@ -831,44 +794,22 @@ Map<String, Object?> _summary(
         'v2PlanMsTotal': v2Total('planMs'),
         'v2BlockLayoutMsTotal': v2Total('blockLayoutMs'),
         'slicingMsTotal': total('slicingMs'),
-        'hitLetterProblems': sum('hit', 'letterProblems'),
-        'hitLetterKinds': kinds('letterKinds'),
-        'hitLetterWords': sum('hit', 'letterWordsWithProblem'),
-        'hitLetterWordsBesideLetterless': sum(
-          'hit',
-          'letterWordsBesideLetterless',
-        ),
-        'hitLetterHitsLetterless': sum('hit', 'letterHitsLetterless'),
-        'hitBesideLineStartMark': sum('hit', 'hitBesideLineStartMark'),
-        'hitBesideLineStartMarkWords': sum(
-          'hit',
-          'hitBesideLineStartMarkWords',
-        ),
+        'hitWordProblems': sum('hit', 'wordProblems'),
+        'hitWordKinds': kinds('wordKinds'),
+        'hitWords': sum('hit', 'wordsWithProblem'),
+        'hitExplained': sum('hit', 'explainedProblems'),
+        'hitExplainedWords': sum('hit', 'explainedWords'),
         'hitUnexplained': sum('hit', 'unexplainedProblems'),
         'hitUnexplainedKinds': kinds('unexplainedKinds'),
         'hitUnexplainedFirst': [
           for (final r in runs)
-            ...((r.run['hit']! as Map<String, Object?>)['unexplained']!
+            ...((r.run['hit']! as Map<String, Object?>)['unexplainedFirst']!
                 as List<Object?>),
         ].take(20).toList(),
-        'linesStartingWithLetterless': sum(
-          'lineBreaks',
-          'startsWithLetterless',
-        ),
-        'linesStartingWithLetterlessSurahs': surahsWithBreaks(
-          'startsWithLetterless',
-        ),
-        'linesEndingBeforeLetterless': sum(
-          'lineBreaks',
-          'endsBeforeLetterless',
-        ),
-        'linesEndingBeforeLetterlessSurahs': surahsWithBreaks(
-          'endsBeforeLetterless',
-        ),
-        'letterlessWords': sum('hit', 'letterlessWords'),
-        'letterlessWithProblem': sum('hit', 'letterlessWithProblem'),
-        'hitLetterlessProblems': sum('hit', 'letterlessProblems'),
-        'hitLetterlessKinds': kinds('letterlessKinds'),
+        'linesStartingWithMark': sum('lineBreaks', 'startsWithMark'),
+        'linesStartingWithMarkSurahs': surahsWithBreaks('startsWithMark'),
+        'linesEndingBeforeMark': sum('lineBreaks', 'endsBeforeMark'),
+        'linesEndingBeforeMarkSurahs': surahsWithBreaks('endsBeforeMark'),
         'fingerprintAll': fingerprintOverAll(false),
         'v2FingerprintAll': fingerprintOverAll(true),
       };
@@ -935,15 +876,16 @@ List<String> summaryLines(Map<String, Object?> results) {
 
   final pack = map(results['pack']);
   final cmap = map(results['cmap']);
-  final tokens = map(results['markOnlyTokens']);
+  final tokens = map(results['tokens']);
   final missing = cmap['missing']! as List<Map<String, Object?>>;
-  final groups = tokens['groups']! as List<Map<String, Object?>>;
+  final groups = tokens['markGroups']! as List<Map<String, Object?>>;
   const shownGroups = 40;
   final lines = <String>[];
   void line(String text) => lines.add(text);
   line(
     'pack ${pack['id']} ${pack['version']}: surahs ${pack['surahs']}, ayat '
-    '${pack['ayat']}, words ${pack['words']}; text.sqlite '
+    '${pack['ayat']}, words ${pack['words']}, marks ${pack['marks']}; '
+    'text.sqlite '
     '${(pack['textSqliteSha256']! as String).substring(0, 16)}',
   );
   line(
@@ -959,14 +901,20 @@ List<String> summaryLines(Map<String, Object?> results) {
     '${absent.isEmpty ? 'none' : absent.join(', ')}',
   );
   line(
-    'words ${tokens['tokens']}: empty ${tokens['empty']}, without a letter '
-    '${tokens['noLetter']} (marks only ${tokens['marksOnly']}), '
-    'unclassified ${tokens['unclassifiedTokens']} '
+    'tokens ${tokens['tokens']}: words ${tokens['words']}, marks '
+    '${tokens['marks']}; by the category table, words without a letter '
+    '${tokens['wordsWithoutLetter']}, marks with a letter '
+    '${tokens['marksWithLetter']}; unclassified words '
+    '${tokens['unclassifiedWords']}, marks ${tokens['unclassifiedMarks']} '
     '(${counts(tokens['unclassifiedCodePoints'])})',
   );
+  for (final key in ['wordsWithoutLetterFirst', 'marksWithLetterFirst']) {
+    final first = tokens[key]! as List<Object?>;
+    if (first.isNotEmpty) line('  $key ${first.join(', ')}');
+  }
   line(
-    'groups without a letter: ${groups.length} (code points / categories '
-    '/ count)',
+    'marks by code points: ${groups.length} sets (code points / '
+    'categories / count)',
   );
   for (final g in groups.take(shownGroups)) {
     line(
@@ -975,45 +923,32 @@ List<String> summaryLines(Map<String, Object?> results) {
     );
   }
   if (groups.length > shownGroups) {
-    line('  and ${groups.length - shownGroups} more groups');
+    line('  and ${groups.length - shownGroups} more sets');
   }
   for (final MapEntry(key: config, :value) in map(results['summary']).entries) {
     final s = map(value);
     final differ = s['v2DifferFromV1']! as List<Object?>;
     line('$config: ${s['lines']} lines');
     line(
-      '  hit, words with a letter: ${s['hitLetterProblems']} problems '
-      '(${counts(s['hitLetterKinds'])}) on ${s['hitLetterWords']} words, '
-      '${s['hitLetterWordsBesideLetterless']} of them next to a word '
-      'without a letter; centre hitting a word without a letter '
-      '${s['hitLetterHitsLetterless']}',
-    );
-    line(
-      '  explained (beside a word without a letter that starts a line): '
-      '${s['hitBesideLineStartMark']} problems on '
-      '${s['hitBesideLineStartMarkWords']} words; unexplained '
-      '${s['hitUnexplained']} (${counts(s['hitUnexplainedKinds'])})',
+      '  hit: ${s['hitWordProblems']} problems '
+      '(${counts(s['hitWordKinds'])}) on ${s['hitWords']} words; explained '
+      '(beside a mark that starts a line) ${s['hitExplained']} on '
+      '${s['hitExplainedWords']} words; unexplained ${s['hitUnexplained']} '
+      '(${counts(s['hitUnexplainedKinds'])})',
     );
     for (final problem in s['hitUnexplainedFirst']! as List<Object?>) {
       line('    unexplained $problem');
     }
-    final starting = s['linesStartingWithLetterlessSurahs']! as List<int>;
-    final ending = s['linesEndingBeforeLetterlessSurahs']! as List<int>;
+    final starting = s['linesStartingWithMarkSurahs']! as List<int>;
+    final ending = s['linesEndingBeforeMarkSurahs']! as List<int>;
     line(
-      '  lines starting with a word without a letter: '
-      '${s['linesStartingWithLetterless']} in ${starting.length} surahs: '
-      '${starting.join(' ')}',
+      '  lines starting with a mark: ${s['linesStartingWithMark']} in '
+      '${starting.length} surahs: ${starting.join(' ')}',
     );
     line(
-      '  lines ending right before a word without a letter: '
-      '${s['linesEndingBeforeLetterless']} in ${ending.length} surahs'
+      '  lines ending right before a mark: ${s['linesEndingBeforeMark']} in '
+      '${ending.length} surahs'
       '${listEquals(ending, starting) ? ' (the same surahs)' : ': ${ending.join(' ')}'}',
-    );
-    line(
-      '  hit, words without a letter: ${s['letterlessWords']} words, '
-      '${s['letterlessWithProblem']} with a problem, '
-      '${s['hitLetterlessProblems']} problems '
-      '(${counts(s['hitLetterlessKinds'])})',
     );
     line(
       '  ink at ${inkPixelRatio}x px: lines ${s['inkLines']}, leaving their '

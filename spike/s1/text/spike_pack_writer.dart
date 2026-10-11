@@ -96,14 +96,16 @@ T sqliteStep<T>(String where, T Function() run) {
 /// Writes `<root>/spike-tanzil-uthmani/1/` (manifest.json and text.sqlite)
 /// to docs/CONTENT_PACKS.md, format v1, and returns its path.
 ///
-/// Spike only (D-068, D-072): words are the maximal runs between U+0020, and
-/// the divisions are [spikeDivisionEvery]; the changelog says so. Every value
-/// must be exactly the quoted source bytes at its offset before it is
-/// written, and is read back as stored bytes after. Any difference, a notice
-/// that does not name Tanzil and the version, an existing directory, a
-/// manifest the app's parser refuses or any other failure throws a
-/// [StateError] naming an address or a type, never a value, and leaves no
-/// directory behind.
+/// Spike only (D-068, D-072): words and marks are the tokens of
+/// [spikeSpansOf] (D-083), `sources[0].options` comes from
+/// [tanzilDownloadOptions] of the source URL (D-077), and the divisions are
+/// [spikeDivisionEvery]; the changelog says so. Every value must be exactly
+/// the quoted source bytes at its offset before it is written, and is read
+/// back as stored bytes after. Any difference, an ayah holding a separator
+/// other than U+0020, a notice that does not name Tanzil and the version, an
+/// existing directory, a manifest the app's parser refuses or any other
+/// failure throws a [StateError] naming an address, a code point or a type,
+/// never a value, and leaves no directory behind.
 Future<String> writeSpikePack(
   Directory root, {
   required List<SpikeSurah> surahs,
@@ -117,7 +119,9 @@ Future<String> writeSpikePack(
   }
   if (surahs.isEmpty) throw StateError('no surah to write');
   _checkNotice(source);
+  final options = tanzilDownloadOptions(source.url);
   _forEachText(surahs, (where, text) => _checkSource(where, text, source));
+  _checkSeparators(surahs);
   final created = !parent.existsSync();
   await directory.create(recursive: true);
   try {
@@ -127,6 +131,7 @@ Future<String> writeSpikePack(
     final textBytes = await text.readAsBytes();
     final json = _manifest(
       source: source,
+      options: options,
       fontSha256: fontSha256,
       textSha256: sha256.convert(textBytes).toString(),
       textBytes: textBytes.length,
@@ -223,21 +228,90 @@ bool _equalsAt(List<int> value, Uint8List source, int offset) {
   return true;
 }
 
-/// The maximal runs of code units other than U+0020, as UTF-16 half-open
-/// spans. Spike only; B0.4 and D-038 decide what a word is.
-List<(int, int)> spikeWordSpans(String text) {
-  final spans = <(int, int)>[];
+/// A mark of [spikeSpansOf]: the number of words before it and its UTF-16
+/// half-open span.
+typedef SpikeMark = ({int afterWord, int start, int end});
+
+final _letter = RegExp(r'\p{L}', unicode: true);
+final _separator = RegExp(r'\p{Z}', unicode: true);
+
+/// The tokens of [text], the maximal runs of code units other than U+0020,
+/// as UTF-16 half-open spans: a token holding a code point of general
+/// category L (Lm included) is a word, any other a mark, with the number of
+/// words before it (D-083). Spike only; B0.4 decides the pipeline's rule.
+({List<(int, int)> words, List<SpikeMark> marks}) spikeSpansOf(String text) {
+  final words = <(int, int)>[];
+  final marks = <SpikeMark>[];
+  void add(int start, int end) {
+    if (_letter.hasMatch(text.substring(start, end))) {
+      words.add((start, end));
+    } else {
+      marks.add((afterWord: words.length, start: start, end: end));
+    }
+  }
+
   int? start;
   for (var i = 0; i < text.length; i++) {
     if (text.codeUnitAt(i) == 0x20) {
-      if (start != null) spans.add((start, i));
+      if (start != null) add(start, i);
       start = null;
     } else {
       start ??= i;
     }
   }
-  if (start != null) spans.add((start, text.length));
-  return spans;
+  if (start != null) add(start, text.length);
+  return (words: words, marks: marks);
+}
+
+/// An ayah holding a code point of general category Z other than U+0020 is
+/// refused, never rewritten (D-083).
+void _checkSeparators(List<SpikeSurah> surahs) {
+  for (final (s, surah) in surahs.indexed) {
+    for (final (a, ayah) in surah.ayat.indexed) {
+      for (final match in _separator.allMatches(ayah.value)) {
+        final c = match[0]!.runes.single;
+        if (c != 0x20) {
+          throw StateError(
+            'ayah ${s + 1}:${a + 1} holds ${spikeCodePointName(c)}, a '
+            'separator other than U+0020',
+          );
+        }
+      }
+    }
+  }
+}
+
+/// `U+XXXX`, at least four upper-case hex digits.
+String spikeCodePointName(int c) =>
+    'U+${c.toRadixString(16).toUpperCase().padLeft(4, '0')}';
+
+/// The choices a Tanzil download URL was made with, for
+/// `sources[].options` (D-077): every query parameter but `agree`, which
+/// accepts the terms and is no text option, with its name and decoded value
+/// as the URL gives them, as strings, in URL order; null when none is left.
+/// A repeated or empty name throws a [StateError] naming it.
+Map<String, Object>? tanzilDownloadOptions(String url) {
+  final query = Uri.parse(url).query;
+  if (query.isEmpty) return null;
+  final options = <String, Object>{};
+  final seen = <String>{};
+  for (final parameter in query.split('&')) {
+    final equals = parameter.indexOf('=');
+    final name = Uri.decodeQueryComponent(
+      equals < 0 ? parameter : parameter.substring(0, equals),
+    );
+    if (name.isEmpty) {
+      throw StateError('the source URL has a query parameter with no name');
+    }
+    if (!seen.add(name)) {
+      throw StateError('the source URL repeats the query parameter $name');
+    }
+    if (name == 'agree') continue;
+    options[name] = equals < 0
+        ? ''
+        : Uri.decodeQueryComponent(parameter.substring(equals + 1));
+  }
+  return options.isEmpty ? null : options;
 }
 
 // The DDL of docs/CONTENT_PACKS.md, "Text pack".
@@ -263,6 +337,17 @@ CREATE TABLE word (
   surah        INTEGER NOT NULL,
   ayah         INTEGER NOT NULL,
   number       INTEGER NOT NULL,
+  start_offset INTEGER NOT NULL,
+  end_offset   INTEGER NOT NULL,
+  PRIMARY KEY (surah, ayah, number),
+  FOREIGN KEY (surah, ayah) REFERENCES ayah(surah, number)
+) STRICT, WITHOUT ROWID''',
+  '''
+CREATE TABLE mark (
+  surah        INTEGER NOT NULL,
+  ayah         INTEGER NOT NULL,
+  number       INTEGER NOT NULL,
+  after_word   INTEGER NOT NULL,
   start_offset INTEGER NOT NULL,
   end_offset   INTEGER NOT NULL,
   PRIMARY KEY (surah, ayah, number),
@@ -303,16 +388,24 @@ Map<String, Object?> _writeDatabase(String path, List<SpikeSurah> surahs) {
       }
       db.execute('BEGIN');
     });
-    final [insertSurah, insertAyah, insertWord, insertDivision] = sqliteStep(
+    final [
+      insertSurah,
+      insertAyah,
+      insertWord,
+      insertMark,
+      insertDivision,
+    ] = sqliteStep(
       'preparing the inserts',
       () => [
         db.prepare('INSERT INTO surah VALUES (?, ?, ?, NULL, NULL, ?)'),
         db.prepare('INSERT INTO ayah VALUES (?, ?, ?)'),
         db.prepare('INSERT INTO word VALUES (?, ?, ?, ?, ?)'),
+        db.prepare('INSERT INTO mark VALUES (?, ?, ?, ?, ?, ?)'),
         db.prepare('INSERT INTO division VALUES (?, ?, ?, ?)'),
       ],
     );
     var words = 0;
+    var marks = 0;
     final starts = <(int, int)>[];
     for (final (s, surah) in surahs.indexed) {
       sqliteStep(
@@ -327,12 +420,27 @@ Map<String, Object?> _writeDatabase(String path, List<SpikeSurah> surahs) {
       for (final (a, ayah) in surah.ayat.indexed) {
         final where = 'ayah ${s + 1}:${a + 1}';
         sqliteStep(where, () => insertAyah.execute([s + 1, a + 1, ayah.value]));
-        for (final (w, (start, end)) in spikeWordSpans(ayah.value).indexed) {
+        final spans = spikeSpansOf(ayah.value);
+        for (final (w, (start, end)) in spans.words.indexed) {
           sqliteStep(
             '$where word ${w + 1}',
             () => insertWord.execute([s + 1, a + 1, w + 1, start, end]),
           );
           words++;
+        }
+        for (final (m, (:afterWord, :start, :end)) in spans.marks.indexed) {
+          sqliteStep(
+            '$where mark ${m + 1}',
+            () => insertMark.execute([
+              s + 1,
+              a + 1,
+              m + 1,
+              afterWord,
+              start,
+              end,
+            ]),
+          );
+          marks++;
         }
         starts.add((s + 1, a + 1));
       }
@@ -356,6 +464,7 @@ Map<String, Object?> _writeDatabase(String path, List<SpikeSurah> surahs) {
         insertSurah,
         insertAyah,
         insertWord,
+        insertMark,
         insertDivision,
       ]) {
         statement.close();
@@ -368,6 +477,7 @@ Map<String, Object?> _writeDatabase(String path, List<SpikeSurah> surahs) {
       'surahs': surahs.length,
       'ayat': starts.length,
       'words': words,
+      'marks': marks,
       'divisions': divisions,
       'sajdas': 0,
     };
@@ -471,14 +581,19 @@ String get _summary {
       'a $key every $value ayat',
   ].join(', ');
   return 'Spike S1 pack (D-068, D-072); not for release, not reviewed. '
-      'Words are the maximal runs between U+0020 characters, offsets in '
-      'UTF-16 code units (spike only; B0.4 and D-038 decide). Divisions are '
-      'synthetic, not the edition\'s: $every, counted across the text. No '
-      'sajdas. Revelation place and order are not given.';
+      'Tokens are the maximal runs between U+0020 characters; a token holding '
+      'a code point of general category L (Lm included) is a word, any other '
+      'a mark, outside every word span, numbered per ayah, its after_word the '
+      'number of words before it; an ayah holding another separator of '
+      'category Z is refused. Offsets in UTF-16 code units. The rule is the '
+      "spike's (D-083); B0.4 decides the pipeline's. Divisions are synthetic, "
+      "not the edition's: $every, counted across the text. No sajdas. "
+      'Revelation place and order are not given.';
 }
 
 Map<String, Object?> _manifest({
   required SpikeSource source,
+  required Map<String, Object>? options,
   required String fontSha256,
   required String textSha256,
   required int textBytes,
@@ -511,6 +626,7 @@ Map<String, Object?> _manifest({
       'fetched_on': source.fetchedOn,
       'file_sha256': sha256.convert(source.bytes).toString(),
       'trust_grade': 'A',
+      'options': options,
       'licence': {
         'text': null,
         'permission_ref': 'docs/SOURCES.md, registry row 1: CC BY 3.0',

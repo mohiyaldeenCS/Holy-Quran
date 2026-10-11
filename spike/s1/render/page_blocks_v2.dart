@@ -153,6 +153,7 @@ final class SurahFlowPlanner {
     firstAyah: _ayahOf(surah, block.firstIndex),
     ayat: surah.ayat.sublist(block.firstIndex, block.lastIndex + 1),
     words: surah.words.sublist(block.firstIndex, block.lastIndex + 1),
+    marks: surah.marks.sublist(block.firstIndex, block.lastIndex + 1),
     basmala:
         block.firstIndex == 0 && block.startOffset == 0 && block.leadIn == 0
         ? surah.basmala

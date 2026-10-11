@@ -37,6 +37,7 @@ SurahParagraph surahParagraph(
     firstAyah: surah.firstAyah,
     ayat: surah.ayat,
     words: surah.words,
+    marks: surah.marks,
     basmala: surah.basmala,
     pageMarks: pageMarkSize == null ? const {} : surah.pageStarts.keys.toSet(),
   );
@@ -182,6 +183,7 @@ List<String> slicingProblems(
       firstAyah: content.firstAyah,
       ayat: content.ayat,
       words: content.words,
+      marks: content.marks,
       basmala: content.basmala,
       startOffset: content.startOffset,
       pageMarks: content.pageMarks,

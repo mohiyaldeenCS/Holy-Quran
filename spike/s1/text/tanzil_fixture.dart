@@ -83,3 +83,19 @@ List<FixtureSura> syntheticFixtureSuras({int seed = 1}) {
     ),
   ];
 }
+
+/// A sura whose ayat hold every kind of token D-083 sorts: in ayah 1 a mark
+/// between words, two marks in a row and one at the end; in ayah 2 a mark
+/// before the first word; in ayah 3 combining marks alone, digits and
+/// U+1F600 (marks), a lone tatweel (a word: U+0640 is Lm) and a Latin word.
+/// The tokens are code points written as escapes, Latin words and an
+/// Arabic-script nonsense run.
+FixtureSura markFixtureSura() => (
+  name: 'Synthetic marks sura',
+  bismillah: null,
+  ayat: [
+    'Synthetic \u06D6 marks \u06D7 \u06DA end \u06D8',
+    '\u06E9 \u0628\u064E\u0627 Synthetic',
+    'Synthetic \u064E\u0651 \u0661\u0662 \u{1F600} \u0640 Latin',
+  ],
+);
