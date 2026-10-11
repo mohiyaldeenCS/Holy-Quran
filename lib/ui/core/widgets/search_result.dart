@@ -350,11 +350,16 @@ class _RenderClamp extends RenderBox
     );
     _cutFocus.shown = _isCut;
     if (!_isCut && _cutFocus.hasFocus) {
-      // The link went out of view with focus on it: focus leaves it, as it
-      // leaves a widget that is removed.
+      // The link went out of view with focus on it: focus goes back to the
+      // control focused before it, if any, so a keyboard user keeps their
+      // place in a list of results.
       final cutFocus = _cutFocus;
       SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (!cutFocus.shown) cutFocus.unfocus();
+        if (!cutFocus.shown) {
+          cutFocus.unfocus(
+            disposition: UnfocusDisposition.previouslyFocusedChild,
+          );
+        }
       });
     }
   }

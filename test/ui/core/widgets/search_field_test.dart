@@ -161,16 +161,16 @@ void main() {
     expect(text.center.dy, closeTo(field.center.dy, 0.5));
   });
 
-  testWidgets('text is 18/600 ink; the hint is the label, 18/400 muted', (
-    tester,
-  ) async {
+  testWidgets('text is 18/600 ink with an ink caret; the hint is the label, '
+      '18/400 muted', (tester) async {
     await _pump(tester, _field());
     final field = tester.widget<TextField>(find.byType(TextField));
     expect(field.style!.fontSize, 18);
     expect(field.style!.fontWeight, FontWeight.w600);
     expect(field.style!.color, _colors.ink);
     expect(field.style!.height, isNull);
-    expect(field.cursorColor, _colors.primary);
+    // .qk-search-input sets no caret-color, so the caret is its ink.
+    expect(field.cursorColor, _colors.ink);
     expect(field.decoration!.border, InputBorder.none);
     expect(field.decoration!.filled, isNot(isTrue));
     expect(field.decoration!.hintText, _l10n.searchFieldHint);

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show clampDouble;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
@@ -18,22 +19,28 @@ const double _sheetBottom = 22;
 // .qk-sheet-handle: width 44px; height 5px; border-radius 3px.
 const Size _handleSize = Size(44, 5);
 const BorderRadius _handleRadius = BorderRadius.all(Radius.circular(3));
+// .qk-sheet-tab: height 40px and border 1px on a `<span>`, which nothing sets
+// to border-box, so the border lies outside the 40: 42 in all, selected or
+// not (`.is-on` only makes it transparent). border-radius 20px.
+const double _tabBorderWidth = 1;
+const double _tabHeight = 40 + 2 * _tabBorderWidth;
+const BorderRadius _tabRadius = BorderRadius.all(Radius.circular(20));
+// Each tab's 48 hit area reaches 3px above and below its 42.
+const double _hitOutset = (AppSizes.targetMin - _tabHeight) / 2;
 // The tabs scroll like `.qk-chips` (D-087): padding 4px 2px, taken back by
-// its margin. The 4px above and below hold the tabs' 48 hit area. At the
-// ends the strip is placed 2px out and padded 2px in, so the tabs sit flush
-// with the sheet's content and only the edge the scrolled tabs are cut at
-// lies 2px further out.
+// its margin. The 4px above and below hold the tabs' hit area and keep their
+// focus ring, drawn 4px out, inside the strip's clip. At the ends the strip
+// is placed 2px out and padded 2px in, so the tabs sit flush with the
+// sheet's content and only the edge the scrolled tabs are cut at lies 2px
+// further out.
 const double _stripInsetX = 2;
-const double _hitOutset = AppSpacing.space1;
-// .qk-sheet-tab: height 40px; border-radius 20px is half of it.
-const double _tabHeight = 40;
-const BorderRadius _tabRadius = BorderRadius.all(
-  Radius.circular(_tabHeight / 2),
-);
+const double _stripInsetY = AppSpacing.space1;
 // .qk-sheet-rows: border-radius 20px; padding 4px 18px.
 const BorderRadius _rowsRadius = BorderRadius.all(Radius.circular(20));
 const double _rowsInsetX = 18;
 const double _rowsInsetY = AppSpacing.space1;
+// .qk-sheet-row: gap var(--space-4).
+const double _rowGap = AppSpacing.space4;
 
 // No line height is set in `.qk-sheet*`, so each is the font's own (CSS
 // `normal`); the styles do not inherit, so the ambient body line height
@@ -99,8 +106,8 @@ final class WordSheetRow {
 /// when it and its place do not fit side by side the place goes under it,
 /// and a word wider than the sheet is scaled down to fit.
 /// [rows] come with the [note] that names their source (WordSheet README).
-/// Rows with an empty value, an empty [rows] and a null or empty [note] show
-/// nothing.
+/// A row with an empty value is not shown, and the note is shown only under
+/// the rows that are.
 class WordSheet extends StatelessWidget {
   const WordSheet({
     required this.word,
@@ -164,8 +171,9 @@ class WordSheet extends StatelessWidget {
               ),
             ),
           ),
-          // The strip's 4px hit outset sits inside the 16px gaps.
-          const SizedBox(height: gap - _hitOutset),
+          // The strip's 4px insets sit inside the 16px gaps, as `.qk-chips`'
+          // margin takes them back.
+          const SizedBox(height: gap - _stripInsetY),
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: _sheetSide - _stripInsetX,
@@ -179,7 +187,7 @@ class WordSheet extends StatelessWidget {
               onSelected: onTabSelected,
             ),
           ),
-          const SizedBox(height: gap - _hitOutset),
+          const SizedBox(height: gap - _stripInsetY),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: _sheetSide),
             child: Column(
@@ -207,13 +215,15 @@ class WordSheet extends StatelessWidget {
                     style: _positionStyle.copyWith(color: colors.inkMuted),
                   ),
                 ),
-                if (rows.isNotEmpty) _Rows(rows: rows),
-                if (note != null && note.isNotEmpty)
-                  Text(
-                    note,
-                    textAlign: TextAlign.center,
-                    style: _noteStyle.copyWith(color: colors.inkMuted),
-                  ),
+                if (rows.isNotEmpty) ...[
+                  _Rows(rows: rows),
+                  if (note != null && note.isNotEmpty)
+                    Text(
+                      note,
+                      textAlign: TextAlign.center,
+                      style: _noteStyle.copyWith(color: colors.inkMuted),
+                    ),
+                ],
               ],
             ),
           ),
@@ -239,7 +249,10 @@ class _Tabs extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: _stripInsetX),
+      padding: const EdgeInsets.symmetric(
+        horizontal: _stripInsetX,
+        vertical: _stripInsetY - _hitOutset,
+      ),
       // The tablist sits inside the scroll view, so its direct children are
       // the tabs, as the role requires.
       child: Semantics(
@@ -371,35 +384,179 @@ class _Rows extends StatelessWidget {
                   : BoxDecoration(
                       border: Border(bottom: BorderSide(color: colors.line)),
                     ),
-              // .qk-sheet-row: display flex, so the label keeps its width and
-              // the value takes the rest; items stretch, so both start at the
-              // row's top.
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                spacing: AppSpacing.space4,
-                children: [
-                  Text(
-                    row.label,
-                    style: _rowStyle.copyWith(color: colors.inkMuted),
+              child: _SheetRow(
+                label: Text(
+                  row.label,
+                  style: _rowStyle.copyWith(color: colors.inkMuted),
+                ),
+                value: Text(
+                  row.value,
+                  // .qk-sheet-row b: text-align left, the row's end.
+                  textAlign: TextAlign.end,
+                  style: _rowStyle.copyWith(
+                    color: colors.ink,
+                    fontWeight: FontWeight.w600,
                   ),
-                  Expanded(
-                    child: Text(
-                      row.value,
-                      // .qk-sheet-row b: text-align left, the row's end.
-                      textAlign: TextAlign.end,
-                      style: _rowStyle.copyWith(
-                        color: colors.ink,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
         ],
       ),
     );
   }
+}
+
+enum _RowPart { label, value }
+
+/// `.qk-sheet-row`: [label] at the start and [value] at the end, both from
+/// the row's top (`display: flex; justify-content: space-between`, items
+/// stretched), at least [_rowGap] apart.
+///
+/// The two are laid out as CSS lays out its items (`flex: 0 1 auto;
+/// min-width: auto`): each is as wide as its text on one line while the two
+/// fit; when they do not, both shrink in proportion to that width, and
+/// neither below its longest word, so no word is broken. Where even their
+/// longest words do not fit side by side, CSS lets them overflow the row;
+/// here both are narrowed further, in proportion to their longest words, and
+/// only then is a word broken.
+class _SheetRow
+    extends SlottedMultiChildRenderObjectWidget<_RowPart, RenderBox> {
+  const _SheetRow({required this.label, required this.value});
+
+  final Widget label;
+  final Widget value;
+
+  @override
+  Iterable<_RowPart> get slots => _RowPart.values;
+
+  @override
+  Widget childForSlot(_RowPart slot) => switch (slot) {
+    _RowPart.label => label,
+    _RowPart.value => value,
+  };
+
+  @override
+  _RenderSheetRow createRenderObject(BuildContext context) =>
+      _RenderSheetRow(Directionality.of(context));
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderSheetRow renderObject) {
+    renderObject.textDirection = Directionality.of(context);
+  }
+}
+
+/// Where the label and value of a row go, and the row's size.
+typedef _RowLine = ({Offset label, Offset value, Size size});
+
+class _RenderSheetRow extends RenderBox
+    with
+        SlottedContainerRenderObjectMixin<_RowPart, RenderBox>,
+        _PlacedChildren<_RowPart> {
+  _RenderSheetRow(this._textDirection);
+
+  TextDirection _textDirection;
+  set textDirection(TextDirection value) {
+    if (value == _textDirection) return;
+    _textDirection = value;
+    markNeedsLayout();
+  }
+
+  RenderBox get _label => childForSlot(_RowPart.label)!;
+  RenderBox get _value => childForSlot(_RowPart.value)!;
+
+  /// The widths the label and the value get on a row [width] wide.
+  ({double label, double value}) _widths(double width) {
+    final room = math.max(0.0, width - _rowGap);
+    final labelMax = _label.getMaxIntrinsicWidth(double.infinity);
+    final valueMax = _value.getMaxIntrinsicWidth(double.infinity);
+    if (labelMax + valueMax <= room) return (label: labelMax, value: valueMax);
+    final labelMin = _label.getMinIntrinsicWidth(double.infinity);
+    final valueMin = _value.getMinIntrinsicWidth(double.infinity);
+    final double label;
+    if (labelMin + valueMin > room) {
+      label = room * labelMin / (labelMin + valueMin);
+    } else {
+      // flex-shrink 1, scaled by the flex basis: each gives up a share of
+      // the overflow in proportion to its one-line width; one that would go
+      // below its longest word stops there and the other gives up the rest.
+      label = clampDouble(
+        room * labelMax / (labelMax + valueMax),
+        labelMin,
+        room - valueMin,
+      );
+    }
+    return (label: label, value: room - label);
+  }
+
+  /// The row under [constraints], by [layoutChild]: real and dry layout share
+  /// it, so they cannot place the two differently.
+  _RowLine _arrange(BoxConstraints constraints, ChildLayouter layoutChild) {
+    final width = constraints.maxWidth;
+    final widths = _widths(width);
+    final label = layoutChild(_label, BoxConstraints(maxWidth: widths.label));
+    final value = layoutChild(_value, BoxConstraints(maxWidth: widths.value));
+    final (labelX, valueX) = switch (_textDirection) {
+      TextDirection.rtl => (width - label.width, 0.0),
+      TextDirection.ltr => (0.0, width - value.width),
+    };
+    return (
+      label: Offset(labelX, 0),
+      value: Offset(valueX, 0),
+      size: constraints.constrain(
+        Size(width, math.max(label.height, value.height)),
+      ),
+    );
+  }
+
+  @override
+  void performLayout() {
+    final row = _arrange(constraints, ChildLayoutHelper.layoutChild);
+    (_label.parentData! as BoxParentData).offset = row.label;
+    (_value.parentData! as BoxParentData).offset = row.value;
+    size = row.size;
+  }
+
+  @override
+  Size computeDryLayout(covariant BoxConstraints constraints) =>
+      _arrange(constraints, ChildLayoutHelper.dryLayoutChild).size;
+
+  // The row's baseline is its first item's, the label's, at its top.
+  @override
+  double? computeDistanceToActualBaseline(TextBaseline baseline) =>
+      _label.getDistanceToActualBaseline(baseline);
+
+  @override
+  double? computeDryBaseline(
+    covariant BoxConstraints constraints,
+    TextBaseline baseline,
+  ) => _label.getDryBaseline(
+    BoxConstraints(maxWidth: _widths(constraints.maxWidth).label),
+    baseline,
+  );
+
+  // CSS's min-content and max-content widths of the row: the two side by
+  // side, at their longest words and on one line.
+  @override
+  double computeMinIntrinsicWidth(double height) =>
+      _label.getMinIntrinsicWidth(height) +
+      _rowGap +
+      _value.getMinIntrinsicWidth(height);
+
+  @override
+  double computeMaxIntrinsicWidth(double height) =>
+      _label.getMaxIntrinsicWidth(height) +
+      _rowGap +
+      _value.getMaxIntrinsicWidth(height);
+
+  @override
+  double computeMinIntrinsicHeight(double width) => _arrange(
+    BoxConstraints(maxWidth: width),
+    ChildLayoutHelper.dryLayoutChild,
+  ).size.height;
+
+  @override
+  double computeMaxIntrinsicHeight(double width) =>
+      computeMinIntrinsicHeight(width);
 }
 
 enum _WordPart { word, position }
@@ -438,7 +595,9 @@ class _WordLine
 typedef _Line = ({Offset word, Offset position, Size size});
 
 class _RenderWordLine extends RenderBox
-    with SlottedContainerRenderObjectMixin<_WordPart, RenderBox> {
+    with
+        SlottedContainerRenderObjectMixin<_WordPart, RenderBox>,
+        _PlacedChildren<_WordPart> {
   _RenderWordLine(this._textDirection);
 
   TextDirection _textDirection;
@@ -450,9 +609,6 @@ class _RenderWordLine extends RenderBox
 
   RenderBox get _word => childForSlot(_WordPart.word)!;
   RenderBox get _position => childForSlot(_WordPart.position)!;
-
-  static Offset _offsetOf(RenderBox child) =>
-      (child.parentData! as BoxParentData).offset;
 
   /// What each child is laid out in: the line's width, at most.
   static BoxConstraints _childConstraints(BoxConstraints constraints) =>
@@ -567,7 +723,14 @@ class _RenderWordLine extends RenderBox
   @override
   double computeMaxIntrinsicHeight(double width) =>
       _dryArrange(BoxConstraints(maxWidth: width)).size.height;
+}
 
+Offset _offsetOf(RenderBox child) =>
+    (child.parentData! as BoxParentData).offset;
+
+/// Paints and hit-tests the children where layout placed them.
+mixin _PlacedChildren<S>
+    on RenderBox, SlottedContainerRenderObjectMixin<S, RenderBox> {
   @override
   void paint(PaintingContext context, Offset offset) {
     for (final child in children) {

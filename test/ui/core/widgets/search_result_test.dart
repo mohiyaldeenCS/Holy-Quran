@@ -163,6 +163,18 @@ Finder _moreTarget() =>
 Finder _ring(Finder of) =>
     find.descendant(of: of, matching: find.byType(FocusRing)).first;
 
+/// Whether keyboard focus is on [control] or inside it.
+bool _focusedIn(Finder control) {
+  final focused = FocusManager.instance.primaryFocus?.context;
+  return find
+      .descendant(
+        of: control,
+        matching: find.byElementPredicate((element) => element == focused),
+      )
+      .evaluate()
+      .isNotEmpty;
+}
+
 bool _ringDrawn(WidgetTester tester, Finder ring) =>
     tester
         .widget<CustomPaint>(
@@ -554,15 +566,27 @@ void main() {
   });
 
   testWidgets('under an ayah that fits, the fade and link are not drawn, '
-      'hit, read or focused', (tester) async {
+      'read or focused', (tester) async {
     final handle = tester.ensureSemantics();
-    await _pump(tester, _result(clamp: true));
+    // Room under the card, so that the hidden link lies inside the scroll
+    // view and only the clamp keeps it from being drawn or read.
+    Widget withRoomBelow(SearchResult result) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [result, const SizedBox(height: 200)],
+    );
+    await _pump(tester, withRoomBelow(_result(clamp: true)));
     final result = find.byType(SearchResult);
     // The reference and the ayah, and no link.
     expect(result, paintsExactlyCountTimes(#drawParagraph, 2));
-    expect(find.bySemanticsLabel(_l10n.searchResultShowWhole), findsNothing);
     final link = find.text(_l10n.searchResultShowWhole, skipOffstage: false);
     expect(link, findsOneWidget);
+    final view = tester.getRect(find.byType(SingleChildScrollView));
+    final linkRect = tester.getRect(link);
+    expect(linkRect.top, greaterThan(tester.getRect(_card()).bottom));
+    expect(linkRect.bottom, lessThan(view.bottom));
+    expect(find.semantics.byLabel(_l10n.searchResultShowWhole), findsNothing);
+    // Defensive: the hidden link lies under the card, outside every box a hit
+    // test of the card enters, so this holds even if the clamp hit it.
     final hit = tester.hitTestOnBinding(tester.getCenter(link));
     final linkBox = tester.renderObject(link);
     expect(hit.path.any((entry) => entry.target == linkBox), isFalse);
@@ -574,8 +598,9 @@ void main() {
       expect(linkFocus.hasFocus, isFalse);
     }
 
-    await _pump(tester, _result(text: _long, clamp: true));
+    await _pump(tester, withRoomBelow(_result(text: _long, clamp: true)));
     expect(result, paintsExactlyCountTimes(#drawParagraph, 3));
+    expect(find.semantics.byLabel(_l10n.searchResultShowWhole), findsOneWidget);
     expect(
       Focus.of(
         tester.element(_more()),
@@ -586,25 +611,43 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('focus leaves the link when the ayah comes to fit', (
-    tester,
-  ) async {
-    await _pump(tester, _result(text: _long, clamp: true));
+  testWidgets('when the ayah comes to fit, focus leaves the link for the '
+      'control focused before it, and Tab goes on from there', (tester) async {
+    await _pump(
+      tester,
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: AppSpacing.space4,
+        children: [
+          _result(text: _long, clamp: true),
+          _result(text: _long, clamp: true),
+        ],
+      ),
+    );
+    final buttons = find.byType(IconButton);
+    // The first result's context and mushaf buttons, then its link.
     for (var i = 0; i < 3; i++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     }
     await tester.pump();
-    final link = Focus.of(tester.element(_more()), createDependency: false);
+    final link = Focus.of(
+      tester.element(_more().first),
+      createDependency: false,
+    );
     expect(link.hasPrimaryFocus, isTrue);
 
-    // Wide enough for the ayah on one line.
+    // Wide enough for each ayah on one line.
     tester.view.physicalSize = const Size(8000, 1200);
     await tester.pump();
     await tester.pump();
-    expect(_ayah(tester).size.height, lessThanOrEqualTo(_clampHeight));
     expect(_more(), findsNothing);
     expect(link.hasFocus, isFalse);
     expect(link.canRequestFocus, isFalse);
+    expect(_focusedIn(buttons.at(1)), isTrue);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(_focusedIn(buttons.at(2)), isTrue);
   });
 
   for (final (name, text, clamp) in [

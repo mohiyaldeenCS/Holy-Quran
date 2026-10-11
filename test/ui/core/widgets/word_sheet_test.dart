@@ -112,6 +112,11 @@ Finder _handle() => find.descendant(
 Finder _tabFace(String label) =>
     find.ancestor(of: find.text(label), matching: find.byType(Container)).first;
 
+/// The tab's 48 target, the box its taps land in.
+Finder _tabTarget(String label) => find
+    .ancestor(of: find.text(label), matching: find.byType(GestureDetector))
+    .first;
+
 BoxDecoration _decorationOf(WidgetTester tester, Finder finder) =>
     tester.widget<Container>(finder).decoration! as BoxDecoration;
 
@@ -176,9 +181,89 @@ int _lines(RenderParagraph paragraph) => paragraph
     .toSet()
     .length;
 
+/// Whether no word of [paragraph] is broken across lines.
+bool _wordsWhole(RenderParagraph paragraph) => RegExp(r'\S+')
+    .allMatches(paragraph.text.toPlainText())
+    .every(
+      (word) =>
+          paragraph
+              .getBoxesForSelection(
+                TextSelection(baseOffset: word.start, extentOffset: word.end),
+                boxHeightStyle: BoxHeightStyle.max,
+              )
+              .map((box) => box.top)
+              .toSet()
+              .length ==
+          1,
+    );
+
 /// The width [paragraph] takes on one line.
 double _naturalWidth(RenderParagraph paragraph) =>
     paragraph.getMaxIntrinsicWidth(double.infinity);
+
+/// The width of [paragraph]'s longest word.
+double _longestWord(RenderParagraph paragraph) =>
+    paragraph.getMinIntrinsicWidth(double.infinity);
+
+/// A sheet's one row as laid out: its box, where its label and value are,
+/// their paragraphs, and the width the two share.
+typedef _Row = ({
+  Rect box,
+  Rect label,
+  Rect value,
+  RenderParagraph labelText,
+  RenderParagraph valueText,
+  double room,
+});
+
+/// Pumps a sheet [width] wide at [scale] with one row of [label] and [value].
+Future<_Row> _pumpRow(
+  WidgetTester tester,
+  String label,
+  String value, {
+  double width = 360,
+  double scale = 1,
+}) async {
+  await _pump(
+    tester,
+    _sheet(rows: [WordSheetRow(label, value)]),
+    width: width,
+    textScale: scale,
+  );
+  final box = tester.getRect(_rowsBox());
+  return (
+    box: box,
+    label: tester.getRect(find.text(label)),
+    value: tester.getRect(find.text(value)),
+    labelText: tester.renderObject<RenderParagraph>(find.text(label)),
+    valueText: tester.renderObject<RenderParagraph>(find.text(value)),
+    // The box less its border 1 and padding 18 on each side, less the gap
+    // 16 between the two.
+    room: box.width - 2 * (1 + 18) - AppSpacing.space4,
+  );
+}
+
+/// Checks that [row]'s label is [label] wide at the row's start and its value
+/// [value] wide at its end, both from the row's top (`.qk-sheet-row`
+/// stretches its items), and that nothing overflowed.
+void _expectRow(
+  WidgetTester tester,
+  _Row row, {
+  required double label,
+  required double value,
+}) {
+  expect(tester.takeException(), isNull);
+  expect(row.label.width, closeTo(label, 0.01));
+  expect(row.value.width, closeTo(value, 0.01));
+  expect(row.label.right, closeTo(row.box.right - 1 - 18, 0.01));
+  expect(row.value.left, closeTo(row.box.left + 1 + 18, 0.01));
+  expect(
+    row.label.left - row.value.right,
+    greaterThanOrEqualTo(AppSpacing.space4 - 0.01),
+  );
+  expect(row.label.top, row.value.top);
+  expect(row.label.top - row.box.top, 1 + 4 + AppSpacing.space3);
+}
 
 /// Where the alphabetic baseline of [text] lies on screen.
 double _baseline(WidgetTester tester, Finder text) {
@@ -240,21 +325,28 @@ void main() {
     );
   });
 
-  testWidgets('the tabs: 40 high, 16 below the handle, 22 in, 8 apart', (
-    tester,
-  ) async {
+  testWidgets('the tabs: 40 inside a 1 px border, 16 below the handle, 22 '
+      'in, 8 apart, each a 48 target', (tester) async {
     await _pump(tester, _sheet());
     final sheet = tester.getRect(find.byType(WordSheet));
     final handle = tester.getRect(_handle());
     final first = tester.getRect(_tabFace(_tabLabels[0]));
     final second = tester.getRect(_tabFace(_tabLabels[1]));
-    expect(first.height, 40);
+    // .qk-sheet-tab is a content-box span: height 40px, then its border.
+    expect(first.height, 1 + 40 + 1);
     expect(first.top - handle.bottom, AppSpacing.space4);
     // Right to left: the first tab is on the right.
     expect(sheet.right - first.right, 22);
     expect(first.left - second.right, AppSpacing.space2);
     final word = tester.getRect(find.byType(QuranText));
     expect(word.top - first.bottom, AppSpacing.space4);
+    final target = tester.getRect(_tabTarget(_tabLabels[0]));
+    expect(target.height, AppSizes.targetMin);
+    expect(target.center.dy, first.center.dy);
+    // The focus ring, 2 px wide and 2 px out, stays inside the strip's clip.
+    final strip = tester.getRect(_strip());
+    expect(first.top - strip.top, greaterThanOrEqualTo(2 + 2));
+    expect(strip.bottom - first.bottom, greaterThanOrEqualTo(2 + 2));
   });
 
   testWidgets('the selected tab is primary and bold, the rest outlined', (
@@ -392,6 +484,23 @@ void main() {
     );
     expect(find.text(_l10n.sampleRowLabel), findsOneWidget);
     expect(find.text(''), findsNothing);
+    expect(find.text(_l10n.sampleNote), findsOneWidget);
+
+    // The note names the rows' source, so it goes with the rows shown.
+    await _pump(
+      tester,
+      _sheet(
+        rows: [WordSheetRow(_l10n.sampleRowLabel, '')],
+        note: _l10n.sampleNote,
+      ),
+    );
+    expect(_rowsBox(), findsNothing);
+    expect(find.text(_l10n.sampleRowLabel), findsNothing);
+    expect(find.text(_l10n.sampleNote), findsNothing);
+
+    await _pump(tester, _sheet(rows: const [], note: _l10n.sampleNote));
+    expect(_rowsBox(), findsNothing);
+    expect(find.text(_l10n.sampleNote), findsNothing);
   });
 
   test('rows need the note that names their source', () {
@@ -426,68 +535,152 @@ void main() {
     expect(tester.takeException(), isAssertionError);
   });
 
-  testWidgets('a row: the label at its own width, the value in the rest', (
-    tester,
-  ) async {
+  testWidgets('a row that fits: label and value at their one-line widths, at '
+      'its two ends', (tester) async {
     // About 204 px at 16/600: more than half the row, less than the label
     // leaves, on a 390 sheet.
     const value = 'قيمة تجريبية طويلة في سطر واحد';
-    await _pump(
-      tester,
-      _sheet(rows: [WordSheetRow(_l10n.sampleRowLabel, value)]),
-      width: 390,
-    );
-    final box = tester.getRect(_rowsBox());
-    final label = find.text(_l10n.sampleRowLabel);
-    final valueText = find.text(value);
-    final labelRect = tester.getRect(label);
-    final valueRect = tester.getRect(valueText);
-    final valueParagraph = tester.renderObject<RenderParagraph>(valueText);
-    // Border 1 and padding 18 on each side; gap 16 between the two.
-    final inner = box.width - 2 * (1 + 18);
-    expect(_naturalWidth(valueParagraph), greaterThan((inner - 16) / 2));
+    final row = await _pumpRow(tester, _l10n.sampleRowLabel, value, width: 390);
+    final labelMax = _naturalWidth(row.labelText);
+    final valueMax = _naturalWidth(row.valueText);
+    expect(valueMax, greaterThan(row.room / 2));
+    expect(labelMax + valueMax, lessThanOrEqualTo(row.room));
+    _expectRow(tester, row, label: labelMax, value: valueMax);
+    expect(_lines(row.labelText), 1);
+    expect(_lines(row.valueText), 1);
+    // justify-content: space-between; what is left goes between the two.
     expect(
-      labelRect.width,
-      closeTo(_naturalWidth(tester.renderObject<RenderParagraph>(label)), 0.01),
+      row.label.left - row.value.right,
+      closeTo(AppSpacing.space4 + row.room - labelMax - valueMax, 0.01),
     );
-    expect(_lines(valueParagraph), 1);
-    expect(labelRect.right, box.right - 1 - 18);
-    expect(valueRect.left, box.left + 1 + 18);
-    expect(valueRect.right, labelRect.left - AppSpacing.space4);
   });
 
-  testWidgets('a long value wraps inside the value column only', (
+  testWidgets('a row that does not fit, at 200% on 360 wide: both shrink in '
+      'proportion to their one-line widths, and no word is broken', (
     tester,
   ) async {
+    // A value whose longest word is wider than the label, at its one-line
+    // width, would leave it.
+    const value = 'قيمة تجريبيتان طويلة';
+    final row = await _pumpRow(tester, _l10n.sampleRowLabel, value, scale: 2);
+    final labelMax = _naturalWidth(row.labelText);
+    final valueMax = _naturalWidth(row.valueText);
+    expect(_longestWord(row.valueText), greaterThan(row.room - labelMax));
+    // flex-shrink 1, scaled by the flex basis: the overflow is taken from
+    // each in proportion to its one-line width, neither reaching its longest
+    // word.
+    final label = row.room * labelMax / (labelMax + valueMax);
+    expect(label, greaterThan(_longestWord(row.labelText)));
+    expect(row.room - label, greaterThan(_longestWord(row.valueText)));
+    _expectRow(tester, row, label: label, value: row.room - label);
+    for (final paragraph in [row.labelText, row.valueText]) {
+      expect(_lines(paragraph), greaterThan(1));
+      expect(_wordsWhole(paragraph), isTrue);
+    }
+  });
+
+  testWidgets('a long value: the label narrows to its longest word, no '
+      'further, and the value wraps in the rest', (tester) async {
     const value =
         'قيمة تجريبية طويلة جدًا تلتف على أكثر من سطر واحد في عمود القيمة '
         'وحده دون أن تمس العنوان';
-    await _pump(
-      tester,
-      _sheet(rows: [WordSheetRow(_l10n.sampleRowLabel, value)]),
-      width: 390,
-    );
-    final box = tester.getRect(_rowsBox());
-    final label = find.text(_l10n.sampleRowLabel);
-    final valueText = find.text(value);
-    final labelRect = tester.getRect(label);
-    final valueRect = tester.getRect(valueText);
-    expect(
-      _lines(tester.renderObject<RenderParagraph>(valueText)),
-      greaterThan(1),
-    );
-    expect(_lines(tester.renderObject<RenderParagraph>(label)), 1);
-    expect(
-      labelRect.width,
-      closeTo(_naturalWidth(tester.renderObject<RenderParagraph>(label)), 0.01),
-    );
-    expect(labelRect.right, box.right - 1 - 18);
-    expect(valueRect.left, box.left + 1 + 18);
-    expect(valueRect.right, labelRect.left - AppSpacing.space4);
-    // .qk-sheet-row stretches its items, so both start at the row's top.
-    expect(labelRect.top, valueRect.top);
-    expect(tester.widget<Text>(valueText).textAlign, TextAlign.end);
+    final row = await _pumpRow(tester, _l10n.sampleRowLabel, value, width: 390);
+    final labelMax = _naturalWidth(row.labelText);
+    final valueMax = _naturalWidth(row.valueText);
+    final labelMin = _longestWord(row.labelText);
+    // Its share of the overflow would take the label below its longest word
+    // (min-width: auto), so it stops there.
+    expect(row.room * labelMax / (labelMax + valueMax), lessThan(labelMin));
+    _expectRow(tester, row, label: labelMin, value: row.room - labelMin);
+    for (final paragraph in [row.labelText, row.valueText]) {
+      expect(_lines(paragraph), greaterThan(1));
+      expect(_wordsWhole(paragraph), isTrue);
+    }
+    expect(tester.widget<Text>(find.text(value)).textAlign, TextAlign.end);
   });
+
+  testWidgets('a label wider than the row wraps between its words, and the '
+      'value keeps its one word whole', (tester) async {
+    const label = 'عنوان تجريبي طويل يمتد أبعد من عرض الصف كله';
+    const value = 'قيمة';
+    final row = await _pumpRow(tester, label, value, scale: 2);
+    final labelMax = _naturalWidth(row.labelText);
+    final valueMax = _naturalWidth(row.valueText);
+    expect(labelMax, greaterThan(row.room + AppSpacing.space4));
+    expect(row.room * valueMax / (labelMax + valueMax), lessThan(valueMax));
+    _expectRow(tester, row, label: row.room - valueMax, value: valueMax);
+    expect(_lines(row.labelText), greaterThan(1));
+    expect(_wordsWhole(row.labelText), isTrue);
+    expect(_lines(row.valueText), 1);
+  });
+
+  testWidgets('where even the longest words do not fit side by side, both '
+      'narrow in proportion to them, inside the row', (tester) async {
+    // Synthetic single words, wider together than the row at 200%.
+    const label = 'فالتجريبيتان';
+    const value = 'والتجريبيات';
+    final row = await _pumpRow(tester, label, value, scale: 2);
+    final labelMin = _longestWord(row.labelText);
+    final valueMin = _longestWord(row.valueText);
+    expect(labelMin + valueMin, greaterThan(row.room));
+    final shared = row.room * labelMin / (labelMin + valueMin);
+    _expectRow(tester, row, label: shared, value: row.room - shared);
+  });
+
+  for (final (name, label, value, scale) in [
+    ('fits', _l10n.sampleRowLabel, _l10n.sampleRowValue, 1.0),
+    ('shrinks', _l10n.sampleRowLabel, 'قيمة تجريبيتان طويلة', 2.0),
+    ('narrows past its words', 'فالتجريبيتان', 'والتجريبيات', 2.0),
+  ]) {
+    testWidgets('a row that $name measures as it lays out: intrinsic widths '
+        'and heights, dry layout and baseline', (tester) async {
+      final pumped = await _pumpRow(tester, label, value, scale: scale);
+      final row = pumped.labelText.parent! as RenderBox;
+      expect(row.getDryLayout(row.constraints), row.size);
+      expect(row.getMinIntrinsicHeight(row.size.width), row.size.height);
+      expect(row.getMaxIntrinsicHeight(row.size.width), row.size.height);
+      // CSS's min-content and max-content widths of the row.
+      expect(
+        row.getMinIntrinsicWidth(double.infinity),
+        closeTo(
+          _longestWord(pumped.labelText) +
+              AppSpacing.space4 +
+              _longestWord(pumped.valueText),
+          0.01,
+        ),
+      );
+      expect(
+        row.getMaxIntrinsicWidth(double.infinity),
+        closeTo(
+          _naturalWidth(pumped.labelText) +
+              AppSpacing.space4 +
+              _naturalWidth(pumped.valueText),
+          0.01,
+        ),
+      );
+      // The row's baseline is its first item's, the label's.
+      expect(
+        row.getDryBaseline(row.constraints, TextBaseline.alphabetic),
+        closeTo(
+          _baseline(tester, find.text(label)) -
+              row.localToGlobal(Offset.zero).dy,
+          0.01,
+        ),
+      );
+
+      final box = tester.renderObject<RenderBox>(find.byType(WordSheet));
+      final laidOut = box.size;
+      expect(box.getDryLayout(box.constraints), laidOut);
+      expect(box.getMinIntrinsicHeight(laidOut.width), laidOut.height);
+      await _pump(
+        tester,
+        IntrinsicHeight(child: _sheet(rows: [WordSheetRow(label, value)])),
+        textScale: scale,
+      );
+      expect(tester.takeException(), isNull);
+      expect(tester.getSize(find.byType(WordSheet)), laidOut);
+    });
+  }
 
   testWidgets('the word is drawn whole on one line: its place moves under '
       'it, and a word wider than the sheet is scaled down', (tester) async {
@@ -628,7 +821,7 @@ void main() {
     await tester.tap(find.text(_l10n.wordSheetTabSarf));
     await tester.pump();
     final face = tester.getRect(_tabFace(_l10n.wordSheetTabTafsir));
-    await tester.tapAt(Offset(face.center.dx, face.top - 3));
+    await tester.tapAt(Offset(face.center.dx, face.top - 2.5));
     await tester.pump();
     expect(chosen, [WordSheetTab.sarf, WordSheetTab.tafsir]);
 

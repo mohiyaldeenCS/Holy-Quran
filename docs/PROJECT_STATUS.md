@@ -33,7 +33,7 @@ corrected first.
   parser, signature seam, file service, the read-only `PackDatabase`, the pack and
   text repositories). Synthetic pack builder and independent reader in
   `testing/packs/`. The integrity suite in `test/integrity/`.
-- About 1,680 tests: 1,625 that run anywhere (unit, widget, integrity, guards for
+- About 1,690 tests: 1,631 that run anywhere (unit, widget, integrity, guards for
   fonts, imports, literals, design numbers, type rules, contrast, pack text, pack
   writes) and 57 golden tests with 168 images made on `ubuntu-24.04`. No content pack
   or feature yet.

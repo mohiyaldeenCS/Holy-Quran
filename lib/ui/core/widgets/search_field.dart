@@ -86,7 +86,8 @@ class _SearchFieldState extends State<SearchField> {
         textDirection: TextDirection.rtl,
         textInputAction: TextInputAction.search,
         style: _inputStyle.copyWith(color: colors.ink),
-        cursorColor: colors.primary,
+        // .qk-search-input sets no caret-color, so the caret is its ink.
+        cursorColor: colors.ink,
         // Not collapsed: the decorator keeps the input at least target-min
         // high, centred, so the text is a 48 target as `.qk-search-input`'s
         // `height: 100%` makes it one.
