@@ -236,8 +236,20 @@ Stream A: **M0.4 part 2** on `claude/great-hamilton-9n23mt` (D-093).
   DST rule checked. Its two should-fix items (a digest per image, Flutter deep linking
   off) and four smaller ones run now as a follow-up on key 1. The APK build is the
   agent's claim; the next `spike-apk` run confirms it.
-- Task C (#19, key 1, `ui-builder`, $11.08) is under review (`code-reviewer`,
-  `identity-auditor`). Task E runs on key 2; task F is being drafted.
+- Task C (#19, key 1, `ui-builder`, $11.08): `code-reviewer` not ready (the scroll wins
+  a pinch with one finger still; a third finger gives a second report; a mark group too
+  broad; the selection's open end untested); `identity-auditor` does not conform (the
+  selection on a marker-only line is a small box; the frame between lines is drawn
+  twice; the selection hides the spoken word). One fix run on its branch takes them all
+  and runs both reviewers itself.
+- From 2026-10-11 21:00 the owner asked to save this session's budget: reviews and task
+  planning now run on the API keys too (each fix or task run reviews its own diff with
+  `code-reviewer` and `identity-auditor` through the Task tool); the lead only writes
+  short task texts, reads the reports and CI, merges and keeps this file.
+- Task F's text is ready (`test-engineer`); it starts after C merges. Before F's
+  real-text run, `ci.yml`'s S7 and S4 steps need `!cancelled() &&` in their `if`, or
+  they are skipped after the red S1 step; that change waits for a moment with no run
+  out.
 
 M0.4 part 1 and M0.5 still wait on the owner's device run and his look at the gallery
 images.
@@ -334,6 +346,7 @@ Open decisions that come later (full list in `docs/DECISIONS.md`):
 | M0.4-14 | «مع تفعيل «تقليل الحركة» في النظام: تبقى الصفحة ثابتة أثناء السحب ثم تتلاشى إلى التالية عند رفع الإصبع (موصى به، وبه تعمل التجربة)، أم تتبع الصفحة الإصبع أثناء السحب ويقتصر التلاشي على إكمال القلب؟» | D-097, after the S7 usability test |
 | M0.4-15 | «إذا قُلبت الصفحة وهي مكبّرة: تُفتح الصفحة التالية بحجمها الكامل (موصى به، وبه تعمل التجربة)، أم بالتكبير نفسه؟» | D-097, after the S7 usability test |
 | M0.4-16 | «اسم الودجة «ودجة الآية» ووصفها في قائمة الودجات لا يوجدان في ملف النصوص، ولا طريق الآن لنقل نص عربي منه إلى موارد أندرويد. هل نؤجل الاسم والوصف إلى المرحلة الثانية (WG-01) فنضيفهما إلى ملف النصوص ونولّد منهما موارد أندرويد، وتبقى الودجة في التجربة باسم التطبيق (موصى به)، أم نضيفهما الآن يدويًا للتجربة وحدها؟» | WG-01, Phase 2 (settled for the spike by the recommended option) |
+| M0.4-17 | «في اللوحات تُرسم علامة الآية المختارة بحلقة ورقم باللون الأساسي (#0E5A52)، وفي المكوّن المرجعي ليس للعلامة حالة «مختارة». بالألوان الحالية يقل تباين رقم العلامة على لون التحديد في سمة الورق عن الحد (4.30 من 4.5). هل نضيف للعلامة حالة «مختارة» باللون الأساسي كما في اللوحات (موصى به)، أم تبقى كما هي؟» | M1.2 (the spike keeps the reference marker) |
 | O-01 | «معرّف التطبيق في المتجرين (مثل com.اسمك.quran) واسم الناشر الذي سيظهر للمستخدمين. المعرّف لا يمكن تغييره بعد النشر.» | Before the first store upload |
 | O-04 | «ما التلاوات التي تريدها في الإصدار الأول (خمس على الأقل، اثنتان منها بتوقيت كلمات)، ومن أين نأخذ ملفاتها، وهل يجيز إذن كل منها التنزيل دون اتصال والاستضافة على خادمك؟» | Phase 0 (B0.5) |
 | O-06 | «هل تبقى التفاسير السبعة العامة (الميسر، المختصر، السعدي، الجلالين، البغوي، ابن كثير، الطبري) بجانب كتب المكتبة الزيدية؟» | Phase 0 (B0.7) |
