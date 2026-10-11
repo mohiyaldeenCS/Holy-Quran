@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
+import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/app_theme.dart';
 import 'package:holyquran/ui/core/widgets/level_switch.dart';
 import 'package:holyquran/ui/core/widgets/quran_text.dart';
@@ -54,6 +55,8 @@ SpikeSurahText _first(SpikeSurahText surah, int ayat) => SpikeSurahText(
 void main() {
   late Directory root;
   late S7Surah surah;
+  late S7Surah short;
+  final l10n = lookupAppLocalizations(const Locale('ar'));
 
   setUpAll(() async {
     root = await Directory.systemTemp.createTemp('s7_session');
@@ -63,6 +66,11 @@ void main() {
       Failure(:final error) => throw StateError('$error'),
     };
     surah = (text: _first(read.long, 60), name: name);
+    final shortName = switch (await read.pack.surahs()) {
+      Ok(:final value) => value[syntheticShortSurah - 1].name,
+      Failure(:final error) => throw StateError('$error'),
+    };
+    short = (text: read.short, name: shortName);
     read.pack.close();
   });
   tearDownAll(() => root.delete(recursive: true));
@@ -70,6 +78,7 @@ void main() {
   Future<S7Record> pump(
     WidgetTester tester, {
     bool pages = false,
+    S7Surah? reading,
     bool reduceMotion = false,
     double textScale = 1,
     TapRule rule = s7DefaultTapRule,
@@ -97,7 +106,7 @@ void main() {
           ),
         ),
         home: S7Session(
-          surah: pages ? null : surah,
+          surah: pages ? null : reading ?? surah,
           record: record,
           storage: () async => Directory('${root.path}/storage'),
           random: Random(3),
@@ -105,6 +114,8 @@ void main() {
         ),
       ),
     );
+    // The reader's top inset follows the chrome's height after a frame.
+    await tester.pump();
     return record;
   }
 
@@ -163,7 +174,7 @@ void main() {
 
   Future<void> setLevel(WidgetTester tester, S7Level level) async {
     await openPanel(tester);
-    final labels = ['بسيط', 'متوسط', 'دراسة'];
+    final labels = [l10n.levelSimple, l10n.levelMedium, l10n.levelStudy];
     await tester.tap(find.text(labels[level.index]));
     await tester.pump();
     await closePanel(tester);
@@ -181,7 +192,9 @@ void main() {
             actionFor(t, longPress: false, level: level, toolbarOpen: false);
         expect(
           tap(word),
-          level == S7Level.simple ? S7Action.toggleChrome : S7Action.showWord,
+          level == S7Level.simple
+              ? S7Action.toggleChrome
+              : S7Action.openWordSheet,
         );
         expect(tap(margin), S7Action.toggleChrome);
         expect(tap(marker), S7Action.selectAyah);
@@ -254,21 +267,83 @@ void main() {
     });
 
     for (final level in [S7Level.medium, S7Level.study]) {
-      testWidgets('${level.name}: a word tap paints the word in place of '
-          'the word sheet, and leaves the UI', (tester) async {
-        await pump(tester);
+      testWidgets('${level.name}: a word tap is logged and opens nothing, '
+          'pending the word sheet, and leaves the UI', (tester) async {
+        final record = await pump(tester);
         await setLevel(tester, level);
         final (point, target) = pointOf(tester, WordTarget);
         await tester.tapAt(point);
-        await tester.pump();
-        expect(list(tester).highlighted, {(target as WordTarget).word});
+        await tester.pumpAndSettle();
+        final entry = record.log.entries.single;
+        expect(entry.target, LoggedTarget.word);
+        expect(entry.address, (target as WordTarget).word);
         expect(find.byType(WordSheet), findsNothing);
-        expect(chromeOpacity(tester), 1);
-        await tester.tapAt(point);
-        await tester.pump();
         expect(list(tester).highlighted, isEmpty);
+        expect(list(tester).selected, isEmpty);
+        expect(chromeOpacity(tester), 1);
       });
     }
+
+    testWidgets('the chrome covers no text at the top, and showing it moves '
+        'nothing', (tester) async {
+      await pump(tester);
+      final bar = tester.getRect(
+        find.ancestor(of: find.text('Debug'), matching: find.byType(Row)),
+      );
+      final top = origin(tester).dy;
+      expect(top, greaterThanOrEqualTo(bar.bottom));
+      await tester.tapAt(const Offset(4, _height / 2));
+      await tester.pumpAndSettle();
+      expect(chromeOpacity(tester), 0);
+      expect(origin(tester).dy, top);
+    });
+
+    testWidgets('in a short surah a tap below the text is a margin tap', (
+      tester,
+    ) async {
+      final record = await pump(tester, reading: short);
+      final below = tester.getRect(find.byType(SurahTextBlock)).bottom;
+      expect(below, lessThan(_height - 60));
+      await tester.tapAt(const Offset(_width / 2, _height - 30));
+      await tester.pumpAndSettle();
+      expect(chromeOpacity(tester), 0);
+      expect(record.log.entries.single.target, LoggedTarget.margin);
+    });
+
+    testWidgets('a long press on the gutter is a long press on the margin: '
+        'logged, and nothing changes', (tester) async {
+      final record = await pump(tester);
+      await tester.longPressAt(const Offset(4, _height / 2));
+      await tester.pumpAndSettle();
+      final entry = record.log.entries.single;
+      expect(entry.gesture, LoggedGesture.longPress);
+      expect(entry.target, LoggedTarget.margin);
+      expect(chromeOpacity(tester), 1);
+      expect(find.byType(AyahToolbarStandIn), findsNothing);
+    });
+
+    testWidgets('changing the mode or the level closes the toolbar and the '
+        'card', (tester) async {
+      await pump(tester);
+      final (marker, _) = pointOf(tester, MarkerTarget);
+      await tester.tapAt(marker);
+      await tester.pump();
+      expect(find.byType(AyahToolbarStandIn), findsOneWidget);
+      await setLevel(tester, S7Level.study);
+      expect(
+        find.byType(AyahToolbarStandIn),
+        findsOneWidget,
+        reason: 'the level keeps the selection',
+      );
+      await openPanel(tester);
+      await tester.tap(find.text('Page'));
+      await tester.pump();
+      await tester.tap(find.text('Surah'));
+      await tester.pump();
+      await closePanel(tester);
+      expect(find.byType(AyahToolbarStandIn), findsNothing);
+      expect(list(tester).selected, isEmpty);
+    });
 
     testWidgets('a tap on the gutter or the basmala shows and hides the UI', (
       tester,
@@ -298,7 +373,7 @@ void main() {
       expect(list(tester).selected, {(target as MarkerTarget).ayah});
       expect(find.byType(AyahToolbarStandIn), findsOneWidget);
 
-      await tester.tap(find.bySemanticsLabel('علامة مرجعية'));
+      await tester.tap(find.bySemanticsLabel(l10n.ayahRowBookmark));
       await tester.pump();
       expect(record.toolbarActions, {AyahToolbarAction.bookmark: 1});
 
@@ -360,7 +435,6 @@ void main() {
         await tester.tapAt(point);
         await tester.pumpAndSettle();
         expect(record.log.entries, isEmpty);
-        expect(list(tester).highlighted, isEmpty);
         expect(chromeOpacity(tester), 1);
       });
     }
@@ -607,8 +681,30 @@ void main() {
       });
       expect(find.byType(AyahToolbarStandIn), findsNothing);
       expect(find.byType(WaqfCardStandIn), findsNothing);
-      expect(list(tester).highlighted, isEmpty);
       expect(list(tester).selected, isEmpty);
+
+      final first = await tester.startGesture(
+        const Offset(_width / 2, 370),
+        pointer: 7,
+      );
+      final second = await tester.startGesture(
+        const Offset(_width / 2, 430),
+        pointer: 8,
+      );
+      for (var i = 0; i < 10; i++) {
+        await first.moveBy(const Offset(0, -5));
+        await tester.pump(const Duration(milliseconds: 16));
+        await second.moveBy(const Offset(0, 5));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await first.up();
+      await second.up();
+      await tester.pumpAndSettle();
+      final after = tester.widget<PracticeRing>(find.byType(PracticeRing));
+      final shown = after.box.shift(origin(tester));
+      final reader = tester.getRect(find.byType(SurahListV1));
+      expect(reader.contains(shown.topLeft), isTrue, reason: 'picked again');
+      expect(reader.contains(shown.bottomRight), isTrue);
     });
   });
 

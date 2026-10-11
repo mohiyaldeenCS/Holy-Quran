@@ -52,8 +52,8 @@ enum S7Action {
 
   /// The word sheet at medium and study (LX-11). It needs the word as its
   /// own pack text, a slice of the stored ayah that is not allowed yet
-  /// (D-062, M1.6), so the session paints the word instead.
-  showWord,
+  /// (D-062, M1.6), so the session only logs the tap.
+  openWordSheet,
   openWaqfCard,
   closeToolbar,
   none,
@@ -78,7 +78,7 @@ S7Action actionFor(
   }
   return switch (target) {
     WordTarget() when level == S7Level.simple => S7Action.toggleChrome,
-    WordTarget() => S7Action.showWord,
+    WordTarget() => S7Action.openWordSheet,
     MarginTarget() => S7Action.toggleChrome,
     MarkerTarget() => S7Action.selectAyah,
     WaqfMarkTarget() => S7Action.openWaqfCard,
@@ -148,16 +148,19 @@ final class _S7SessionState extends State<S7Session> {
   final _scaffold = GlobalKey<ScaffoldState>();
   final _blockKey = GlobalKey();
   final _viewportKey = GlobalKey();
+  final _chromeKey = GlobalKey();
   final _controller = ScrollController();
   late final Random _random = widget.random ?? Random();
   late S7Mode _mode = widget.surah == null ? S7Mode.page : S7Mode.surah;
   late TapRule _rule = widget.initialRule;
   S7Level _level = S7Level.simple;
-  double? _step;
+  double _step = 1;
+  bool _stepChosen = false;
+  double _chromeHeight = 0;
+  double _viewportHeight = 0;
   double _systemScale = 1;
   bool _chromeShown = true;
   QuranAddress? _selected;
-  QuranAddress? _word;
   (QuranAddress, int)? _waqf;
   bool _practising = false;
   PracticeTarget? _practice;
@@ -176,7 +179,10 @@ final class _S7SessionState extends State<S7Session> {
     super.didChangeDependencies();
     final size = AppTextStyles.quranPage.fontSize!;
     _systemScale = MediaQuery.textScalerOf(context).scale(size) / size;
-    _step ??= stepAfterPinch(_systemScale, 1);
+    if (!_stepChosen) {
+      _step = stepAfterPinch(_systemScale, 1);
+      _stepChosen = true;
+    }
   }
 
   @override
@@ -220,11 +226,7 @@ final class _S7SessionState extends State<S7Session> {
       textSize: _step,
       point: _blockPoint(),
     );
-    if (_practising) {
-      setState(() {});
-      return;
-    }
-    _act(target, longPress: true);
+    if (!_practising) _act(target, longPress: true);
   }
 
   void _act(GestureTarget target, {required bool longPress}) {
@@ -240,16 +242,13 @@ final class _S7SessionState extends State<S7Session> {
           _chromeShown = !_chromeShown;
         case S7Action.selectAyah:
           _selected = _ayahOf(target);
-          _word = null;
-        case S7Action.showWord:
-          final word = (target as WordTarget).word;
-          _word = word == _word ? null : word;
         case S7Action.openWaqfCard:
           final mark = target as WaqfMarkTarget;
           _waqf = (mark.ayah, mark.mark);
         case S7Action.closeToolbar:
           _selected = null;
-        case S7Action.none:
+        // Logged only: see S7Action.openWordSheet.
+        case S7Action.openWordSheet || S7Action.none:
       }
     });
   }
@@ -257,7 +256,7 @@ final class _S7SessionState extends State<S7Session> {
   void _pinchEnd(double scale, Offset focal) {
     final block = _block;
     final step = _step;
-    if (block == null || step == null) return;
+    if (block == null) return;
     final local = block.globalToLocal(focal);
     final anchor = focalAyahAt(block.paragraph, local);
     final next = stepAfterPinch(step, scale);
@@ -268,10 +267,7 @@ final class _S7SessionState extends State<S7Session> {
       textSize: next,
       point: local,
     );
-    if (next == step) {
-      setState(() {});
-      return;
-    }
+    if (next == step) return;
     setState(() => _step = next);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -311,21 +307,18 @@ final class _S7SessionState extends State<S7Session> {
           toPage: to + 1,
           scale: zoom,
         );
-        setState(() {});
       case PageTurnCancelled(:final page, :final zoom):
         _log.record(
           gesture: LoggedGesture.pageTurnCancelled,
           page: page + 1,
           scale: zoom,
         );
-        setState(() {});
       case PageZoom(:final page, :final zoom):
         _log.record(
           gesture: LoggedGesture.pageZoom,
           page: page + 1,
           scale: zoom,
         );
-        setState(() {});
     }
   }
 
@@ -360,7 +353,7 @@ final class _S7SessionState extends State<S7Session> {
     setState(() {
       _practising = on;
       _practice = null;
-      _selected = _word = _waqf = null;
+      _selected = _waqf = null;
     });
     if (on) _pickTargetAfterFrame();
   }
@@ -369,7 +362,7 @@ final class _S7SessionState extends State<S7Session> {
     _mode = mode;
     _practising = false;
     _practice = null;
-    _selected = _word = _waqf = null;
+    _selected = _waqf = null;
   });
 
   Future<void> _export() async {
@@ -383,8 +376,23 @@ final class _S7SessionState extends State<S7Session> {
     if (mounted) setState(() => _exportStatus = status);
   }
 
+  /// Keeps the reader's top inset at the chrome's height, so the chrome
+  /// covers no text at the top and showing it moves nothing.
+  void _measureChrome(Duration _) {
+    final bar = _chromeKey.currentContext?.findRenderObject();
+    if (!mounted || bar is! RenderBox || !bar.hasSize) return;
+    if (bar.size.height != _chromeHeight) {
+      setState(() => _chromeHeight = bar.size.height);
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback(_measureChrome);
+    return _body(context);
+  }
+
+  Widget _body(BuildContext context) => Scaffold(
     key: _scaffold,
     endDrawerEnableOpenDragGesture: false,
     endDrawer: Drawer(
@@ -393,14 +401,11 @@ final class _S7SessionState extends State<S7Session> {
         onMode: _setMode,
         surahAvailable: widget.surah != null,
         level: _level,
-        onLevel: (level) => setState(() {
-          _level = level;
-          _word = null;
-        }),
+        onLevel: (level) => setState(() => _level = level),
         rule: _rule,
         defaultRule: s7DefaultTapRule,
         onRule: (rule) => setState(() => _rule = rule),
-        step: _step ?? 1,
+        step: _step,
         systemScale: _systemScale,
         practising: _practising,
         onPractice: _setPractising,
@@ -450,6 +455,7 @@ final class _S7SessionState extends State<S7Session> {
                     ),
                   },
                   _ChromeOverlay(
+                    barKey: _chromeKey,
                     shown: _chromeShown && !_practising,
                     title: _mode == S7Mode.surah ? widget.surah?.name : null,
                     onDebug: () => _scaffold.currentState?.openEndDrawer(),
@@ -488,16 +494,10 @@ final class _S7SessionState extends State<S7Session> {
                       left: 0,
                       right: 0,
                       bottom: 0,
-                      child: SafeArea(
-                        top: false,
-                        child: Padding(
-                          padding: const EdgeInsets.all(AppSpacing.space4),
-                          child: WaqfCardStandIn(
-                            surahName: surah.name,
-                            ayah: ayah,
-                            mark: mark,
-                          ),
-                        ),
+                      child: WaqfCardStandIn(
+                        surahName: surah.name,
+                        ayah: ayah,
+                        mark: mark,
                       ),
                     ),
                   ],
@@ -517,22 +517,26 @@ final class _S7SessionState extends State<S7Session> {
     builder: (context) => MediaQuery(
       data: MediaQuery.of(
         context,
-      ).copyWith(textScaler: TextScaler.linear(_step ?? 1)),
+      ).copyWith(textScaler: TextScaler.linear(_step)),
       child: Builder(
         builder: (context) {
           _log.setContext(gestureLogContextOf(context));
           return ReaderPinch(
             onPinchEnd: _pinchEnd,
-            child: KeyedSubtree(
-              key: _viewportKey,
-              child: SurahListV1(
-                surah: surah.text,
-                highlighted: {?_word},
-                selected: {?_selected},
-                controller: _controller,
-                blockKey: _blockKey,
-                wrapBlock: _wrap,
-              ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                _viewportHeight = constraints.maxHeight;
+                return KeyedSubtree(
+                  key: _viewportKey,
+                  child: SurahListV1(
+                    surah: surah.text,
+                    selected: {?_selected},
+                    controller: _controller,
+                    blockKey: _blockKey,
+                    wrapBlock: _wrap,
+                  ),
+                );
+              },
             ),
           );
         },
@@ -540,27 +544,38 @@ final class _S7SessionState extends State<S7Session> {
     ),
   );
 
-  /// The block's gestures, and a margin tap on the gutters. Both sit inside
-  /// the scroll view, which ignores pointers while it flings, so a tap that
-  /// stops a fling opens nothing. On the block, the arena gives a tap to
-  /// the block's own recogniser, which joined first.
+  /// The block's gestures, and the margin's: the gutters, the chrome's inset
+  /// above the text and, in a short surah, the viewport below it. Both sit
+  /// inside the scroll view, which ignores pointers while it flings, so a
+  /// tap that stops a fling opens nothing. On the block, the arena gives a
+  /// tap or a long press to the block's own recognisers, which joined
+  /// first.
   Widget _wrap(BuildContext context, SurahTextBlock block) => GestureDetector(
     behavior: HitTestBehavior.opaque,
     excludeFromSemantics: true,
     onTapUp: (_) => _onTap(const MarginTarget()),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space4),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          BlockGestures(
-            rule: _rule,
-            onTap: _onTap,
-            onLongPress: _onLongPress,
-            child: block,
-          ),
-          if (_practice case final target?) PracticeRing(box: target.box),
-        ],
+    onLongPressStart: (_) => _onLongPress(const MarginTarget()),
+    child: ConstrainedBox(
+      constraints: BoxConstraints(minHeight: _viewportHeight),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.space4,
+          _chromeHeight,
+          AppSpacing.space4,
+          0,
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            BlockGestures(
+              rule: _rule,
+              onTap: _onTap,
+              onLongPress: _onLongPress,
+              child: block,
+            ),
+            if (_practice case final target?) PracticeRing(box: target.box),
+          ],
+        ),
       ),
     ),
   );
@@ -570,11 +585,13 @@ final class _S7SessionState extends State<S7Session> {
 /// moves; a fade, or none under reduce motion (AX-06).
 final class _ChromeOverlay extends StatelessWidget {
   const _ChromeOverlay({
+    required this.barKey,
     required this.shown,
     required this.title,
     required this.onDebug,
   });
 
+  final Key barKey;
   final bool shown;
   final PackText? title;
   final VoidCallback onDebug;
@@ -597,11 +614,9 @@ final class _ChromeOverlay extends StatelessWidget {
                 ? Duration.zero
                 : motionNormal,
             curve: motionCurve,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: colors.surface,
-                border: Border(bottom: BorderSide(color: colors.line)),
-              ),
+            child: ColoredBox(
+              key: barKey,
+              color: colors.ground,
               child: SafeArea(
                 bottom: false,
                 child: Padding(
@@ -616,9 +631,8 @@ final class _ChromeOverlay extends StatelessWidget {
                             ? const SizedBox.shrink()
                             : SurahName(
                                 title,
-                                format: SurahNameFormat.titled,
-                                style: AppTextStyles.screenTitle.copyWith(
-                                  color: colors.ink,
+                                style: AppTextStyles.surahHeader.copyWith(
+                                  color: colors.primary,
                                 ),
                               ),
                       ),

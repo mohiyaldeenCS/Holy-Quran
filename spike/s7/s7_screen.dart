@@ -70,10 +70,12 @@ class _S7ScreenState extends State<S7Screen> {
         return;
       }
       final opened = await openVerifiedPack(directory);
-      final infos = switch (await opened.text.surahs()) {
-        Ok(:final value) => value,
-        Failure(:final error) => throw StateError('surahs failed: $error'),
-      };
+      final result = await opened.text.surahs();
+      if (result case Failure(:final error)) {
+        opened.text.close();
+        throw StateError('surahs failed: $error');
+      }
+      final infos = (result as Ok<List<SurahInfo>>).value;
       if (!mounted) {
         opened.text.close();
         return;
@@ -91,20 +93,20 @@ class _S7ScreenState extends State<S7Screen> {
   }
 
   Future<void> _session(SurahInfo? info) async {
+    setState(() => _busy = true);
     S7Surah? surah;
-    if (info != null) {
-      setState(() => _busy = true);
-      try {
+    try {
+      if (info != null) {
         surah = (
           text: await readSpikeSurahText(_text!, info.number),
           name: info.name,
         );
-      } on Object catch (e) {
-        if (mounted) setState(() => _error = describeError(e));
-        return;
-      } finally {
-        if (mounted) setState(() => _busy = false);
       }
+    } on Object catch (e) {
+      if (mounted) setState(() => _error = describeError(e));
+      return;
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
     if (!mounted) return;
     await Navigator.of(context).push(
