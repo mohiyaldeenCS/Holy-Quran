@@ -179,6 +179,14 @@ void main() {
       expect(_read('pubspec.yaml'), contains('asset: $_fontAsset\n'));
       expect(source, contains(_literal(_fontAsset)));
       expect(
+        source,
+        contains(
+          'if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) '
+          'setFallbackLineSpacing(false)',
+        ),
+        reason: 'a height delta is shaping, not fallback line spacing',
+      );
+      expect(
         _read(_activity),
         contains(
           'ShapingProbe(applicationContext, '

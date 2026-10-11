@@ -16,6 +16,8 @@ import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import es.antonborri.home_widget.HomeWidgetPlugin
 import es.antonborri.home_widget.HomeWidgetProvider
 import java.io.File
+import java.io.IOException
+import java.security.MessageDigest
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -51,6 +53,8 @@ class AyahWidgetProvider : HomeWidgetProvider() {
         val darkPath: String,
         val lightBytes: Long,
         val darkBytes: Long,
+        val lightSha256: String,
+        val darkSha256: String,
     )
 
     private fun draw(
@@ -61,8 +65,8 @@ class AyahWidgetProvider : HomeWidgetProvider() {
     ) {
         val views = RemoteViews(context.packageName, R.layout.ayah_widget)
         val slot = slotAt(readSlots(data.getString(SLOTS_PREFIX + faceSize(manager, id), null)))
-        val light = slot?.let { image(it.lightPath, it.lightBytes) }
-        val dark = slot?.let { image(it.darkPath, it.darkBytes) }
+        val light = slot?.let { image(it.lightPath, it.lightBytes, it.lightSha256) }
+        val dark = slot?.let { image(it.darkPath, it.darkBytes, it.darkSha256) }
         if (slot == null || light == null || dark == null) {
             views.setViewVisibility(R.id.ayah_widget_image, View.GONE)
             views.setContentDescription(R.id.ayah_widget_image, null)
@@ -123,6 +127,8 @@ class AyahWidgetProvider : HomeWidgetProvider() {
                     entry.getString(DARK_PATH),
                     entry.getLong(LIGHT_BYTES),
                     entry.getLong(DARK_BYTES),
+                    entry.getString(LIGHT_SHA256),
+                    entry.getString(DARK_SHA256),
                 )
             }
         } catch (unreadable: JSONException) {
@@ -131,12 +137,21 @@ class AyahWidgetProvider : HomeWidgetProvider() {
     }
 
     // A publish that failed after saving images may have replaced the file a
-    // slot names; a length other than the slot's means another image.
-    private fun image(path: String, bytes: Long): Bitmap? {
-        val file = File(path)
-        if (file.length() != bytes) return null
-        return BitmapFactory.decodeFile(file.path)
+    // slot names; a length or digest other than the slot's means another
+    // image. The bytes checked are the bytes decoded.
+    private fun image(path: String, bytes: Long, sha256: String): Bitmap? {
+        val data = try {
+            File(path).readBytes()
+        } catch (unreadable: IOException) {
+            return null
+        }
+        if (data.size.toLong() != bytes) return null
+        if (sha256Hex(data) != sha256) return null
+        return BitmapFactory.decodeByteArray(data, 0, data.size)
     }
+
+    private fun sha256Hex(data: ByteArray): String =
+        MessageDigest.getInstance("SHA-256").digest(data).joinToString("") { "%02x".format(it) }
 
     // The last slot whose day has started, else the first.
     private fun slotAt(slots: List<Slot>): Slot? {
@@ -171,9 +186,11 @@ class AyahWidgetProvider : HomeWidgetProvider() {
         const val DARK_PATH = "darkPath"
         const val LIGHT_BYTES = "lightBytes"
         const val DARK_BYTES = "darkBytes"
+        const val LIGHT_SHA256 = "lightSha256"
+        const val DARK_SHA256 = "darkSha256"
         val FIELDS = listOf(
-            ADDRESS, SLOT_START_MS, LIGHT_PATH, DARK_PATH,
-            "packTextSha256", LIGHT_BYTES, DARK_BYTES, "renderMs",
+            ADDRESS, SLOT_START_MS, LIGHT_PATH, DARK_PATH, "packTextSha256",
+            LIGHT_BYTES, DARK_BYTES, LIGHT_SHA256, DARK_SHA256, "renderMs",
         )
         const val LINK_SCHEME = "holyquranspike"
         const val LINK_HOST = "ayah"

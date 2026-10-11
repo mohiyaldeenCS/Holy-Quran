@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 
@@ -14,8 +16,23 @@ WidgetSlotInfo _slot(int startMs, {String address = 'hafs:1:1'}) => (
   packTextSha256: 'ab' * 32,
   lightBytes: 10,
   darkBytes: 11,
+  lightSha256: 'cd' * 32,
+  darkSha256: 'ef' * 32,
   renderMs: 12,
 );
+
+const _fields = [
+  SlotField.address,
+  SlotField.slotStartMs,
+  SlotField.lightPath,
+  SlotField.darkPath,
+  SlotField.packTextSha256,
+  SlotField.lightBytes,
+  SlotField.darkBytes,
+  SlotField.lightSha256,
+  SlotField.darkSha256,
+  SlotField.renderMs,
+];
 
 void main() {
   group('slotStarts', () {
@@ -123,17 +140,19 @@ void main() {
 
     test('uses the field names the native widget reads', () {
       final json = encodeSlots([_slot(1)]);
-      for (final field in [
-        SlotField.address,
-        SlotField.slotStartMs,
-        SlotField.lightPath,
-        SlotField.darkPath,
-        SlotField.packTextSha256,
-        SlotField.lightBytes,
-        SlotField.darkBytes,
-        SlotField.renderMs,
-      ]) {
-        expect(json, contains('"$field":'));
+      expect(
+        (jsonDecode(json) as List<Object?>).single,
+        isA<Map<String, Object?>>().having((m) => m.keys, 'keys', _fields),
+      );
+    });
+
+    test('refuses a slot missing any field', () {
+      for (final field in _fields) {
+        final entry =
+            (jsonDecode(encodeSlots([_slot(1)])) as List<Object?>).single!
+                as Map<String, Object?>;
+        entry.remove(field);
+        expect(decodeSlots(jsonEncode([entry])), isNull, reason: field);
       }
     });
 
@@ -147,6 +166,9 @@ void main() {
         encodeSlots([
           _slot(1),
         ]).replaceFirst('"slotStartMs":1', '"slotStartMs":"1"'),
+        encodeSlots([
+          _slot(1),
+        ]).replaceFirst('"lightSha256":"${'cd' * 32}"', '"lightSha256":1'),
       ]) {
         expect(decodeSlots(bad), isNull, reason: bad);
       }

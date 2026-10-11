@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/painting.dart';
+import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
@@ -100,7 +101,9 @@ void main() {
       quranSize: face.quranSize,
       ayah: face.ayahNumber,
     ));
-    return Uint8List(face.look == WidgetLook.paper ? 3 : 5);
+    // Distinct bytes per render, so that each image has its own digest.
+    return Uint8List(face.look == WidgetLook.paper ? 3 : 5)
+      ..[0] = renders.length;
   }
 
   setUp(renders.clear);
@@ -232,6 +235,11 @@ void main() {
         expect(slot.darkPath, '/data/ayah_widget/$dark.png');
         expect(bridge.pngs[light], hasLength(3));
         expect(bridge.pngs[dark], hasLength(5));
+        expect(
+          slot.lightSha256,
+          sha256.convert(bridge.pngs[light]!).toString(),
+        );
+        expect(slot.darkSha256, sha256.convert(bridge.pngs[dark]!).toString());
       }
     }
   });
@@ -270,7 +278,7 @@ void main() {
       r'|/[A-Za-z0-9_./-]+\.png'
       r'|[0-9a-f]{64}'
       r'|address|slotStartMs|lightPath|darkPath|packTextSha256'
-      r'|lightBytes|darkBytes|renderMs)$',
+      r'|lightBytes|darkBytes|lightSha256|darkSha256|renderMs)$',
     );
     final ayahTexts = [for (final ayah in pack.ayat) ayah.ayah.verbatim];
     for (final MapEntry(:key, :value) in bridge.strings.entries) {
@@ -357,6 +365,41 @@ void main() {
   });
 
   group('renderFacePng', () {
+    testWidgets('disposes every render object it creates', (tester) async {
+      final ayah = pack.ayat.first;
+      final face = AyahWidgetFace(
+        ayah: ayah.ayah,
+        surahName: ayah.surahName,
+        ayahNumber: ayah.address.ayah,
+        quranSize: 22,
+        look: WidgetLook.paper,
+        size: faceSizeOf(WidgetFaceSize.small),
+      );
+      final live = <Object>{};
+      var created = 0;
+      void track(ObjectEvent event) {
+        if (event.object is! RenderObject && event.object is! PipelineOwner) {
+          return;
+        }
+        switch (event) {
+          case ObjectCreated():
+            created++;
+            live.add(event.object);
+          case ObjectDisposed():
+            live.remove(event.object);
+        }
+      }
+
+      FlutterMemoryAllocations.instance.addListener(track);
+      try {
+        await tester.runAsync(() => renderFacePng(face, 1));
+      } finally {
+        FlutterMemoryAllocations.instance.removeListener(track);
+      }
+      expect(created, greaterThan(3));
+      expect(live, isEmpty);
+    });
+
     for (final size in WidgetFaceSize.values) {
       for (final look in WidgetLook.values) {
         testWidgets(

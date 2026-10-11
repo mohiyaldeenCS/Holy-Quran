@@ -10,8 +10,9 @@ import 'package:holyquran/domain/models/quran_address.dart';
 /// The two faces of the widget: 4x2 and 2x2 (D-093, reading 1).
 enum WidgetFaceSize { medium, small }
 
-/// One day of one face: the ayah, when its day starts, and its two images.
-/// Nothing in it is Quran text.
+/// One day of one face: the ayah, when its day starts, and its two images,
+/// each with the length and the lowercase hex SHA-256 of its PNG bytes as
+/// saved. Nothing in it is Quran text.
 typedef WidgetSlotInfo = ({
   String address,
   int slotStartMs,
@@ -20,6 +21,8 @@ typedef WidgetSlotInfo = ({
   String packTextSha256,
   int lightBytes,
   int darkBytes,
+  String lightSha256,
+  String darkSha256,
   int renderMs,
 });
 
@@ -44,6 +47,8 @@ abstract final class SlotField {
   static const packTextSha256 = 'packTextSha256';
   static const lightBytes = 'lightBytes';
   static const darkBytes = 'darkBytes';
+  static const lightSha256 = 'lightSha256';
+  static const darkSha256 = 'darkSha256';
   static const renderMs = 'renderMs';
 }
 
@@ -79,6 +84,8 @@ String encodeSlots(List<WidgetSlotInfo> slots) => jsonEncode([
       SlotField.packTextSha256: slot.packTextSha256,
       SlotField.lightBytes: slot.lightBytes,
       SlotField.darkBytes: slot.darkBytes,
+      SlotField.lightSha256: slot.lightSha256,
+      SlotField.darkSha256: slot.darkSha256,
       SlotField.renderMs: slot.renderMs,
     },
 ]);
@@ -102,6 +109,8 @@ List<WidgetSlotInfo>? decodeSlots(String json) {
       SlotField.packTextSha256: final String packTextSha256,
       SlotField.lightBytes: final int lightBytes,
       SlotField.darkBytes: final int darkBytes,
+      SlotField.lightSha256: final String lightSha256,
+      SlotField.darkSha256: final String darkSha256,
       SlotField.renderMs: final int renderMs,
     }) {
       slots.add((
@@ -112,6 +121,8 @@ List<WidgetSlotInfo>? decodeSlots(String json) {
         packTextSha256: packTextSha256,
         lightBytes: lightBytes,
         darkBytes: darkBytes,
+        lightSha256: lightSha256,
+        darkSha256: darkSha256,
         renderMs: renderMs,
       ));
     } else {
