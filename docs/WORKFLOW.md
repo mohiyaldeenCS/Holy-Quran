@@ -130,7 +130,9 @@ application code itself.
   has no memory of the lead's session.
 - **Review.** The lead (or `code-reviewer`) reviews each pull request against the
   project rules and CI and tells the owner which can be merged. Nothing is merged
-  without the owner's approval.
+  without the owner's approval, unless he has delegated merges to the lead (as he did
+  for his absence from 2026-10-11, D-093): then the lead merges a pull request once
+  its review and CI pass and reports it.
 
 ## Git and GitHub
 
