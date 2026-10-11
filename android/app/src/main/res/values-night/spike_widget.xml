@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Spike S4 (D-068): AppColors.night.ground, behind the image while none is shown. -->
+<resources>
+    <color name="spike_widget_ground">#FF0A1413</color>
+</resources>
