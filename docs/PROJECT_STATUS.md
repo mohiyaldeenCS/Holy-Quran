@@ -12,7 +12,7 @@ corrected first.
 | Phase | 0 — Foundation. Gate 0 not met |
 | Stream A — app | M0.1, M0.2 and M0.3 merged, with human checks pending (pull requests #2, #3 and #4). **M0.4 part 1** merged as partial (pull request #6): spikes S1, S5 and the S3 playback part are done on Linux and await the owner's device run. **M0.5** merged (pull request #10): the remaining design-system widgets; the owner confirmed D-089 and D-091 on 2026-10-11; human checks pending. Next: M0.4 part 2 (S4, S7) |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | `ci/agent-workflow`, pull request #13: the agent workflow of D-092. Implementation now runs as agent tasks in GitHub Actions on `agent/*` branches, started by the owner |
+| Working branch | `claude/great-hamilton-9n23mt`: **M0.4 part 2** (plan `docs/plans/M0.4-part2.md`, D-093). The spike code is restored there; its tasks run as agents (D-092) on `agent/*` branches with this branch as `base`. The owner has delegated all work, merges included, while he is away (D-093) |
 | Last session | Implementing session, 2026-10-11, from two accounts: the first built M0.5 steps 0a, A, B and D; the second took the branch over mid-milestone, finished batch C and steps E to G, and applied two rounds of review (#10). Before it, planning session: books 473 and 440 (#11) |
 
 ## What is in the repository
@@ -179,11 +179,20 @@ raw extraction output; signing keys. The 13 logo SVG files are in
 
 ## In progress
 
-Stream A: the agent workflow (D-092, pull request #13) waits for the owner's merge; it
-appears in the Actions tab only once it is on `main`. Then: one trial run on each key
-with a small cap, and M0.4 part 2 (S7 gestures, S4 home-screen widget, the S1 rerun on
-the D-079 file) split into agent tasks whose files do not overlap. M0.4 part 1 and M0.5
-still wait on the owner's device run and his look at the gallery images.
+Stream A: **M0.4 part 2** on `claude/great-hamilton-9n23mt` (D-093).
+
+- Done: the agent workflow is on `main` (#13); step 0 of the plan: the part-1 spike
+  code restored from `be4fbc2`, the part-1 packages and `home_widget` 0.10.0, S3's and
+  S5's native files, the `spike-s1-text` and `spike-apk` CI tasks with the D-079 URL.
+  Analysis is clean; 14 spike tests in `spike/s1` fail until task A brings the writer
+  to D-083, so `ci.yml`'s check does not run `spike` yet.
+- Running: two trial agent runs (key 1: the generator-test fix; key 2: a no-change
+  smoke run).
+- Next: an early `spike-apk` build with `home_widget`; wave 1 (tasks A and B); then
+  the waves of `docs/plans/M0.4-part2.md`.
+
+M0.4 part 1 and M0.5 still wait on the owner's device run and his look at the gallery
+images.
 
 Stream B: the owner is extracting book 466 (التهذيب في التفسير, about 7,325 site
 pages). Nothing else is open in stream B.
@@ -261,6 +270,11 @@ Open decisions that come later (full list in `docs/DECISIONS.md`):
 
 | ID | Question, as it should be put to him | Needed by |
 | --- | --- | --- |
+| M0.4-1 | «هل ثبّتَّ نسخة التجارب السابقة (CI run 68) أو بدأت تجارب الجهاز للجزء الأول؟ قد تتطلب النسخة الجديدة حذف القديمة أولًا، وهذا يمسح بيانات تجربتي S1 وS5 على الهاتف.» | The part-2 APK |
+| M0.4-2 | «ما طراز هاتفك، وإصدار أندرويد، والذاكرة، وواجهة الشاشة الرئيسية (سامسونج أو شاومي أو غيرها)، وحجم الشاشة؟» | The device run |
+| M0.4-3 | «اختبار الإيماءات: كم مشاركًا (نقترح خمسة، بينهم شخص فوق الستين وآخر يستخدم الخط الكبير)، وعلى أي هواتف، وهل تدير الاختبار بالنص العربي الذي نجهزه؟» | The S7 usability test |
+| M0.4-4 | «في الوثيقة تفتح لمسة فاصلة الآية «أدوات الآية»، وتفتح اللمسة المطوّلة «شريط أدواتها». هل هما الشريط نفسه بأفعاله الخمسة (موصى به، وبه تعمل التجربة الآن)، أم تفتح الفاصلة شيئًا آخر مثل ورقة الآية المصغّرة؟» | M1.6 (settled for the spike by the recommended option) |
+| M0.4-5 | «يشترط AX-02 ألا يقل هدف اللمس عن 48، والكلمة في النص المتدفق لا يتجاوز هدفها عرضها ونصف الفراغين حولها. هل تُستثنى الكلمات وعلامات الوقف داخل النص كما يستثنيها معيار WCAG 2.2 للأهداف داخل النص (موصى به، والتجربة تقيس الأثر)، أم يتغير تصميم الإيماءات؟» | M1.2 (settled for the spike by the recommended option) |
 | O-01 | «معرّف التطبيق في المتجرين (مثل com.اسمك.quran) واسم الناشر الذي سيظهر للمستخدمين. المعرّف لا يمكن تغييره بعد النشر.» | Before the first store upload |
 | O-04 | «ما التلاوات التي تريدها في الإصدار الأول (خمس على الأقل، اثنتان منها بتوقيت كلمات)، ومن أين نأخذ ملفاتها، وهل يجيز إذن كل منها التنزيل دون اتصال والاستضافة على خادمك؟» | Phase 0 (B0.5) |
 | O-06 | «هل تبقى التفاسير السبعة العامة (الميسر، المختصر، السعدي، الجلالين، البغوي، ابن كثير، الطبري) بجانب كتب المكتبة الزيدية؟» | Phase 0 (B0.7) |
