@@ -136,6 +136,15 @@ void main() {
     expect(_read(_manifest), contains('android:name=".$name"'));
   });
 
+  test('the four-argument setIcon runs on API 31 and later only', () {
+    final source = _read(_provider);
+    expect('setIcon('.allMatches(source), hasLength(1));
+    expect(
+      _block(source, 'if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)'),
+      contains('views.setIcon('),
+    );
+  });
+
   test('Flutter deep linking is off, so the widget link is not a route', () {
     final activity = RegExp(
       r'<activity\s[^>]*android:name="\.MainActivity"[^>]*>([\s\S]*?)</activity>',

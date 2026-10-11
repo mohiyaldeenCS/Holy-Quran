@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -13,6 +14,50 @@ import 'widget_bridge.dart';
 const _channel = MethodChannel('home_widget');
 const _events = EventChannel('home_widget/updates');
 const _provider = 'com.example.holyquran.AyahWidgetProvider';
+
+/// The `.partial` file savePng writes, recording what it does and what the
+/// final image holds at each step; its rename fails when [failRename].
+final class _PartialFile implements File {
+  _PartialFile(this._real, this._log, {required this.failRename});
+
+  final File _real;
+  final List<String> _log;
+  final bool failRename;
+
+  String get _final =>
+      _real.path.substring(0, _real.path.length - '.partial'.length);
+
+  String _finalBytes() {
+    final file = File(_final);
+    return file.existsSync() ? '${file.readAsBytesSync()}' : 'absent';
+  }
+
+  @override
+  String get path => _real.path;
+
+  @override
+  Future<File> writeAsBytes(
+    List<int> bytes, {
+    FileMode mode = FileMode.write,
+    bool flush = false,
+  }) async {
+    _log.add('write $bytes flush $flush, final ${_finalBytes()}');
+    await _real.writeAsBytes(bytes, mode: mode, flush: flush);
+    _log.add('written, final ${_finalBytes()}');
+    return this;
+  }
+
+  @override
+  Future<File> rename(String newPath) async {
+    _log.add('rename to ${newPath == _final ? 'final' : newPath}');
+    if (failRename) throw FileSystemException('rename refused', path);
+    return _real.rename(newPath);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnsupportedError('${invocation.memberName}');
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -53,6 +98,46 @@ void main() {
       await bridge.savePng('k', Uint8List.fromList([1, 2, 3, 4]));
       final path = await bridge.savePng('k', Uint8List.fromList([9]));
       expect(File(path).readAsBytesSync(), [9]);
+    });
+
+    group('never leaves the image half-written', () {
+      late List<String> log;
+
+      Future<String> save(Uint8List png, {bool failRename = false}) =>
+          IOOverrides.runZoned(
+            () => bridge.savePng('k', png),
+            createFile: (path) {
+              final real = Zone.root.run(() => File(path));
+              return path.endsWith('.partial')
+                  ? _PartialFile(real, log, failRename: failRename)
+                  : real;
+            },
+          );
+
+      setUp(() async {
+        log = [];
+        await bridge.savePng('k', Uint8List.fromList([1, 2]));
+      });
+
+      test('writes beside the image, then renames over it', () async {
+        final path = await save(Uint8List.fromList([7, 8, 9]));
+        expect(log, [
+          'write [7, 8, 9] flush true, final [1, 2]',
+          'written, final [1, 2]',
+          'rename to final',
+        ]);
+        expect(File(path).readAsBytesSync(), [7, 8, 9]);
+        expect(File('$path.partial').existsSync(), isFalse);
+      });
+
+      test('keeps the old image when the rename fails', () async {
+        await expectLater(
+          save(Uint8List.fromList([7, 8, 9]), failRename: true),
+          throwsA(isA<FileSystemException>()),
+        );
+        expect(log.last, 'rename to final');
+        expect(File('${root.path}/images/k.png').readAsBytesSync(), [1, 2]);
+      });
     });
 
     test('refuses a key that is not a safe file name', () async {

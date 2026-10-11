@@ -2,6 +2,7 @@ package com.example.holyquran
 
 import android.content.Context
 import android.graphics.Typeface
+import android.os.Build
 import android.text.Layout
 import android.util.TypedValue
 import android.view.View
@@ -55,6 +56,9 @@ class ShapingProbe(private val context: Context, messenger: BinaryMessenger) :
             // the system font scale does not apply.
             setTextSize(TypedValue.COMPLEX_UNIT_PX, (fontSize * density).toFloat())
             includeFontPadding = false
+            // Fallback line spacing grows a line to a fallback font's extent;
+            // off, a height delta reflects shaping, not fallback line spacing.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) setFallbackLineSpacing(false)
             breakStrategy = Layout.BREAK_STRATEGY_SIMPLE
             hyphenationFrequency = Layout.HYPHENATION_FREQUENCY_NONE
             textLocale = Locale("ar")
