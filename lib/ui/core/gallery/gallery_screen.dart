@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart' hide Icon, IconButton, Switch, TabBar;
 
-import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
+import 'package:holyquran/ui/core/gallery/gallery_samples.dart';
+import 'package:holyquran/ui/core/gallery/gallery_section.dart';
 import 'package:holyquran/ui/core/theme/app_theme.dart';
 import 'package:holyquran/ui/core/theme/ramps.g.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
@@ -129,18 +130,18 @@ class _SectionsState extends State<_Sections> {
               style: AppTextStyles.sectionTitle.copyWith(color: colors.ink),
             ),
           ),
-          _Section(
+          GallerySection(
             title: l10n.gallerySectionMark,
-            child: _row([
+            child: galleryRow([
               for (final size in _markSizes) Mark(size: size),
-              const _Backdrop(
+              const GalleryBackdrop(
                 color: Ramps.emerald700,
                 child: Mark(
                   size: _markOnEmeraldSize,
                   variant: MarkVariant.emerald,
                 ),
               ),
-              const _Backdrop(
+              const GalleryBackdrop(
                 color: Ramps.emerald950,
                 child: Mark(
                   size: _markOnEmeraldSize,
@@ -156,11 +157,11 @@ class _SectionsState extends State<_Sections> {
               ),
             ]),
           ),
-          _Section(
+          GallerySection(
             title: l10n.gallerySectionLockup,
-            child: _row([
+            child: galleryRow([
               const Lockup(size: _lockupSize),
-              const _Backdrop(
+              const GalleryBackdrop(
                 color: Ramps.emerald700,
                 padding: AppSpacing.space4,
                 child: Lockup(size: _lockupSize, onEmerald: true),
@@ -168,7 +169,7 @@ class _SectionsState extends State<_Sections> {
               const Lockup(stacked: true),
             ]),
           ),
-          _Section(
+          GallerySection(
             title: l10n.gallerySectionIcons,
             child: IconTheme.merge(
               data: IconThemeData(color: colors.primary),
@@ -182,9 +183,9 @@ class _SectionsState extends State<_Sections> {
               ),
             ),
           ),
-          _Section(
+          GallerySection(
             title: l10n.gallerySectionButtons,
-            child: _row([
+            child: galleryRow([
               Button(label: l10n.galleryButtonPrimary, onPressed: _none),
               Button(
                 label: l10n.galleryButtonOutline,
@@ -204,9 +205,9 @@ class _SectionsState extends State<_Sections> {
               Button(label: l10n.galleryButtonDisabled, onPressed: null),
             ]),
           ),
-          _Section(
+          GallerySection(
             title: l10n.gallerySectionIconButtons,
-            child: _row([
+            child: galleryRow([
               IconButton(
                 icon: IconName.play,
                 label: l10n.galleryIconButtonPlayFromHere,
@@ -237,7 +238,7 @@ class _SectionsState extends State<_Sections> {
               ),
             ]),
           ),
-          _Section(
+          GallerySection(
             title: l10n.gallerySectionSwitches,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -255,7 +256,7 @@ class _SectionsState extends State<_Sections> {
               ],
             ),
           ),
-          _Section(
+          GallerySection(
             title: l10n.gallerySectionLevelSwitch,
             child: LevelSwitch(
               options: [l10n.levelSimple, l10n.levelMedium, l10n.levelStudy],
@@ -264,7 +265,7 @@ class _SectionsState extends State<_Sections> {
               semanticLabel: l10n.levelLabel,
             ),
           ),
-          _Section(
+          GallerySection(
             title: l10n.gallerySectionTabBar,
             child: TabBar(
               items: [
@@ -279,36 +280,36 @@ class _SectionsState extends State<_Sections> {
               semanticLabel: l10n.mainNavigationLabel,
             ),
           ),
-          _Section(
+          GallerySection(
             title: l10n.gallerySectionQuranText,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               spacing: AppSpacing.space3,
               children: [
                 for (final size in QuranTextSize.values)
-                  QuranText(PackText.fromPack(l10n.sampleText), size: size),
+                  QuranText(GallerySamples.text(l10n), size: size),
               ],
             ),
           ),
-          _Section(
+          GallerySection(
             title: l10n.gallerySectionAyahMarker,
-            child: _row([
+            child: galleryRow([
               for (final (:number, :playing, :size) in _ayahMarkers)
                 AyahMarker(number: number, playing: playing, size: size),
             ]),
           ),
-          _Section(
+          GallerySection(
             title: l10n.gallerySectionSurahHeader,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               spacing: AppSpacing.space4,
               children: [
                 SurahHeader(
-                  name: l10n.sampleSurahName,
+                  name: GallerySamples.surahName(l10n),
                   size: SurahHeaderSize.lg,
                   info: l10n.sampleInfo,
                 ),
-                SurahHeader(name: l10n.sampleSurahName),
+                SurahHeader(name: GallerySamples.surahName(l10n)),
               ],
             ),
           ),
@@ -326,60 +327,3 @@ String _themeName(AppLocalizations l10n, ReadingTheme theme) => switch (theme) {
   ReadingTheme.sepia => l10n.themeSepia,
   ReadingTheme.contrast => l10n.themeContrast,
 };
-
-// .qk-row: a wrapping row, space-3 apart, centred across.
-Widget _row(List<Widget> children) => Wrap(
-  spacing: AppSpacing.space3,
-  runSpacing: AppSpacing.space3,
-  crossAxisAlignment: WrapCrossAlignment.center,
-  children: children,
-);
-
-class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    mainAxisSize: MainAxisSize.min,
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    spacing: AppSpacing.space3,
-    children: [
-      Semantics(
-        header: true,
-        child: Text(
-          title,
-          style: AppTextStyles.bodyStrong.copyWith(
-            color: context.colors.inkMuted,
-          ),
-        ),
-      ),
-      child,
-    ],
-  );
-}
-
-/// The emerald surface the previews draw the brand variants on
-/// (Mark/preview.html, Lockup/preview.html): fixed brand colours, radius 24.
-class _Backdrop extends StatelessWidget {
-  const _Backdrop({
-    required this.color,
-    required this.child,
-    this.padding = AppSpacing.space2,
-  });
-
-  final Color color;
-  final double padding;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: color,
-      borderRadius: BorderRadius.circular(AppRadius.radiusCard),
-    ),
-    child: Padding(padding: EdgeInsets.all(padding), child: child),
-  );
-}

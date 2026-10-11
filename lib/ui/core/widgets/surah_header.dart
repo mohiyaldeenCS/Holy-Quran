@@ -1,9 +1,10 @@
 import 'package:flutter/widgets.dart';
 
-import 'package:holyquran/l10n/app_localizations.dart';
+import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/star_outline.dart';
+import 'package:holyquran/ui/core/widgets/surah_name.dart';
 
 /// The two sizes of the surah header: [md] on the page, [lg] where the surah
 /// begins.
@@ -11,7 +12,8 @@ enum SurahHeaderSize { md, lg }
 
 /// The surah header: a double frame with a quarter star on each side of the
 /// name, and an optional [info] line under the inner frame. [name] is the
-/// surah's name without the word for surah, which the header adds.
+/// pack's surah name without the word for surah, which the header adds
+/// (`surahTitle`, drawn by [SurahName]).
 ///
 /// The reference heights are minimum heights, so the name can grow with the
 /// system text scale.
@@ -23,7 +25,7 @@ final class SurahHeader extends StatelessWidget {
     super.key,
   });
 
-  final String name;
+  final PackText name;
   final SurahHeaderSize size;
   final String? info;
 
@@ -59,8 +61,9 @@ final class SurahHeader extends StatelessWidget {
                 children: [
                   star,
                   Flexible(
-                    child: Text(
-                      AppLocalizations.of(context).surahHeaderName(name),
+                    child: SurahName(
+                      name,
+                      format: SurahNameFormat.titled,
                       textAlign: TextAlign.center,
                       style: (large ? _largeNameStyle : _nameStyle).copyWith(
                         color: colors.primary,

@@ -3,9 +3,9 @@ import 'package:flutter/widgets.dart' hide Icon;
 import 'package:holyquran/ui/core/theme/ramps.g.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
-import 'package:holyquran/ui/core/widgets/focus_ring.dart';
 import 'package:holyquran/ui/core/widgets/icon.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
+import 'package:holyquran/ui/core/widgets/pressable.dart';
 
 // Button (index.jsx): <Icon size={22} /> before the label.
 const double _iconSize = 22;
@@ -37,7 +37,6 @@ class Button extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final onPressed = this.onPressed;
     final enabled = onPressed != null;
     final (background, foreground, outline) = _colours(context.colors, enabled);
     final icon = this.icon;
@@ -81,28 +80,14 @@ class Button extends StatelessWidget {
     );
     return Semantics(
       container: true,
-      button: true,
-      enabled: enabled,
+      // Pressable states the button role and the disabled state; the enabled
+      // state is announced here. A flag set twice would split the node.
+      enabled: enabled ? true : null,
       label: label,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onPressed,
-        child: FocusRing(
-          radius: _radius,
-          child: FocusableActionDetector(
-            enabled: enabled,
-            mouseCursor: enabled
-                ? SystemMouseCursors.click
-                : SystemMouseCursors.basic,
-            actions: {
-              if (enabled)
-                ActivateIntent: CallbackAction<ActivateIntent>(
-                  onInvoke: (_) => onPressed(),
-                ),
-            },
-            child: ExcludeSemantics(child: face),
-          ),
-        ),
+      child: Pressable(
+        onPressed: onPressed,
+        focusRadius: _radius,
+        child: ExcludeSemantics(child: face),
       ),
     );
   }

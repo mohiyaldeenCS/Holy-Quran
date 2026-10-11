@@ -4,9 +4,9 @@ import 'package:flutter/widgets.dart' hide Icon;
 
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
-import 'package:holyquran/ui/core/widgets/focus_ring.dart';
 import 'package:holyquran/ui/core/widgets/icon.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
+import 'package:holyquran/ui/core/widgets/pressable.dart';
 
 enum IconButtonTone { plain, tint, solid }
 
@@ -47,33 +47,29 @@ class IconButton extends StatelessWidget {
     final target = math.max(size, AppSizes.targetMin);
     return Semantics(
       container: true,
-      button: true,
       label: label,
+      // Pressable covers the drawn face, where the focus ring goes; this
+      // detector makes the rest of the target-min square press it too. Its
+      // tap action would repeat Pressable's and split the semantics node.
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
+        excludeFromSemantics: true,
         onTap: onPressed,
         child: SizedBox.square(
           dimension: target,
           child: Center(
-            child: FocusRing(
-              radius: _radius,
-              child: FocusableActionDetector(
-                mouseCursor: SystemMouseCursors.click,
-                actions: {
-                  ActivateIntent: CallbackAction<ActivateIntent>(
-                    onInvoke: (_) => onPressed(),
-                  ),
-                },
-                child: Container(
-                  width: size,
-                  height: size,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: background,
-                    borderRadius: _radius,
-                  ),
-                  child: Icon(icon, size: iconSize, color: foreground),
+            child: Pressable(
+              onPressed: onPressed,
+              focusRadius: _radius,
+              child: Container(
+                width: size,
+                height: size,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: background,
+                  borderRadius: _radius,
                 ),
+                child: Icon(icon, size: iconSize, color: foreground),
               ),
             ),
           ),

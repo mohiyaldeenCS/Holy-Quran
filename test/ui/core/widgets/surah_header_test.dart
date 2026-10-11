@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/star_outline.dart';
 import 'package:holyquran/ui/core/widgets/surah_header.dart';
+import 'package:holyquran/ui/core/widgets/surah_name.dart';
 
 import '../../../../testing/golden.dart';
 
 // Synthetic name and information line.
 const _name = 'اسم تجريبي';
 const _info = 'سطر تجريبي';
+const _packName = PackText.fromPack(_name);
 
 Future<void> _pump(WidgetTester tester, Widget child) =>
     tester.pumpWidget(goldenApp(ReadingTheme.paper, child));
@@ -31,11 +34,11 @@ void main() {
   testWidgets('writes «سورة» before the name, in Reem Kufi 600 primary', (
     tester,
   ) async {
-    await _pump(tester, const SurahHeader(name: _name));
+    await _pump(tester, const SurahHeader(name: _packName));
 
     final name = _nameText(tester);
-    expect(l10n.surahHeaderName(_name), 'سورة $_name');
-    expect(name.data, l10n.surahHeaderName(_name));
+    expect(l10n.surahTitle(_name), 'سورة $_name');
+    expect(name.data, l10n.surahTitle(_name));
     expect(name.style!.fontFamily, AppFonts.kufi);
     expect(name.style!.fontWeight, FontWeight.w600);
     expect(name.style!.fontSize, 26);
@@ -43,19 +46,30 @@ void main() {
 
     await _pump(
       tester,
-      const SurahHeader(name: _name, size: SurahHeaderSize.lg),
+      const SurahHeader(name: _packName, size: SurahHeaderSize.lg),
     );
     expect(_nameText(tester).style!.fontSize, 30);
   });
 
+  testWidgets('draws its name through SurahName, titled and centred', (
+    tester,
+  ) async {
+    await _pump(tester, const SurahHeader(name: _packName));
+
+    final name = tester.widget<SurahName>(find.byType(SurahName));
+    expect(identical(name.name, _packName), isTrue);
+    expect(name.format, SurahNameFormat.titled);
+    expect(name.textAlign, TextAlign.center);
+  });
+
   testWidgets('has a quarter star on each side', (tester) async {
-    await _pump(tester, const SurahHeader(name: _name));
+    await _pump(tester, const SurahHeader(name: _packName));
     final stars = tester.widgetList<StarOutline>(find.byType(StarOutline));
     expect(stars.map((star) => star.size), [28, 28]);
 
     await _pump(
       tester,
-      const SurahHeader(name: _name, size: SurahHeaderSize.lg),
+      const SurahHeader(name: _packName, size: SurahHeaderSize.lg),
     );
     expect(
       tester
@@ -67,22 +81,22 @@ void main() {
 
   testWidgets('is as tall as the reference frames at 100%', (tester) async {
     // Inner height plus its 1px border, the 4px padding and the 1.5px frame.
-    await _pump(tester, const SurahHeader(name: _name));
+    await _pump(tester, const SurahHeader(name: _packName));
     expect(tester.getSize(find.byType(SurahHeader)).height, 56 + 2 + 8 + 3);
 
     await _pump(
       tester,
-      const SurahHeader(name: _name, size: SurahHeaderSize.lg),
+      const SurahHeader(name: _packName, size: SurahHeaderSize.lg),
     );
     expect(tester.getSize(find.byType(SurahHeader)).height, 64 + 2 + 8 + 3);
   });
 
   testWidgets('shows the information line only when given', (tester) async {
-    await _pump(tester, const SurahHeader(name: _name));
+    await _pump(tester, const SurahHeader(name: _packName));
     expect(find.text(_info), findsNothing);
     expect(find.byType(Text), findsOneWidget);
 
-    await _pump(tester, const SurahHeader(name: _name, info: _info));
+    await _pump(tester, const SurahHeader(name: _packName, info: _info));
     final info = tester.widget<Text>(find.text(_info));
     expect(info.style!.fontSize, 14);
     expect(info.style!.color, AppColors.paper.inkMuted);
@@ -93,9 +107,9 @@ void main() {
     tester,
   ) async {
     final handle = tester.ensureSemantics();
-    await _pump(tester, const SurahHeader(name: _name, info: _info));
+    await _pump(tester, const SurahHeader(name: _packName, info: _info));
 
-    expect(find.bySemanticsLabel(l10n.surahHeaderName(_name)), findsOneWidget);
+    expect(find.bySemanticsLabel(l10n.surahTitle(_name)), findsOneWidget);
     expect(find.bySemanticsLabel(_info), findsOneWidget);
     handle.dispose();
   });
@@ -112,7 +126,11 @@ void main() {
     for (final size in SurahHeaderSize.values) {
       await _pump(
         tester,
-        SurahHeader(name: '$_name $_name', size: size, info: '$_info $_info'),
+        SurahHeader(
+          name: const PackText.fromPack('$_name $_name'),
+          size: size,
+          info: '$_info $_info',
+        ),
       );
       expect(tester.takeException(), isNull, reason: '$size');
       expect(
