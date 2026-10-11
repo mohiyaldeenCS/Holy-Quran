@@ -135,9 +135,9 @@ final class SurahBlockContent {
 /// the text is one span. With [colours] it is cut at every stored word
 /// offset, each word and each stretch between words its own span, and words
 /// numbered in [colours] take that colour. Text inside a [hidden] range,
-/// half-open UTF-16 offsets that start and end on stored word starts or the
-/// text's ends, is drawn in [hiddenColour]. The slices joined in order are
-/// the text from [from].
+/// half-open UTF-16 offsets that start and end on stored word or mark
+/// starts or the text's ends, is drawn in [hiddenColour]. The slices joined
+/// in order are the text from [from].
 List<InlineSpan> ayahTextSpans(
   PackText text,
   List<WordSpan> words, {
@@ -523,7 +523,7 @@ final class SurahParagraph {
   /// The ayat as laid out, every line in place in body coordinates, with
   /// only the lines for which [shown] holds visible: what the band ink check
   /// draws. The caller disposes it. Throws a [StateError] when a line starts
-  /// inside a word.
+  /// inside a word or mark.
   ui.Paragraph paragraphShowing(bool Function(int line) shown) {
     final lines = _metrics.length;
     final hidden = <(int, int)>[];
@@ -532,7 +532,7 @@ final class SurahParagraph {
       final start = _lineStarts[k];
       final end = k + 1 < lines ? _lineStarts[k + 1] : _length;
       if (!_sliceable(start) || !_sliceable(end)) {
-        throw StateError('line $k starts or ends inside a word');
+        throw StateError('line $k starts or ends inside a word or mark');
       }
       if (hidden.isNotEmpty && hidden.last.$2 == start) {
         hidden.last = (hidden.last.$1, end);

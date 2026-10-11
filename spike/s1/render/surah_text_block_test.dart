@@ -18,8 +18,8 @@ import 'surah_paragraph.dart';
 import 'surah_text_block.dart';
 import 'synthetic_surah_pack.dart';
 
-// Every text is Arabic-script nonsense from the spike writer's pack, read
-// through the app's verification and text repository.
+// Every text is Arabic-script nonsense from the spike writer's pack with
+// marks (D-083), read through the app's verification and text repository.
 
 const _pageMark = Size(30, 20);
 const _height = 800.0;
@@ -63,6 +63,7 @@ SpikeSurahText _first(SpikeSurahText surah, int ayat) => SpikeSurahText(
   firstAyah: surah.firstAyah,
   ayat: surah.ayat.sublist(0, ayat),
   words: surah.words.sublist(0, ayat),
+  marks: surah.marks.sublist(0, ayat),
   basmala: surah.basmala,
   pageStarts: {
     for (final MapEntry(:key, :value) in surah.pageStarts.entries)
@@ -76,7 +77,7 @@ void main() {
 
   setUpAll(() async {
     root = await Directory.systemTemp.createTemp('s1_block');
-    final read = await readSyntheticSurahs(root);
+    final read = await readSyntheticSurahs(root, withMarks: true);
     long = read.long;
     read.pack.close();
   });
@@ -182,6 +183,96 @@ void main() {
       );
     });
   }
+
+  for (final scale in [1.0, 2.0]) {
+    for (final width in [320.0, 360.0, 412.0]) {
+      testWidgets('marked V1 and V2 build at ${width.toInt()}, ${scale}x, and '
+          'every V2 block that hides or moves a line recolours it', (
+        tester,
+      ) async {
+        await _pump(
+          tester,
+          SurahListV1(
+            surah: long,
+            pageMark: _pageMarkOf,
+            pageMarkSize: _pageMark,
+          ),
+          width: width,
+          scale: scale,
+        );
+        expect(tester.takeException(), isNull);
+        expect(markOrderProblems(_block(tester).paragraph), isEmpty);
+        final seen = await _scrollV2(
+          tester,
+          _first(long, 120),
+          width: width,
+          scale: scale,
+        );
+        expect(seen.values.where((b) => b.leadIn > 0), isNotEmpty);
+        expect(seen.values.where((b) => b.cut), isNotEmpty);
+        for (final MapEntry(key: k, value: block) in seen.entries) {
+          if (block.leadIn > 0 || block.cut || block.shifted) {
+            expect(block.recoloured, isTrue, reason: 'block $k');
+          }
+        }
+      });
+    }
+  }
+
+  testWidgets('searching down from 360, V2 blocks whose paragraph or cut '
+      'line starts at a mark are found, built and recoloured', (tester) async {
+    final surah = _first(long, 150);
+    const scaler = TextScaler.linear(1);
+    bool atMark(LineStart start) =>
+        surah.marks[start.ayah - 1].any((m) => m.start == start.offset);
+    ({double width, int block})? startsAtMark;
+    ({double width, int block})? cutsAtMark;
+    for (
+      var width = 360.0;
+      width > 320 && (startsAtMark == null || cutsAtMark == null);
+      width--
+    ) {
+      final planner = SurahFlowPlanner(
+        surah: surah,
+        width: width,
+        textScaler: scaler,
+        pageMarkSize: _pageMark,
+      );
+      for (final (k, block) in planner.all.indexed) {
+        final paragraph = planner.paragraphFor(block, planning: true);
+        final starts = paragraph.lineStartPositions;
+        paragraph.dispose();
+        if (startsAtMark == null &&
+            block.startOffset > 0 &&
+            atMark(starts[0])) {
+          startsAtMark = (width: width, block: k);
+        }
+        final shown = block.maxLines;
+        if (cutsAtMark == null &&
+            shown != null &&
+            atMark(starts[block.leadIn + shown])) {
+          cutsAtMark = (width: width, block: k);
+        }
+      }
+    }
+    // ignore: avoid_print
+    print(
+      'V2 block starting at a mark: $startsAtMark; cut at a mark: '
+      '$cutsAtMark',
+    );
+    expect(startsAtMark, isNotNull);
+    expect(cutsAtMark, isNotNull);
+    for (final found in [startsAtMark!, cutsAtMark!]) {
+      final seen = await _scrollV2(
+        tester,
+        surah,
+        width: found.width,
+        scale: 1,
+        until: found.block,
+      );
+      expect(seen[found.block]!.recoloured, isTrue);
+    }
+  });
 
   for (final width in [320.0, 360.0, 412.0]) {
     testWidgets('V1 reflows at 200% in ${width.toInt()} wide with nothing '
@@ -369,3 +460,58 @@ void main() {
 }
 
 const WidgetSpan _probe = WidgetSpan(child: SizedBox.shrink());
+
+typedef _SeenBlock = ({int leadIn, bool cut, bool shifted, bool recoloured});
+
+/// Pumps V2 of [surah] and scrolls it to its end, or until block [until]
+/// is built, with no exception on the way; what each block built did.
+Future<Map<int, _SeenBlock>> _scrollV2(
+  WidgetTester tester,
+  SpikeSurahText surah, {
+  required double width,
+  required double scale,
+  int? until,
+}) async {
+  final controller = ScrollController();
+  addTearDown(controller.dispose);
+  await _pump(
+    tester,
+    PageBlocksV2(
+      surah: surah,
+      pageMark: _pageMarkOf,
+      pageMarkSize: _pageMark,
+      controller: controller,
+      blockKey: (k) => ValueKey('block $k'),
+    ),
+    width: width,
+    scale: scale,
+  );
+  final seen = <int, _SeenBlock>{};
+  while (true) {
+    expect(tester.takeException(), isNull);
+    for (final element in find.byType(SurahTextBlock).evaluate()) {
+      final key = (element.widget.key! as ValueKey<String>).value;
+      final paragraph =
+          (element.renderObject! as RenderSurahTextBlock).paragraph;
+      seen[int.parse(key.split(' ').last)] = (
+        leadIn: paragraph.firstShownLine,
+        cut:
+            paragraph.firstShownLine + paragraph.visibleLineCount <
+            paragraph.lineCount,
+        shifted: paragraph.lastLineShift != 0,
+        recoloured: paragraph.recoloured,
+      );
+    }
+    if (until != null && seen.containsKey(until)) return seen;
+    if (controller.offset >= controller.position.maxScrollExtent) break;
+    controller.jumpTo(
+      (controller.offset + _height / 2).clamp(
+        0,
+        controller.position.maxScrollExtent,
+      ),
+    );
+    await tester.pump();
+  }
+  expect(until, isNull, reason: 'block $until was never built');
+  return seen;
+}

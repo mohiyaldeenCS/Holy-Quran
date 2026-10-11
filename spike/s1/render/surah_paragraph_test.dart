@@ -671,7 +671,11 @@ void main() {
       perBlock.sort();
       final stretch = lineStretch(v1);
       final maxStretch = stretch
-          .map((s) => s.words > 1 ? s.stretch / (s.words - 1) : s.stretch)
+          .map(
+            (s) => s.words + s.marks > 1
+                ? s.stretch / (s.words + s.marks - 1)
+                : s.stretch,
+          )
           .reduce((a, b) => a > b ? a : b);
       // ignore: avoid_print
       print(

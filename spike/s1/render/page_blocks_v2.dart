@@ -280,6 +280,7 @@ final class _PageBlocksV2State extends State<PageBlocksV2> {
               firstAyah: content.firstAyah,
               ayat: content.ayat,
               words: content.words,
+              marks: content.marks,
               basmala: content.basmala,
               startOffset: content.startOffset,
               markers: [

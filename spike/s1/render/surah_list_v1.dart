@@ -40,6 +40,7 @@ final class SurahListV1 extends StatelessWidget {
       firstAyah: surah.firstAyah,
       ayat: surah.ayat,
       words: surah.words,
+      marks: surah.marks,
       basmala: surah.basmala,
       markers: [
         for (var i = 0; i < surah.ayat.length; i++)

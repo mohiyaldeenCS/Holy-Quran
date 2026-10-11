@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:holyquran/domain/models/mark_span.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/word_span.dart';
@@ -28,6 +29,7 @@ final class SurahTextBlock extends MultiChildRenderObjectWidget {
     required this.ayat,
     required this.words,
     required List<Widget> markers,
+    this.marks,
     this.basmala,
     this.highlighted = const {},
     this.centreLastLine = true,
@@ -53,6 +55,10 @@ final class SurahTextBlock extends MultiChildRenderObjectWidget {
   final QuranAddress firstAyah;
   final List<PackText> ayat;
   final List<List<WordSpan>> words;
+
+  /// The marks of each ayah (D-083); a line or a block may start at one.
+  /// Null for none.
+  final List<List<MarkSpan>>? marks;
   final PackText? basmala;
   final Set<QuranAddress> highlighted;
   final bool centreLastLine;
@@ -70,6 +76,7 @@ final class SurahTextBlock extends MultiChildRenderObjectWidget {
     firstAyah: firstAyah,
     ayat: ayat,
     words: words,
+    marks: marks,
     basmala: basmala,
     startOffset: startOffset,
     pageMarks: pageMarkAyat.toSet(),
