@@ -11,9 +11,14 @@ on:
         required: true
         type: string
       branch:
-        description: Branch for the result, starting with agent/ (created from main, or continued if it exists)
+        description: Branch for the result, starting with agent/ (created from base, or continued if it exists)
         required: true
         type: string
+      base:
+        description: Branch a new task branch starts from, and the pull request's target (main, or a milestone branch)
+        required: true
+        type: string
+        default: main
       key:
         description: Which API key pays for the run
         required: true
@@ -66,8 +71,13 @@ jobs:
       - name: Check the inputs
         env:
           BRANCH: ${{ inputs.branch }}
+          BASE: ${{ inputs.base }}
           BUDGET: ${{ inputs.budget_usd }}
         run: |
+          if ! printf '%s' "$BASE" | grep -Eq '^[A-Za-z0-9._/-]+$' || printf '%s' "$BASE" | grep -q '\.\.'; then
+            echo "::error::base must use only letters, digits and . _ / -"
+            exit 1
+          fi
           if ! printf '%s' "$BRANCH" | grep -Eq '^agent/[A-Za-z0-9._/-]+$' || printf '%s' "$BRANCH" | grep -q '\.\.'; then
             echo "::error::branch must start with agent/ and use only letters, digits and . _ / -"
             exit 1
@@ -82,11 +92,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ inputs.branch }}
+          BASE: ${{ inputs.base }}
         run: |
           if gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${BRANCH}" --silent 2>/dev/null; then
             echo "ref=${BRANCH}" >> "$GITHUB_OUTPUT"
+          elif gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${BASE}" --silent 2>/dev/null; then
+            echo "ref=${BASE}" >> "$GITHUB_OUTPUT"
           else
-            echo "ref=main" >> "$GITHUB_OUTPUT"
+            echo "::error::The base branch ${BASE} does not exist."
+            exit 1
           fi
 
       # The token is not left in .git/config while the agent and packages run;
@@ -133,6 +147,7 @@ jobs:
           KEY_2: ${{ secrets.ANTHROPIC_API_KEY2 }}
           AGENT_TASK: ${{ inputs.task }}
           AGENT_BRANCH: ${{ inputs.branch }}
+          AGENT_BASE: ${{ inputs.base }}
           AGENT_KEY_SLOT: ${{ inputs.key }}
           AGENT_BUDGET_USD: ${{ inputs.budget_usd }}
           AGENT_NAME: ${{ inputs.agent }}
@@ -196,7 +211,11 @@ jobs:
           verdict() { if [ "$1" -eq 0 ]; then echo pass; else echo fail; fi; }
           dart format --output=none --set-exit-if-changed .; format=$?
           flutter analyze; analyze=$?
-          flutter test --exclude-tags golden test tools/gen/test; tests=$?
+          # Spike code lives in spike/ on a milestone branch only (D-068).
+          paths="test tools/gen/test"
+          if [ -d spike ]; then paths="$paths spike"; fi
+          # shellcheck disable=SC2086
+          flutter test --exclude-tags golden $paths; tests=$?
           flutter test --tags golden test; goldens=$?
           {
             echo "format=$(verdict $format)"
@@ -218,6 +237,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ inputs.branch }}
+          BASE: ${{ inputs.base }}
           TASK: ${{ inputs.task }}
           KEY_SLOT: ${{ inputs.key }}
           BUDGET: ${{ inputs.budget_usd }}
@@ -249,7 +269,7 @@ jobs:
             echo "| --- | --- |"
             echo "| \`dart format\` | ${FORMAT} |"
             echo "| \`flutter analyze\` | ${ANALYZE} |"
-            echo "| \`flutter test --exclude-tags golden test tools/gen/test\` | ${TESTS} |"
+            echo "| \`flutter test --exclude-tags golden test tools/gen/test\` (and \`spike\` where it exists) | ${TESTS} |"
             echo "| \`flutter test --tags golden test\` (new golden tests fail until the CI goldens task makes their images) | ${GOLDENS} |"
             echo
             echo "## Run"
@@ -281,10 +301,10 @@ jobs:
           if [ "$ok" != "yes" ] || [ "$FORMAT" != "pass" ] || [ "$ANALYZE" != "pass" ] || [ "$TESTS" != "pass" ]; then
             draft="--draft"
           fi
-          if url="$(gh pr create --base main --head "$BRANCH" --title "$title" --body-file "$body" $draft)"; then
+          if url="$(gh pr create --base "$BASE" --head "$BRANCH" --title "$title" --body-file "$body" $draft)"; then
             echo "url=$url" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::The pull request could not be opened (Settings → Actions → General → allow GitHub Actions to create pull requests). Open it from https://github.com/${GITHUB_REPOSITORY}/compare/main...${BRANCH}"
+            echo "::warning::The pull request could not be opened (Settings → Actions → General → allow GitHub Actions to create pull requests). Open it from https://github.com/${GITHUB_REPOSITORY}/compare/${BASE}...${BRANCH}"
           fi
 
       # A pull request opened with the workflow token starts no pull_request

@@ -107,7 +107,9 @@ texts, reviews the pull requests and keeps the documents; it does not write
 application code itself.
 
 - **Workflow.** `.github/workflows/agent.yml`, started by hand from the Actions tab
-  (Run workflow) with: the task text, a branch starting with `agent/`, the key slot
+  (Run workflow) with: the task text, a branch starting with `agent/`, the base branch
+  it starts from and its pull request goes to (`main`, or the milestone branch when the
+  task needs code that lives only there, such as `spike/`), the key slot
   (1 or 2, one per API account), a budget cap in dollars, the project agent for the
   main thread, the model and the effort. `.github/agent.mjs` runs the task with the
   Claude Agent SDK, loading `CLAUDE.md`, the agents and the skills (`settingSources:
