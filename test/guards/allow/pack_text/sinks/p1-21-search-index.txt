@@ -1,0 +1,3 @@
+lib/data/services/search_index_service.dart
+decision: D-114
+SearchIndex compares a query's folded words with the stored search forms, whole and unchanged (D-037, D-118).
