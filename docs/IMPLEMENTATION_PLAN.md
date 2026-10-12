@@ -83,6 +83,9 @@ What stream A does while stream B is still working:
 - Opening a Phase 1 milestone before Gate 0 is the owner's decision. Ask with the
   `ask-owner` skill and name exactly what the gate still lacks. Even then a
   milestone is built only when every registry row it needs is `Ready`.
+- The owner opened Phase 1 on 2026-10-12, before Gate 0's content items were met
+  (D-099). A requirement whose data comes from a row that is not `Ready` is still not
+  built; engineering that shows no content is, on synthetic packs.
 
 ---
 
@@ -227,6 +230,10 @@ sheet to M1.6; `ContinueListeningRow` and `Splash` are added. Plan in
 
 ## Phase 1 — stream A
 
+Opened by the owner on 2026-10-12 (D-099). The milestones below are cut into agent
+tasks that run in parallel waves (`docs/plans/PHASE1.md`, D-100); this table keeps
+the scope of each milestone, the plan decides the order.
+
 Suggested order. Each milestone lists its requirements; acceptance criteria are in the
 PRD under the same module. The last column names the registry rows of
 `docs/SOURCES.md` whose data the milestone shows. A row that is not `Ready` blocks
@@ -237,16 +244,16 @@ rights record and a verified pack; each further item is added as it is cleared.
 
 | Milestone | Requirements | Needs (B tasks, owner decisions) | Registry rows |
 | --- | --- | --- | --- |
-| M1.1 Shell, onboarding, settings | Five tabs; the home frame with its header and greeting; in-app splash; level choice at first run (anything more in onboarding waits for O-17); themes; settings; sources and licences screen. `LV-01`…`04`, `RD-08`, `AC-01`, `NF-13`, `NF-18` | O-17 | 17 |
+| M1.1 Shell, onboarding, settings | Five tabs; the home frame with its header and greeting; in-app splash; the first-run setup in three steps, display mode, level and recitation, each step offered once its choices exist (O-17, D-119); the «أبلغ عن خطأ» sheet (O-17); themes; settings; sources and licences screen. `LV-01`…`04`, `RD-08`, `AC-01`, `NF-13`, `NF-18` | Where error reports go, and where the identity places the report entry | 17 |
 | M1.2 Reader, surah mode | `RD-01`, `02`, `06`, `09`, `12`, `13`, `15`, `16`, `17`; the surah-mode part of `RD-05`, `07`, `11`; `WQ-01`; the continue-reading card on the home screen; the integrity alert when the base pack fails its check (PRD §9.5); the first user-database schema with its migration test (`NF-08`) | B0.2, B0.9 | 1, 4 |
 | M1.3 Index and navigation | `NV-01`, `02`, `03`, `05`, `06` inside the app; the index door on the home screen | B0.2 | 1, 4 |
-| M1.4 Resources and offline | `OF-01`…`07`; downloads over TLS (`NF-15`); the catalogue adds a pack with no app release (`NF-19`); the integrity alert for downloaded packs | A test host (O-08); a signed test pack from B0.11 | — |
+| M1.4 Resources and offline | `OF-01`…`07`; downloads over TLS (`NF-15`); the catalogue adds a pack with no app release (`NF-19`); the integrity alert for downloaded packs | The test host: this repository's GitHub Releases (O-08, D-119); a test pack signed by the CI task `sign-pack` (O-03, D-108) | — |
 | M1.5 Reader, page mode and second script | `RD-03`, `04`, `10` (both orientations), `19`; the page-mode part of `RD-05`, `07`, `11` | B0.3, B0.4 | 2, 3 |
 | M1.6 Ayah tools | The ayah toolbar (PRD §7.4, §7.7); ayah cards in lists (`RD-14`); `UD-01`…`05`, `07`; `WQ-02`, `03`; `SH-01`, `02`, `03`, `05`; the mini ayah sheet `ST-01` with its ayah and notes sections; the word sheet `LX-01` with its text tab, and `LX-11`; the bookmarks door on the home screen | B0.8; the missing icons | 19 |
-| M1.7 Tafsir | `TF-01`…`06`, `08`, `10`; the tafsir section of `ST-01` and the tafsir tab of the word sheet | B0.7, and B0.6 for Zaydi-library books | 9 and 10; 18 per book; 8 per book |
+| M1.7 Tafsir | `TF-01`…`06`, `08`, `10`; the tafsir section of `ST-01` and the tafsir tab of the word sheet | B0.6 and B0.7 for the Zaydi-library books, which are the first release's only tafsirs (O-06, D-119; the general tafsirs of rows 8, 9 and 10 are deferred); O-07 | 18 per book |
 | M1.8 Search | `SR-01`…`08`, `SR-10`; search inside tafsirs `TF-07` | B0.2, B0.4, B0.10 | 1; for `TF-07` the rows of M1.7 |
 | M1.9 Audio | `AU-01`…`09`, `11`…`17`, `22`…`24`; the «أكمل الاستماع» row on the home screen (with `AU-16`); the audio section of `ST-01`; `AX-07`; `NF-04`, `NF-09`, `NF-12` | B0.5, B0.10 | 7 and 6, per recitation |
-| M1.10 Audio and text in sync | `SY-01`…`05`; playing one word `AU-20` | B0.4, B0.5 | 6, per recitation |
+| M1.10 Audio and text in sync | `SY-01`, `03`, `04`, `05` for recitations served one file per ayah, from the playback plan's ayah events with no timing data (D-112); for recitations served as surah files their ayah timing waits for row 6; word highlighting `SY-02` and playing one word `AU-20` wait for row 6 | B0.5; B0.4 and row 6 for word timing | 7 per recitation; 6 per recitation for surah files and words |
 | M1.11 Accessibility, performance, release readiness | A full pass of `AX-01`…`06`, `09` over every screen; `NF-01`, `02`, `03`, `05`, `06`, `07`, `11`, `14`, `17`, `20`, `21`; launcher icon and native launch screen; store compliance (PRD §11.1) | Reference devices; the logo files; O-11; O-18 | — |
 
 Notes:

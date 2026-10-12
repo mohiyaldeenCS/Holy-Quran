@@ -412,7 +412,11 @@ procedure as an extension.
    difference mark, two-page view, integrity alert).
 3. If something truly cannot be composed, stop and ask the owner (`ask-owner` skill).
    Do not invent a new visual pattern.
-4. Write its strings in the identity's tone and add them to the ARB file.
+4. Write no wording of your own (D-115). A string comes from the PRD, the identity
+   or the owner, and only through a key in the ARB file; a phrase taken from PRD
+   requirement text enters as a label once the owner approves it. Where no key
+   exists, leave the element out and list the gap in the report; the lead puts it
+   to the owner.
 5. Check it in the four themes, at 200% text scale, right to left, with a screen
    reader.
 6. Record the screen as an extension in the pull request description, naming the

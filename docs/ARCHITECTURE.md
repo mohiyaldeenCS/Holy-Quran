@@ -83,7 +83,12 @@ official architecture skill).
 lib/
   main.dart                    bootstrap only
   config/                      dependency wiring, environment
+    dependencies.dart          the composition root (D-103)
+    providers/                 <area>_providers.dart, one file per area
   routing/                     go_router configuration
+    routes.dart                every path and its typed location builder (D-102)
+    routes/                    <feature>_routes.dart, one file per feature
+    router.dart, startup_redirect.dart
   domain/
     models/                    immutable, pure Dart
     use_cases/
@@ -97,7 +102,10 @@ lib/
       widgets/                 the design-system components, with their metrics
       metrics/                 <screen>_metrics.dart: layout values read from a board
       gallery/                 debug-only gallery of the design-system widgets
+      reader/                  the surah-mode layout engine, tap targets and highlights (D-113)
+      share/                   copy forms and the share-card renderer (P1-12)
       app.dart, tab_shell.dart the root widget and the five-tab shell
+      shell_chrome.dart        lets a screen hide the tab bar (D-102)
       l10n/                    digit and plural helpers
     features/
       <feature>/
@@ -122,9 +130,13 @@ one exception to the suffix is the localisation output of `flutter gen-l10n`,
 `lib/l10n/app_localizations*.dart`, whose names the tool fixes; it is committed and
 checked the same way.
 
-Features: `onboarding`, `home`, `mushaf` (reader), `index` (navigation), `listen`,
-`study` (tafsir, search, ayah sheet), `more` (bookmarks, notes, resources, settings,
-sources and licences). Later phases add `khatma`, `hifz`, `account`.
+Features (D-101), one folder each under `lib/ui/features/`, grouped by screen so that
+parallel tasks own whole folders: `onboarding` (the first-run setup), `home`,
+`mushaf` (reader), `index` (navigation), `listen` (players, recitation picker,
+player sheets), `study` (the hub), `search`, `tafsir`, `sheets` (the word and ayah
+sheets), `more` (the hub), `bookmarks` (bookmarks and notes), `resources`,
+`settings`, `sources` (sources and licences) and `report` («أبلغ عن خطأ», O-17).
+Later phases add `khatma`, `hifz`, `account`.
 
 ### Naming
 
@@ -141,7 +153,9 @@ sits at the mirrored path with `_test.dart`.
 - Only `lib/data/services` imports plugins.
 - Only `lib/data/services/pack_database.dart` imports `sqlite3`, and it opens every
   pack read-only and immutable (D-061).
-- Feature folders do not import each other; shared widgets live in `ui/core/widgets`.
+- Feature folders do not import each other; shared widgets live in `ui/core/widgets`,
+  shared machinery in `ui/core/reader` and `ui/core/share`. A sheet that one feature
+  opens in another is reached by its route (D-101).
 - Only `lib/ui/core` imports the generated colour ramps (`ramps.g.dart`).
 
 Guard tests in `test/guards/` enforce these.
