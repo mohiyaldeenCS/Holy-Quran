@@ -22,11 +22,12 @@ final class AllowListError extends Error {
 }
 
 final _fileName = RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)+\.txt$');
+const _decisionKey = 'decision: ';
 final _decision = RegExp(r'^decision: D-\d{3}$');
 
 final _decisionRow = RegExp(r'^\| (D-\d{3}) \|', multiLine: true);
 
-Set<String> _decisions() => {
+final _decisions = {
   for (final row in _decisionRow.allMatches(
     File('docs/DECISIONS.md').readAsStringSync(),
   ))
@@ -71,8 +72,8 @@ List<AllowEntry> readAllowEntries(String folder) {
       [_, final decision, ...] when !_decision.hasMatch(decision) =>
         'line 2 is not "decision: D-xxx"',
       [_, final decision, ...]
-          when !_decisions().contains(decision.substring(10)) =>
-        '${decision.substring(10)} is not in docs/DECISIONS.md',
+          when !_decisions.contains(decision.substring(_decisionKey.length)) =>
+        '${decision.substring(_decisionKey.length)} is not in docs/DECISIONS.md',
       _ => null,
     };
     if (problem != null) {
@@ -82,7 +83,7 @@ List<AllowEntry> readAllowEntries(String folder) {
     entries.add((
       file: name,
       target: lines[0],
-      decision: lines[1].substring('decision: '.length),
+      decision: lines[1].substring(_decisionKey.length),
       rest: lines.sublist(2),
     ));
   }
