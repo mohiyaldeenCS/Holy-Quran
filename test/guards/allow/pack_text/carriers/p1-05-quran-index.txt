@@ -1,0 +1,3 @@
+lib/data/repositories/quran_index_repository.dart
+decision: D-062
+The index hands the surah names of the base pack to the app.
