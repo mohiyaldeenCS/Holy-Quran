@@ -25,6 +25,7 @@ class MainActivity : AudioServiceActivity() {
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler(null)
+        pendingRequest?.success(false)
         pendingRequest = null
         super.cleanUpFlutterEngine(flutterEngine)
     }

@@ -12,7 +12,9 @@ import 'audio_engine_service.dart';
 /// the player repository stays the one authority (`AU-15`, `AU-22`).
 final class AppAudioHandler extends BaseAudioHandler with SeekHandler {
   AppAudioHandler(this.onCommand) {
-    _subscriptions.add(player.playbackEventStream.listen(_broadcast));
+    _subscriptions
+      ..add(player.playbackEventStream.listen((_) => _broadcast()))
+      ..add(player.durationStream.listen(_showDuration));
     unawaited(_configureSession());
   }
 
@@ -23,6 +25,7 @@ final class AppAudioHandler extends BaseAudioHandler with SeekHandler {
   final player = AudioPlayer(handleInterruptions: false);
   final List<StreamSubscription<Object?>> _subscriptions = [];
   bool _pausedByInterruption = false;
+  bool _playing = false;
   int _clicks = 0;
   Timer? _clickTimer;
 
@@ -55,8 +58,21 @@ final class AppAudioHandler extends BaseAudioHandler with SeekHandler {
     _clickTimer = Timer(_clickWindow, _resolveClicks);
   }
 
+  /// Whether the player repository is playing. The player itself is
+  /// paused during a silence between ayat, but the session keeps playing so
+  /// that the system keeps the service in front, calls still pause, and a
+  /// headset click pauses (`AU-11`, `AU-22`).
+  bool get playing => _playing;
+
+  set playing(bool value) {
+    _playing = value;
+    _broadcast();
+  }
+
   /// Stops the player and ends the media session's foreground state.
   Future<void> halt() async {
+    _playing = false;
+    _pausedByInterruption = false;
     await player.stop();
     await super.stop();
   }
@@ -70,6 +86,7 @@ final class AppAudioHandler extends BaseAudioHandler with SeekHandler {
         id: '${info.reciter}/${name.hashCode}',
         title: name == null ? info.reciter : name.verbatim,
         artist: name == null ? null : info.reciter,
+        duration: player.duration,
       ),
     );
   }
@@ -86,7 +103,7 @@ final class AppAudioHandler extends BaseAudioHandler with SeekHandler {
     final clicks = _clicks;
     _clicks = 0;
     if (clicks == 1) {
-      onCommand(player.playing ? const RemotePause() : const RemotePlay());
+      onCommand(_playing ? const RemotePause() : const RemotePlay());
     } else {
       onCommand(const RemoteNext());
     }
@@ -108,7 +125,7 @@ final class AppAudioHandler extends BaseAudioHandler with SeekHandler {
   // loss that the system ends (S3).
   void _interrupted(AudioInterruptionEvent event) {
     if (event.begin) {
-      if (player.playing) {
+      if (_playing) {
         _pausedByInterruption = event.type != AudioInterruptionType.unknown;
         onCommand(const RemotePause());
       }
@@ -120,8 +137,13 @@ final class AppAudioHandler extends BaseAudioHandler with SeekHandler {
     _pausedByInterruption = false;
   }
 
-  void _broadcast(PlaybackEvent event) {
-    final playing = player.playing;
+  void _showDuration(Duration? duration) {
+    final item = mediaItem.value;
+    if (item != null) mediaItem.add(item.copyWith(duration: duration));
+  }
+
+  void _broadcast() {
+    final playing = _playing;
     playbackState.add(
       playbackState.value.copyWith(
         controls: [

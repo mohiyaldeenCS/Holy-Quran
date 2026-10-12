@@ -38,16 +38,17 @@ final _builder = PlaybackPlanBuilder(
   basmalaSurahs: const {2, 3},
 );
 
-Recitation _recitation(RecitationUnit unit) => Recitation(
-  id: 'synthetic-${unit.name}',
-  reciter: 'Reciter A',
-  riwaya: 'x',
-  style: 'Style A',
-  unit: unit,
-  hasWordTiming: false,
-  rightsComplete: true,
-  hasBasmalaFile: true,
-);
+Recitation _recitation(RecitationUnit unit, {String reciter = 'Reciter A'}) =>
+    Recitation(
+      id: 'synthetic-${unit.name}-$reciter',
+      reciter: reciter,
+      riwaya: 'x',
+      style: 'Style A',
+      unit: unit,
+      hasWordTiming: false,
+      rightsComplete: true,
+      hasBasmalaFile: true,
+    );
 
 /// Ten seconds per ayah, from the start of each surah file.
 final class _Timings implements AyahTimings {
@@ -70,8 +71,9 @@ PlaybackPlan _plan(
   Duration silence = Duration.zero,
   bool continueToNextSurah = false,
   AyahTimings? timings,
+  String reciter = 'Reciter A',
 }) => switch (_builder.build(
-  _recitation(unit),
+  _recitation(unit, reciter: reciter),
   range,
   repeat: repeat,
   silence: silence,
@@ -368,6 +370,20 @@ void main() {
     });
   });
 
+  test('the fade lets no further ayah start', () {
+    fakeAsync((async) {
+      final h = _Harness(async);
+      h.run((p) => p.play(_plan(_span('1:1', '1:3'))));
+      h.run((p) => p.setSleepTimer(SleepAfter(5)));
+      async.elapse(const Duration(minutes: 5, seconds: 1));
+      expect(h.engine.next, isNull);
+      h.engine.finish();
+      async.elapse(EnginePlayerRepository.sleepFade);
+      expect(h.engine.heard, ['1-1']);
+      expect(h.engine.log.last, 'stop');
+    });
+  });
+
   test('playing again during the fade cancels it at full volume', () {
     fakeAsync((async) {
       final h = _Harness(async);
@@ -493,6 +509,11 @@ void main() {
         expect(h.engine.heard, ['1-1', '3-2']);
         expect(h.state.plan, same(next));
         expect(h.state.queue, isEmpty);
+        expect(
+          h.engine.log.where((line) => line == 'stop'),
+          hasLength(1),
+          reason: 'only at the end of the last plan',
+        );
       });
     });
 
@@ -535,6 +556,39 @@ void main() {
         'play 2-1 from 7',
       );
       expect(h.engine.next, isNotNull);
+    });
+  });
+
+  test('a lost connection during a silence lets the silence end, and the '
+      'next ayah is fetched again', () {
+    fakeAsync((async) {
+      final h = _Harness(async);
+      h.run(
+        (p) => p.play(
+          _plan(_span('1:1', '1:2'), silence: const Duration(seconds: 2)),
+        ),
+      );
+      h.engine.finish();
+      h.settle();
+      expect(h.engine.log.last, 'load 1-2');
+      h.engine.emit(const EngineFailed(EngineFailure.connection));
+      h.settle();
+      expect(h.state.error, isNull);
+      async.elapse(const Duration(seconds: 2));
+      expect(h.state.ayah, _a('1:2'));
+      expect(h.engine.log.last, 'play 1-2 from 0');
+    });
+  });
+
+  test('another recitation of the same surah renews the media metadata', () {
+    fakeAsync((async) {
+      final h = _Harness(async);
+      h.run((p) => p.play(_plan(SingleAyah(_a('2:1')))));
+      h.run((p) => p.play(_plan(SingleAyah(_a('2:2')), reciter: 'Reciter B')));
+      expect(h.engine.infos.map((info) => info.reciter), [
+        'Reciter A',
+        'Reciter B',
+      ]);
     });
   });
 
@@ -708,11 +762,32 @@ void main() {
   test('setting a rule with nothing playing is refused', () {
     fakeAsync((async) {
       final h = _Harness(async);
-      expect(() => h.repository.setStopAfter(StopAfter.ayah), throwsStateError);
-      expect(
-        () => h.repository.setSleepTimer(const SleepAtEndOfSurah()),
-        throwsStateError,
-      );
+      final errors = <Object>[];
+      void attempt() {
+        h.repository.setStopAfter(StopAfter.ayah).catchError(errors.add);
+        h.repository
+            .setSleepTimer(const SleepAtEndOfSurah())
+            .catchError(errors.add);
+        h.settle();
+      }
+
+      attempt();
+      h.run((p) => p.play(_plan(_span('1:1', '1:3'))));
+      h.run((p) => p.stop());
+      attempt();
+      expect(errors, hasLength(4));
+      expect(errors, everyElement(isStateError));
+      expect(h.repository.stopAfter, isNull);
+    });
+  });
+
+  test('a rule set right after play applies to that plan', () {
+    fakeAsync((async) {
+      final h = _Harness(async);
+      unawaited(h.repository.play(_plan(_span('1:1', '1:3'))));
+      unawaited(h.repository.setStopAfter(StopAfter.ayah));
+      h.playToEnd();
+      expect(h.engine.heard, ['1-1']);
     });
   });
 

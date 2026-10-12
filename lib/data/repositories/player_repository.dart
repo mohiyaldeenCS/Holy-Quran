@@ -64,11 +64,11 @@ abstract class PlayerRepository extends ChangeNotifier {
 
   Future<void> setSpeed(PlaybackSpeed speed);
 
-  /// Throws a [StateError] when nothing is playing and an [ArgumentError]
-  /// when the plan has no boundary for [timer].
+  /// Fails with a [StateError] when nothing is playing and an
+  /// [ArgumentError] when the plan has no boundary for [timer].
   Future<void> setSleepTimer(SleepTimer? timer);
 
-  /// Throws as [setSleepTimer] does.
+  /// Fails as [setSleepTimer] does.
   Future<void> setStopAfter(StopAfter? stopAfter);
 
   /// Adds [plan] at the end of the queue (`AU-17`).
@@ -120,6 +120,8 @@ final class EnginePlayerRepository extends PlayerRepository {
   Duration? _silenceLeft;
   Timer? _sleepAlarm;
   Timer? _fade;
+  int _fadeRun = 0;
+  bool _volumeLowered = false;
   Future<void> _tail = Future.value();
 
   @override
@@ -172,19 +174,19 @@ final class EnginePlayerRepository extends PlayerRepository {
   });
 
   @override
-  Future<void> setSleepTimer(SleepTimer? timer) {
+  Future<void> setSleepTimer(SleepTimer? timer) => _serially(() async {
     _running.sleepTimer = timer;
     _armSleepAlarm();
     notifyListeners();
-    return _serially(_refreshNext);
-  }
+    await _refreshNext();
+  });
 
   @override
-  Future<void> setStopAfter(StopAfter? stopAfter) {
+  Future<void> setStopAfter(StopAfter? stopAfter) => _serially(() async {
     _running.stopAfter = stopAfter;
     notifyListeners();
-    return _serially(_refreshNext);
-  }
+    await _refreshNext();
+  });
 
   @override
   void enqueue(PlaybackPlan plan) =>
@@ -211,8 +213,10 @@ final class EnginePlayerRepository extends PlayerRepository {
     super.dispose();
   }
 
-  PlaybackRules get _running =>
-      _rules ?? (throw StateError('nothing is playing'));
+  PlaybackRules get _running => switch (_rules) {
+    final rules? when !rules.isStopped => rules,
+    _ => throw StateError('nothing is playing'),
+  };
 
   /// Runs [action] after every earlier one, so that engine events and
   /// commands never interleave.
@@ -234,6 +238,7 @@ final class EnginePlayerRepository extends PlayerRepository {
     _cancelSilence();
     await _cancelFade();
     _rules = rules;
+    _announcedSurah = null;
     _failed = false;
     _preload = null;
     _engineAhead = null;
@@ -249,7 +254,17 @@ final class EnginePlayerRepository extends PlayerRepository {
       ),
     );
     if (!_activated) {
-      await _engine.activate();
+      try {
+        await _engine.activate();
+      } on Exception {
+        _update(
+          _state.copyWith(
+            playing: false,
+            error: () => PlayerError.playbackFailed,
+          ),
+        );
+        return;
+      }
       _activated = true;
     }
     await _apply(rules.start());
@@ -298,13 +313,13 @@ final class EnginePlayerRepository extends PlayerRepository {
     if (ahead != null && identical(ahead.segment, segment)) {
       _playingTrack = ahead.track.id;
       if (ahead.held) await _engine.resume();
+      await _refreshNext();
     } else {
       final track = await _trackFor(segment);
       if (track == null) return;
       _playingTrack = track.id;
       await _engine.play(track, next: await _nextTrack());
     }
-    if (_preload == null) await _refreshNext();
     await _announce(segment.address.surah);
   }
 
@@ -315,7 +330,7 @@ final class EnginePlayerRepository extends PlayerRepository {
     if (_rules == null || _failed || _playingTrack == null) return;
     final before = _preload;
     final next = await _nextTrack();
-    if (next == null && before == null) return;
+    if (next?.id == before?.track.id) return;
     await _engine.setNext(next);
   }
 
@@ -441,11 +456,6 @@ final class EnginePlayerRepository extends PlayerRepository {
     _preload = null;
     _engineAhead = null;
     _playingTrack = null;
-    if (fade) {
-      _fadeOut();
-    } else {
-      await _engine.stop();
-    }
     _update(
       _state.copyWith(
         playing: false,
@@ -453,17 +463,27 @@ final class EnginePlayerRepository extends PlayerRepository {
         stopReason: () => reason,
       ),
     );
+    // The next queued plan replaces the engine's tracks without a stop, so
+    // the media session stays in front.
     if (reason == StopReason.endOfPlan && _state.queue.isNotEmpty) {
       final [next, ...rest] = _state.queue;
       _update(_state.copyWith(queue: rest));
-      await _start(next, 0);
+      return _start(next, 0);
+    }
+    if (fade) {
+      await _engine.setNext(null);
+      _fadeOut();
+    } else {
+      await _engine.stop();
     }
   }
 
   /// Steps the volume down over [sleepFade], then stops. Playing again
   /// before the end cancels it.
   void _fadeOut() {
+    final run = ++_fadeRun;
     var step = 0;
+    _volumeLowered = true;
     _fade = Timer.periodic(sleepFade ~/ _fadeSteps, (timer) {
       step++;
       if (step < _fadeSteps) {
@@ -474,18 +494,21 @@ final class EnginePlayerRepository extends PlayerRepository {
       _fade = null;
       unawaited(
         _serially(() async {
-          await _engine.stop();
-          await _engine.setVolume(1);
+          if (run == _fadeRun) await _restoreVolume();
         }),
       );
     });
   }
 
   Future<void> _cancelFade() async {
-    final fade = _fade;
-    if (fade == null) return;
-    fade.cancel();
+    _fadeRun++;
+    _fade?.cancel();
     _fade = null;
+    if (_volumeLowered) await _restoreVolume();
+  }
+
+  Future<void> _restoreVolume() async {
+    _volumeLowered = false;
     await _engine.stop();
     await _engine.setVolume(1);
   }
@@ -628,6 +651,12 @@ final class EnginePlayerRepository extends PlayerRepository {
         _update(_state.copyWith(buffering: buffering));
       case EngineFailed(:final failure):
         if (_rules == null || _rules!.isStopped) return;
+        // Only the next ayah's preload failed; it is fetched again when
+        // the silence ends.
+        if (_state.inSilence) {
+          _engineAhead = null;
+          return;
+        }
         await _fail(switch (failure) {
           EngineFailure.connection => PlayerError.connectionFailed,
           EngineFailure.playback => PlayerError.playbackFailed,

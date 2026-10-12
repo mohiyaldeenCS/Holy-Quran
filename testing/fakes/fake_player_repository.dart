@@ -1,5 +1,6 @@
 import 'package:holyquran/data/repositories/player_repository.dart';
 import 'package:holyquran/domain/models/playback_plan.dart';
+import 'package:holyquran/domain/models/playback_rules.dart';
 import 'package:holyquran/domain/models/player_state.dart';
 import 'package:holyquran/domain/models/sleep_timer.dart';
 import 'package:holyquran/domain/models/stop_after.dart';
@@ -55,7 +56,7 @@ final class FakePlayerRepository extends PlayerRepository {
   @override
   Future<void> stop() async {
     commands.add('stop');
-    state = _state.copyWith(playing: false);
+    state = _state.copyWith(playing: false, stopReason: () => StopReason.user);
   }
 
   @override
@@ -82,16 +83,25 @@ final class FakePlayerRepository extends PlayerRepository {
     state = _state.copyWith(speed: speed);
   }
 
+  /// Fails as the real repository does when nothing is playing.
   @override
   Future<void> setSleepTimer(SleepTimer? timer) async {
+    _checkPlaying();
     sleepTimer = timer;
     notifyListeners();
   }
 
   @override
   Future<void> setStopAfter(StopAfter? stopAfter) async {
+    _checkPlaying();
     this.stopAfter = stopAfter;
     notifyListeners();
+  }
+
+  void _checkPlaying() {
+    if (_state.plan == null || _state.stopReason != null) {
+      throw StateError('nothing is playing');
+    }
   }
 
   @override

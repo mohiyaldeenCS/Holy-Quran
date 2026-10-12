@@ -187,7 +187,15 @@ final class PluginAudioEngineService implements AudioEngineService {
   Stream<EngineEvent> get events => _events.stream;
 
   @override
-  Future<void> activate() => _activating ??= _activate();
+  Future<void> activate() async {
+    final activating = _activating ??= _activate();
+    try {
+      await activating;
+    } on Exception {
+      _activating = null;
+      rethrow;
+    }
+  }
 
   Future<void> _activate() async {
     if (defaultTargetPlatform == TargetPlatform.android) {
@@ -214,7 +222,7 @@ final class PluginAudioEngineService implements AudioEngineService {
       ..add(player.positionDiscontinuityStream.listen(_onDiscontinuity))
       ..add(player.processingStateStream.listen(_onProcessingState))
       ..add(
-        player.positionStream.listen(
+        player.createPositionStream().listen(
           (position) => _events.add(PositionChanged(position)),
         ),
       )
@@ -227,14 +235,16 @@ final class PluginAudioEngineService implements AudioEngineService {
     EngineTrack? next,
     Duration from = Duration.zero,
   }) async {
-    await _setTracks([track, ?next], from: from);
-    unawaited(_player.play());
+    // Loading starts with play, so a stalled stream holds back no command.
+    await _setTracks([track, ?next], from: from, preload: false);
+    _handler!.playing = true;
+    _play();
   }
 
   @override
   Future<void> load(EngineTrack track) async {
     await _player.pause();
-    await _setTracks([track]);
+    unawaited(_setTracks([track], preload: true));
   }
 
   @override
@@ -251,16 +261,26 @@ final class PluginAudioEngineService implements AudioEngineService {
   }
 
   @override
-  Future<void> pause() => _player.pause();
+  Future<void> pause() async {
+    _handler!.playing = false;
+    await _player.pause();
+  }
 
   @override
-  Future<void> resume() async => unawaited(_player.play());
+  Future<void> resume() async {
+    _handler!.playing = true;
+    _play();
+  }
 
   @override
   Future<void> stop() async {
     _tracks = [];
     await _handler?.halt();
   }
+
+  // A failure while playing reaches errorStream, so the future's own error
+  // is not needed.
+  void _play() => unawaited(_player.play().catchError((Object _) {}));
 
   @override
   Future<void> setVolume(double volume) => _player.setVolume(volume);
@@ -286,12 +306,18 @@ final class PluginAudioEngineService implements AudioEngineService {
     await _events.close();
   }
 
-  Future<void> _setTracks(List<EngineTrack> tracks, {Duration? from}) async {
+  Future<void> _setTracks(
+    List<EngineTrack> tracks, {
+    required bool preload,
+    Duration? from,
+  }) async {
     _tracks = tracks;
     try {
-      await _player.setAudioSources([
-        for (final track in tracks) _source(track),
-      ], initialPosition: from);
+      await _player.setAudioSources(
+        [for (final track in tracks) _source(track)],
+        initialPosition: from,
+        preload: preload,
+      );
     } on PlayerInterruptedException {
       // Replaced by a later load.
     } on PlayerException {
@@ -305,8 +331,12 @@ final class PluginAudioEngineService implements AudioEngineService {
     return ClippingAudioSource(child: file, start: track.start, end: track.end);
   }
 
+  // Replacing the playlist is reported as an advance too; only a move from
+  // the current track to the next one is.
   void _onDiscontinuity(PositionDiscontinuity discontinuity) {
     if (discontinuity.reason != PositionDiscontinuityReason.autoAdvance ||
+        discontinuity.previousEvent.currentIndex != 0 ||
+        discontinuity.event.currentIndex != 1 ||
         _tracks.length < 2) {
       return;
     }
