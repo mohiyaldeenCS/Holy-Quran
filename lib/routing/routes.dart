@@ -101,6 +101,7 @@ abstract final class Routes {
       state.uri.queryParameters[packQuery];
 
   static const _sheet = '/sheet';
+  // At most nine digits, so that the number fits an int on every platform.
   static final _surah = RegExp(r'^[1-9][0-9]{0,8}$');
 
   static int _checkedSurah(int surah) => surah >= 1

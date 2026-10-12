@@ -52,13 +52,15 @@ void main() {
       expect(route.barrierColor, AppColors.byId[theme.name]!.scrim);
       expect(route.isDismissible, isTrue);
       expect(route.isScrollControlled, isTrue);
-      expect(
-        route.barrierLabel,
-        MaterialLocalizations.of(
-          tester.element(find.byKey(_sheetKey)),
-        ).modalBarrierDismissLabel,
+      final localizations = MaterialLocalizations.of(
+        tester.element(find.byKey(_sheetKey)),
       );
+      expect(route.barrierLabel, localizations.scrimLabel);
       expect(route.barrierLabel, isNotEmpty);
+      expect(
+        route.barrierOnTapHint,
+        localizations.scrimOnTapHint(localizations.bottomSheetLabel),
+      );
     });
   }
 

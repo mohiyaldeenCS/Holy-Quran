@@ -73,11 +73,9 @@ GoRouter createRouter({List<FeatureRoutes>? features}) {
         for (final sheet in feature.sheets)
           GoRoute(
             path: sheet.path,
-            // Before any screen is shown this is a cold start, not a push.
+            // A cold start or a `go` would leave the sheet over nothing.
             redirect: (context, state) =>
-                router.routerDelegate.currentConfiguration.isEmpty
-                ? sheet.owner(state)
-                : null,
+                _isPushed(router) ? null : sheet.owner(state),
             pageBuilder: (context, state) => SheetPage<Object?>(
               key: state.pageKey,
               name: state.uri.toString(),
@@ -89,6 +87,17 @@ GoRouter createRouter({List<FeatureRoutes>? features}) {
   );
   return router;
 }
+
+bool _isPushed(GoRouter router) =>
+    switch (router.routeInformationProvider.value.state) {
+      RouteInformationState(
+        type: NavigatingType.push ||
+            NavigatingType.pushReplacement ||
+            NavigatingType.replace,
+      ) =>
+        true,
+      _ => false,
+    };
 
 GoRoute _tabRoute(ShellTab tab, List<FeatureRoutes> features) {
   final roots = [

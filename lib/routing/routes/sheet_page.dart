@@ -14,16 +14,22 @@ final class SheetPage<T> extends Page<T> {
   @override
   Route<T> createRoute(BuildContext context) {
     final colors = context.colors;
+    final localizations = MaterialLocalizations.of(context);
     return ModalBottomSheetRoute<T>(
       settings: this,
-      builder: (context) => child,
+      // The route's settings follow a rebuilt page, so its child does too.
+      builder: (context) =>
+          (ModalRoute.settingsOf(context)! as SheetPage<T>).child,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: colors.surface.withValues(alpha: 0),
       elevation: 0,
       modalBarrierColor: colors.scrim,
       // What showModalBottomSheet gives screen readers for the barrier.
-      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierLabel: localizations.scrimLabel,
+      barrierOnTapHint: localizations.scrimOnTapHint(
+        localizations.bottomSheetLabel,
+      ),
       sheetAnimationStyle: MediaQuery.disableAnimationsOf(context)
           ? AnimationStyle.noAnimation
           : const AnimationStyle(

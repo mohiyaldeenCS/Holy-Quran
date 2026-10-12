@@ -9,7 +9,11 @@ import 'package:holyquran/ui/core/widgets/splash.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
-void main() => runApp(AppStart(dependencies: buildDependencies()));
+void main() {
+  // Areas start before runApp and may call plugins at once.
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(AppStart(dependencies: buildDependencies()));
+}
 
 /// Shows the identity's splash at once, and the app once [dependencies] are
 /// built (M1.1).

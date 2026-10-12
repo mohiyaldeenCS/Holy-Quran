@@ -12,6 +12,7 @@ import 'package:holyquran/ui/core/widgets/icon.dart' as ds;
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
 import 'package:holyquran/ui/core/widgets/tab_bar.dart';
 import 'package:holyquran/ui/features/home/views/home_screen.dart';
+import 'package:holyquran/ui/features/listen/views/listen_screen.dart';
 import 'package:provider/provider.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
@@ -165,12 +166,13 @@ void main() {
     tester,
   ) async {
     final router = createRouter();
+    addTearDown(router.dispose);
     await tester.pumpWidget(QuranApp(router: router));
     await tester.pumpAndSettle();
     await tester.tap(_tab(_l10n.tabListen));
     await tester.pumpAndSettle();
     final chrome = Provider.of<ShellChrome>(
-      tester.element(find.byType(TabShell)),
+      tester.element(find.byType(ListenScreen)),
       listen: false,
     );
 
@@ -187,12 +189,14 @@ void main() {
   testWidgets('a hidden tab bar leaves the screen the whole height', (
     tester,
   ) async {
-    await tester.pumpWidget(QuranApp(router: createRouter()));
+    final router = createRouter();
+    addTearDown(router.dispose);
+    await tester.pumpWidget(QuranApp(router: router));
     await tester.pumpAndSettle();
     final withBar = tester.getSize(find.byType(HomeScreen)).height;
 
     Provider.of<ShellChrome>(
-      tester.element(find.byType(TabShell)),
+      tester.element(find.byType(HomeScreen)),
       listen: false,
     ).tabBarVisible = false;
     await tester.pump();

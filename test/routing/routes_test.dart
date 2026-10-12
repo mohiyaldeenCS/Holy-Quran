@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart' hide TabBar;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -169,6 +171,7 @@ const _sheetKey = Key('synthetic sheet');
 const _childKey = Key('synthetic child');
 const _syntheticSheet = '/sheet/synthetic/:${Routes.addressParameter}';
 const _syntheticChild = 'synthetic';
+const _syntheticSurahSheet = '/sheet/synthetic-surah/:${Routes.surahParameter}';
 
 String _syntheticSheetAt(QuranAddress address) => '/sheet/synthetic/$address';
 
@@ -180,6 +183,11 @@ final _synthetic = FeatureRoutes(
       path: _syntheticSheet,
       builder: (context, state) => const SizedBox(key: _sheetKey, height: 120),
       owner: (state) => Routes.mushafRead(Routes.addressOf(state)!),
+    ),
+    SheetRoute(
+      path: _syntheticSurahSheet,
+      builder: (context, state) => const SizedBox(key: _sheetKey, height: 120),
+      owner: (state) => Routes.mushaf,
     ),
   ],
   tabChildren: {
@@ -313,8 +321,12 @@ void main() {
       '/sheet/synthetic/hafs:0:1',
       '/sheet/synthetic/hafs:٢:٢٥٥',
       '/sheet/synthetic/hafs:2',
+      '/sheet/synthetic-surah/0',
+      '/sheet/synthetic-surah/01',
+      '/sheet/synthetic-surah/abc',
+      '/sheet/synthetic-surah/٢',
     ]) {
-      testWidgets('a malformed address in $location lands home', (
+      testWidgets('a malformed parameter in $location lands home', (
         tester,
       ) async {
         final router = await _pumpApp(tester, features: _appAnd());
@@ -325,7 +337,28 @@ void main() {
         _expectHome(tester, router);
         expect(find.byKey(_sheetKey), findsNothing);
       });
+
+      testWidgets('pushing $location lands home', (tester) async {
+        final router = await _pumpApp(tester, features: _appAnd());
+        await tester.tap(_tab(_l10n.tabStudy));
+        await tester.pumpAndSettle();
+
+        unawaited(router.push<Object?>(location));
+        await tester.pumpAndSettle();
+
+        _expectHome(tester, router);
+        expect(find.byKey(_sheetKey), findsNothing);
+      });
     }
+
+    testWidgets('a well-formed surah opens its sheet', (tester) async {
+      final router = await _pumpApp(tester, features: _appAnd());
+
+      unawaited(router.push<Object?>('/sheet/synthetic-surah/114'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(_sheetKey), findsOneWidget);
+    });
   });
 
   group('a sheet', () {
@@ -345,6 +378,10 @@ void main() {
         expect(
           ModalRoute.of(tester.element(find.byKey(_sheetKey))),
           isA<ModalBottomSheetRoute<Object?>>(),
+        );
+        expect(
+          Navigator.of(tester.element(find.byKey(_sheetKey))),
+          same(router.routerDelegate.navigatorKey.currentState),
         );
         expect(find.byType(tab.screen), findsOneWidget);
         expect(find.byType(TabBar), findsOneWidget);
@@ -381,6 +418,21 @@ void main() {
 
       expect(router.state.uri.path, Routes.study);
       expect(find.byType(StudyScreen), findsOneWidget);
+      expect(find.byKey(_sheetKey), findsNothing);
+    });
+
+    testWidgets('a go to its path goes to the screen it belongs to', (
+      tester,
+    ) async {
+      final router = await _pumpApp(tester, features: _appAnd());
+      await tester.tap(_tab(_l10n.tabStudy));
+      await tester.pumpAndSettle();
+
+      router.go('/sheet/synthetic-surah/2');
+      await tester.pumpAndSettle();
+
+      expect(router.state.uri.path, Routes.mushaf);
+      expect(find.byType(MushafScreen), findsOneWidget);
       expect(find.byKey(_sheetKey), findsNothing);
     });
   });
