@@ -864,7 +864,7 @@ void main() {
         isA<UnsupportedPackFormat>().having(
           (f) => f.formatVersion,
           'formatVersion',
-          2,
+          unsupportedPackFormatVersion,
         ),
       ),
       SyntheticFault.pathInFileName: ('verify', isA<ManifestUnreadable>()),

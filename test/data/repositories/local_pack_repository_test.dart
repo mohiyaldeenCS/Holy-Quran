@@ -175,7 +175,10 @@ void main() {
     test('an unsupported format version', () async {
       await expectFault(
         SyntheticFault.unsupportedFormatVersion,
-        fails<UnsupportedPackFormat>((f) => f.formatVersion, 2),
+        fails<UnsupportedPackFormat>(
+          (f) => f.formatVersion,
+          unsupportedPackFormatVersion,
+        ),
       );
     });
 

@@ -8,6 +8,8 @@ import 'package:sqlite3/sqlite3.dart';
 import '../../domain/models/edition_map.dart';
 import '../../domain/models/pack_failure.dart';
 import '../../domain/models/pack_text.dart';
+import '../../domain/models/quran_address.dart';
+import '../../domain/models/search_form.dart';
 import '../../domain/models/surah_info.dart';
 
 /// The first ayah of a division unit, as stored.
@@ -31,24 +33,32 @@ typedef PackRowCounts = ({
   int sajdas,
 });
 
-/// A text pack's `text.sqlite` (docs/CONTENT_PACKS.md, "Text pack"), opened
-/// read-only and immutable. It runs only queries, and it is the only place
-/// that turns stored text into [PackText]: every text is read as its stored
-/// bytes and decoded as strict UTF-8.
+/// A column of a pack table: its name, type, NOT NULL and position in the
+/// primary key (0 when outside it).
+typedef PackColumn = (String name, String type, bool notNull, int primaryKey);
+
+/// A pack table: whether it is WITHOUT ROWID, and its columns in order.
+typedef PackTable = (bool withoutRowid, List<PackColumn> columns);
+
+/// A pack data file of any kind (docs/CONTENT_PACKS.md), opened read-only and
+/// immutable once its header, `application_id`, `user_version` and schema
+/// are those the format gives. It is the one opener of pack files (D-061),
+/// and its [PackRow]s the one place that turns stored text into [PackText]:
+/// every text is read as its stored bytes and decoded as strict UTF-8.
 ///
 /// Failures are thrown as [PackFailure]s naming the file:
 /// [FileHashMismatch] when there is no readable file, [UnsupportedPackFormat]
-/// when the file is not a text pack of the expected version,
-/// [TextEncodingRejected] when a text is not strict UTF-8 or begins with
-/// U+FEFF.
-final class PackDatabase {
-  PackDatabase._(this._db, this._path, this._formatVersion);
+/// when the file is not of the expected version and schema.
+final class PackSqliteFile {
+  PackSqliteFile._(this._db, this.path, this.formatVersion);
 
-  /// Opens the pack file at [path]. Throws [UnsupportedPackFormat] when the
-  /// header, `application_id`, `user_version` or schema is not that of a
-  /// text pack of [formatVersion], and [FileHashMismatch] when there is no
-  /// readable file at [path]; no file is ever created.
-  static PackDatabase open(String path, {required int formatVersion}) {
+  /// Opens the pack file at [path]; no file is ever created. [schema] holds
+  /// every table the file must have, and no other.
+  static PackSqliteFile open(
+    String path, {
+    required int formatVersion,
+    required Map<String, PackTable> schema,
+  }) {
     try {
       _checkHeader(path, formatVersion);
     } on FileSystemException {
@@ -64,21 +74,21 @@ final class PackDatabase {
     } on SqliteException {
       throw UnsupportedPackFormat(path, formatVersion);
     }
-    final pack = PackDatabase._(db, path, formatVersion);
+    final file = PackSqliteFile._(db, path, formatVersion);
     try {
-      if (pack._integer('PRAGMA application_id') != _applicationId) {
-        throw UnsupportedPackFormat(path, formatVersion);
+      if (file.integer('PRAGMA application_id') != _applicationId) {
+        file.unsupported();
       }
-      final userVersion = pack._integer('PRAGMA user_version');
+      final userVersion = file.integer('PRAGMA user_version');
       if (userVersion != formatVersion) {
         throw UnsupportedPackFormat(path, userVersion);
       }
-      pack._checkSchema();
+      file._checkSchema(schema);
     } on PackFailure {
       db.close();
       rethrow;
     }
-    return pack;
+    return file;
   }
 
   /// ASCII `HQPK`.
@@ -87,10 +97,168 @@ final class PackDatabase {
   static const _magic = 'SQLite format 3\u{0}';
   static const _utf8Encoding = 1;
 
-  /// The tables of docs/CONTENT_PACKS.md, "Text pack": whether each is
-  /// WITHOUT ROWID, and its columns in order as name, type, NOT NULL and
-  /// position in the primary key.
-  static const _schema = {
+  final Database _db;
+  final String path;
+  final int formatVersion;
+
+  /// The magic string, rollback journal (bytes 18 and 19 are 1, so no WAL)
+  /// and UTF-8 text, read from the file before SQLite opens it.
+  static void _checkHeader(String path, int formatVersion) {
+    final file = File(path).openSync();
+    final Uint8List header;
+    try {
+      header = file.readSync(_headerLength);
+    } finally {
+      file.closeSync();
+    }
+    if (header.length < _headerLength ||
+        String.fromCharCodes(header, 0, _magic.length) != _magic ||
+        header[18] != 1 ||
+        header[19] != 1 ||
+        ByteData.sublistView(header).getUint32(56) != _utf8Encoding) {
+      throw UnsupportedPackFormat(path, formatVersion);
+    }
+  }
+
+  /// Exactly the tables of [schema], each STRICT, with exactly its columns
+  /// and none hidden or generated, so that every value read has the type and
+  /// nullability the reads assume.
+  void _checkSchema(Map<String, PackTable> schema) {
+    final tables = {
+      for (final row in _db.select(
+        'SELECT name, type, wr, strict FROM pragma_table_list '
+        r"WHERE schema = 'main' AND name NOT LIKE 'sqlite\_%' ESCAPE '\'",
+      ))
+        row.columnAt(0) as String: (
+          type: row.columnAt(1),
+          withoutRowid: row.columnAt(2) == 1,
+          strict: row.columnAt(3) == 1,
+        ),
+    };
+    if (tables.length != schema.length) unsupported();
+    for (final MapEntry(key: table, value: (withoutRowid, columns))
+        in schema.entries) {
+      final found = tables[table];
+      if (found == null ||
+          found.type != 'table' ||
+          !found.strict ||
+          found.withoutRowid != withoutRowid) {
+        unsupported();
+      }
+      final stored = [
+        for (final row in _db.select(
+          'SELECT name, type, "notnull", pk, hidden FROM pragma_table_xinfo(?) '
+          'ORDER BY cid',
+          [table],
+        ))
+          (
+            row.columnAt(0),
+            row.columnAt(1),
+            row.columnAt(2) == 1,
+            row.columnAt(3),
+            row.columnAt(4) == 0,
+          ),
+      ];
+      if (stored.length != columns.length) unsupported();
+      for (final (index, (name, type, notNull, pk)) in columns.indexed) {
+        if (stored[index] != (name, type, notNull, pk, true)) unsupported();
+      }
+    }
+  }
+
+  Never unsupported() => throw UnsupportedPackFormat(path, formatVersion);
+
+  void close() => _db.close();
+
+  /// The rows of a query. A query SQLite refuses is [UnsupportedPackFormat].
+  List<PackRow> select(String sql, [List<Object?> parameters = const []]) {
+    try {
+      return [for (final row in _db.select(sql, parameters)) PackRow._(row)];
+    } on SqliteException {
+      unsupported();
+    }
+  }
+
+  /// The one integer a query returns.
+  int integer(String sql, [List<Object?> parameters = const []]) =>
+      select(sql, parameters).single.integer(0);
+}
+
+/// A row a [PackSqliteFile] returned. The schema check fixes each column's
+/// type, so a read of the wrong type is a programming error.
+final class PackRow {
+  PackRow._(this._row);
+
+  final Row _row;
+
+  int integer(int column) => _row.columnAt(column) as int;
+
+  int? nullableInteger(int column) => _row.columnAt(column) as int?;
+
+  /// A value the format restricts to a closed set or a pattern, such as a
+  /// kind, a path or a hash; never a text shown as it is stored.
+  String string(int column) => _row.columnAt(column) as String;
+
+  String? nullableString(int column) => _row.columnAt(column) as String?;
+
+  /// The stored bytes of a text column selected as `CAST(... AS BLOB)`.
+  Uint8List? nullableBytes(int column) => _row.columnAt(column) as Uint8List?;
+
+  /// The text of a column selected as `CAST(... AS BLOB)`, decoded with no
+  /// change. [rejected] is thrown when the bytes are not strict UTF-8 or
+  /// begin with EF BB BF, which Dart's decoder would discard without notice.
+  PackText text(int column, PackFailure Function() rejected) =>
+      nullableText(column, rejected) ?? (throw rejected());
+
+  /// Null when the column holds NULL; otherwise as [text].
+  PackText? nullableText(int column, PackFailure Function() rejected) {
+    final bytes = nullableBytes(column);
+    if (bytes == null) return null;
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xEF &&
+        bytes[1] == 0xBB &&
+        bytes[2] == 0xBF) {
+      throw rejected();
+    }
+    try {
+      // Spelled out so that a reader sees that malformed bytes are refused.
+      // ignore: avoid_redundant_argument_values
+      return PackText.fromPack(utf8.decode(bytes, allowMalformed: false));
+    } on FormatException {
+      throw rejected();
+    }
+  }
+}
+
+/// A text pack's `text.sqlite` (docs/CONTENT_PACKS.md, "Text pack"), format
+/// 1 or 2, opened through [PackSqliteFile]. It runs only queries.
+///
+/// Failures are thrown as [PackFailure]s naming the file:
+/// [FileHashMismatch] when there is no readable file, [UnsupportedPackFormat]
+/// when the file is not a text pack of the expected version,
+/// [TextEncodingRejected] when a text is not strict UTF-8 or begins with
+/// U+FEFF, [PackInconsistent] when a search form breaks the format.
+final class PackDatabase {
+  PackDatabase._(this._file);
+
+  /// Opens the pack file at [path]. Throws [UnsupportedPackFormat] when
+  /// [formatVersion] is not one of a text pack, or the header,
+  /// `application_id`, `user_version` or schema is not that of a text pack
+  /// of [formatVersion], and [FileHashMismatch] when there is no readable
+  /// file at [path]; no file is ever created.
+  static PackDatabase open(String path, {required int formatVersion}) =>
+      PackDatabase._(
+        PackSqliteFile.open(
+          path,
+          formatVersion: formatVersion,
+          schema:
+              _schemas[formatVersion] ??
+              (throw UnsupportedPackFormat(path, formatVersion)),
+        ),
+      );
+
+  /// The tables of docs/CONTENT_PACKS.md, "Text pack".
+  static const _v1 = {
     'surah': (
       false,
       [
@@ -146,194 +314,189 @@ final class PackDatabase {
     ),
   };
 
-  final Database _db;
-  final String _path;
-  final int _formatVersion;
+  /// The schema of each format version: version 2 adds `search_form`.
+  static const _schemas = {
+    1: _v1,
+    2: {
+      ..._v1,
+      'search_form': (
+        true,
+        [
+          ('surah', 'INTEGER', true, 1),
+          ('ayah', 'INTEGER', true, 2),
+          ('word', 'INTEGER', true, 3),
+          ('kind', 'TEXT', true, 4),
+          ('form', 'TEXT', true, 0),
+        ],
+      ),
+    },
+  };
 
-  /// The magic string, rollback journal (bytes 18 and 19 are 1, so no WAL)
-  /// and UTF-8 text, read from the file before SQLite opens it.
-  static void _checkHeader(String path, int formatVersion) {
-    final file = File(path).openSync();
-    final Uint8List header;
-    try {
-      header = file.readSync(_headerLength);
-    } finally {
-      file.closeSync();
-    }
-    if (header.length < _headerLength ||
-        String.fromCharCodes(header, 0, _magic.length) != _magic ||
-        header[18] != 1 ||
-        header[19] != 1 ||
-        ByteData.sublistView(header).getUint32(56) != _utf8Encoding) {
-      throw UnsupportedPackFormat(path, formatVersion);
-    }
-  }
+  final PackSqliteFile _file;
 
-  /// Exactly the tables of [_schema], each STRICT, with exactly its columns
-  /// and none hidden or generated, so that every value read has the type and
-  /// nullability the reads below assume.
-  void _checkSchema() {
-    final tables = {
-      for (final row in _select(
-        'SELECT name, type, wr, strict FROM pragma_table_list '
-        r"WHERE schema = 'main' AND name NOT LIKE 'sqlite\_%' ESCAPE '\'",
-      ))
-        row.columnAt(0) as String: (
-          type: row.columnAt(1),
-          withoutRowid: row.columnAt(2) == 1,
-          strict: row.columnAt(3) == 1,
-        ),
-    };
-    if (tables.length != _schema.length) _unsupported();
-    for (final MapEntry(key: table, value: (withoutRowid, columns))
-        in _schema.entries) {
-      final found = tables[table];
-      if (found == null ||
-          found.type != 'table' ||
-          !found.strict ||
-          found.withoutRowid != withoutRowid) {
-        _unsupported();
-      }
-      final stored = [
-        for (final row in _select(
-          'SELECT name, type, "notnull", pk, hidden FROM pragma_table_xinfo(?) '
-          'ORDER BY cid',
-          [table],
-        ))
-          (
-            row.columnAt(0),
-            row.columnAt(1),
-            row.columnAt(2) == 1,
-            row.columnAt(3),
-            row.columnAt(4) == 0,
-          ),
-      ];
-      if (stored.length != columns.length) _unsupported();
-      for (final (index, (name, type, notNull, pk)) in columns.indexed) {
-        if (stored[index] != (name, type, notNull, pk, true)) _unsupported();
-      }
-    }
-  }
+  String get _path => _file.path;
 
-  Never _unsupported() => throw UnsupportedPackFormat(_path, _formatVersion);
+  bool get _hasSearchForms => _file.formatVersion >= 2;
 
-  void close() => _db.close();
+  Never _unsupported() => _file.unsupported();
+
+  void close() => _file.close();
 
   /// Every surah, in order.
   List<SurahInfo> surahs() => [
-    for (final row in _select(
+    for (final row in _file.select(
       'SELECT number, CAST(name AS BLOB), ayah_count, revelation_place, '
       'revelation_order FROM surah ORDER BY number',
     ))
       SurahInfo(
-        number: row.columnAt(0) as int,
-        name: _text(row.columnAt(1) as Uint8List, row.columnAt(0) as int),
-        ayahCount: row.columnAt(2) as int,
-        revelationPlace: switch (row.columnAt(3) as String?) {
+        number: row.integer(0),
+        name: row.text(
+          1,
+          () => TextEncodingRejected(_path, row.integer(0), null),
+        ),
+        ayahCount: row.integer(2),
+        revelationPlace: switch (row.nullableString(3)) {
           'makki' => RevelationPlace.makki,
           'madani' => RevelationPlace.madani,
           null => null,
           _ => _unsupported(),
         },
-        revelationOrder: row.columnAt(4) as int?,
+        revelationOrder: row.nullableInteger(4),
       ),
   ];
 
   /// The basmala stored for [surah], or null when it has none.
-  PackText? basmala(int surah) => switch (_select(
+  PackText? basmala(int surah) => switch (_file.select(
     'SELECT CAST(basmala AS BLOB) FROM surah WHERE number = ?',
     [surah],
   )) {
-    [final row] when row.columnAt(0) != null => _text(
-      row.columnAt(0) as Uint8List,
-      surah,
+    [final row] => row.nullableText(
+      0,
+      () => TextEncodingRejected(_path, surah, null),
     ),
     _ => null,
   };
 
   /// The text of ayah [ayah] of [surah], or null when there is none.
-  PackText? ayahText(int surah, int ayah) => switch (_select(
+  PackText? ayahText(int surah, int ayah) => switch (_file.select(
     'SELECT CAST(text AS BLOB) FROM ayah WHERE surah = ? AND number = ?',
     [surah, ayah],
   )) {
-    [final row] => _text(row.columnAt(0) as Uint8List, surah, ayah),
+    [final row] => row.text(0, () => TextEncodingRejected(_path, surah, ayah)),
     _ => null,
   };
 
   /// The words of an ayah, by number; empty when there is no such ayah.
   List<WordRow> words(int surah, int ayah) => [
-    for (final row in _select(
+    for (final row in _file.select(
       'SELECT number, start_offset, end_offset FROM word '
       'WHERE surah = ? AND ayah = ? ORDER BY number',
       [surah, ayah],
     ))
-      (
-        number: row.columnAt(0) as int,
-        start: row.columnAt(1) as int,
-        end: row.columnAt(2) as int,
-      ),
+      (number: row.integer(0), start: row.integer(1), end: row.integer(2)),
   ];
 
   /// The marks of an ayah, by number; empty when there is no such ayah.
   List<MarkRow> marks(int surah, int ayah) => [
-    for (final row in _select(
+    for (final row in _file.select(
       'SELECT number, after_word, start_offset, end_offset FROM mark '
       'WHERE surah = ? AND ayah = ? ORDER BY number',
       [surah, ayah],
     ))
       (
-        number: row.columnAt(0) as int,
-        afterWord: row.columnAt(1) as int,
-        start: row.columnAt(2) as int,
-        end: row.columnAt(3) as int,
+        number: row.integer(0),
+        afterWord: row.integer(1),
+        start: row.integer(2),
+        end: row.integer(3),
       ),
   ];
 
+  /// The search forms of the words of [surah] in [riwaya], by ayah, word and
+  /// kind, as the source gives them; empty for a format 1 pack, which has
+  /// none, and for a surah that is not stored. A kind not of the form of
+  /// [SearchForm.kindPattern] is [PackInconsistent].
+  List<SearchForm> searchForms(int surah, {required String riwaya}) {
+    if (!_hasSearchForms) return const [];
+    return [
+      for (final row in _file.select(
+        'SELECT ayah, word, kind, CAST(form AS BLOB) FROM search_form '
+        'WHERE surah = ? ORDER BY ayah, word, kind',
+        [surah],
+      ))
+        _searchForm(riwaya, surah, row),
+    ];
+  }
+
+  SearchForm _searchForm(String riwaya, int surah, PackRow row) {
+    final ayah = row.integer(0);
+    final form = row.text(3, () => TextEncodingRejected(_path, surah, ayah));
+    try {
+      return SearchForm(
+        word: QuranAddress(riwaya, surah, ayah, row.integer(1)),
+        kind: row.string(2),
+        form: form,
+      );
+    } on ArgumentError catch (error) {
+      throw PackInconsistent(_path, 'search form of $surah:$ayah: $error');
+    }
+  }
+
+  /// The number of search forms of each kind; empty for a format 1 pack.
+  Map<String, int> searchFormCounts() => !_hasSearchForms
+      ? const {}
+      : {
+          for (final row in _file.select(
+            'SELECT kind, count(*) FROM search_form GROUP BY kind ORDER BY kind',
+          ))
+            row.string(0): row.integer(1),
+        };
+
   /// Every division unit, by kind and number.
   List<DivisionRow> divisions() => [
-    for (final row in _select(
+    for (final row in _file.select(
       'SELECT kind, number, surah, ayah FROM division ORDER BY kind, number',
     ))
       (
-        kind: switch (row.columnAt(0) as String) {
+        kind: switch (row.string(0)) {
           'juz' => Division.juz,
           'hizb' => Division.hizb,
           'rub' => Division.rub,
           'page' => Division.page,
           _ => _unsupported(),
         },
-        number: row.columnAt(1) as int,
-        surah: row.columnAt(2) as int,
-        ayah: row.columnAt(3) as int,
+        number: row.integer(1),
+        surah: row.integer(2),
+        ayah: row.integer(3),
       ),
   ];
 
   /// Every ayah carrying a sajda, in order.
   List<(int surah, int ayah)> sajdas() => [
-    for (final row in _select(
+    for (final row in _file.select(
       'SELECT surah, ayah FROM sajda ORDER BY surah, ayah',
     ))
-      (row.columnAt(0) as int, row.columnAt(1) as int),
+      (row.integer(0), row.integer(1)),
   ];
 
   PackRowCounts rowCounts() => (
-    surahs: _integer('SELECT count(*) FROM surah'),
-    ayat: _integer('SELECT count(*) FROM ayah'),
-    words: _integer('SELECT count(*) FROM word'),
-    marks: _integer('SELECT count(*) FROM mark'),
+    surahs: _file.integer('SELECT count(*) FROM surah'),
+    ayat: _file.integer('SELECT count(*) FROM ayah'),
+    words: _file.integer('SELECT count(*) FROM word'),
+    marks: _file.integer('SELECT count(*) FROM mark'),
     divisions: {
       for (final division in Division.values)
-        division: _integer('SELECT count(*) FROM division WHERE kind = ?', [
-          division.name,
-        ]),
+        division: _file.integer(
+          'SELECT count(*) FROM division WHERE kind = ?',
+          [division.name],
+        ),
     },
-    sajdas: _integer('SELECT count(*) FROM sajda'),
+    sajdas: _file.integer('SELECT count(*) FROM sajda'),
   );
 
   /// The digest of docs/CONTENT_PACKS.md, "Surah digest", over the stored
   /// bytes and numbers of [surah]; null when there is no such surah.
   String? surahSha256(int surah) {
-    final basmala = _select(
+    final basmala = _file.select(
       'SELECT CAST(basmala AS BLOB) FROM surah WHERE number = ?',
       [surah],
     );
@@ -353,44 +516,15 @@ final class PackDatabase {
         ..add(bytes);
     }
 
-    if (basmala.single.columnAt(0) case final Uint8List bytes) add(0, bytes);
-    for (final row in _select(
+    if (basmala.single.nullableBytes(0) case final bytes?) add(0, bytes);
+    for (final row in _file.select(
       'SELECT number, CAST(text AS BLOB) FROM ayah WHERE surah = ? '
       'ORDER BY number',
       [surah],
     )) {
-      add(row.columnAt(0) as int, row.columnAt(1) as Uint8List);
+      add(row.integer(0), row.nullableBytes(1)!);
     }
     input.close();
     return digest.toString();
-  }
-
-  ResultSet _select(String sql, [List<Object?> parameters = const []]) {
-    try {
-      return _db.select(sql, parameters);
-    } on SqliteException {
-      _unsupported();
-    }
-  }
-
-  int _integer(String sql, [List<Object?> parameters = const []]) =>
-      _select(sql, parameters).single.columnAt(0) as int;
-
-  /// Decodes stored bytes with no change. A leading EF BB BF is refused
-  /// because Dart's decoder would discard it without notice.
-  PackText _text(Uint8List bytes, int surah, [int? ayah]) {
-    if (bytes.length >= 3 &&
-        bytes[0] == 0xEF &&
-        bytes[1] == 0xBB &&
-        bytes[2] == 0xBF) {
-      throw TextEncodingRejected(_path, surah, ayah);
-    }
-    try {
-      // Spelled out so that a reader sees that malformed bytes are refused.
-      // ignore: avoid_redundant_argument_values
-      return PackText.fromPack(utf8.decode(bytes, allowMalformed: false));
-    } on FormatException {
-      throw TextEncodingRejected(_path, surah, ayah);
-    }
   }
 }

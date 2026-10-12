@@ -10,16 +10,28 @@ import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/utils/result.dart';
 
 import '../../../testing/packs/synthetic_pack.dart';
+import '../../../testing/packs/synthetic_recitation_pack.dart';
+import '../../../testing/packs/synthetic_tafsir_pack.dart';
 
 typedef Json = Map<String, Object?>;
 
 void main() {
   late Directory root;
   late Json valid;
+  late Json textV2;
+  late Json tafsir;
+  late Json recitation;
 
   setUpAll(() async {
     root = await Directory.systemTemp.createTemp('pack_manifest_json_test');
     valid = (await buildSyntheticPack(root)).manifest;
+    textV2 = (await buildSyntheticPack(
+      root,
+      formatVersion: 2,
+      id: 'synthetic-text-v2',
+    )).manifest;
+    tafsir = (await buildSyntheticTafsirPack(root)).manifest;
+    recitation = (await buildSyntheticRecitationPack(root)).manifest;
   });
   tearDownAll(() => root.delete(recursive: true));
 
@@ -178,8 +190,8 @@ void main() {
       expect(parse(edited((json) => json.remove('format'))), unreadable);
     });
 
-    test('a version other than 1 is unsupported', () {
-      for (final version in [0, 2, 100, -1]) {
+    test('a version other than 1 and 2 is unsupported', () {
+      for (final version in [0, 3, 100, -1]) {
         expect(
           parse(edited((json) => json['format_version'] = version)),
           unsupported(version),
@@ -210,12 +222,12 @@ void main() {
       expect(
         parse(
           edited((json) {
-            json['format_version'] = 2;
+            json['format_version'] = 3;
             json['new_field'] = 1;
             json.remove('reviews');
           }),
         ),
-        unsupported(2),
+        unsupported(3),
       );
     });
   });
@@ -346,13 +358,11 @@ void main() {
       );
     });
 
-    test('have the role text or edition_map', () {
+    test('have a known role', () {
       for (final role in ['Text', 'edition-map', 'editionMap', 'pages', '']) {
         expect(
           parse(edited((json) => json.at(['sources', 1])['role'] = role)),
-          unreadableBecause(
-            'manifest.sources[1].role is not text or edition_map',
-          ),
+          unreadableBecause('manifest.sources[1].role is not a known role'),
           reason: role,
         );
       }
@@ -674,6 +684,221 @@ void main() {
         reason: key,
       );
     }
+  });
+
+  group('format version 2', () {
+    Json from(Json json, void Function(Json json) edit) =>
+        (jsonDecode(jsonEncode(json)) as Json)..apply(edit);
+
+    test('reads a text pack with its search form kinds and source', () {
+      final manifest = (parse(textV2) as Ok<PackManifest>).value;
+      expect(manifest.formatVersion, 2);
+      expect(manifest.kind, PackKind.text);
+      final words = (textV2['counts']! as Json)['words'];
+      expect(manifest.counts.searchForms, {
+        for (final kind in defaultSyntheticSearchFormKinds) kind: words,
+      });
+      expect(manifest.sources.map((s) => s.role), [
+        SourceRole.text,
+        SourceRole.editionMap,
+        SourceRole.searchForms,
+      ]);
+    });
+
+    test('reads a text pack that provides no search forms', () async {
+      final none = (await buildSyntheticPack(
+        Directory('${root.path}/none'),
+        formatVersion: 2,
+        searchFormKinds: const [],
+      )).manifest;
+      final manifest = (parse(none) as Ok<PackManifest>).value;
+      expect(manifest.counts.searchForms, isEmpty);
+      expect(manifest.sources.map((s) => s.role), [
+        SourceRole.text,
+        SourceRole.editionMap,
+      ]);
+    });
+
+    test('a format 1 text pack has no search forms and may not list them', () {
+      expect(
+        (parse(valid) as Ok<PackManifest>).value.counts.searchForms,
+        isEmpty,
+      );
+      expect(
+        parse(
+          edited(
+            (json) =>
+                (json['counts']! as Json)['search_forms'] = <String, int>{},
+          ),
+        ),
+        unreadableBecause('manifest.counts has unknown field search_forms'),
+      );
+    });
+
+    test('a text pack lists its search form kinds in counts', () {
+      expect(
+        parse(
+          from(
+            textV2,
+            (json) => (json['counts']! as Json).remove('search_forms'),
+          ),
+        ),
+        unreadableBecause('manifest.counts lacks field search_forms'),
+      );
+      for (final kind in ['Synthetic', 'a b', '', 'a--b']) {
+        expect(
+          parse(
+            from(textV2, (json) {
+              final forms = json.at(['counts', 'search_forms']);
+              forms[kind] = forms.values.first;
+            }),
+          ),
+          unreadable,
+          reason: kind,
+        );
+      }
+    });
+
+    test('a text pack counts one form per word of each kind', () {
+      expect(
+        parse(
+          from(textV2, (json) {
+            final forms = json.at(['counts', 'search_forms']);
+            final kind = forms.keys.first;
+            forms[kind] = (forms[kind]! as int) - 1;
+          }),
+        ),
+        unreadableBecause(
+          'manifest.counts.search_forms.'
+          '${defaultSyntheticSearchFormKinds.first} is not counts.words',
+        ),
+      );
+    });
+
+    test(
+      'a text pack names a search_forms source exactly when it has forms',
+      () {
+        expect(
+          parse(
+            from(
+              textV2,
+              (json) => (json['sources']! as List<Object?>).removeLast(),
+            ),
+          ),
+          unreadable,
+        );
+        expect(
+          parse(
+            from(
+              textV2,
+              (json) => json.at(['counts'])['search_forms'] = <String, int>{},
+            ),
+          ),
+          unreadable,
+        );
+      },
+    );
+
+    test('reads a tafsir pack', () {
+      final manifest = (parse(tafsir) as Ok<PackManifest>).value;
+      expect(manifest.kind, PackKind.tafsir);
+      expect(manifest.formatVersion, 2);
+      expect(manifest.riwaya, 'hafs');
+      expect(manifest.files.single.name, tafsirPackFileName);
+      expect(manifest.sources.single.role, SourceRole.tafsir);
+      expect(
+        (manifest.kindCounts as TafsirCounts).passages,
+        defaultSyntheticPassages.length,
+      );
+      expect(() => manifest.font, throwsStateError);
+    });
+
+    test('reads a recitation pack', () {
+      final manifest = (parse(recitation) as Ok<PackManifest>).value;
+      expect(manifest.kind, PackKind.recitation);
+      expect(manifest.riwaya, 'hafs');
+      expect(manifest.files.single.name, recitationPackFileName);
+      expect(manifest.sources.single.role, SourceRole.recitation);
+      expect(
+        (manifest.kindCounts as RecitationCounts).files,
+        (recitation['counts']! as Json)['files'],
+      );
+    });
+
+    group('a tafsir or recitation pack', () {
+      final cases = {
+        'tafsir': (() => tafsir, 'passages', tafsirPackFileName),
+        'recitation': (() => recitation, 'files', recitationPackFileName),
+      };
+      for (final MapEntry(key: kind, value: (json, count, file))
+          in cases.entries) {
+        test('$kind is not a kind of format 1', () {
+          expect(
+            parse(from(json(), (json) => json['format_version'] = 1)),
+            unreadableBecause('kind $kind is not a kind of format version 1'),
+          );
+        });
+
+        test('$kind has no edition, font or surah digests', () {
+          for (final field in ['edition', 'font', 'surah_sha256']) {
+            expect(
+              parse(from(json(), (json) => json[field] = valid[field])),
+              unreadableBecause('manifest has unknown field $field'),
+              reason: field,
+            );
+          }
+        });
+
+        test('$kind counts its $count, at least one, and nothing else', () {
+          expect(
+            parse(from(json(), (json) => json.at(['counts'])[count] = 0)),
+            unreadableBecause('manifest.counts.$count is not positive'),
+          );
+          expect(
+            parse(from(json(), (json) => json['counts'] = valid['counts'])),
+            unreadable,
+          );
+        });
+
+        test('$kind lists exactly $file', () {
+          expect(
+            parse(
+              from(
+                json(),
+                (json) => json.at(['files', 0])['name'] = textPackFileName,
+              ),
+            ),
+            unreadableBecause('files of a $kind pack is not exactly $file'),
+          );
+        });
+
+        test('$kind names a riwaya', () {
+          expect(
+            parse(from(json(), (json) => json['riwaya'] = null)),
+            unreadableBecause('riwaya of a $kind pack is null'),
+          );
+        });
+
+        test('$kind takes its own source role only', () {
+          expect(
+            parse(
+              from(json(), (json) => json.at(['sources', 0])['role'] = 'text'),
+            ),
+            unreadableBecause('sources of a $kind pack name the role text'),
+          );
+        });
+      }
+    });
+
+    test('a text pack takes no tafsir or recitation source', () {
+      for (final role in ['tafsir', 'recitation']) {
+        expect(
+          parse(edited((json) => json.at(['sources', 1])['role'] = role)),
+          unreadable,
+          reason: role,
+        );
+      }
+    });
   });
 }
 

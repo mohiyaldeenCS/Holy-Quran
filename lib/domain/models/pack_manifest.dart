@@ -1,14 +1,20 @@
 import 'edition_map.dart';
 
-enum PackKind { text }
+enum PackKind { text, tafsir, recitation }
 
 enum TrustGrade { a, b, c }
 
-/// What a pack takes from a source: its text, or its edition's divisions.
-enum SourceRole { text, editionMap }
+/// What a pack takes from a source: its text, its edition's divisions, the
+/// search forms of its words, a tafsir book or a recitation.
+enum SourceRole { text, editionMap, searchForms, tafsir, recitation }
 
 /// A pack's `manifest.json` (docs/CONTENT_PACKS.md). Dates are kept as the
 /// manifest writes them, `YYYY-MM-DD`.
+///
+/// [edition], [font], [surahSha256] and [counts] belong to a text pack
+/// only: a text manifest has all of them, any other none, and reading one
+/// of another kind's manifest is a [StateError]. [kindCounts] holds the
+/// counts of every kind.
 final class PackManifest {
   PackManifest({
     required this.formatVersion,
@@ -17,18 +23,37 @@ final class PackManifest {
     required this.version,
     required List<PackChange> changelog,
     required this.riwaya,
-    required this.edition,
-    required this.font,
+    String? edition,
+    PackFont? font,
     required List<PackSource> sources,
     required List<PackFile> files,
-    required Map<int, String> surahSha256,
-    required this.counts,
+    Map<int, String>? surahSha256,
+    required PackKindCounts counts,
     required List<PackReview> reviews,
   }) : changelog = List.unmodifiable(changelog),
        sources = List.unmodifiable(sources),
        files = List.unmodifiable(files),
-       surahSha256 = Map.unmodifiable(surahSha256),
-       reviews = List.unmodifiable(reviews);
+       _edition = edition,
+       _font = font,
+       _surahSha256 = surahSha256 == null
+           ? null
+           : Map.unmodifiable(surahSha256),
+       kindCounts = counts,
+       reviews = List.unmodifiable(reviews) {
+    final textFields = [edition, font, surahSha256];
+    final matches = switch ((kind, counts)) {
+      (PackKind.text, PackCounts()) => !textFields.contains(null),
+      (PackKind.tafsir, TafsirCounts()) ||
+      (
+        PackKind.recitation,
+        RecitationCounts(),
+      ) => textFields.every((field) => field == null),
+      _ => false,
+    };
+    if (!matches) {
+      throw ArgumentError('The fields do not match a ${kind.name} manifest');
+    }
+  }
 
   final int formatVersion;
   final String id;
@@ -38,13 +63,27 @@ final class PackManifest {
 
   /// Null for a pack to which no riwaya applies.
   final String? riwaya;
-  final String edition;
-  final PackFont font;
+  final String? _edition;
+  final PackFont? _font;
   final List<PackSource> sources;
   final List<PackFile> files;
-  final Map<int, String> surahSha256;
-  final PackCounts counts;
+  final Map<int, String>? _surahSha256;
+  final PackKindCounts kindCounts;
   final List<PackReview> reviews;
+
+  String get edition => _edition ?? _notText('edition');
+
+  PackFont get font => _font ?? _notText('font');
+
+  Map<int, String> get surahSha256 => _surahSha256 ?? _notText('surahSha256');
+
+  PackCounts get counts => switch (kindCounts) {
+    final PackCounts counts => counts,
+    _ => _notText('counts'),
+  };
+
+  Never _notText(String field) =>
+      throw StateError('A ${kind.name} manifest has no $field');
 }
 
 final class PackChange {
@@ -142,7 +181,13 @@ final class PackFile {
   final int bytes;
 }
 
-final class PackCounts {
+/// The counts a manifest gives, by kind.
+sealed class PackKindCounts {
+  const PackKindCounts();
+}
+
+/// The counts of a text pack.
+final class PackCounts extends PackKindCounts {
   PackCounts({
     required this.surahs,
     required this.ayat,
@@ -150,7 +195,9 @@ final class PackCounts {
     required this.marks,
     required Map<Division, int> divisions,
     required this.sajdas,
-  }) : divisions = Map.unmodifiable(divisions);
+    Map<String, int> searchForms = const {},
+  }) : divisions = Map.unmodifiable(divisions),
+       searchForms = Map.unmodifiable(searchForms);
 
   final int surahs;
   final int ayat;
@@ -158,6 +205,22 @@ final class PackCounts {
   final int marks;
   final Map<Division, int> divisions;
   final int sajdas;
+
+  /// The rows of each search form kind the pack provides, one per word;
+  /// empty when it provides none, as every format 1 pack.
+  final Map<String, int> searchForms;
+}
+
+final class TafsirCounts extends PackKindCounts {
+  const TafsirCounts({required this.passages});
+
+  final int passages;
+}
+
+final class RecitationCounts extends PackKindCounts {
+  const RecitationCounts({required this.files});
+
+  final int files;
 }
 
 final class PackReview {
