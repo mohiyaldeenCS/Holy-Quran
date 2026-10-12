@@ -1,10 +1,12 @@
 import 'package:flutter/widgets.dart';
 
+import 'package:holyquran/domain/models/copy_form.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/gallery/gallery_samples.dart';
 import 'package:holyquran/ui/core/gallery/gallery_section.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/continue_listening_row.dart';
+import 'package:holyquran/ui/core/widgets/copy_sheet.dart';
 import 'package:holyquran/ui/core/widgets/home_door.dart';
 import 'package:holyquran/ui/core/widgets/home_header.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
@@ -30,8 +32,8 @@ const _shareCards = [
 const Size _splashFrame = Size(300, 650);
 
 /// The gallery's home and share section: the home board's header, doors and
-/// «أكمل الاستماع» row, the three share cards and the splash, on synthetic
-/// text.
+/// «أكمل الاستماع» row, the three share cards, the copy sheet and the
+/// splash, on synthetic text.
 class HomeShareGallery extends StatelessWidget {
   const HomeShareGallery({super.key});
 
@@ -109,6 +111,15 @@ class HomeShareGallery extends StatelessWidget {
           ]),
         ),
         GallerySection(
+          title: l10n.copySheetTitle,
+          child: const CopySheet(
+            forms: [CopyForm.withSurahAndNumber],
+            selected: CopyForm.withSurahAndNumber,
+            onSelected: _ignore,
+            onCopy: _none,
+          ),
+        ),
+        GallerySection(
           title: l10n.gallerySectionSplash,
           child: Center(
             child: SizedBox.fromSize(size: _splashFrame, child: const Splash()),
@@ -120,3 +131,5 @@ class HomeShareGallery extends StatelessWidget {
 }
 
 void _none() {}
+
+void _ignore(Object? _) {}
