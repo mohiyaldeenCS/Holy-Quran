@@ -608,7 +608,7 @@ void main() {
     });
   });
 
-  test('a failed activation is reported, and playing again retries it', () {
+  test('a failed activation is reported, and resuming retries it', () {
     fakeAsync((async) {
       final h = _Harness(async);
       h.engine.activation = const _ActivationFailed();
@@ -619,7 +619,7 @@ void main() {
       h.run((p) => p.pause());
       expect(h.engine.log, isEmpty);
       h.engine.activation = null;
-      h.run((p) => p.play(_plan(_span('1:1', '1:3'))));
+      h.run((p) => p.resume());
       expect(h.state.error, isNull);
       expect(h.engine.heard, ['1-1']);
     });

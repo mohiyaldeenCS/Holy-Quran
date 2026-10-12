@@ -46,7 +46,8 @@ abstract class PlayerRepository extends ChangeNotifier {
 
   Future<void> pause();
 
-  /// Goes on from where playback paused, stopped or lost its connection.
+  /// Goes on from where playback paused, stopped, failed to start or lost
+  /// its connection.
   Future<void> resume();
 
   Future<void> stop();
@@ -539,8 +540,8 @@ final class EnginePlayerRepository extends PlayerRepository {
   Future<void> _resume() async {
     final rules = _rules;
     final plan = _state.plan;
-    if (rules == null || plan == null) return;
-    if (rules.isStopped) {
+    if (plan == null) return;
+    if (rules == null || rules.isStopped) {
       return _start(plan, _state.segmentIndex ?? 0);
     }
     if (_state.playing) return;

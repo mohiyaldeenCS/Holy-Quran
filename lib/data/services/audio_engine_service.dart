@@ -290,6 +290,7 @@ final class PluginAudioEngineService implements AudioEngineService {
   @override
   Future<void> stop() async {
     _tracks = [];
+    _playlist++;
     await _handler?.halt();
   }
 
@@ -333,7 +334,8 @@ final class PluginAudioEngineService implements AudioEngineService {
   Future<void> setVolume(double volume) => _player.setVolume(volume);
 
   @override
-  Future<void> seek(Duration position) => _player.seek(position);
+  Future<void> seek(Duration position) async =>
+      _inOrder(() => _player.seek(position));
 
   @override
   Future<void> setSpeed(double factor) async {
