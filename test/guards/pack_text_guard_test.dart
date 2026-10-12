@@ -24,7 +24,7 @@ final _verifiers = PathAllowList.load('$_allow/verifiers');
 
 /// The files, besides the sinks, that carry `PackText` values from the file
 /// to the screen.
-final _carriers = PathAllowList.load('$_allow/carriers');
+final _carriers = PathAllowList.load('$_allow/carriers', allowPatterns: true);
 
 bool _carriesPackText(String path) =>
     _sinks.allows(path) || _carriers.allows(path);
@@ -98,8 +98,8 @@ void main() {
     expect(_carriers.allows(_packText), isTrue);
     expect(_carriers.allows(_database), isTrue);
     expect(_producers.allows(_database), isTrue);
-    expect(_sinks.entries, isNotEmpty);
-    expect(_verifiers.entries, isNotEmpty);
+    expect(_sinks.targets, isNotEmpty);
+    expect(_verifiers.targets, isNotEmpty);
     expect(
       dartSources('lib/data/repositories').keys.where(_carriesPackText),
       isNotEmpty,
@@ -121,7 +121,7 @@ final d = switch (text) { PackText(:final verbatim) => verbatim };
 ''',
           repository: 'final e = text.verbatim;',
           _packText: 'String get verbatim => _value;',
-          for (final sink in _sinks.entries)
+          for (final sink in _sinks.targets)
             sink: 'TextSpan(text: text.verbatim);',
         }),
         [
@@ -141,7 +141,7 @@ final d = switch (text) { PackText(:final verbatim) => verbatim };
           view: 'final a = PackText.fromPack(label);',
           repository: 'final f = PackText.fromPack;',
           _packText: 'const PackText.fromPack(this._value);',
-          for (final producer in _producers.entries)
+          for (final producer in _producers.targets)
             producer: 'final t = PackText.fromPack(s);',
         }),
         [
@@ -162,7 +162,7 @@ final d = VerifiedPack . new(directory: d, manifest: m, signatureChecked: false)
 Future<Result<VerifiedPack>> e() => f();
 final VerifiedPack g = h;
 ''',
-          for (final verifier in _verifiers.entries)
+          for (final verifier in _verifiers.targets)
             verifier:
                 'return VerifiedPack(directory: d, manifest: m, '
                 'signatureChecked: c);',
@@ -218,7 +218,7 @@ final g = list.map((s) => s.trim);
         for (final path in [
           _database,
           repository,
-          ..._sinks.entries,
+          ..._sinks.targets,
           _packText,
         ])
           path: changes,
@@ -239,7 +239,7 @@ final g = list.map((s) => s.trim);
       expect(violations.map((v) => v.split(':').first).toSet(), {
         _database,
         repository,
-        ..._sinks.entries,
+        ..._sinks.targets,
         _packText,
       });
     });

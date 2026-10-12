@@ -37,7 +37,8 @@ void main() {
     test('pack text', () {
       Set<String> load(String kind) => PathAllowList.load(
         _migrated('$_allow/pack_text/$kind'),
-      ).entries.toSet();
+        allowPatterns: kind == 'carriers',
+      ).targets.toSet();
       expect(load('sinks'), {_quranText, _surahName});
       expect(load('producers'), {
         'lib/data/services/pack_database.dart',
@@ -87,7 +88,7 @@ void main() {
         'package:provider/',
       });
       expect(
-        PathAllowList.load(_migrated('$_allow/imports/ramps')).entries.toSet(),
+        PathAllowList.load(_migrated('$_allow/imports/ramps')).targets.toSet(),
         {
           'lib/ui/core/widgets/mark.dart',
           'lib/ui/core/widgets/lockup.dart',
@@ -126,8 +127,9 @@ void main() {
           'm0-a.txt': 'lib/ui/core/widgets/\ndecision: D-114',
           'm0-c.txt': 'lib/ui/core/widgets/*_name.dart\ndecision: D-084\n',
         }),
+        allowPatterns: true,
       );
-      expect(list.entries, [
+      expect(list.targets, [
         'lib/ui/core/widgets/',
         'lib/ui/core/widgets/*_name.dart',
         _quranText,
@@ -143,7 +145,7 @@ void main() {
     });
 
     test('is empty when its folder does not exist', () {
-      expect(PathAllowList.load('$_allow/no_such_folder').entries, isEmpty);
+      expect(PathAllowList.load('$_allow/no_such_folder').targets, isEmpty);
     });
 
     test('fails on a malformed entry', () {
@@ -201,6 +203,7 @@ void main() {
             'm0-d.txt': 'lib/no_such_folder/*.dart\ndecision: D-062\n',
             'm0-e.txt': '$_quranText\ndecision: D-062\n',
           }),
+          allowPatterns: true,
         ),
         _fails([
           'm0-a.txt: lib/no_such_file.dart does not exist',
@@ -208,6 +211,35 @@ void main() {
           'm0-c.txt: lib/ui/core/widgets/*_nothing.dart matches no file',
           'm0-d.txt: lib/no_such_folder/*.dart matches no file',
         ]),
+      );
+    });
+
+    test('refuses a pattern unless the guard allows patterns', () {
+      expect(
+        () => PathAllowList.load(
+          _folder({
+            'm0-a.txt': 'lib/ui/core/widgets/*.dart\ndecision: D-062\n',
+          }),
+        ),
+        _fails(['m0-a.txt: lib/ui/core/widgets/*.dart is not a relative path']),
+      );
+    });
+
+    test('reads CRLF line ends', () {
+      expect(
+        PathAllowList.load(
+          _folder({'m0-a.txt': '$_quranText\r\ndecision: D-062\r\nWhy.\r\n'}),
+        ).targets,
+        [_quranText],
+      );
+    });
+
+    test('fails on a decision that docs/DECISIONS.md does not hold', () {
+      expect(
+        () => PathAllowList.load(
+          _folder({'m0-a.txt': '$_quranText\ndecision: D-999\n'}),
+        ),
+        _fails(['m0-a.txt: D-999 is not in docs/DECISIONS.md']),
       );
     });
 
@@ -315,6 +347,11 @@ void main() {
             'm0-d.txt':
                 'text: ink on line\ndecision: D-114\n'
                 'exception: paper 1.50\npinned: paper 1.50\n',
+            'm0-e.txt':
+                'text: ink on line-strong\ndecision: D-114\npinned: paper 5.2\n',
+            'm0-f.txt':
+                'card text: x on y\ndecision: D-089\npinned: paper 4.90\n',
+            'm0-g.txt': 'text: x on y\ndecision: D-089\npinned: card 4.90\n',
             'p1-03-a.txt': 'non-text: ink on ground\ndecision: D-114\n',
           }),
         ),
@@ -323,6 +360,9 @@ void main() {
           'm0-b.txt: "Why." is not a ratio line',
           'm0-c.txt: "exception: paper 1.5" is not a ratio line',
           'm0-d.txt: paper given twice',
+          'm0-e.txt: "pinned: paper 5.2" is not a ratio line',
+          'm0-f.txt: paper is not the theme of the pair',
+          'm0-g.txt: card is not the theme of the pair',
           'p1-03-a.txt: ink on ground also listed in m0-b.txt',
         ]),
       );

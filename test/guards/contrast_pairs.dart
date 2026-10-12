@@ -12,6 +12,7 @@ final _pair = RegExp(
   r'^(card )?(text|non-text): ([a-z0-9@-]+) on ([a-z0-9@-]+)'
   r'(?: over ([a-z0-9@-]+))?$',
 );
+final _ratioKey = RegExp('^(exception|pinned):');
 final _ratio = RegExp(r'^(exception|pinned): ([a-z]+) (\d+\.\d\d)$');
 
 /// The contrast entries of a folder (test/guards/allow/README.md): the
@@ -51,7 +52,11 @@ final class ContrastEntries {
       final lines = entry.rest;
       for (final (index, line) in lines.indexed) {
         final ratio = _ratio.firstMatch(line);
-        if (ratio != null) {
+        if (ratio != null && (ratio[2] == 'card') != card) {
+          problems.add(
+            '${entry.file}: ${ratio[2]} is not the theme of the pair',
+          );
+        } else if (ratio != null) {
           final key = '${ratio[2]}: ${contrastName(pair)}';
           if (exceptions.containsKey(key) || pinned.containsKey(key)) {
             problems.add('${entry.file}: ${ratio[2]} given twice');
@@ -59,7 +64,7 @@ final class ContrastEntries {
           (ratio[1] == 'exception' ? exceptions : pinned)[key] = double.parse(
             ratio[3]!,
           );
-        } else if (index != lines.length - 1) {
+        } else if (index != lines.length - 1 || line.startsWith(_ratioKey)) {
           problems.add('${entry.file}: "$line" is not a ratio line');
         }
       }

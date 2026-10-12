@@ -51,17 +51,18 @@ List<String> _violations(Map<String, String> sources) => [
       for (final rule in _rulesBroken(path, uri)) '$path: $uri ($rule)',
 ];
 
-/// Entries of [_rampImporters] that cover no file of [sources], or whose
-/// files do not import the ramps, as `entry (why)`.
+/// Entries of [_rampImporters] that cover no file of [sources], and covered
+/// files that do not import the ramps, as `path (why)`.
 Iterable<String> _staleRampImporters(Map<String, String> sources) sync* {
-  for (final entry in _rampImporters.entries) {
+  for (final target in _rampImporters.targets) {
     final covered = sources.entries.where(
-      (source) => PathAllowList.covers(entry, source.key),
+      (source) => PathAllowList.covers(target, source.key),
     );
-    if (covered.isEmpty) {
-      yield '$entry (no such file)';
-    } else if (!covered.any((s) => _importsOf(s.key, s.value).any(_isRamps))) {
-      yield '$entry (no ramps import)';
+    if (covered.isEmpty) yield '$target (no such file)';
+    for (final MapEntry(key: path, value: source) in covered) {
+      if (!_importsOf(path, source).any(_isRamps)) {
+        yield '$path (no ramps import)';
+      }
     }
   }
 }
@@ -123,7 +124,7 @@ void main() {
           feature: "import 'package:holyquran/ui/core/theme/ramps.g.dart';",
           coreWidget: "import '../theme/ramps.g.dart';",
           theme: "export 'ramps.g.dart';",
-          for (final allowed in _rampImporters.entries)
+          for (final allowed in _rampImporters.targets)
             allowed: "import 'package:holyquran/ui/core/theme/ramps.g.dart';",
         }),
         [
@@ -135,7 +136,7 @@ void main() {
     });
 
     test('a ramp allow-list entry that is missing or imports no ramps', () {
-      final [missing, unused, ...used] = _rampImporters.entries;
+      final [missing, unused, ...used] = _rampImporters.targets;
       expect(
         _staleRampImporters({
           unused: '''

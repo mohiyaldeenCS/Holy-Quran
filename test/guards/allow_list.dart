@@ -24,6 +24,15 @@ final class AllowListError extends Error {
 final _fileName = RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)+\.txt$');
 final _decision = RegExp(r'^decision: D-\d{3}$');
 
+final _decisionRow = RegExp(r'^\| (D-\d{3}) \|', multiLine: true);
+
+Set<String> _decisions() => {
+  for (final row in _decisionRow.allMatches(
+    File('docs/DECISIONS.md').readAsStringSync(),
+  ))
+    row[1]!,
+};
+
 /// Reads the entries of [folder], sorted by file name. A folder that does not
 /// exist holds no entries, since Git keeps no empty folder.
 List<AllowEntry> readAllowEntries(String folder) {
@@ -50,15 +59,20 @@ List<AllowEntry> readAllowEntries(String folder) {
       problems.add('$name: not UTF-8');
       continue;
     }
-    final lines = text.endsWith('\n')
-        ? text.substring(0, text.length - 1).split('\n')
-        : text.split('\n');
+    // A Windows checkout may turn line ends into CRLF.
+    final unix = text.replaceAll('\r\n', '\n');
+    final lines = unix.endsWith('\n')
+        ? unix.substring(0, unix.length - 1).split('\n')
+        : unix.split('\n');
     final problem = switch (lines) {
       _ when lines.any((l) => l.trim() != l || l.isEmpty) =>
         'empty line or surrounding spaces',
       [_] => 'no decision line',
       [_, final decision, ...] when !_decision.hasMatch(decision) =>
         'line 2 is not "decision: D-xxx"',
+      [_, final decision, ...]
+          when !_decisions().contains(decision.substring(10)) =>
+        '${decision.substring(10)} is not in docs/DECISIONS.md',
       _ => null,
     };
     if (problem != null) {
@@ -90,27 +104,28 @@ final _globSegment = RegExp(r'^[A-Za-z0-9_.*-]*\*[A-Za-z0-9_.*-]*$');
 /// ending in `/` that covers everything under it, or a file name pattern
 /// whose last segment holds `*`, standing for any characters but `/`.
 final class PathAllowList {
-  PathAllowList._(this.folder, this.entries);
+  PathAllowList._(this.targets);
 
   /// Loads [folder]; throws [AllowListError] on a malformed entry, a target
   /// that does not exist or matches no file, or a target listed twice.
-  factory PathAllowList.load(String folder) {
+  /// Patterns are refused unless [allowPatterns]: a pattern grants no
+  /// permission only where listing more files makes the guard stricter.
+  factory PathAllowList.load(String folder, {bool allowPatterns = false}) {
     final entries = readAllowEntries(folder);
     final problems = [
       for (final entry in entries)
-        if (_pathProblem(entry) case final problem?)
+        if (_pathProblem(entry, allowPatterns: allowPatterns)
+            case final problem?)
           '${entry.file}: ${entry.target} $problem',
     ];
     if (problems.isNotEmpty) throw AllowListError(folder, problems);
-    return PathAllowList._(folder, [for (final e in entries) e.target]);
+    return PathAllowList._([for (final e in entries) e.target]);
   }
 
-  final String folder;
-
   /// The targets, in file-name order of their entries.
-  final List<String> entries;
+  final List<String> targets;
 
-  bool allows(String path) => entries.any((entry) => covers(entry, path));
+  bool allows(String path) => targets.any((target) => covers(target, path));
 
   static bool covers(String entry, String path) {
     if (entry.endsWith('/')) return path.startsWith(entry);
@@ -121,7 +136,7 @@ final class PathAllowList {
   static RegExp _glob(String entry) =>
       RegExp('^${entry.split('*').map(RegExp.escape).join('[^/]*')}\$');
 
-  static String? _pathProblem(AllowEntry entry) {
+  static String? _pathProblem(AllowEntry entry, {required bool allowPatterns}) {
     if (entry.rest.length > 1) return 'has more than three lines';
     final target = entry.target;
     final isFolder = target.endsWith('/');
@@ -130,7 +145,8 @@ final class PathAllowList {
     final last = segments.removeLast();
     final wellFormed =
         segments.every(_isPlainSegment) &&
-        (_isPlainSegment(last) || (!isFolder && _globSegment.hasMatch(last)));
+        (_isPlainSegment(last) ||
+            (allowPatterns && !isFolder && _globSegment.hasMatch(last)));
     if (!wellFormed) return 'is not a relative path';
     if (isFolder) {
       return Directory(target).existsSync() ? null : 'does not exist';
