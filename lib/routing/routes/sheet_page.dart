@@ -22,10 +22,13 @@ final class SheetPage<T> extends Page<T> {
       backgroundColor: colors.surface.withValues(alpha: 0),
       elevation: 0,
       modalBarrierColor: colors.scrim,
+      // What showModalBottomSheet gives screen readers for the barrier.
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
       sheetAnimationStyle: MediaQuery.disableAnimationsOf(context)
           ? AnimationStyle.noAnimation
           : const AnimationStyle(
               curve: motionCurve,
+              reverseCurve: motionCurve,
               duration: motionNormal,
               reverseDuration: motionNormal,
             ),
