@@ -93,8 +93,8 @@ final class _Run {
     for (var step = 0; step < limit && !rules.isStopped; step++) {
       send(
         outputs.last is SilenceStarted
-            ? SilenceEnded(rules.index)
-            : SegmentEnded(rules.index),
+            ? SilenceEnded(serial)
+            : SegmentEnded(serial),
       );
     }
     return this;
@@ -112,6 +112,8 @@ final class _Run {
   ];
 
   PlaybackStopped get stopped => outputs.last as PlaybackStopped;
+
+  int get serial => outputs.whereType<SegmentStarted>().last.serial;
 }
 
 void main() {
@@ -156,33 +158,33 @@ void main() {
         silence: const Duration(seconds: 4),
       ),
     )..start();
-    run.send(const SegmentEnded(0));
+    run.send(const SegmentEnded(1));
     expect(run.outputs.last, isA<SilenceStarted>());
     expect(
       (run.outputs.last as SilenceStarted).duration,
       const Duration(seconds: 4),
     );
-    run.send(const SegmentEnded(0));
+    run.send(const SegmentEnded(1));
     expect(run.outputs.last, isA<SilenceStarted>(), reason: 'stale, ignored');
-    run.send(const SilenceEnded(0));
+    run.send(const SilenceEnded(1));
     expect(run.heard.last, 'ayah 2:3 #1');
     expect(run.outputs[run.outputs.length - 2], isA<SegmentStarted>());
-    run.send(const SilenceEnded(0));
+    run.send(const SilenceEnded(1));
     expect(run.heard, hasLength(2), reason: 'stale, ignored');
-    run.send(const SegmentEnded(1));
+    run.send(const SegmentEnded(2));
     expect(run.stopped.reason, StopReason.endOfPlan);
   });
 
   test('a repeated or late segment end never skips a segment', () {
     final run = _Run(_plan(AyahSpan(QuranRange(_a('2:2'), _a('2:4')))))
       ..start();
-    run.send(const SegmentEnded(0));
-    run.send(const SegmentEnded(0));
+    run.send(const SegmentEnded(1));
+    run.send(const SegmentEnded(1));
     expect(run.heard, ['ayah 2:2 #1', 'ayah 2:3 #1']);
     run.send(const SegmentEnded(5));
     expect(run.heard, hasLength(2));
     expect(run.rules.index, 1);
-    run.send(const SegmentEnded(1));
+    run.send(const SegmentEnded(2));
     expect(run.heard.last, 'ayah 2:4 #1');
     expect(
       [for (final o in run.outputs.whereType<SegmentStarted>()) o.index],
@@ -195,12 +197,13 @@ void main() {
       _plan(WholeSurah(1)),
       clock: () => DateTime.utc(2026),
     );
-    expect(rules.handle(const SegmentEnded(-1)), isEmpty);
+    expect(rules.index, isNull);
     expect(rules.handle(const SegmentEnded(0)), isEmpty);
+    expect(rules.handle(const SegmentEnded(1)), isEmpty);
     rules.start();
     expect(rules.start, throwsStateError);
     expect(rules.handle(const UserStopped()), hasLength(1));
-    expect(rules.handle(const SegmentEnded(0)), isEmpty);
+    expect(rules.handle(const SegmentEnded(1)), isEmpty);
     expect(rules.handle(const UserStopped()), isEmpty);
   });
 
@@ -213,8 +216,37 @@ void main() {
     rules.start();
     expect((rules.index, rules.current?.address), (0, _a('2:2')));
     expect(rules.upcoming?.address, _a('2:3'));
-    rules.handle(const SegmentEnded(0));
+    rules.handle(const SegmentEnded(1));
     expect(rules.upcoming, isNull);
+  });
+
+  test('once stopped, nothing is left to preload', () {
+    final rules = PlaybackRules(
+      _plan(AyahSpan(QuranRange(_a('2:2'), _a('2:3')))),
+      clock: () => DateTime.utc(2026),
+    )..start();
+    rules.handle(const UserStopped());
+    expect(rules.upcoming, isNull);
+  });
+
+  test('a late end from the replaced plan never skips the new one', () {
+    final first = PlaybackRules(
+      _plan(SingleAyah(_a('2:2'))),
+      clock: () => DateTime.utc(2026),
+    );
+    final old = first.start().first as SegmentStarted;
+    final next = first.handOver(_plan(WholeSurah(1)));
+    final started = next.start().first as SegmentStarted;
+    expect((old.index, started.index), (0, 0));
+    expect(started.serial, isNot(old.serial));
+    expect(next.handle(SegmentEnded(old.serial)), isEmpty);
+    expect(next.current?.address, _a('1:1'));
+    expect(
+      (next.handle(SegmentEnded(started.serial)).first as SegmentStarted)
+          .segment
+          .address,
+      _a('1:2'),
+    );
   });
 
   test('starts at a given segment of the plan', () {
@@ -227,8 +259,8 @@ void main() {
     final started = rules.start().first as SegmentStarted;
     expect((started.index, started.segment.address), (2, _a('2:4')));
     expect(
-      PlaybackRules(plan, clock: () => DateTime.utc(2026), startAt: 3).start(),
-      [isA<PlaybackStopped>()],
+      () => PlaybackRules(plan, clock: () => DateTime.utc(2026), startAt: 3),
+      throwsRangeError,
     );
     expect(
       () => PlaybackRules(plan, clock: () => DateTime.utc(2026), startAt: -1),
@@ -270,7 +302,7 @@ void main() {
       clock.advance(const Duration(minutes: 4));
       expect(rules.sleepRemaining, const Duration(minutes: 1));
       expect(rules.handle(const SleepTimerFired()), isEmpty);
-      expect(rules.handle(const SegmentEnded(0)).first, isA<SegmentStarted>());
+      expect(rules.handle(const SegmentEnded(1)).first, isA<SegmentStarted>());
       clock.advance(const Duration(minutes: 1));
       expect(rules.sleepRemaining, Duration.zero);
       final stopped = rules.handle(const SleepTimerFired()).single;
@@ -294,7 +326,7 @@ void main() {
             )
             ..sleepTimer = SleepAfter(5)
             ..start();
-      expect(rules.handle(const SegmentEnded(0)).single, isA<SilenceStarted>());
+      expect(rules.handle(const SegmentEnded(1)).single, isA<SilenceStarted>());
       clock.advance(const Duration(minutes: 5));
       final stopped =
           rules.handle(const SleepTimerFired()).single as PlaybackStopped;
@@ -310,21 +342,21 @@ void main() {
         ..start();
       clock.advance(const Duration(minutes: 6));
       expect(
-        (atSegment.handle(const SegmentEnded(0)).single as PlaybackStopped)
+        (atSegment.handle(const SegmentEnded(1)).single as PlaybackStopped)
             .reason,
         StopReason.sleepTimer,
       );
       final atSilence = PlaybackRules(plan, clock: clock.call)
         ..sleepTimer = SleepAfter(5)
         ..start()
-        ..handle(const SegmentEnded(0));
+        ..handle(const SegmentEnded(1));
       expect(
-        atSilence.handle(const SegmentEnded(1)).single,
+        atSilence.handle(const SegmentEnded(2)).single,
         isA<SilenceStarted>(),
       );
       clock.advance(const Duration(minutes: 5));
       expect(
-        (atSilence.handle(const SilenceEnded(1)).single as PlaybackStopped)
+        (atSilence.handle(const SilenceEnded(2)).single as PlaybackStopped)
             .reason,
         StopReason.sleepTimer,
       );
@@ -372,9 +404,9 @@ void main() {
 
     test('set while playing, it applies from the current segment', () {
       final run = _Run(plan)..start();
-      run.send(const SegmentEnded(0));
-      run.rules.stopAfter = StopAfter.ayah;
       run.send(const SegmentEnded(1));
+      run.rules.stopAfter = StopAfter.ayah;
+      run.send(const SegmentEnded(2));
       expect(run.followed, ['1:2', '1:3']);
       expect(run.stopped.reason, StopReason.stopAfter);
     });

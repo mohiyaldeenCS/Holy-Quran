@@ -9,19 +9,19 @@ sealed class PlaybackInput {
   const PlaybackInput();
 }
 
-/// The segment started at [index] ended; any other index is stale and
+/// The segment started with [serial] ended; any other serial is stale and
 /// ignored, so a late or repeated report never skips a segment.
 final class SegmentEnded extends PlaybackInput {
-  const SegmentEnded(this.index);
+  const SegmentEnded(this.serial);
 
-  final int index;
+  final int serial;
 }
 
-/// The silence after the segment at [index] ended.
+/// The silence after the segment started with [serial] ended.
 final class SilenceEnded extends PlaybackInput {
-  const SilenceEnded(this.index);
+  const SilenceEnded(this.serial);
 
-  final int index;
+  final int serial;
 }
 
 /// The engine's timer for a [SleepAfter] went off; the rules check the
@@ -40,12 +40,16 @@ sealed class PlaybackOutput {
 }
 
 final class SegmentStarted extends PlaybackOutput {
-  const SegmentStarted(this.segment, this.index);
+  const SegmentStarted(this.segment, this.index, this.serial);
 
   final PlaybackSegment segment;
 
   /// Its position in the plan, from 0.
   final int index;
+
+  /// Counts every segment started, across hand-overs, so that the end of a
+  /// segment from a replaced plan never matches one of the new plan.
+  final int serial;
 }
 
 /// The reader follows this ayah (D-112).
@@ -79,15 +83,21 @@ enum _State { idle, playing, silent, stopped }
 /// first, then stop-after, then the plan's next segment, which already holds
 /// its repeats before any continuation (`AU-23`).
 final class PlaybackRules {
-  /// Playback begins at the plan's segment [startAt].
+  /// Playback begins at the plan's segment [startAt]; a position past the
+  /// plan's end throws a [RangeError].
   PlaybackRules(this.plan, {required this.clock, int startAt = 0})
     : _segments = plan.segments.iterator,
       _index = startAt - 1 {
     RangeError.checkNotNegative(startAt, 'startAt');
     for (var skipped = 0; skipped < startAt; skipped++) {
-      if (!_segments.moveNext()) break;
+      if (!_segments.moveNext()) {
+        throw RangeError.value(startAt, 'startAt', 'is past the plan end');
+      }
     }
     _pull();
+    if (_upcoming == null) {
+      throw RangeError.value(startAt, 'startAt', 'is past the plan end');
+    }
   }
 
   final PlaybackPlan plan;
@@ -98,6 +108,7 @@ final class PlaybackRules {
   PlaybackSegment? _current;
   PlaybackSegment? _upcoming;
   int _index;
+  int _serial = 0;
   SleepTimer? _sleepTimer;
   DateTime? _sleepDeadline;
   StopAfter? _stopAfter;
@@ -105,12 +116,12 @@ final class PlaybackRules {
   /// The segment playing, or the one just heard during a silence.
   PlaybackSegment? get current => _current;
 
-  /// The position of [current] in the plan, from 0.
-  int get index => _index;
+  /// The position of [current] in the plan, from 0; null before start.
+  int? get index => _current == null ? null : _index;
 
   /// The segment after [current], for the engine to preload (`AU-12`); null
-  /// at the end of the plan.
-  PlaybackSegment? get upcoming => _upcoming;
+  /// at the end of the plan and once stopped.
+  PlaybackSegment? get upcoming => isStopped ? null : _upcoming;
 
   bool get isStopped => _state == _State.stopped;
 
@@ -150,9 +161,12 @@ final class PlaybackRules {
 
   /// Rules for [plan] from its segment [startAt], as when the user moves to
   /// another ayah or surah: the sleep timer keeps its deadline and the
-  /// stop-after carries over where [plan] supports them.
+  /// stop-after carries over where [plan] supports them; a stopped run has
+  /// no sleep timer left, since a stop ends it. Serials go on from this
+  /// run's.
   PlaybackRules handOver(PlaybackPlan plan, {int startAt = 0}) {
-    final next = PlaybackRules(plan, clock: clock, startAt: startAt);
+    final next = PlaybackRules(plan, clock: clock, startAt: startAt)
+      .._serial = _serial;
     if (_sleepTimer case final timer? when plan.supportsSleepTimer(timer)) {
       next
         .._sleepTimer = timer
@@ -179,9 +193,9 @@ final class PlaybackRules {
       _sleepTimeUp
           ? _stop(StopReason.sleepTimer, fade: state == _State.playing)
           : const [],
-    (SegmentEnded(:final index), _State.playing) when index == _index =>
+    (SegmentEnded(:final serial), _State.playing) when serial == _serial =>
       _afterSegment(),
-    (SilenceEnded(:final index), _State.silent) when index == _index =>
+    (SilenceEnded(:final serial), _State.silent) when serial == _serial =>
       _sleepTimeUp ? _stop(StopReason.sleepTimer) : _next(),
     (SegmentEnded() || SilenceEnded(), _) => const [],
   };
@@ -224,10 +238,11 @@ final class PlaybackRules {
     if (segment == null) return _stop(StopReason.endOfPlan);
     _current = segment;
     _index++;
+    _serial++;
     _pull();
     _state = _State.playing;
     return [
-      SegmentStarted(segment, _index),
+      SegmentStarted(segment, _index, _serial),
       if (segment.kind == SegmentKind.ayah) AyahStarted(segment.address),
     ];
   }
