@@ -1,0 +1,3 @@
+lib/data/services/audio_handler.dart
+decision: D-114
+The media session shows the stored surah name, whole and unchanged, as its title.
