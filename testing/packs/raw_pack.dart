@@ -4,11 +4,20 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-/// `PRAGMA application_id` of a text pack: ASCII `HQPK` (docs/CONTENT_PACKS.md).
+/// `PRAGMA application_id` of every pack file: ASCII `HQPK`
+/// (docs/CONTENT_PACKS.md).
 const hqpkApplicationId = 1213288523;
 
-/// The only pack format version this tooling knows.
+/// The format version a synthetic text pack is built with unless another is
+/// asked for.
 const packFormatVersion = 1;
+
+/// The newest pack format version this tooling knows; tafsir and recitation
+/// packs have it.
+const newestPackFormatVersion = 2;
+
+/// A format version that no app reads yet.
+const unsupportedPackFormatVersion = newestPackFormatVersion + 1;
 
 /// SHA-256 over `u32be(number) ‖ u32be(byte_length) ‖ bytes` for each field,
 /// in the order given (docs/CONTENT_PACKS.md, "Surah digest").
@@ -108,9 +117,9 @@ final class RawTable {
   final bool withoutRowid;
 }
 
-/// An independent reader of a text pack: opens it read-only and immutable
-/// and returns stored text as raw bytes (`CAST(... AS BLOB)`), so no Dart
-/// decoder can alter it on the way.
+/// An independent reader of a pack file of any kind: opens it read-only and
+/// immutable and returns stored text as raw bytes (`CAST(... AS BLOB)`), so
+/// no Dart decoder can alter it on the way.
 final class RawPack {
   RawPack._(this._db);
 
@@ -276,6 +285,28 @@ final class RawPack {
       'SELECT surah, ayah FROM sajda ORDER BY surah, ayah',
     ))
       (row.columnAt(0) as int, row.columnAt(1) as int),
+  ];
+
+  /// `(surah, ayah, word, kind, bytes)` of every search form, in key order.
+  List<(int, int, int, String, Uint8List)> searchForms() => [
+    for (final row in _db.select(
+      'SELECT surah, ayah, word, kind, CAST(form AS BLOB) FROM search_form '
+      'ORDER BY surah, ayah, word, kind',
+    ))
+      (
+        row.columnAt(0) as int,
+        row.columnAt(1) as int,
+        row.columnAt(2) as int,
+        row.columnAt(3) as String,
+        row.columnAt(4) as Uint8List,
+      ),
+  ];
+
+  /// The values of each row of [sql], a query that reads every text as
+  /// `CAST(... AS BLOB)`.
+  List<List<Object?>> rows(String sql) => [
+    for (final row in _db.select(sql))
+      [for (var i = 0; i < row.length; i++) row.columnAt(i)],
   ];
 
   /// The digest of [surah] over its stored bytes and stored numbers.

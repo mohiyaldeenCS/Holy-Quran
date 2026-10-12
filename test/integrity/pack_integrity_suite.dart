@@ -12,10 +12,12 @@ import 'package:holyquran/data/services/manifest_signature.dart';
 import 'package:holyquran/data/services/pack_database.dart';
 import 'package:holyquran/data/services/pack_file_service.dart';
 import 'package:holyquran/domain/models/edition_map.dart';
+import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/pack_manifest.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
+import 'package:holyquran/domain/models/search_form.dart';
 import 'package:holyquran/domain/models/verified_pack.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/quran_text.dart';
@@ -122,7 +124,7 @@ final packChecks = <String, PackCheck>{
   'has the header of a text pack: bytes 18 and 19, application_id, '
           'user_version':
       headerProblems,
-  'has the tables and columns of format v1, STRICT': schemaProblems,
+  'has the tables and columns of its format version, STRICT': schemaProblems,
   'sits in the directories its id and version name': locationProblems,
   'numbers its surahs and ayat contiguously from 1': numberingProblems,
   'holds the rows its manifest counts': countProblems,
@@ -140,6 +142,8 @@ final packChecks = <String, PackCheck>{
       tokenProblemsOfPack,
   'has a letter in every word and none in any mark': letterProblemsOfPack,
   'has divisions and sajdas that refer to its ayat': referenceProblems,
+  'has exactly one search form per word for each kind it lists, as stored':
+      searchFormProblems,
   'names the pinned Amiri Quran font file': fontProblems,
 };
 
@@ -280,9 +284,13 @@ bool _isSequence(Iterable<int> numbers, int length) {
   return true;
 }
 
-Future<List<String>> headerProblems(PackUnderTest pack) async {
-  final header = await RawHeader.read(pack.textFile);
-  final formatVersion = pack.manifest.formatVersion;
+Future<List<String>> headerProblems(PackUnderTest pack) =>
+    fileHeaderProblems(pack.textFile, pack.manifest.formatVersion);
+
+/// The header of any pack file: bytes 18 and 19, UTF-8, `application_id`,
+/// `user_version` equal to [formatVersion], and no free page.
+Future<List<String>> fileHeaderProblems(File file, int formatVersion) async {
+  final header = await RawHeader.read(file);
   return [
     if (header.bytes.length < 100 || !header.hasMagic) 'not an SQLite 3 file',
     if (header.writeVersion != 1)
@@ -302,7 +310,7 @@ Future<List<String>> headerProblems(PackUnderTest pack) async {
 
 /// The tables of docs/CONTENT_PACKS.md, "Text pack": name, whether it is
 /// WITHOUT ROWID, and its columns as [RawColumn] prints them.
-const _schema = {
+const _v1Schema = {
   'ayah': (
     true,
     [
@@ -355,15 +363,37 @@ const _schema = {
   ),
 };
 
-Future<List<String>> schemaProblems(PackUnderTest pack) async {
-  final raw = pack.raw;
+/// Format 2 adds `search_form` (docs/CONTENT_PACKS.md, "Format version 2").
+const _searchFormTable = (
+  true,
+  [
+    'surah INTEGER NOT NULL pk1',
+    'ayah INTEGER NOT NULL pk2',
+    'word INTEGER NOT NULL pk3',
+    'kind TEXT NOT NULL pk4',
+    'form TEXT NOT NULL',
+  ],
+);
+
+Future<List<String>> schemaProblems(PackUnderTest pack) async =>
+    rawSchemaProblems(pack.raw, {
+      ..._v1Schema,
+      if (pack.manifest.formatVersion >= 2) 'search_form': _searchFormTable,
+    });
+
+/// The problems of a pack file against [schema], its tables by name.
+List<String> rawSchemaProblems(
+  RawPack raw,
+  Map<String, (bool, List<String>)> schema,
+) {
   final tables = raw.tables();
+  final found = [for (final table in tables) table.name];
+  final names = [...schema.keys]..sort();
   return [
     if (raw.encoding != 'UTF-8') 'PRAGMA encoding is ${raw.encoding}',
-    if ('${tables.map((t) => t.name)}' != '${_schema.keys}')
-      'the tables are ${tables.map((t) => t.name)}, not ${_schema.keys}',
+    if ('$found' != '$names') 'the tables are $found, not $names',
     for (final table in tables)
-      if (_schema[table.name] case (final withoutRowid, final columns)) ...[
+      if (schema[table.name] case (final withoutRowid, final columns)) ...[
         if (!table.strict) '${table.name} is not STRICT',
         if (table.withoutRowid != withoutRowid)
           '${table.name} is ${table.withoutRowid ? '' : 'not '}WITHOUT ROWID',
@@ -380,12 +410,15 @@ Future<List<String>> schemaProblems(PackUnderTest pack) async {
 /// `id` and `version` name the two directories the pack sits in. They are
 /// read from the manifest file itself, since verification refuses a pack
 /// that sits elsewhere.
-Future<List<String>> locationProblems(PackUnderTest pack) async {
+Future<List<String>> locationProblems(PackUnderTest pack) =>
+    directoryLocationProblems(pack.directory);
+
+Future<List<String>> directoryLocationProblems(String directory) async {
   final segments = Directory(
-    pack.directory,
+    directory,
   ).absolute.uri.pathSegments.where((segment) => segment.isNotEmpty).toList();
   final manifest =
-      jsonDecode(await File('${pack.directory}/manifest.json').readAsString())
+      jsonDecode(await File('$directory/manifest.json').readAsString())
           as Map<String, Object?>;
   final expected = ['${manifest['id']}', '${manifest['version']}'];
   final found = segments.length < 2
@@ -654,12 +687,6 @@ Future<List<String>> storedTextProblems(PackUnderTest pack) async {
 }
 
 Future<List<String>> bomProblems(PackUnderTest pack) async {
-  bool startsWithBom(List<int>? bytes) =>
-      bytes != null &&
-      bytes.length >= 3 &&
-      bytes[0] == 0xEF &&
-      bytes[1] == 0xBB &&
-      bytes[2] == 0xBF;
   return [
     for (final surah in pack.raw.surahs()) ...[
       if (startsWithBom(surah.name)) 'surah ${surah.number} name',
@@ -752,12 +779,7 @@ _storedAyat(PackUnderTest pack) sync* {
 /// drops.
 String _decodedKeepingBom(List<int> bytes) {
   final text = utf8.decode(bytes, allowMalformed: true);
-  final bom =
-      bytes.length >= 3 &&
-      bytes[0] == 0xEF &&
-      bytes[1] == 0xBB &&
-      bytes[2] == 0xBF;
-  return bom ? '\u{FEFF}$text' : text;
+  return startsWithBom(bytes) ? '\u{FEFF}$text' : text;
 }
 
 /// The problems of the word and mark spans of the ayah [text], taken together
@@ -1108,3 +1130,102 @@ Future<List<(String, PackText, Uint8List)>> _displayedTexts(
   }
   return texts;
 }
+
+/// One stored form for every word and every kind `counts.search_forms`
+/// lists, none of another kind or for a token that is not a word, none empty
+/// or beginning with EF BB BF; and the production reader gives each as its
+/// stored bytes. A format 1 pack has none.
+Future<List<String>> searchFormProblems(PackUnderTest pack) async {
+  final manifest = pack.manifest;
+  final listed = manifest.counts.searchForms;
+  if (manifest.formatVersion < 2) {
+    return [if (listed.isNotEmpty) 'a format 1 pack lists search forms'];
+  }
+  final problems = <String>[];
+  final raw = pack.raw;
+  final stored = raw.searchForms();
+  final byWord = <(int, int, int), Set<String>>{};
+  final perKind = <String, int>{};
+  for (final (surah, ayah, word, kind, bytes) in stored) {
+    final where = '$surah:$ayah:$word $kind';
+    if (!listed.containsKey(kind)) {
+      problems.add('$where: a kind counts.search_forms does not list');
+    }
+    if (!SearchForm.kindPattern.hasMatch(kind)) {
+      problems.add('$where: the kind is not of the form of a kind');
+    }
+    if (bytes.isEmpty) problems.add('$where: the form is empty');
+    if (startsWithBom(bytes)) {
+      problems.add('$where: the form begins with EF BB BF');
+    }
+    byWord.putIfAbsent((surah, ayah, word), () => {}).add(kind);
+    perKind[kind] = (perKind[kind] ?? 0) + 1;
+  }
+  final words = <(int, int, int)>{
+    for (final surah in raw.surahs())
+      for (final (ayah, _) in raw.ayat(surah.number))
+        for (final (word, _, _) in raw.words(surah.number, ayah))
+          (surah.number, ayah, word),
+  };
+  for (final word in words) {
+    final kinds = byWord[word] ?? const {};
+    for (final kind in listed.keys) {
+      if (!kinds.contains(kind)) {
+        problems.add('${word.$1}:${word.$2}:${word.$3} has no $kind form');
+      }
+    }
+  }
+  for (final word in byWord.keys) {
+    if (!words.contains(word)) {
+      problems.add(
+        'search forms are stored for ${word.$1}:${word.$2}:${word.$3}, '
+        'which is not a word',
+      );
+    }
+  }
+  for (final MapEntry(key: kind, value: count) in listed.entries) {
+    if (perKind[kind] != count) {
+      problems.add(
+        'counts.search_forms.$kind is $count; the file holds ${perKind[kind]}',
+      );
+    }
+  }
+
+  final riwaya = manifest.riwaya!;
+  final database = pack.openDatabase();
+  final read = <SearchForm>[];
+  try {
+    for (final surah in raw.surahs()) {
+      read.addAll(database.searchForms(surah.number, riwaya: riwaya));
+    }
+  } on PackFailure catch (failure) {
+    return [...problems, 'the production reader refuses a form: $failure'];
+  }
+  if (read.length != stored.length) {
+    problems.add(
+      'the production reader gives ${read.length} forms; '
+      'the file holds ${stored.length}',
+    );
+  }
+  for (final (index, form) in read.take(stored.length).indexed) {
+    final (surah, ayah, word, kind, bytes) = stored[index];
+    final where = '$surah:$ayah:$word $kind';
+    if (form.word != QuranAddress(riwaya, surah, ayah, word) ||
+        form.kind != kind) {
+      problems.add(
+        '$where: the production reader gives ${form.word} ${form.kind}',
+      );
+    } else if (byteMismatch(utf8.encode(form.form.verbatim), bytes)
+        case final mismatch?) {
+      problems.add('$where: the production reader gives $mismatch');
+    }
+  }
+  return problems;
+}
+
+bool startsWithBom(List<int>? bytes) =>
+    bytes != null &&
+    bytes.length >= 3 &&
+    bytes[0] == 0xEF &&
+    bytes[1] == 0xBB &&
+    bytes[2] == 0xBF;
