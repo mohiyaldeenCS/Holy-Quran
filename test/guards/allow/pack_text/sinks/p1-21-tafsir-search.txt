@@ -1,0 +1,3 @@
+lib/data/repositories/tafsir_search_repository.dart
+decision: D-114
+The tafsir search compares a folded query with each stored passage, skipping the units the fold drops, and returns offsets into the passage unchanged (TF-07, D-037).
