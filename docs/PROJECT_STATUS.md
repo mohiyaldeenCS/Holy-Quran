@@ -260,8 +260,12 @@ Stream A: **M0.4 part 2** on `claude/great-hamilton-9n23mt` (D-093).
   recommended answer from that run: the owner keeps the private key offline on his
   computer with an offline backup and signs with `pack.py sign`; the app embeds two
   public keys (main and spare).
-- Next: the final `spike-apk`, D-096/D-097 stay for after the device run, the cleanup
-  commit and this branch's pull request #14.
+- H2 merged (#27, $1.82): the launcher lists S1, S7, S4, S3, S5. **The device APK is
+  built**: CI run 38190527706 at `7d12981` (task `spike-apk`, profile, the pinned pack
+  hashes), artifact `holyquran-spike-apk` (id 11721574000). It replaces run 68's APK
+  (D-093). Waiting on the owner's device session (S1, S7, S4, S3, S5) and the S7
+  usability test; then D-096, D-097, the pages' device sections, the cleanup commit
+  (spike/ deleted; pubspec, android/ and ci.yml back to main) and pull request #14.
 - From 2026-10-11 21:00 the owner asked to save this session's budget: reviews and task
   planning now run on the API keys too (each fix or task run reviews its own diff with
   `code-reviewer` and `identity-auditor` through the Task tool); the lead only writes
