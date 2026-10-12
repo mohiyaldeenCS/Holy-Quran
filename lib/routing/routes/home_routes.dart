@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/routing/routes.dart';
@@ -17,6 +18,7 @@ final homeRoutes = FeatureRoutes(
       create: (context) => HomeViewModel(
         positions: context.read<ReadingPositionRepository?>(),
         index: context.read<QuranIndexRepository?>(),
+        integrity: context.read<PackIntegrityRepository?>(),
       ),
       // The screen listens to its view model itself.
       child: Builder(

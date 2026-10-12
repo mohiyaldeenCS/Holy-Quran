@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/domain/models/edition_map.dart';
@@ -26,15 +27,18 @@ final class ContinueReading {
   final double progress;
 }
 
-/// The home screen's state (PRD §7.1, M1.2). Either repository is absent
-/// while the app has no base pack or no user database.
+/// The home screen's state (PRD §7.1, M1.2). A repository is absent while
+/// the app has no base pack or no user database. A pack that fails stops
+/// serving its surah names, which [integrity] announces (PRD §9.5).
 final class HomeViewModel extends ChangeNotifier {
-  HomeViewModel({this._positions, this._index}) {
+  HomeViewModel({this._positions, this._index, this._integrity}) {
     _positions?.addListener(notifyListeners);
+    _integrity?.addListener(notifyListeners);
   }
 
   final ReadingPositionRepository? _positions;
   final QuranIndexRepository? _index;
+  final PackIntegrityRepository? _integrity;
 
   /// The continue-reading card, or null when there is no position yet, no
   /// verified pack serving its surah names, or the position is not an ayah
@@ -64,6 +68,7 @@ final class HomeViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _positions?.removeListener(notifyListeners);
+    _integrity?.removeListener(notifyListeners);
     super.dispose();
   }
 }

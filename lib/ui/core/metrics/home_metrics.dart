@@ -32,10 +32,12 @@ abstract final class HomeMetrics {
       EdgeInsetsDirectional.only(top: AppSpacing.space1, bottom: 2);
 
   // The greeting line: `font-size:14px` in the body's IBM Plex Sans Arabic at
-  // 400, with no line height set, so the font's own (CSS `normal`). Its
-  // colour, #51605D, is `ink-muted`. The heading under it, 28 / 1.4 / 700,
-  // is `screen-title`.
+  // 400, with no line height set, so the font's own (CSS `normal`): the
+  // style does not inherit the theme's body line height. Its colour,
+  // #51605D, is `ink-muted`. The heading under it, 28 / 1.4 / 700, is
+  // `screen-title`.
   static const TextStyle greetingStyle = TextStyle(
+    inherit: false,
     fontFamily: AppFonts.sans,
     fontSize: 14,
     fontWeight: FontWeight.w400,

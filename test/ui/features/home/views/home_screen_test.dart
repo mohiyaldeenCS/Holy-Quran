@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
+import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/continue_card.dart';
 import 'package:holyquran/ui/core/widgets/home_door.dart';
 import 'package:holyquran/ui/core/widgets/home_header.dart';
 import 'package:holyquran/ui/core/widgets/progress_bar.dart';
 import 'package:holyquran/ui/features/home/views/home_screen.dart';
+import 'package:provider/provider.dart';
 
 import '../home_harness.dart';
 
@@ -51,6 +54,18 @@ void main() {
     expect(find.byType(ContinueCard), findsOneWidget);
     expect(find.text(_positionLine), findsOneWidget);
     expect(tester.widget<ProgressBar>(find.byType(ProgressBar)).value, 3 / 4);
+  });
+
+  testWidgets('the card appears when a position is saved', (tester) async {
+    await pumpHome(tester);
+    final positions = tester
+        .element(find.byType(HomeScreen))
+        .read<ReadingPositionRepository>();
+
+    await positions.save(syntheticAyah());
+    await tester.pump();
+
+    expect(find.text(_positionLine), findsOneWidget);
   });
 
   testWidgets('the card continues at the position', (tester) async {
@@ -96,6 +111,33 @@ void main() {
     expect(door.right, card.right);
     expect(door.width, lessThan(card.width / 4));
     expect(hint.right, lessThan(screen.right));
+  });
+
+  testWidgets('the greeting is 14 at 400 in ink-muted, at its own height', (
+    tester,
+  ) async {
+    await pumpHome(tester);
+
+    final greeting = tester.widget<RichText>(
+      find.descendant(
+        of: find.text(_l10n.homeGreeting),
+        matching: find.byType(RichText),
+      ),
+    );
+    final style = greeting.text.style!;
+    expect(style.fontSize, 14);
+    expect(style.fontWeight, FontWeight.w400);
+    expect(style.height, isNull);
+    expect(style.color, AppColors.paper.inkMuted);
+    final heading = tester.widget<RichText>(
+      find.descendant(
+        of: find.text(_l10n.homeContinueHint),
+        matching: find.byType(RichText),
+      ),
+    );
+    expect(heading.text.style!.fontSize, AppTextStyles.screenTitle.fontSize);
+    expect(heading.text.style!.height, AppTextStyles.screenTitle.height);
+    expect(heading.text.style!.color, AppColors.paper.ink);
   });
 
   testWidgets('the heading is a header and every target is labelled', (
