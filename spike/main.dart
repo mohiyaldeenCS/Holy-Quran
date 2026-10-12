@@ -17,6 +17,7 @@ import 's3/spike_audio_handler.dart';
 import 's4/s4_screen.dart';
 import 's4/widget_bridge.dart';
 import 's5/s5_screen.dart';
+import 's7/s7_screen.dart';
 
 // The profile spike APK (D-069):
 // flutter build apk --profile -t spike/main.dart --dart-define=...
@@ -213,8 +214,13 @@ class SpikeLauncher extends StatelessWidget {
   final S1Environment s1Environment;
   final S4Environment s4Environment;
 
-  void _push(BuildContext context, WidgetBuilder builder) =>
-      Navigator.of(context).push(MaterialPageRoute<void>(builder: builder));
+  void _push(BuildContext context, WidgetBuilder builder, {String? name}) =>
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          settings: RouteSettings(name: name),
+          builder: builder,
+        ),
+      );
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -246,8 +252,17 @@ class SpikeLauncher extends StatelessWidget {
           onTap: () =>
               _push(context, (_) => S1Screen(environment: s1Environment)),
         ),
-        // The device session's order: S1, S7, S4, S3, S5. S7's entry goes
-        // here, between S1 and S4.
+        // The device session's order: S1, S7, S4, S3, S5.
+        ListTile(
+          title: const Text('S7 gestures'),
+          // S7 reads the pack S1 prepared, as S1 does; with none it opens
+          // page mode on synthetic pages only.
+          onTap: () => _push(
+            context,
+            (_) => S7Screen(environment: s1Environment),
+            name: S7Screen.routeName,
+          ),
+        ),
         ListTile(
           title: const Text('S4 home-screen widget'),
           onTap: () =>
