@@ -335,6 +335,10 @@ void main() {
   testWidgets('the faces open one per page at the safe area origin', (
     tester,
   ) async {
+    // Narrower than the medium face.
+    tester.view.physicalSize = const Size(360, 800) * 3;
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
     await open(tester);
     await tapButton(tester, 'Publish');
     await tapButton(tester, 'Compare at whole pixels');
@@ -344,7 +348,12 @@ void main() {
     expect(tester.getTopLeft(face), Offset.zero);
     expect(tester.getSize(face), faceSizeOf(WidgetFaceSize.medium));
     expect(find.textContaining('medium paper'), findsOneWidget);
-    await tester.fling(find.byType(PageView), const Offset(-600, 0), 2000);
+    // On the label: the face itself scrolls across within its page.
+    await tester.fling(
+      find.textContaining('medium paper'),
+      const Offset(-300, 0),
+      2000,
+    );
     await tester.pumpAndSettle();
     expect(find.textContaining('medium night'), findsOneWidget);
     expect(tester.getTopLeft(find.byType(AyahWidgetFace)), Offset.zero);

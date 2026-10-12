@@ -413,9 +413,10 @@ class _S4ScreenState extends State<S4Screen> {
       return;
     }
     setState(() => _candidates = candidates);
-    await _showPreviews();
     final bridge = await _env.bridge();
-    if (mounted) setState(() => _bridge = bridge);
+    if (!mounted) return;
+    setState(() => _bridge = bridge);
+    await _showPreviews();
   }
 
   Future<void> _record(String key, Map<String, Object?> entry) async {
@@ -718,7 +719,15 @@ class _S4ScreenState extends State<S4Screen> {
             child: const Text('Publish'),
           ),
         ]),
-        if (_last(_results, 'publishes') case final run?) _PublishSummary(run),
+        if (_last(_results, 'publishes') case final run?) ...[
+          _PublishSummary(run),
+          if (_previews.isEmpty && run['result'] == 'ok')
+            Text(
+              run['packTextSha256'] == candidates?.textSha256
+                  ? 'No preview: no face of the last publish fits now.'
+                  : 'No preview: the last publish used another pack.',
+            ),
+        ],
         for (final MapEntry(key: size, value: preview) in _previews.entries)
           _FacePreviews(size: size, preview: preview),
         if (_previews.isNotEmpty)
@@ -869,17 +878,22 @@ class _FaceComparison extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  AyahWidgetFace(
-                    ayah: preview.ayah.ayah,
-                    surahName: preview.ayah.surahName,
-                    ayahNumber: preview.ayah.address.ayah,
-                    quranSize: preview.quranSize,
-                    look: look,
-                    size: faceSizeOf(size),
+                  // Unbounded across, so a face wider than the phone keeps
+                  // its size; at rest the scroll leaves it at the origin.
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: AyahWidgetFace(
+                      ayah: preview.ayah.ayah,
+                      surahName: preview.ayah.surahName,
+                      ayahNumber: preview.ayah.address.ayah,
+                      quranSize: preview.quranSize,
+                      look: look,
+                      size: faceSizeOf(size),
+                    ),
                   ),
                   _Line(
                     '${size.name} ${look.name}, ${preview.ayah.address}. '
-                    'Swipe for the next face.',
+                    'Swipe here for the next face.',
                   ),
                 ],
               ),
