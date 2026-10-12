@@ -252,8 +252,16 @@ Stream A: **M0.4 part 2** on `claude/great-hamilton-9n23mt` (D-093).
   per widget image checked on the decoded bytes, Flutter deep linking off, and four
   smaller fixes, each proven by a mutation; the debug APK builds.
 - `ci.yml`: the S7 and S4 real-text steps now run after a red S1 step (`!cancelled()`).
-- Next: wave 3, task F (key 1) and task G (key 2; G is wave 4 in the plan but needs
-  only C and E).
+- Tasks F (#22, $6.82), G (#23, $15.52) and H's S4 part (#25, $9.84) merged, each
+  with its own code-reviewer and identity-auditor rounds. The real-text run after F
+  (38183752515) measured S7 and S4 on every ayah: results on `docs/spikes/S7-gestures.md`
+  and `docs/spikes/S4-home-widget.md`. Running: H2, the S7 entry in the launcher.
+- B0.11 (D-098): the pack pipeline merged to `main` (#24, $17.31; CI step #26). O-03's
+  recommended answer from that run: the owner keeps the private key offline on his
+  computer with an offline backup and signs with `pack.py sign`; the app embeds two
+  public keys (main and spare).
+- Next: the final `spike-apk`, D-096/D-097 stay for after the device run, the cleanup
+  commit and this branch's pull request #14.
 - From 2026-10-11 21:00 the owner asked to save this session's budget: reviews and task
   planning now run on the API keys too (each fix or task run reviews its own diff with
   `code-reviewer` and `identity-auditor` through the Task tool); the lead only writes
