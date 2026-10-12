@@ -17,20 +17,30 @@ class CopySheetView extends StatefulWidget {
 class _CopySheetViewState extends State<CopySheetView> {
   late final CopySheetViewModel _viewModel = widget.create()
     ..copy.addListener(_onCopy);
+  late final Listenable _changes = Listenable.merge([
+    _viewModel,
+    _viewModel.copy,
+  ]);
 
   void _onCopy() {
-    if (_viewModel.copy.completed) Navigator.of(context).pop();
+    // A sheet already closing is no longer current; popping then would close
+    // the page under it.
+    if (_viewModel.copy.completed &&
+        (ModalRoute.isCurrentOf(context) ?? false)) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
   void dispose() {
+    _viewModel.copy.removeListener(_onCopy);
     _viewModel.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: Listenable.merge([_viewModel, _viewModel.copy]),
+    listenable: _changes,
     builder: (context, _) => CopySheet(
       forms: _viewModel.forms,
       selected: _viewModel.selected,

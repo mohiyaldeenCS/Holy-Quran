@@ -27,8 +27,22 @@ class ShareCardSheetView extends StatefulWidget {
 
 class _ShareCardSheetViewState extends State<ShareCardSheetView> {
   late final ShareCardSheetViewModel _viewModel = widget.create()
-    ..addListener(_fit);
+    ..addListener(_fit)
+    ..load.addListener(_onLoad);
+  late final Listenable _changes = Listenable.merge([
+    _viewModel,
+    _viewModel.share,
+  ]);
   final _fits = <ShareCardDesign, ShareCardFit>{};
+
+  // There is no wording for a failed read yet, so the sheet closes rather
+  // than stay empty. One already closing is no longer current, and is left
+  // to close.
+  void _onLoad() {
+    if (_viewModel.load.error && (ModalRoute.isCurrentOf(context) ?? false)) {
+      Navigator.of(context).maybePop();
+    }
+  }
 
   /// Fits the chosen design once the ayah is read; outside build, as fitting
   /// lays the card out in a tree of its own.
@@ -62,13 +76,16 @@ class _ShareCardSheetViewState extends State<ShareCardSheetView> {
 
   @override
   void dispose() {
-    _viewModel.dispose();
+    _viewModel
+      ..removeListener(_fit)
+      ..load.removeListener(_onLoad)
+      ..dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: Listenable.merge([_viewModel, _viewModel.share]),
+    listenable: _changes,
     builder: (context, _) {
       final fit = _fits[_viewModel.design];
       if (fit == null) return const SizedBox.shrink();

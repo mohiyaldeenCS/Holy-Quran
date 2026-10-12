@@ -51,9 +51,11 @@ final class CopySheetViewModel extends ChangeNotifier {
         Failure(:final error) => Failure(error),
       };
 
+  /// A copy still running when the sheet closes notifies once more as it
+  /// ends, so it is left to the collector rather than disposed.
   @override
   void dispose() {
-    copy.dispose();
+    if (!copy.running) copy.dispose();
     super.dispose();
   }
 }

@@ -16,6 +16,8 @@ import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/app.dart';
 import 'package:holyquran/ui/core/share/ayah_copy_text.dart';
 import 'package:holyquran/ui/core/share/share_card_sheet.dart';
+import 'package:holyquran/ui/core/share/share_card_sheet_view.dart';
+import 'package:holyquran/ui/core/tab_shell.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/core/widgets/copy_sheet.dart';
 import 'package:holyquran/ui/core/widgets/share_card.dart';
@@ -126,6 +128,22 @@ void main() {
     expect(clipboard.copied.map(utf8.encode), [
       utf8.encode((expected as Ok<String>).value),
     ]);
+  });
+
+  testWidgets('the share sheet closes when its ayah cannot be read', (
+    tester,
+  ) async {
+    final (router, _) = await pumpApp(tester);
+    final address = ayat.first.address;
+    unawaited(
+      router.push(
+        Routes.shareSheet(QuranAddress(address.riwaya, address.surah, 999)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(ShareCardSheetView), findsNothing);
+    // Only the sheet closed: the shell under it stays.
+    expect(find.byType(TabShell), findsOneWidget);
   });
 
   testWidgets('a sheet location opened cold does not show the sheet', (

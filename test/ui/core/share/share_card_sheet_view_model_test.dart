@@ -89,4 +89,25 @@ void main() {
     expect(shared.single.png, same(png));
     expect(shared.single.fileName, '${model.address.riwaya}-3-1.png');
   });
+
+  test('a paint that fails is a failed share, and nothing is shared', () async {
+    final shared = <_Shared>[];
+    final model = viewModel((riwaya) => QuranAddress(riwaya, 1, 1), shared);
+    addTearDown(model.dispose);
+    const failure = FormatException('synthetic');
+    await model.share.execute(() async => throw failure);
+    expect((model.share.result! as Failure<void>).error, failure);
+    expect(shared, isEmpty);
+  });
+
+  test('closing before the read ends throws nothing', () async {
+    final model = viewModel((riwaya) => QuranAddress(riwaya, 1, 1), []);
+    final load = model.load;
+    expect(load.running, isTrue);
+    model.dispose();
+    while (load.running) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(load.completed, isTrue);
+  });
 }

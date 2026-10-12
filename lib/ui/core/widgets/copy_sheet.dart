@@ -92,13 +92,21 @@ class CopySheetFrame extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.surface,
+        border: Border(top: BorderSide(color: colors.line)),
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(AppRadius.radiusSheet),
         ),
         boxShadow: context.shadows.shadowSheet,
       ),
       child: SingleChildScrollView(
-        padding: _padding,
+        // The sheet route keeps no safe area at the bottom; the button stays
+        // above the home indicator and the gesture strip.
+        // CSS adds the border to the padding; Flutter draws it over the
+        // padding, so the content is moved down by its width.
+        padding: _padding.copyWith(
+          top: _padding.top + _topBorder,
+          bottom: _padding.bottom + MediaQuery.viewPaddingOf(context).bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -201,9 +209,12 @@ class _FormRow extends StatelessWidget {
 
 // Share.dc.html, the copy sheet: `padding:18px 22px 22px;gap:6px`, corners
 // `border-radius:28px` (radius-sheet) on #FFFBF2 (surface) with the sheet
-// shadow (shadow-sheet). Docked as a bottom sheet, only its top corners are
-// rounded, as `.qk-sheet`'s are.
+// shadow (shadow-sheet). Docked as a bottom sheet, it takes `.qk-sheet`'s top
+// corners and `border-top: 1px solid var(--line)`, which keeps its edge in
+// the contrast theme, where the shadow is none.
 const EdgeInsets _padding = EdgeInsets.fromLTRB(22, 18, 22, 22);
+// .qk-sheet: `border-top: 1px`, BorderSide's default width.
+const double _topBorder = 1;
 const double _gap = 6;
 
 // Share.dc.html, the handle: `width:40px;height:5px;border-radius:3px` in
@@ -245,10 +256,8 @@ const double _radioSize = 22;
 const double _radioBorder = 2;
 const double _dotSize = 10;
 
-// The board's rows have no corners; the focus ring takes the sm radius.
-const BorderRadius _rowFocusRadius = BorderRadius.all(
-  Radius.circular(AppRadius.radiusSm),
-);
+// The board's rows have no corners, so neither has their focus ring.
+const BorderRadius _rowFocusRadius = BorderRadius.zero;
 
 // Share.dc.html, the button: `margin-top:10px` beyond the column's 6px gap.
 const double _buttonGap = 10;

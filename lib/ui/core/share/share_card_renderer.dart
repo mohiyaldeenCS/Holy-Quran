@@ -43,17 +43,21 @@ final class ShareCardRenderer {
     };
   }
 
-  /// [card] painted as PNG bytes, [_exportWidth] pixels wide.
+  /// [card] painted as PNG bytes, [_exportWidth] pixels wide. Throws
+  /// [ShareCardPaintFailed] when the engine gives no bytes.
   Future<Uint8List> png(ShareCard card) async {
-    final offscreen = _Offscreen(context, card, paint: true);
+    final offscreen = _Offscreen();
     try {
+      offscreen.mount(context, card, paint: true);
       final boundary = offscreen.boundary;
       final image = await boundary.toImage(
         pixelRatio: _exportWidth / boundary.size.width,
       );
       try {
-        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-        return bytes!.buffer.asUint8List(
+        final bytes =
+            await image.toByteData(format: ui.ImageByteFormat.png) ??
+            (throw const ShareCardPaintFailed());
+        return bytes.buffer.asUint8List(
           bytes.offsetInBytes,
           bytes.lengthInBytes,
         );
@@ -66,8 +70,9 @@ final class ShareCardRenderer {
   }
 
   _Excess _measure(ShareCard card) {
-    final offscreen = _Offscreen(context, card, paint: false);
+    final offscreen = _Offscreen();
     try {
+      offscreen.mount(context, card, paint: false);
       final column = _ayahColumn(offscreen.root);
       var top = double.infinity;
       var bottom = double.negativeInfinity;
@@ -113,21 +118,34 @@ RenderFlex _ayahColumn(Element root) {
       (throw StateError('The share card has no column around its ayah'));
 }
 
-/// One frame of [card] built and laid out in a tree of its own, and painted
-/// when [paint] is set.
+/// A tree of its own for one frame of a card: [mount] builds and lays it
+/// out, and paints it when asked; [dispose] frees all of it, whether or not
+/// [mount] finished.
 final class _Offscreen {
-  _Offscreen(BuildContext context, ShareCard card, {required bool paint}) {
-    final view = RenderView(
+  final boundary = RenderRepaintBoundary();
+  late final _positioned = RenderPositionedBox(
+    alignment: Alignment.topLeft,
+    child: boundary,
+  );
+  final _pipeline = PipelineOwner();
+  final _build = BuildOwner(focusManager: FocusManager());
+  RenderView? _view;
+  RenderObjectToWidgetElement<RenderBox>? _root;
+
+  Element get root => _root!;
+
+  void mount(BuildContext context, ShareCard card, {required bool paint}) {
+    final view = _view = RenderView(
       view: View.of(context),
       configuration: const ViewConfiguration(
         logicalConstraints: BoxConstraints(),
         physicalConstraints: BoxConstraints(),
       ),
-      child: RenderPositionedBox(alignment: Alignment.topLeft, child: boundary),
+      child: _positioned,
     );
     _pipeline.rootNode = view;
     view.prepareInitialFrame();
-    root = RenderObjectToWidgetAdapter<RenderBox>(
+    final root = _root = RenderObjectToWidgetAdapter<RenderBox>(
       container: boundary,
       child: MediaQuery(
         data: MediaQuery.of(context),
@@ -150,22 +168,30 @@ final class _Offscreen {
     }
   }
 
-  final boundary = RenderRepaintBoundary();
-  final _pipeline = PipelineOwner();
-  final _build = BuildOwner(focusManager: FocusManager());
-  late final RenderObjectToWidgetElement<RenderBox> root;
-
   void dispose() {
-    RenderObjectToWidgetAdapter<RenderBox>(
-      container: boundary,
-    ).attachToRenderTree(_build, root);
+    if (_root case final root?) {
+      RenderObjectToWidgetAdapter<RenderBox>(
+        container: boundary,
+      ).attachToRenderTree(_build, root);
+    }
     _build
       ..finalizeTree()
       ..focusManager.dispose();
     _pipeline
       ..rootNode = null
       ..dispose();
+    _view?.dispose();
+    _positioned.dispose();
+    boundary.dispose();
   }
+}
+
+/// The card could not be painted as PNG bytes.
+final class ShareCardPaintFailed implements Exception {
+  const ShareCardPaintFailed();
+
+  @override
+  String toString() => 'ShareCardPaintFailed()';
 }
 
 // The shared image is 1080 pixels wide, the width social apps show a post at;

@@ -100,4 +100,16 @@ void main() {
     await model.copy.execute();
     expect((model.copy.result! as Failure<void>).error, failure);
   });
+
+  test('closing while a copy runs throws nothing, and the copy ends', () async {
+    final copied = <String>[];
+    final model = viewModel((riwaya) => QuranAddress(riwaya, 1, 1), copied);
+    final copy = model.copy;
+    final done = copy.execute();
+    expect(copy.running, isTrue);
+    model.dispose();
+    await done;
+    expect(copy.completed, isTrue);
+    expect(copied, hasLength(1));
+  });
 }

@@ -39,6 +39,7 @@ final class ShareCardSheetViewModel extends ChangeNotifier {
   PackText? _ayah;
   PackText? _surahName;
   ShareCardDesign _design = ShareCardDesign.emerald;
+  var _disposed = false;
 
   /// The ayah, once [load] has read it.
   PackText? get ayah => _ayah;
@@ -68,7 +69,7 @@ final class ShareCardSheetViewModel extends ChangeNotifier {
           if (surah.number == address.surah) {
             _ayah = ayah;
             _surahName = surah.name;
-            notifyListeners();
+            if (!_disposed) notifyListeners();
             return const Ok(null);
           }
         }
@@ -78,15 +79,27 @@ final class ShareCardSheetViewModel extends ChangeNotifier {
     }
   }
 
-  Future<Result<void>> _share(PaintCard paint) async => _shareImage(
-    await paint(),
-    fileName: '${address.riwaya}-${address.surah}-${address.ayah}.png',
-  );
+  Future<Result<void>> _share(PaintCard paint) async {
+    final Uint8List png;
+    try {
+      png = await paint();
+    } on Exception catch (error) {
+      return Failure(error);
+    }
+    return _shareImage(
+      png,
+      fileName: '${address.riwaya}-${address.surah}-${address.ayah}.png',
+    );
+  }
 
+  /// A command still running when the sheet closes notifies once more as it
+  /// ends, so it is left to the collector rather than disposed.
   @override
   void dispose() {
-    load.dispose();
-    share.dispose();
+    _disposed = true;
+    for (final command in [load, share]) {
+      if (!command.running) command.dispose();
+    }
     super.dispose();
   }
 }

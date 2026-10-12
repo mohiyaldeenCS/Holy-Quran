@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -99,7 +100,7 @@ void main() {
       expect(shared, 1);
     });
 
-    testWidgets('the share button is disabled while sharing', (tester) async {
+    testWidgets('the share button is disabled without onShare', (tester) async {
       await _pump(tester, _sheet());
       expect(
         tester.widget<Button>(_button(_l10n.toolbarShare)).onPressed,
@@ -201,6 +202,31 @@ void main() {
         }
       });
       expect(shared.single.sublist(1, 4), 'PNG'.codeUnits);
+    });
+
+    testWidgets('the share button is disabled while a share runs', (
+      tester,
+    ) async {
+      final pending = Completer<Result<void>>();
+      await _pump(
+        tester,
+        ShareCardSheetView(
+          create: () => ShareCardSheetViewModel(
+            address: shortestAndLongest(ayat, 1).first.address,
+            repository: pack.openRepository(),
+            shareImage: (png, {required fileName}) => pending.future,
+          ),
+          onCopy: () {},
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      Button share() => tester.widget<Button>(_button(_l10n.toolbarShare));
+      expect(share().onPressed, isNotNull);
+      await tester.tap(_button(_l10n.toolbarShare));
+      await tester.pump();
+      expect(share().onPressed, isNull);
+      pending.complete(const Ok(null));
     });
 
     testWidgets('an ayah no 4:5 card holds is too long, and offers copy', (
