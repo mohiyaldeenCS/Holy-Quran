@@ -105,6 +105,9 @@ void main() {
         (start: 5, end: 8),
       ]);
       expect(QueryFold.findAll('xy x-y', 'x y'), isEmpty);
+      expect(QueryFold.findAll('x\u064E\ny\u0650', 'x y'), [
+        (start: 0, end: 5),
+      ]);
     });
 
     test('is exact on every other unit', () {
