@@ -66,6 +66,10 @@ jobs:
       - name: Test
         run: flutter test test tools/gen/test
 
+      # The pack pipeline (B0.11, D-035): Python 3 standard library only.
+      - name: Pack pipeline tests
+        run: python3 -m unittest discover -s tools/packs/tests -t tools/packs
+
       - name: Keep golden failure images
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
