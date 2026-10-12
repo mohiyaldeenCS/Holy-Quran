@@ -7,7 +7,8 @@ Wave 4 · Agent `ui-builder` · Key 1 · Cap $25 · Base `main` · Needs: P1-25,
 `AU-13` «التنزيل: سورة، جزء، أو المصحف كاملًا لتلاوة. يُعرض الحجم قبل البدء، ويُستأنف بعد
 الانقطاع، مع خيار Wi-Fi فقط»; `AU-14` «اختيار الجودة حين يتوفر أكثر من مستوى». Criterion:
 «التنزيل يُستأنف دون إعادة ما اكتمل، وكل ملف يُتحقق ببصمته قبل اعتماده». Real
-recitations wait for O-04, B0.5 and complete rights records: synthetic catalogue only.
+recitations wait for the recitations the planning session proposes and the owner
+approves (O-04, D-119), B0.5 and complete rights records: synthetic catalogue only.
 
 ## Do
 

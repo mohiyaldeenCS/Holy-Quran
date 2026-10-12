@@ -13,6 +13,11 @@ Wave 3 · Agent `ui-builder` · Key 1 · Cap $30 · Base `main` · Needs: P1-13,
 - PRD §9.5: a downloaded pack that fails its check shows the integrity alert (PRD
   §7.7: «حزمة فشل التحقق منها | `error` مع أيقونة وكلمة»).
 
+In the first release the tafsir category lists the Zaydi-library books only (O-06,
+D-119); the screen shows whatever the catalogue lists and names no book itself. Test
+packs and the test catalogue are served from this repository's GitHub Releases (O-08);
+nothing on the screen depends on the host.
+
 The resource manager is described, not drawn (`docs/DESIGN_SYSTEM.md`, "Screens"):
 build it from `ResourceRow`, `ProgressBar` (the storage bar of §7.7) and tokens.
 

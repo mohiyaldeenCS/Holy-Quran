@@ -24,7 +24,11 @@ installer of P1-07.
    reciter, riwaya, style, unit, qualities, the id of its recitation pack, rights
    complete, word timing). Unknown fields rejected.
 2. Parser and `CatalogueRepository`: fetch over HTTPS from the address in
-   `lib/config/catalogue_config.dart` (empty until O-08: state "not configured"),
+   `lib/config/catalogue_config.dart`. The test catalogue is a release asset of this
+   repository's GitHub Releases (O-08, D-109); the lead gives its exact URL when the
+   first test pack is published, so leave the address empty until then (state "not
+   configured"). Release download URLs redirect to GitHub's storage host: follow
+   `https` redirects only. The catalogue is signed in CI like the packs (O-03);
    verify the signature with P1-05's verifier and the same policy as P1-07, keep the
    last good catalogue on disk for offline use, and join it with the installed packs
    into a resource state (available, downloading with percent, downloaded, update

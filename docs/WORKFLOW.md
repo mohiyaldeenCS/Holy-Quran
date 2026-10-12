@@ -175,7 +175,7 @@ application code itself.
   | | Values |
   | --- | --- |
   | Types | `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `build`, `ci`, `chore`, and `wip` for unfinished work saved before stopping |
-  | Scopes, product | `home`, `onboarding`, `settings`, `reader` (RD), `index` (NV), `audio` (AU), `av-sync` (SY), `waqf` (WQ), `word` (LX), `tafsir` (TF), `search` (SR), `bookmarks` (UD), `ayah` (ST), `share` (SH), `resources` (OF), `account` (AC), `a11y` (AX), `levels` (LV) |
+  | Scopes, product | `home`, `onboarding`, `settings`, `reader` (RD), `index` (NV), `audio` (AU), `av-sync` (SY), `waqf` (WQ), `word` (LX), `tafsir` (TF), `search` (SR), `bookmarks` (UD), `ayah` (ST), `share` (SH), `resources` (OF), `account` (AC), `a11y` (AX), `levels` (LV), `report` («أبلغ عن خطأ», O-17) |
   | Scopes, engineering | `ds` (design system), `theme`, `l10n`, `routing`, `domain`, `packs`, `db`, `tools`, `ci`, `deps`, `skills`, `agents`, `status`, `prd`, `design` |
 
 - Commit after each completed task. Push after each commit, and always before
