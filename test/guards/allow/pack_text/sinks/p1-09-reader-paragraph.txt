@@ -1,0 +1,3 @@
+lib/ui/core/reader/reader_paragraph.dart
+decision: D-113
+The surah-mode paragraph sets whole ayat sliced at stored offsets (D-114).
