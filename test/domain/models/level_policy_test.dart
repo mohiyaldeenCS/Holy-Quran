@@ -33,15 +33,12 @@ void main() {
     }
   }
 
-  test('a tool is shown from its minimum level up', () {
+  test('the minimum level is the lowest that shows a tool', () {
     for (final tool in LevelTool.values) {
-      final minimum = LevelPolicy.minimumLevel(tool);
-      expect(LevelPolicy.shows(tool, minimum), isTrue);
-      for (final level in UiLevel.values.where(
-        (l) => l.index < minimum.index,
-      )) {
-        expect(LevelPolicy.shows(tool, level), isFalse);
-      }
+      expect(
+        LevelPolicy.minimumLevel(tool),
+        UiLevel.values.firstWhere((level) => table[tool]![level.index]),
+      );
     }
   });
 }

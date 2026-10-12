@@ -7,8 +7,8 @@ import 'package:drift/drift.dart';
 // `updated_at`, and `deleted` as the tombstone, so a deletion is never undone
 // by a merge.
 //
-// No foreign keys and no indexes: enforcing either puts SQL text in lib/data/,
-// which the pack-write guard forbids.
+// No foreign keys and no explicit indexes: enforcing or declaring either puts
+// SQL text in lib/data/, which the pack-write guard forbids.
 
 /// Typed values keyed by name, newest per key (§10.6). The key is the shared
 /// id; a setting is reset by writing its default, never deleted.
@@ -56,9 +56,8 @@ class ListeningPosition extends Table with _Synced {
   IntColumn get offsetMs => integer()();
 }
 
-/// A bookmark or note category: a built-in one by key, whose id equals its
-/// key so devices agree, or one the user named. The colour and shape slots
-/// stay empty until O-14 is answered.
+/// A bookmark or note category: a built-in one by its key, or one the user
+/// named. The colour and shape slots stay empty until O-14 is answered.
 @DataClassName('CategoryRow')
 class Category extends Table with _Synced {
   @override
@@ -143,8 +142,9 @@ class SearchHistory extends Table {
   IntColumn get searchedAt => integer()();
 }
 
-/// The local integrity log: what a pack check found. `detail` holds hashes,
-/// counts and kinds, never pack text.
+/// The local integrity log: what a pack check found. The version is absent
+/// when none could be read; `detail` holds hashes, counts and kinds, never
+/// pack text.
 @DataClassName('IntegrityEventRow')
 class IntegrityEvent extends Table {
   @override
@@ -152,7 +152,7 @@ class IntegrityEvent extends Table {
 
   IntColumn get id => integer().autoIncrement()();
   TextColumn get packId => text()();
-  IntColumn get packVersion => integer()();
+  IntColumn get packVersion => integer().nullable()();
   TextColumn get kind => text()();
   TextColumn get detail => text().nullable()();
   IntColumn get occurredAt => integer()();

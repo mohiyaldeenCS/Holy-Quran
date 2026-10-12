@@ -778,7 +778,7 @@
             "name": "pack_version",
             "getter_name": "packVersion",
             "moor_type": "int",
-            "nullable": false,
+            "nullable": true,
             "customConstraints": null,
             "default_dart": null,
             "default_client_dart": null,
@@ -917,7 +917,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"integrity_event\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"pack_id\" TEXT NOT NULL, \"pack_version\" INTEGER NOT NULL, \"kind\" TEXT NOT NULL, \"detail\" TEXT NULL, \"occurred_at\" INTEGER NOT NULL);"
+          "sql": "CREATE TABLE IF NOT EXISTS \"integrity_event\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"pack_id\" TEXT NOT NULL, \"pack_version\" INTEGER NULL, \"kind\" TEXT NOT NULL, \"detail\" TEXT NULL, \"occurred_at\" INTEGER NOT NULL);"
         }
       ]
     }

@@ -8,11 +8,11 @@ import 'package:holyquran/utils/result.dart';
 final class FakeAppSettingsRepository extends AppSettingsRepository {
   FakeAppSettingsRepository({
     this.themePreference = const ThemePreference(),
-    this.level = UiLevel.simple,
+    this.level = UiLevel.initial,
     this.levelChosen = false,
-    this.openAtLastPosition = false,
-    this.keepScreenAwake = true,
-    this.surahTextScale = 1.0,
+    this.openAtLastPosition = AppSettingsRepository.openAtLastPositionDefault,
+    this.keepScreenAwake = AppSettingsRepository.keepScreenAwakeDefault,
+    this.surahTextScale = AppSettingsRepository.surahTextScaleDefault,
   });
 
   @override

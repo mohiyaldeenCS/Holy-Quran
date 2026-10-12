@@ -23,15 +23,16 @@ final class LocalReadingPositionRepository extends ReadingPositionRepository {
   final int Function() _now;
   QuranAddress? _last;
 
-  /// Reads the stored position once. A stored address that is not canonical
-  /// reads as no position.
+  /// Reads the stored position once. A stored address that is not a
+  /// canonical ayah address reads as no position.
   static Future<Result<LocalReadingPositionRepository>> load(
     ReadingPositionDao dao, {
     int Function() now = _utcMilliseconds,
   }) async {
     try {
       final stored = await dao.readAddress();
-      final last = stored == null ? null : QuranAddress.tryParse(stored);
+      final parsed = stored == null ? null : QuranAddress.tryParse(stored);
+      final last = parsed == null || parsed.isWord ? null : parsed;
       return Ok(LocalReadingPositionRepository._(dao, now, last));
     } on Exception catch (error) {
       return Failure(error);

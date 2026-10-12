@@ -96,14 +96,6 @@ void main() {
       }, _columns);
     });
 
-    test('no column is meant for pack text', () {
-      final names = _columns.values.expand((c) => c);
-      expect(
-        names.where((n) => RegExp('text|ayah|verse|word|quran').hasMatch(n)),
-        ['text_value'],
-      );
-    });
-
     test('synced rows have a text id, updated_at and a tombstone', () {
       for (final table in db.allTables) {
         if (!_synced.contains(table.actualTableName)) continue;

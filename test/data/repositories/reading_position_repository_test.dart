@@ -94,11 +94,13 @@ void main() {
     expect(positions.last, isNull);
   });
 
-  test('a stored address that is not canonical reads as none', () async {
-    await ReadingPositionDao(db).writeAddress('not an address', updatedAt: 1);
+  for (final stored in ['not an address', 'hafs:2:5:1']) {
+    test('a stored "$stored" reads as no position', () async {
+      await ReadingPositionDao(db).writeAddress(stored, updatedAt: 1);
 
-    expect((await _load(ReadingPositionDao(db))).last, isNull);
-  });
+      expect((await _load(ReadingPositionDao(db))).last, isNull);
+    });
+  }
 
   test('a failed write returns a Failure and keeps the position', () async {
     final positions = await _load(_FailingDao(db));

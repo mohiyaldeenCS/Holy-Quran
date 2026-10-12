@@ -3185,10 +3185,10 @@ class IntegrityEvent extends Table
   late final GeneratedColumn<int> packVersion = GeneratedColumn<int>(
     'pack_version',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL',
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL',
   );
   late final GeneratedColumn<String> kind = GeneratedColumn<String>(
     'kind',
@@ -3245,7 +3245,7 @@ class IntegrityEvent extends Table
       packVersion: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}pack_version'],
-      )!,
+      ),
       kind: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}kind'],
@@ -3274,14 +3274,14 @@ class IntegrityEventData extends DataClass
     implements Insertable<IntegrityEventData> {
   final int id;
   final String packId;
-  final int packVersion;
+  final int? packVersion;
   final String kind;
   final String? detail;
   final int occurredAt;
   const IntegrityEventData({
     required this.id,
     required this.packId,
-    required this.packVersion,
+    this.packVersion,
     required this.kind,
     this.detail,
     required this.occurredAt,
@@ -3291,7 +3291,9 @@ class IntegrityEventData extends DataClass
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['pack_id'] = Variable<String>(packId);
-    map['pack_version'] = Variable<int>(packVersion);
+    if (!nullToAbsent || packVersion != null) {
+      map['pack_version'] = Variable<int>(packVersion);
+    }
     map['kind'] = Variable<String>(kind);
     if (!nullToAbsent || detail != null) {
       map['detail'] = Variable<String>(detail);
@@ -3304,7 +3306,9 @@ class IntegrityEventData extends DataClass
     return IntegrityEventCompanion(
       id: Value(id),
       packId: Value(packId),
-      packVersion: Value(packVersion),
+      packVersion: packVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(packVersion),
       kind: Value(kind),
       detail: detail == null && nullToAbsent
           ? const Value.absent()
@@ -3321,7 +3325,7 @@ class IntegrityEventData extends DataClass
     return IntegrityEventData(
       id: serializer.fromJson<int>(json['id']),
       packId: serializer.fromJson<String>(json['packId']),
-      packVersion: serializer.fromJson<int>(json['packVersion']),
+      packVersion: serializer.fromJson<int?>(json['packVersion']),
       kind: serializer.fromJson<String>(json['kind']),
       detail: serializer.fromJson<String?>(json['detail']),
       occurredAt: serializer.fromJson<int>(json['occurredAt']),
@@ -3333,7 +3337,7 @@ class IntegrityEventData extends DataClass
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'packId': serializer.toJson<String>(packId),
-      'packVersion': serializer.toJson<int>(packVersion),
+      'packVersion': serializer.toJson<int?>(packVersion),
       'kind': serializer.toJson<String>(kind),
       'detail': serializer.toJson<String?>(detail),
       'occurredAt': serializer.toJson<int>(occurredAt),
@@ -3343,14 +3347,14 @@ class IntegrityEventData extends DataClass
   IntegrityEventData copyWith({
     int? id,
     String? packId,
-    int? packVersion,
+    Value<int?> packVersion = const Value.absent(),
     String? kind,
     Value<String?> detail = const Value.absent(),
     int? occurredAt,
   }) => IntegrityEventData(
     id: id ?? this.id,
     packId: packId ?? this.packId,
-    packVersion: packVersion ?? this.packVersion,
+    packVersion: packVersion.present ? packVersion.value : this.packVersion,
     kind: kind ?? this.kind,
     detail: detail.present ? detail.value : this.detail,
     occurredAt: occurredAt ?? this.occurredAt,
@@ -3401,7 +3405,7 @@ class IntegrityEventData extends DataClass
 class IntegrityEventCompanion extends UpdateCompanion<IntegrityEventData> {
   final Value<int> id;
   final Value<String> packId;
-  final Value<int> packVersion;
+  final Value<int?> packVersion;
   final Value<String> kind;
   final Value<String?> detail;
   final Value<int> occurredAt;
@@ -3416,12 +3420,11 @@ class IntegrityEventCompanion extends UpdateCompanion<IntegrityEventData> {
   IntegrityEventCompanion.insert({
     this.id = const Value.absent(),
     required String packId,
-    required int packVersion,
+    this.packVersion = const Value.absent(),
     required String kind,
     this.detail = const Value.absent(),
     required int occurredAt,
   }) : packId = Value(packId),
-       packVersion = Value(packVersion),
        kind = Value(kind),
        occurredAt = Value(occurredAt);
   static Insertable<IntegrityEventData> custom({
@@ -3445,7 +3448,7 @@ class IntegrityEventCompanion extends UpdateCompanion<IntegrityEventData> {
   IntegrityEventCompanion copyWith({
     Value<int>? id,
     Value<String>? packId,
-    Value<int>? packVersion,
+    Value<int?>? packVersion,
     Value<String>? kind,
     Value<String?>? detail,
     Value<int>? occurredAt,

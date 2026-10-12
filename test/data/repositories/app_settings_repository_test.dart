@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/data/services/daos/settings_dao.dart';
-import 'package:holyquran/data/services/settings_store.dart';
 import 'package:holyquran/data/services/user_database.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/domain/models/ui_level.dart';
@@ -23,8 +22,19 @@ final class _FailingDao extends SettingsDao {
   }) async => throw const FormatException('synthetic failure');
 }
 
+final class _FailingReadDao extends SettingsDao {
+  _FailingReadDao(super.attachedDatabase);
+
+  @override
+  Future<Map<String, StoredSetting>> readAll() async =>
+      throw const FormatException('synthetic failure');
+}
+
 Future<LocalAppSettingsRepository> _repository(SettingsDao dao) async =>
-    LocalAppSettingsRepository(await SettingsStore.load(dao));
+    switch (await LocalAppSettingsRepository.load(dao)) {
+      Ok(:final value) => value,
+      Failure(:final error) => throw error,
+    };
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -88,6 +98,13 @@ void main() {
     expect(result, isA<Failure<void>>());
     expect(notified, 0);
     expect(settings.level, UiLevel.simple);
+  });
+
+  test('a failed read returns a Failure', () async {
+    expect(
+      await LocalAppSettingsRepository.load(_FailingReadDao(db)),
+      isA<Failure<LocalAppSettingsRepository>>(),
+    );
   });
 
   test('settings survive closing and reopening a file database', () async {

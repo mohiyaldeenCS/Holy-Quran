@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'package:holyquran/data/services/daos/settings_dao.dart';
 import 'package:holyquran/data/services/settings_store.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/domain/models/ui_level.dart';
@@ -10,6 +11,11 @@ import 'package:holyquran/utils/result.dart';
 /// the screen awake (`RD-16`) and the surah-mode text size (`RD-07`).
 /// Listeners hear of every stored change.
 abstract class AppSettingsRepository extends ChangeNotifier {
+  // RD-13 and RD-16 give no default; these await the owner's answer.
+  static const openAtLastPositionDefault = false;
+  static const keepScreenAwakeDefault = true;
+  static const surahTextScaleDefault = 1.0;
+
   ThemePreference get themePreference;
   UiLevel get level;
 
@@ -33,9 +39,21 @@ abstract class AppSettingsRepository extends ChangeNotifier {
 
 /// [AppSettingsRepository] over the user database's settings.
 final class LocalAppSettingsRepository extends AppSettingsRepository {
-  LocalAppSettingsRepository(this._store);
+  LocalAppSettingsRepository._(this._store);
 
   final SettingsStore _store;
+
+  /// Reads every setting once, so that the values are there before the first
+  /// frame (D-105).
+  static Future<Result<LocalAppSettingsRepository>> load(
+    SettingsDao dao,
+  ) async {
+    try {
+      return Ok(LocalAppSettingsRepository._(await SettingsStore.load(dao)));
+    } on Exception catch (error) {
+      return Failure(error);
+    }
+  }
 
   static const _theme = 'app.theme';
   static const _followSystemDark = 'app.followSystemDark';
@@ -44,11 +62,6 @@ final class LocalAppSettingsRepository extends AppSettingsRepository {
   static const _openAtLastPosition = 'app.openAtLastPosition';
   static const _keepScreenAwake = 'reader.keepScreenAwake';
   static const _surahTextScale = 'reader.surahTextScale';
-
-  // RD-13 and RD-16 give no default; these await the owner's answer.
-  static const _openAtLastPositionDefault = false;
-  static const _keepScreenAwakeDefault = true;
-  static const _surahTextScaleDefault = 1.0;
 
   @override
   ThemePreference get themePreference {
@@ -69,15 +82,18 @@ final class LocalAppSettingsRepository extends AppSettingsRepository {
 
   @override
   bool get openAtLastPosition =>
-      _store.readBool(_openAtLastPosition) ?? _openAtLastPositionDefault;
+      _store.readBool(_openAtLastPosition) ??
+      AppSettingsRepository.openAtLastPositionDefault;
 
   @override
   bool get keepScreenAwake =>
-      _store.readBool(_keepScreenAwake) ?? _keepScreenAwakeDefault;
+      _store.readBool(_keepScreenAwake) ??
+      AppSettingsRepository.keepScreenAwakeDefault;
 
   @override
   double get surahTextScale =>
-      _store.readDouble(_surahTextScale) ?? _surahTextScaleDefault;
+      _store.readDouble(_surahTextScale) ??
+      AppSettingsRepository.surahTextScaleDefault;
 
   @override
   Future<Result<void>> setTheme(ReadingTheme theme) =>
