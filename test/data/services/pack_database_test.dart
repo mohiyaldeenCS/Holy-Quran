@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/data/services/pack_database.dart';
 import 'package:holyquran/domain/models/edition_map.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
+import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/surah_info.dart';
 import 'package:sqlite3/sqlite3.dart';
 
@@ -630,6 +631,201 @@ void main() {
         throwsA(isA<SqliteException>()),
       );
       expect(await journal.readAsBytes(), bytes);
+    });
+  });
+
+  group('format 2', () {
+    late SyntheticPack pack;
+
+    setUp(() async {
+      pack = await buildSyntheticPack(root, formatVersion: 2);
+    });
+
+    PackDatabase openV2(SyntheticPack pack) {
+      final db = PackDatabase.open(pack.textFile.path, formatVersion: 2);
+      addTearDown(db.close);
+      return db;
+    }
+
+    test('opens, and reads the v1 tables as before', () {
+      final db = openV2(pack);
+      expect(db.surahs().map((s) => s.number), [1, 2, 3]);
+      expect(db.ayahText(1, 1)!.verbatim, pack.surahs[0].ayat[0].text);
+      expect(db.surahSha256(1), pack.surahSha256['1']);
+    });
+
+    test('reads every search form as its stored bytes, by ayah, word and '
+        'kind', () {
+      final db = openV2(pack);
+      final stored = raw(pack).searchForms();
+      expect(stored, hasLength(pack.searchForms.length));
+      final read = [
+        for (var surah = 1; surah <= 3; surah++)
+          ...db.searchForms(surah, riwaya: 'hafs'),
+      ];
+      expect(read, hasLength(stored.length));
+      for (final (index, form) in read.indexed) {
+        final (surah, ayah, word, kind, bytes) = stored[index];
+        final synthetic = pack.searchForms[index];
+        expect(form.word, QuranAddress('hafs', surah, ayah, word));
+        expect(form.kind, kind);
+        expect(utf8.encode(form.form.verbatim), bytes);
+        expect(form.form.verbatim, synthetic.form);
+        expect(
+          (synthetic.surah, synthetic.ayah, synthetic.word),
+          (surah, ayah, word),
+        );
+      }
+      expect(
+        read.first.form.verbatim,
+        ' e\u{301} \u{E9} \u{646}\u{635} '
+        '\u{62A}\u{62C}\u{631}\u{64A}\u{628}\u{64A}  ',
+      );
+      expect(db.searchForms(4, riwaya: 'hafs'), isEmpty);
+    });
+
+    test('counts the search forms of each kind', () {
+      final words = pack.counts['words']! as int;
+      expect(openV2(pack).searchFormCounts(), {
+        for (final kind in defaultSyntheticSearchFormKinds) kind: words,
+      });
+    });
+
+    test('a format 1 pack has no search forms', () async {
+      final v1 = open(await buildSyntheticPack(Directory('${root.path}/v1')));
+      expect(v1.searchForms(1, riwaya: 'hafs'), isEmpty);
+      expect(v1.searchFormCounts(), isEmpty);
+    });
+
+    test(
+      'is refused when opened as format 1, and a v1 file as format 2',
+      () async {
+        expect(
+          () => PackDatabase.open(pack.textFile.path, formatVersion: 1),
+          throwsFailure<UnsupportedPackFormat>((f) => f.formatVersion, 2),
+        );
+        final v1 = await buildSyntheticPack(Directory('${root.path}/v1'));
+        expect(
+          () => PackDatabase.open(v1.textFile.path, formatVersion: 2),
+          throwsFailure<UnsupportedPackFormat>((f) => f.formatVersion, 1),
+        );
+      },
+    );
+
+    test('a format version no text pack has is refused', () {
+      for (final version in [0, 3]) {
+        expect(
+          () => PackDatabase.open(pack.textFile.path, formatVersion: version),
+          throwsFailure<UnsupportedPackFormat>((f) => f.formatVersion, version),
+        );
+      }
+    });
+
+    group('refuses a search_form table', () {
+      const columns =
+          'surah INTEGER NOT NULL, ayah INTEGER NOT NULL, '
+          'word INTEGER NOT NULL, kind TEXT NOT NULL';
+      const key = 'PRIMARY KEY (surah, ayah, word, kind)';
+      const variants = {
+        'that is missing': null,
+        'whose form may be null':
+            '($columns, form TEXT, $key) STRICT, WITHOUT ROWID',
+        'keyed without its kind':
+            '($columns, form TEXT NOT NULL, PRIMARY KEY (surah, ayah, word)) '
+            'STRICT, WITHOUT ROWID',
+        'that has a rowid': '($columns, form TEXT NOT NULL, $key) STRICT',
+        'with an extra column':
+            '($columns, form TEXT NOT NULL, note TEXT, $key) '
+            'STRICT, WITHOUT ROWID',
+      };
+      for (final MapEntry(key: name, value: definition) in variants.entries) {
+        test(name, () async {
+          final writable = sqlite3.open(pack.textFile.path);
+          try {
+            writable.execute('DROP TABLE search_form');
+            if (definition != null) {
+              writable.execute('CREATE TABLE search_form $definition');
+            }
+          } finally {
+            writable.close();
+          }
+          expect(
+            () => PackDatabase.open(pack.textFile.path, formatVersion: 2),
+            throwsFailure<UnsupportedPackFormat>((f) => f.formatVersion, 2),
+          );
+        });
+      }
+    });
+
+    test(
+      'a search form with a leading U+FEFF or malformed UTF-8 is refused',
+      () async {
+        for (final (index, bytes) in [
+          [0xEF, 0xBB, 0xBF, 0x61],
+          [0x61, 0xC3],
+        ].indexed) {
+          final changed = await buildSyntheticPack(
+            Directory('${root.path}/encoding$index'),
+            formatVersion: 2,
+          );
+          final writable = sqlite3.open(changed.textFile.path);
+          try {
+            writable.execute(
+              'UPDATE search_form SET form = CAST(? AS TEXT) '
+              'WHERE surah = 2 AND ayah = 1 AND word = 2',
+              [Uint8List.fromList(bytes)],
+            );
+          } finally {
+            writable.close();
+          }
+          expect(
+            () => openV2(changed).searchForms(2, riwaya: 'hafs'),
+            throwsFailure<TextEncodingRejected>((f) => (f.surah, f.ayah), (
+              2,
+              1,
+            )),
+            reason: '$bytes',
+          );
+        }
+      },
+    );
+
+    test('a search form kind that is not UTF-8 is refused', () async {
+      final writable = sqlite3.open(pack.textFile.path);
+      try {
+        writable.execute(
+          'UPDATE search_form SET kind = CAST(? AS TEXT) '
+          "WHERE surah = 3 AND word = 1 AND kind = 'synthetic-plain'",
+          [
+            Uint8List.fromList([0x61, 0xC3]),
+          ],
+        );
+      } finally {
+        writable.close();
+      }
+      final db = openV2(pack);
+      expect(db.searchForms(1, riwaya: 'hafs'), isNotEmpty);
+      expect(
+        () => db.searchForms(3, riwaya: 'hafs'),
+        throwsFailure<UnsupportedPackFormat>((f) => f.pack, pack.textFile.path),
+      );
+    });
+
+    test('a search form kind of another form is inconsistent', () async {
+      final writable = sqlite3.open(pack.textFile.path);
+      try {
+        writable.execute(
+          "UPDATE search_form SET kind = 'Not A ' || kind WHERE surah = 3",
+        );
+      } finally {
+        writable.close();
+      }
+      final db = openV2(pack);
+      expect(db.searchForms(1, riwaya: 'hafs'), isNotEmpty);
+      expect(
+        () => db.searchForms(3, riwaya: 'hafs'),
+        throwsFailure<PackInconsistent>((f) => f.pack, pack.textFile.path),
+      );
     });
   });
 }

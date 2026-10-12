@@ -4,13 +4,53 @@ import '../../domain/models/edition_map.dart';
 import '../../domain/models/pack_failure.dart';
 import '../../domain/models/pack_manifest.dart';
 import '../../domain/models/quran_address.dart';
+import '../../domain/models/search_form.dart';
 import '../../utils/result.dart';
 
 /// The pack format versions this app reads (docs/CONTENT_PACKS.md).
-const supportedPackFormatVersion = 1;
+const supportedPackFormatVersions = {1, 2};
+
+/// The newest of [supportedPackFormatVersions]. Kept while code written
+/// against format 1, when it was the only version, merges.
+const supportedPackFormatVersion = 2;
 
 /// The one data file of a text pack.
 const textPackFileName = 'text.sqlite';
+
+/// The one data file of a tafsir pack.
+const tafsirPackFileName = 'tafsir.sqlite';
+
+/// The one data file of a recitation pack.
+const recitationPackFileName = 'recitation.sqlite';
+
+/// What the format says of each kind: its one data file, the first format
+/// version that has it, and the source roles its manifest may name, the
+/// first of them required.
+const _kinds = {
+  PackKind.text: (
+    file: textPackFileName,
+    since: 1,
+    roles: [SourceRole.text, SourceRole.editionMap, SourceRole.searchForms],
+  ),
+  PackKind.tafsir: (
+    file: tafsirPackFileName,
+    since: 2,
+    roles: [SourceRole.tafsir],
+  ),
+  PackKind.recitation: (
+    file: recitationPackFileName,
+    since: 2,
+    roles: [SourceRole.recitation],
+  ),
+};
+
+const _roleNames = {
+  'text': SourceRole.text,
+  'edition_map': SourceRole.editionMap,
+  'search_forms': SourceRole.searchForms,
+  'tafsir': SourceRole.tafsir,
+  'recitation': SourceRole.recitation,
+};
 
 /// Parses the exact bytes of `manifest.json` (docs/CONTENT_PACKS.md,
 /// "Manifest"): UTF-8 without a byte order mark, every field present, no
@@ -38,7 +78,7 @@ Result<PackManifest> parsePackManifest(
     return Failure(ManifestUnreadable(pack, 'format is not holyquran-pack'));
   }
   if (json['format_version'] case final int version
-      when version != supportedPackFormatVersion) {
+      when !supportedPackFormatVersions.contains(version)) {
     return Failure(UnsupportedPackFormat(pack, version));
   } else if (json['format_version'] is! int) {
     return Failure(UnsupportedPackFormat(pack, null));
@@ -51,7 +91,21 @@ Result<PackManifest> parsePackManifest(
 }
 
 PackManifest _manifest(_Object json) {
-  json.expectKeys(const {
+  final formatVersion = json.integer('format_version');
+  final kind = switch (json.string('kind')) {
+    'text' => PackKind.text,
+    'tafsir' => PackKind.tafsir,
+    'recitation' => PackKind.recitation,
+    _ => throw const _Invalid('kind is not a known kind'),
+  };
+  final (:file, :since, :roles) = _kinds[kind]!;
+  if (formatVersion < since) {
+    throw _Invalid(
+      'kind ${kind.name} is not a kind of format version $formatVersion',
+    );
+  }
+  final isText = kind == PackKind.text;
+  json.expectKeys({
     'format',
     'format_version',
     'id',
@@ -59,45 +113,57 @@ PackManifest _manifest(_Object json) {
     'version',
     'changelog',
     'riwaya',
-    'edition',
-    'font',
     'sources',
     'files',
-    'surah_sha256',
     'counts',
     'reviews',
+    if (isText) ...{'edition', 'font', 'surah_sha256'},
   });
-  final kind = switch (json.string('kind')) {
-    'text' => PackKind.text,
-    _ => throw const _Invalid('kind is not a known kind'),
-  };
   final riwaya = json.nullableString('riwaya');
-  if (kind == PackKind.text && riwaya == null) {
-    throw const _Invalid('riwaya of a text pack is null');
-  }
-  if (riwaya != null && !QuranAddress.riwayaPattern.hasMatch(riwaya)) {
+  if (riwaya == null) throw _Invalid('riwaya of a ${kind.name} pack is null');
+  if (!QuranAddress.riwayaPattern.hasMatch(riwaya)) {
     throw _Invalid(
       'riwaya is not of the form ${QuranAddress.riwayaPattern.pattern}',
     );
   }
-  final counts = _counts(json.object('counts'));
+  final counts = switch (kind) {
+    PackKind.text => _counts(json.object('counts'), formatVersion),
+    PackKind.tafsir => _tafsirCounts(json.object('counts')),
+    PackKind.recitation => _recitationCounts(json.object('counts')),
+  };
   final files = [for (final file in json.objects('files')) _file(file)];
-  if (kind == PackKind.text &&
-      (files.length != 1 || files.single.name != textPackFileName)) {
-    throw const _Invalid(
-      'files of a text pack is not exactly $textPackFileName',
-    );
+  if (files.length != 1 || files.single.name != file) {
+    throw _Invalid('files of a ${kind.name} pack is not exactly $file');
   }
   final sources = [
     for (final source in json.objects('sources')) _source(source),
   ];
   if (sources.isEmpty) throw const _Invalid('sources is empty');
-  if (kind == PackKind.text &&
-      !sources.any((source) => source.role == SourceRole.text)) {
-    throw const _Invalid('sources of a text pack has no text source');
+  for (final source in sources) {
+    if (!roles.contains(source.role)) {
+      throw _Invalid(
+        'sources of a ${kind.name} pack name the role ${source.role.name}',
+      );
+    }
+  }
+  if (!sources.any((source) => source.role == roles.first)) {
+    throw _Invalid(
+      'sources of a ${kind.name} pack has no ${roles.first.name} source',
+    );
+  }
+  if (counts case PackCounts(:final searchForms)) {
+    final named = sources.any(
+      (source) => source.role == SourceRole.searchForms,
+    );
+    if (named && searchForms.isEmpty) {
+      throw const _Invalid('a search_forms source with no forms counted');
+    }
+    if (!named && searchForms.isNotEmpty) {
+      throw const _Invalid('search forms counted with no search_forms source');
+    }
   }
   return PackManifest(
-    formatVersion: json.integer('format_version'),
+    formatVersion: formatVersion,
     id: json.string('id'),
     kind: kind,
     version: json.positive('version'),
@@ -105,11 +171,17 @@ PackManifest _manifest(_Object json) {
       for (final change in json.objects('changelog')) _change(change),
     ],
     riwaya: riwaya,
-    edition: json.string('edition'),
-    font: _font(json.object('font')),
+    edition: isText ? json.string('edition') : null,
+    font: isText ? _font(json.object('font')) : null,
     sources: sources,
     files: files,
-    surahSha256: _surahSha256(json.object('surah_sha256'), counts.surahs),
+    surahSha256: switch (counts) {
+      PackCounts(:final surahs) => _surahSha256(
+        json.object('surah_sha256'),
+        surahs,
+      ),
+      _ => null,
+    },
     counts: counts,
     reviews: [for (final review in json.objects('reviews')) _review(review)],
   );
@@ -148,11 +220,9 @@ PackSource _source(_Object json) {
     'licence',
   });
   return PackSource(
-    role: switch (json.string('role')) {
-      'text' => SourceRole.text,
-      'edition_map' => SourceRole.editionMap,
-      _ => throw _Invalid('${json.path}.role is not text or edition_map'),
-    },
+    role:
+        _roleNames[json.string('role')] ??
+        (throw _Invalid('${json.path}.role is not a known role')),
     registryRow: json.positive('registry_row'),
     name: json.string('name'),
     publisher: json.string('publisher'),
@@ -220,28 +290,59 @@ Map<int, String> _surahSha256(_Object json, int surahs) {
   return {for (var n = 1; n <= surahs; n++) n: json.hash('$n')};
 }
 
-PackCounts _counts(_Object json) {
-  json.expectKeys(const {
+PackCounts _counts(_Object json, int formatVersion) {
+  json.expectKeys({
     'surahs',
     'ayat',
     'words',
     'marks',
     'divisions',
     'sajdas',
+    if (formatVersion >= 2) 'search_forms',
   });
   final divisions = json.object('divisions')
     ..expectKeys({for (final division in Division.values) division.name});
+  final words = json.count('words');
   return PackCounts(
     surahs: json.count('surahs'),
     ayat: json.count('ayat'),
-    words: json.count('words'),
+    words: words,
     marks: json.count('marks'),
     divisions: {
       for (final division in Division.values)
         division: divisions.count(division.name),
     },
     sajdas: json.count('sajdas'),
+    searchForms: formatVersion >= 2
+        ? _searchFormCounts(json.object('search_forms'), words)
+        : const {},
   );
+}
+
+/// One form per word for each kind: every count equals [words].
+Map<String, int> _searchFormCounts(_Object json, int words) {
+  for (final kind in json.keys) {
+    if (!SearchForm.kindPattern.hasMatch(kind)) {
+      throw _Invalid(
+        '${json.path} has the kind $kind, not of the form '
+        '${SearchForm.kindPattern.pattern}',
+      );
+    }
+    if (json.count(kind) != words) {
+      throw _Invalid('${json.path}.$kind is not counts.words');
+    }
+  }
+  return {for (final kind in json.keys) kind: words};
+}
+
+TafsirCounts _tafsirCounts(_Object json) {
+  json.expectKeys(const {'passages'});
+  return TafsirCounts(passages: json.positive('passages'));
+}
+
+RecitationCounts _recitationCounts(_Object json) {
+  json.expectKeys(const {'files'});
+  return RecitationCounts(files: json.positive('files'));
 }
 
 PackReview _review(_Object json) {
@@ -266,6 +367,8 @@ final class _Object {
 
   final Map<String, Object?> _map;
   final String path;
+
+  Iterable<String> get keys => _map.keys;
 
   static final _hash = RegExp(r'^[0-9a-f]{64}$');
   static final _date = RegExp(r'^([0-9]{4})-([0-9]{2})-([0-9]{2})$');
