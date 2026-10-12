@@ -32,7 +32,7 @@ lead commits, pushes and edits `docs/`.
 | --- | --- | --- |
 | `flutter-architect` | Turns requirements into a file-level plan that fits the architecture | None |
 | `data-builder` | Domain models, use cases, repositories, services, pack reading, user database | `lib/domain`, `lib/data`, `lib/utils`, and the tests that mirror them; files under `lib/config/` and `testing/` that a task hands over |
-| `ui-builder` | Design-system widgets, screens, view models, routes, strings | `lib/ui`, `lib/routing`, `lib/l10n`, and the tests that mirror them |
+| `ui-builder` | Design-system widgets, screens, view models, routes, strings | `lib/ui`, `lib/routing`, `lib/l10n`, and the tests that mirror them; in an agent run, every file its task text lists as its own |
 | `audio-builder` | Playback plan, audio engine, background playback, audio–text sync | The audio files named in its brief, across `lib/domain`, `lib/data` and their tests; native audio settings in `android/` and `ios/` when the brief names them |
 | `content-engineer` | Generators for tokens and icons in `tools/gen/`; the pack pipeline in `tools/packs/` when a session works on stream B | `tools/` |
 | `test-engineer` | Integration tests, guard tests, the integrity suite, shared fakes; test gaps named in its brief | `integration_test/`, `testing/`, `test/guards`, `test/integrity` |

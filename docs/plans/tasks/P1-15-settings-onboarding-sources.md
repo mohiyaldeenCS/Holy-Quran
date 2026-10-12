@@ -1,6 +1,7 @@
 # P1-15 — Settings, first-run setup, report sheet, More hub (M1.1)
 
-Wave 2 · Agent `ui-builder` · Key 1 · Cap $25 · Base `main` · Needs: P1-01, P1-04.
+Wave 2 · Agent `ui-builder` · Key 1 · Cap $25 · Base `main` · Needs: P1-01, P1-04,
+P1-05, P1-07.
 
 ## Why
 
@@ -40,8 +41,9 @@ tokens by `docs/DESIGN_SYSTEM.md`, "Building a screen the identity does not draw
    off until the keys exist, and report.
 4. Report sheet (`/sheet/report/:address`, with an optional `pack` query naming the
    pack of a reported entry, such as a tafsir passage): it shows what is reported,
-   the ayah by `SurahName` and its number, and for an entry the pack's name and
-   version from its manifest, and its view model composes the report as data
+   the ayah by `SurahName` (the name from P1-05's index) and its number, and for an
+   entry the pack's `id` and `version` and its first `sources[].name`, read from the
+   installed pack's manifest (P1-07's installed list), and its view model composes the report as data
    (address, pack id and version). Two things are the owner's and wait for him
    (`docs/plans/PHASE1.md` §9): where reports go and by which channel, so leave the
    send action out; and where the identity places the entry on the ayah toolbar,
@@ -61,7 +63,7 @@ The theme and level apply at once and survive a restart (fake repository); chang
 the level touches no data; follow-system in `paper`, `sepia` and `contrast` (D-053);
 no sign-in gate anywhere and no network call from these screens; the first-run redirect when
 enabled; a step with no choice is skipped and the sequence finishes; the report
-sheet shows the address and the pack's name and version unchanged. Golden tests of the settings screen in four themes.
+sheet shows the address and the pack's id, version and source name unchanged. Golden tests of the settings screen in four themes.
 
 ## Acceptance
 

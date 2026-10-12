@@ -27,8 +27,9 @@ page cites (`git show <sha>:spike/s5/…`; if the commit is missing, work from t
 2. `lib/data/services/connectivity_service.dart` (`connectivity_plus`): the "waiting
    for Wi-Fi" signal the downloader lacks.
 3. `lib/data/services/free_space_service.dart`: free space by the means the lead
-   chose in step 0 (`docs/DECISIONS.md`); if none was chosen, the interface only, and
-   say so.
+   chose in step 0 (`disk_space_2`'s `getFreeDiskSpaceForPath`, D-124). Create the
+   packs directory before asking; a failure, `null` or `0` is "unknown", never
+   "low", so it cannot stop the queue by mistake.
 4. `lib/data/services/installed_packs_store.dart` (named outside `pack_*.dart`, the
    pack-write guard): `<application support>/packs/<id>/<version>/`, one
    `active.json` per pack id replaced by rename, the previous version kept.

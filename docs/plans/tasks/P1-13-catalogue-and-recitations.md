@@ -28,7 +28,8 @@ installer of P1-07.
    repository's GitHub Releases (O-08, D-109); the lead gives its exact URL when the
    first test pack is published, so leave the address empty until then (state "not
    configured"). Release download URLs redirect to GitHub's storage host: follow
-   `https` redirects only. The catalogue is signed in CI like the packs (O-03);
+   `https` redirects only. The catalogue will be signed in CI like the packs (O-03) once `tools/packs` can
+   verify a catalogue (`docs/plans/PHASE1.md` §3.1);
    verify the signature with P1-05's verifier and the same policy as P1-07, keep the
    last good catalogue on disk for offline use, and join it with the installed packs
    into a resource state (available, downloading with percent, downloaded, update
