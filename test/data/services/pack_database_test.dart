@@ -790,6 +790,27 @@ void main() {
       },
     );
 
+    test('a search form kind that is not UTF-8 is refused', () async {
+      final writable = sqlite3.open(pack.textFile.path);
+      try {
+        writable.execute(
+          'UPDATE search_form SET kind = CAST(? AS TEXT) '
+          "WHERE surah = 3 AND word = 1 AND kind = 'synthetic-plain'",
+          [
+            Uint8List.fromList([0x61, 0xC3]),
+          ],
+        );
+      } finally {
+        writable.close();
+      }
+      final db = openV2(pack);
+      expect(db.searchForms(1, riwaya: 'hafs'), isNotEmpty);
+      expect(
+        () => db.searchForms(3, riwaya: 'hafs'),
+        throwsFailure<UnsupportedPackFormat>((f) => f.pack, pack.textFile.path),
+      );
+    });
+
     test('a search form kind of another form is inconsistent', () async {
       final writable = sqlite3.open(pack.textFile.path);
       try {

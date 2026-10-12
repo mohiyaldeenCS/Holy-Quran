@@ -785,7 +785,7 @@ void main() {
               (json) => (json['sources']! as List<Object?>).removeLast(),
             ),
           ),
-          unreadable,
+          unreadableBecause('search forms counted with no search_forms source'),
         );
         expect(
           parse(
@@ -794,7 +794,7 @@ void main() {
               (json) => json.at(['counts'])['search_forms'] = <String, int>{},
             ),
           ),
-          unreadable,
+          unreadableBecause('a search_forms source with no forms counted'),
         );
       },
     );

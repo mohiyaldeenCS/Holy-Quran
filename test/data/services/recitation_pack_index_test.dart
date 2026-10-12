@@ -130,6 +130,7 @@ void main() {
     for (final fault in [
       SyntheticRecitationFault.zeroBytes,
       SyntheticRecitationFault.upperCaseHash,
+      SyntheticRecitationFault.parentPath,
     ]) {
       test('the fault ${fault.name}', () async {
         final index = await faulty(fault);

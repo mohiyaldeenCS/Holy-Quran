@@ -170,11 +170,14 @@ final class PackSqliteFile {
 
   void close() => _db.close();
 
-  /// The rows of a query. A query SQLite refuses is [UnsupportedPackFormat].
+  /// The rows of a query. A query SQLite refuses, or a text column read as a
+  /// plain string that is not UTF-8, is [UnsupportedPackFormat].
   List<PackRow> select(String sql, [List<Object?> parameters = const []]) {
     try {
       return [for (final row in _db.select(sql, parameters)) PackRow._(row)];
     } on SqliteException {
+      unsupported();
+    } on FormatException {
       unsupported();
     }
   }

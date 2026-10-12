@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -92,6 +93,31 @@ void main() {
     return check(pack);
   }
 
+  test('the riwaya check finds a text pack of another riwaya', () async {
+    final other = await Directory(
+      '${root.path}/warsh/text/1',
+    ).create(recursive: true);
+    await File('$textPack/$textFileName').copy('${other.path}/$textFileName');
+    final manifest =
+        jsonDecode(await File('$textPack/$manifestFileName').readAsString())
+            as Map<String, Object?>;
+    await File(
+      '${other.path}/$manifestFileName',
+    ).writeAsString(jsonEncode({...manifest, 'riwaya': 'warsh'}));
+    final tafsir = await buildSyntheticTafsirPack(
+      Directory('${root.path}/tafsir-warsh'),
+    );
+    final pack = await PackFileUnderTest.load(
+      tafsir.directory.path,
+      tafsirFileName,
+      textPackDirectory: other.path,
+    );
+    addTearDown(pack.close);
+    expect(await textRiwayaProblems(pack), [
+      'the text pack is of riwaya warsh, not hafs',
+    ]);
+  });
+
   group('the tafsir checks find the fault', () {
     final checks = <SyntheticTafsirFault, PackFileCheck>{
       SyntheticTafsirFault.overlappingPassages: tafsirRangeProblems,
@@ -131,6 +157,7 @@ void main() {
       SyntheticRecitationFault.fileOutsideText: recitationTextProblems,
       SyntheticRecitationFault.wrongFileCount: recitationFileProblems,
       SyntheticRecitationFault.insecureBaseUrl: recitationFactsProblems,
+      SyntheticRecitationFault.parentPath: recitationFileProblems,
     };
     test('every fault has a check', () {
       expect(checks.keys.toSet(), SyntheticRecitationFault.values.toSet());

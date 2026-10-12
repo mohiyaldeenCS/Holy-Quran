@@ -10,7 +10,8 @@ import '../../utils/result.dart';
 /// The pack format versions this app reads (docs/CONTENT_PACKS.md).
 const supportedPackFormatVersions = {1, 2};
 
-/// The newest of [supportedPackFormatVersions].
+/// The newest of [supportedPackFormatVersions]. Kept while code written
+/// against format 1, when it was the only version, merges.
 const supportedPackFormatVersion = 2;
 
 /// The one data file of a text pack.
@@ -150,13 +151,16 @@ PackManifest _manifest(_Object json) {
       'sources of a ${kind.name} pack has no ${roles.first.name} source',
     );
   }
-  if (counts case PackCounts(:final searchForms)
-      when searchForms.isEmpty ==
-          sources.any((source) => source.role == SourceRole.searchForms)) {
-    throw const _Invalid(
-      'sources names a search_forms source exactly when counts.search_forms '
-      'should list none',
+  if (counts case PackCounts(:final searchForms)) {
+    final named = sources.any(
+      (source) => source.role == SourceRole.searchForms,
     );
+    if (named && searchForms.isEmpty) {
+      throw const _Invalid('a search_forms source with no forms counted');
+    }
+    if (!named && searchForms.isNotEmpty) {
+      throw const _Invalid('search forms counted with no search_forms source');
+    }
   }
   return PackManifest(
     formatVersion: formatVersion,

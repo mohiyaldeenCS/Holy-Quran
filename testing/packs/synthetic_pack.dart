@@ -388,8 +388,19 @@ Future<SyntheticPack> buildSyntheticPack(
     if (searchFormFault == SyntheticSearchFormFault.unlistedKind)
       unlistedSearchFormKind,
   ]);
-  if (searchFormFault == SyntheticSearchFormFault.missing) {
-    searchForms.removeAt(0);
+  switch (searchFormFault) {
+    case SyntheticSearchFormFault.missing:
+      searchForms.removeAt(0);
+    case SyntheticSearchFormFault.empty:
+      final first = searchForms.first;
+      searchForms[0] = (
+        surah: first.surah,
+        ayah: first.ayah,
+        word: first.word,
+        kind: first.kind,
+        form: '',
+      );
+    default:
   }
   _writeDatabase(
     textFile,

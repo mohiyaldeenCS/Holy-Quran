@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 
 import 'raw_pack.dart';
 import 'synthetic_files.dart';
+import 'synthetic_pack.dart' show defaultSyntheticSurahs;
 
 const recitationFileName = 'recitation.sqlite';
 
@@ -38,9 +39,6 @@ final class SyntheticRecitationFile {
   final int? durationMs;
 }
 
-/// The ayah counts of the surahs of the default synthetic text pack.
-const defaultSyntheticAyahCounts = [4, 3, 1];
-
 /// One defect, applied to an otherwise valid recitation pack.
 enum SyntheticRecitationFault {
   /// The first file has 0 bytes.
@@ -64,6 +62,9 @@ enum SyntheticRecitationFault {
 
   /// The base URL is `http`.
   insecureBaseUrl,
+
+  /// The first file's path climbs out of the base URL with `..`.
+  parentPath,
 }
 
 final class SyntheticRecitationPack {
@@ -141,17 +142,21 @@ SyntheticRecitationFile _file(
 
 /// Builds `<root>/<id>/<version>/` with `recitation.sqlite` and
 /// `manifest.json` for a recitation by [unit] (`ayah` or `surah`) over
-/// surahs of [ayahCounts], in two qualities. The higher quality also has the
+/// surahs of [ayahCounts], by default those of the default synthetic text
+/// pack, in two qualities. The higher quality also has the
 /// reciter's basmala and isti'adha; one file states no duration. Then
 /// applies [fault], if any.
 Future<SyntheticRecitationPack> buildSyntheticRecitationPack(
   Directory root, {
   String unit = 'ayah',
-  List<int> ayahCounts = defaultSyntheticAyahCounts,
+  List<int>? ayahCounts,
   SyntheticRecitationFault? fault,
   String id = 'synthetic-recitation',
   int version = 1,
 }) async {
+  ayahCounts ??= [
+    for (final surah in defaultSyntheticSurahs) surah.ayat.length,
+  ];
   const qualities = [64, 128];
   final files = [
     for (final quality in qualities) ...[
@@ -177,12 +182,13 @@ Future<SyntheticRecitationPack> buildSyntheticRecitationPack(
     SyntheticRecitationFile file, {
     int? bytes,
     String? sha256,
+    String? path,
   }) => SyntheticRecitationFile(
     qualityKbps: file.qualityKbps,
     part: file.part,
     surah: file.surah,
     ayah: file.ayah,
-    path: file.path,
+    path: path ?? file.path,
     audio: file.audio,
     bytes: bytes ?? file.bytes,
     sha256: sha256 ?? file.sha256,
@@ -191,6 +197,8 @@ Future<SyntheticRecitationPack> buildSyntheticRecitationPack(
   switch (fault) {
     case SyntheticRecitationFault.zeroBytes:
       files[0] = edited(files[0], bytes: 0);
+    case SyntheticRecitationFault.parentPath:
+      files[0] = edited(files[0], path: '../${files[0].path}');
     case SyntheticRecitationFault.upperCaseHash:
       files[0] = edited(files[0], sha256: files[0].sha256.toUpperCase());
     case SyntheticRecitationFault.duplicateBasmala:

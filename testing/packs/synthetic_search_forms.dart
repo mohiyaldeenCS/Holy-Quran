@@ -16,6 +16,9 @@ enum SyntheticSearchFormFault {
   /// Every word also has a form of [unlistedSearchFormKind], which the
   /// manifest does not list.
   unlistedKind,
+
+  /// The first search form is stored empty.
+  empty,
 }
 
 /// The kind [SyntheticSearchFormFault.unlistedKind] adds.

@@ -61,7 +61,7 @@ final class PackManifest {
   final int version;
   final List<PackChange> changelog;
 
-  /// Null for a pack to which no riwaya applies.
+  /// Set for every kind the parser reads; nullable as it was in format 1.
   final String? riwaya;
   final String? _edition;
   final PackFont? _font;

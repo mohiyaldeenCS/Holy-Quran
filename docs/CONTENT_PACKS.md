@@ -301,7 +301,7 @@ pipeline from `docs/SOURCES.md`; this format fixes no row number.
 ```json
 {"format": "holyquran-pack", "format_version": 2, "id": "<tafsir id>", "kind": "tafsir",
  "version": 1, "changelog": [], "riwaya": "hafs",
- "sources": [{"role": "tafsir", "registry_row": 0, "...": "the fields of format 1"}],
+ "sources": [{"role": "tafsir", "registry_row": "<row>", "...": "the fields of format 1"}],
  "files": [{"name": "tafsir.sqlite", "sha256": "<hex>", "bytes": 0}],
  "counts": {"passages": 0}, "reviews": []}
 ```
@@ -417,11 +417,13 @@ CREATE TABLE file (
 ### Verification by kind
 
 Steps 1 to 4 of "Verification order in the app" apply to every kind, with the schema
-of that kind and version. Step 5 for a format 2 text pack also compares the search
-form rows of each kind with `counts.search_forms`. Steps 5 and 6 for the other kinds:
-a tafsir pack's passage count, numbering and ranges, and a recitation pack's file
-count and rows, are checked by their repositories on first read in a session. The
-integrity suite checks all of it at acceptance:
+of that kind and version. Step 5 for a format 2 text pack is to compare the search
+form rows of each kind with `counts.search_forms`; the text repository does not do it
+yet (pending its owner's change). Steps 5 and 6 for the other kinds, a tafsir pack's
+passage count, numbering and ranges and a recitation pack's file count and rows, are
+for their repositories on first read in a session (P1-13, P1-20). The readers already
+refuse overlapping passages, reversed ranges and malformed file rows as they read
+them. The integrity suite checks all of it at acceptance:
 
 ```
 flutter test test/integrity --dart-define=HOLYQURAN_PACK_DIR=<pack-id/version> \

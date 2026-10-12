@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -23,6 +24,7 @@ final class PackFileUnderTest {
     this._raw,
     this._rawError,
     this.text,
+    this.textRiwaya,
   );
 
   static Future<PackFileUnderTest> load(
@@ -51,6 +53,14 @@ final class PackFileUnderTest {
       textPackDirectory == null
           ? null
           : RawPack.open(File('$textPackDirectory/$textFileName')),
+      textPackDirectory == null
+          ? null
+          : switch (jsonDecode(
+              await File('$textPackDirectory/manifest.json').readAsString(),
+            )) {
+              {'kind': 'text', 'riwaya': final String riwaya} => riwaya,
+              _ => null,
+            },
     );
   }
 
@@ -62,6 +72,9 @@ final class PackFileUnderTest {
 
   /// The text pack of the same riwaya, when one was given.
   final RawPack? text;
+
+  /// The riwaya the text pack's manifest names, when it is a text pack.
+  final String? textRiwaya;
   final _closers = <void Function()>[];
 
   VerifiedPack get verified => switch (verification) {
@@ -93,6 +106,11 @@ final class PackFileUnderTest {
 }
 
 typedef PackFileCheck = Future<List<String>> Function(PackFileUnderTest pack);
+
+Future<List<String>> textRiwayaProblems(PackFileUnderTest pack) async {
+  final (text, own) = (pack.textRiwaya, pack.manifest.riwaya);
+  return [if (text != own) 'the text pack is of riwaya $text, not $own'];
+}
 
 /// Defines the tests of [checks] for the pack in the directory
 /// [packDirectory] completes with, its data file [fileName]. The checks of
@@ -134,7 +152,11 @@ void definePackFileSuite(
     for (final MapEntry(key: name, value: check) in checks.entries) {
       test(name, () async => expectNoProblems(await check(pack())));
     }
-    for (final MapEntry(key: name, value: check) in textChecks.entries) {
+    final withText = {
+      'is checked against a text pack of its riwaya': textRiwayaProblems,
+      ...textChecks,
+    };
+    for (final MapEntry(key: name, value: check) in withText.entries) {
       test(name, () async {
         if (pack().text == null) {
           markTestSkipped('no text pack was given to check addresses against');
