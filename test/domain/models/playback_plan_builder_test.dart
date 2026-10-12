@@ -164,6 +164,11 @@ void main() {
         _ayat(FromAyahTool(_a('10:3'), AyahToolEnd.page)),
         _span('10:3', '10:4'),
       );
+      expect(
+        _ayat(FromAyahTool(_a('9:8'), AyahToolEnd.juz)),
+        ['9:8', '9:9', ..._span('10:1', '10:4')],
+        reason: 'the last juz ends with the mushaf',
+      );
     });
 
     test('a number outside the edition is refused, never clamped', () {
@@ -252,6 +257,57 @@ void main() {
       expect(
         _refusal(WholeSurah(3), recitation: _recitation(rightsComplete: false)),
         PlanRefusal.rightsIncomplete,
+      );
+    });
+
+    test('timing data is refused for a recitation served by ayah files', () {
+      expect(
+        () => _builder.build(
+          _recitation(),
+          WholeSurah(3),
+          timings: const _FakeTimings(),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('the edition and the basmala list are checked when given', () {
+      expect(
+        () => PlaybackPlanBuilder(
+          edition: _edition,
+          ayahCounts: _ayahCounts,
+          basmalaSurahs: const {11},
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => PlaybackPlanBuilder(
+          edition: EditionMap(
+            edition: 'synthetic',
+            starts: {
+              Division.page: _as('1:2 2:1'),
+              Division.juz: _as('1:1'),
+              Division.hizb: _as('1:1'),
+            },
+            sajdas: const {},
+          ),
+          ayahCounts: _ayahCounts,
+          basmalaSurahs: _basmalaSurahs,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => PlaybackPlanBuilder(
+          edition: EditionMap(
+            edition: 'synthetic',
+            starts: {Division.page: _as('1:1')},
+            sajdas: const {},
+          ),
+          ayahCounts: _ayahCounts,
+          basmalaSurahs: _basmalaSurahs,
+        ),
+        throwsArgumentError,
+        reason: 'no juz or hizb starts',
       );
     });
 
@@ -578,6 +634,16 @@ void main() {
         timings: const _FakeTimings(noBasmala: {3}),
       );
       expect(plan.segments.map((s) => s.kind).toSet(), {SegmentKind.ayah});
+    });
+
+    test('the isti\'adha file still opens a timed plan with no basmala', () {
+      final plan = _plan(
+        WholeSurah(3),
+        recitation: _recitation(unit: RecitationUnit.surah, istiadha: true),
+        timings: const _FakeTimings(noBasmala: {3}),
+      );
+      expect(_brief(plan.segments.take(2)), ['istiadha 3:1 #1', 'ayah 3:1 #1']);
+      expect(plan.segments.first.source, const IstiadhaFile());
     });
   });
 }

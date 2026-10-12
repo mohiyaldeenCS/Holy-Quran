@@ -93,8 +93,8 @@ final class _Run {
     for (var step = 0; step < limit && !rules.isStopped; step++) {
       send(
         outputs.last is SilenceStarted
-            ? const SilenceEnded()
-            : const SegmentEnded(),
+            ? SilenceEnded(rules.index)
+            : SegmentEnded(rules.index),
       );
     }
     return this;
@@ -156,20 +156,38 @@ void main() {
         silence: const Duration(seconds: 4),
       ),
     )..start();
-    run.send(const SegmentEnded());
+    run.send(const SegmentEnded(0));
     expect(run.outputs.last, isA<SilenceStarted>());
     expect(
       (run.outputs.last as SilenceStarted).duration,
       const Duration(seconds: 4),
     );
-    run.send(const SegmentEnded());
+    run.send(const SegmentEnded(0));
     expect(run.outputs.last, isA<SilenceStarted>(), reason: 'stale, ignored');
-    run.send(const SilenceEnded());
+    run.send(const SilenceEnded(0));
     expect(run.heard.last, 'ayah 2:3 #1');
-    run.send(const SilenceEnded());
+    expect(run.outputs[run.outputs.length - 2], isA<SegmentStarted>());
+    run.send(const SilenceEnded(0));
     expect(run.heard, hasLength(2), reason: 'stale, ignored');
-    run.send(const SegmentEnded());
+    run.send(const SegmentEnded(1));
     expect(run.stopped.reason, StopReason.endOfPlan);
+  });
+
+  test('a repeated or late segment end never skips a segment', () {
+    final run = _Run(_plan(AyahSpan(QuranRange(_a('2:2'), _a('2:4')))))
+      ..start();
+    run.send(const SegmentEnded(0));
+    run.send(const SegmentEnded(0));
+    expect(run.heard, ['ayah 2:2 #1', 'ayah 2:3 #1']);
+    run.send(const SegmentEnded(5));
+    expect(run.heard, hasLength(2));
+    expect(run.rules.index, 1);
+    run.send(const SegmentEnded(1));
+    expect(run.heard.last, 'ayah 2:4 #1');
+    expect(
+      [for (final o in run.outputs.whereType<SegmentStarted>()) o.index],
+      [0, 1, 2],
+    );
   });
 
   test('nothing happens before start or after a stop', () {
@@ -177,12 +195,64 @@ void main() {
       _plan(WholeSurah(1)),
       clock: () => DateTime.utc(2026),
     );
-    expect(rules.handle(const SegmentEnded()), isEmpty);
+    expect(rules.handle(const SegmentEnded(-1)), isEmpty);
+    expect(rules.handle(const SegmentEnded(0)), isEmpty);
     rules.start();
     expect(rules.start, throwsStateError);
     expect(rules.handle(const UserStopped()), hasLength(1));
-    expect(rules.handle(const SegmentEnded()), isEmpty);
+    expect(rules.handle(const SegmentEnded(0)), isEmpty);
     expect(rules.handle(const UserStopped()), isEmpty);
+  });
+
+  test('shows the next segment for preloading (AU-12)', () {
+    final rules = PlaybackRules(
+      _plan(AyahSpan(QuranRange(_a('2:2'), _a('2:3')))),
+      clock: () => DateTime.utc(2026),
+    );
+    expect(rules.upcoming?.address, _a('2:2'));
+    rules.start();
+    expect((rules.index, rules.current?.address), (0, _a('2:2')));
+    expect(rules.upcoming?.address, _a('2:3'));
+    rules.handle(const SegmentEnded(0));
+    expect(rules.upcoming, isNull);
+  });
+
+  test('starts at a given segment of the plan', () {
+    final plan = _plan(AyahSpan(QuranRange(_a('2:2'), _a('2:4'))));
+    final rules = PlaybackRules(
+      plan,
+      clock: () => DateTime.utc(2026),
+      startAt: 2,
+    );
+    final started = rules.start().first as SegmentStarted;
+    expect((started.index, started.segment.address), (2, _a('2:4')));
+    expect(
+      PlaybackRules(plan, clock: () => DateTime.utc(2026), startAt: 3).start(),
+      [isA<PlaybackStopped>()],
+    );
+    expect(
+      () => PlaybackRules(plan, clock: () => DateTime.utc(2026), startAt: -1),
+      throwsRangeError,
+    );
+  });
+
+  test('a hand-over keeps the sleep deadline and the stop-after', () {
+    final clock = _Clock();
+    final first = PlaybackRules(_plan(WholeSurah(2)), clock: clock.call)
+      ..sleepTimer = SleepAfter(5)
+      ..stopAfter = StopAfter.page
+      ..start();
+    clock.advance(const Duration(minutes: 3, seconds: 12));
+    final next = first.handOver(_plan(WholeSurah(1)), startAt: 1);
+    expect(next.sleepRemaining, const Duration(minutes: 1, seconds: 48));
+    expect(next.stopAfter, StopAfter.page);
+    expect((next.start().first as SegmentStarted).segment.address, _a('1:2'));
+
+    final whole = first.handOver(
+      _plan(SurahSet(const [1, 2]), unit: RecitationUnit.surah),
+    );
+    expect(whole.stopAfter, isNull, reason: 'no page end in whole surahs');
+    expect(whole.sleepTimer, SleepAfter(5));
   });
 
   group('sleep timer (AU-07)', () {
@@ -200,7 +270,7 @@ void main() {
       clock.advance(const Duration(minutes: 4));
       expect(rules.sleepRemaining, const Duration(minutes: 1));
       expect(rules.handle(const SleepTimerFired()), isEmpty);
-      expect(rules.handle(const SegmentEnded()).first, isA<SegmentStarted>());
+      expect(rules.handle(const SegmentEnded(0)).first, isA<SegmentStarted>());
       clock.advance(const Duration(minutes: 1));
       expect(rules.sleepRemaining, Duration.zero);
       final stopped = rules.handle(const SleepTimerFired()).single;
@@ -209,6 +279,27 @@ void main() {
       expect(stopped.reason, StopReason.sleepTimer);
       expect(stopped.fade, isTrue);
       expect(rules.sleepRemaining, isNull);
+      expect(rules.sleepTimer, isNull);
+    });
+
+    test('fired during a silence, it stops without a fade', () {
+      final clock = _Clock();
+      final rules =
+          PlaybackRules(
+              _plan(
+                AyahSpan(QuranRange(_a('2:2'), _a('2:3'))),
+                silence: const Duration(seconds: 30),
+              ),
+              clock: clock.call,
+            )
+            ..sleepTimer = SleepAfter(5)
+            ..start();
+      expect(rules.handle(const SegmentEnded(0)).single, isA<SilenceStarted>());
+      clock.advance(const Duration(minutes: 5));
+      final stopped =
+          rules.handle(const SleepTimerFired()).single as PlaybackStopped;
+      expect(stopped.reason, StopReason.sleepTimer);
+      expect(stopped.fade, isFalse);
     });
 
     test('a late timer is caught at the next segment end or silence end', () {
@@ -219,22 +310,21 @@ void main() {
         ..start();
       clock.advance(const Duration(minutes: 6));
       expect(
-        (atSegment.handle(const SegmentEnded()).single as PlaybackStopped)
+        (atSegment.handle(const SegmentEnded(0)).single as PlaybackStopped)
             .reason,
         StopReason.sleepTimer,
       );
       final atSilence = PlaybackRules(plan, clock: clock.call)
         ..sleepTimer = SleepAfter(5)
         ..start()
-        ..handle(const SegmentEnded())
-        ..handle(const SilenceEnded());
+        ..handle(const SegmentEnded(0));
       expect(
-        atSilence.handle(const SegmentEnded()).single,
+        atSilence.handle(const SegmentEnded(1)).single,
         isA<SilenceStarted>(),
       );
       clock.advance(const Duration(minutes: 5));
       expect(
-        (atSilence.handle(const SilenceEnded()).single as PlaybackStopped)
+        (atSilence.handle(const SilenceEnded(1)).single as PlaybackStopped)
             .reason,
         StopReason.sleepTimer,
       );
@@ -282,9 +372,9 @@ void main() {
 
     test('set while playing, it applies from the current segment', () {
       final run = _Run(plan)..start();
-      run.send(const SegmentEnded());
+      run.send(const SegmentEnded(0));
       run.rules.stopAfter = StopAfter.ayah;
-      run.send(const SegmentEnded());
+      run.send(const SegmentEnded(1));
       expect(run.followed, ['1:2', '1:3']);
       expect(run.stopped.reason, StopReason.stopAfter);
     });

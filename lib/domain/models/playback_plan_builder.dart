@@ -38,6 +38,13 @@ final class PlaybackPlanBuilder {
     if (_ayahCounts.isEmpty || _ayahCounts.any((count) => count < 1)) {
       throw ArgumentError.value(ayahCounts, 'ayahCounts');
     }
+    if (_basmalaSurahs.any((surah) => surah < 1 || surah > _surahCount)) {
+      throw ArgumentError.value(basmalaSurahs, 'basmalaSurahs');
+    }
+    final first = edition.startOf(Division.page, 1);
+    if (first.surah != 1 || first.ayah != 1) {
+      throw ArgumentError.value(first, 'edition', 'must start at ayah 1:1');
+    }
   }
 
   static const maxSilence = Duration(seconds: 30);
@@ -53,7 +60,7 @@ final class PlaybackPlanBuilder {
   /// [continueToNextSurah] applies to a [WholeSurah] request only: the
   /// surahs after it follow, each with the same [repeat], up to the last
   /// surah (`AU-04`). [timings] gives ayah boundaries to a recitation served
-  /// by surah files.
+  /// by surah files; one served by ayah files takes none.
   PlanOutcome build(
     Recitation recitation,
     PlaybackRange range, {
@@ -68,6 +75,9 @@ final class PlaybackPlanBuilder {
         'recitation',
         'is not in riwaya $_riwaya',
       );
+    }
+    if (timings != null && recitation.unit == RecitationUnit.ayah) {
+      throw ArgumentError.value(timings, 'timings', 'needs surah files');
     }
     if (silence.isNegative || silence > maxSilence) {
       throw RangeError.value(silence.inMilliseconds, 'silence');
