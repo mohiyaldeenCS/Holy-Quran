@@ -12,7 +12,7 @@ corrected first.
 | Phase | 0 — Foundation. Gate 0 not met |
 | Stream A — app | M0.1, M0.2 and M0.3 merged, with human checks pending (pull requests #2, #3 and #4). **M0.4 part 1** merged as partial (pull request #6): spikes S1, S5 and the S3 playback part are done on Linux and await the owner's device run. **M0.5** merged (pull request #10): the remaining design-system widgets; the owner confirmed D-089 and D-091 on 2026-10-11; human checks pending. Next: M0.4 part 2 (S4, S7) |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | `ci/agent-workflow`, pull request #13: the agent workflow of D-092. Implementation now runs as agent tasks in GitHub Actions on `agent/*` branches, started by the owner |
+| Working branch | `claude/great-hamilton-9n23mt`: **M0.4 part 2** (plan `docs/plans/M0.4-part2.md`, D-093). The spike code is restored there; its tasks run as agents (D-092) on `agent/*` branches with this branch as `base`. The owner has delegated all work, merges included, while he is away (D-093) |
 | Last session | Implementing session, 2026-10-11, from two accounts: the first built M0.5 steps 0a, A, B and D; the second took the branch over mid-milestone, finished batch C and steps E to G, and applied two rounds of review (#10). Before it, planning session: books 473 and 440 (#11) |
 
 ## What is in the repository
@@ -179,14 +179,23 @@ raw extraction output; signing keys. The 13 logo SVG files are in
 
 ## In progress
 
-Stream A: the agent workflow (D-092, pull request #13) waits for the owner's merge; it
-appears in the Actions tab only once it is on `main`. Then: one trial run on each key
-with a small cap, and M0.4 part 2 (S7 gestures, S4 home-screen widget, the S1 rerun on
-the D-079 file) split into agent tasks whose files do not overlap. M0.4 part 1 and M0.5
-still wait on the owner's device run and his look at the gallery images.
+**M0.4 is complete** (part 2 on `claude/great-hamilton-9n23mt`, pull request #14). The
+owner ran the device session on 2026-10-12 with the APK of CI run 38190527706 and
+reported every check done and ready (no measurements sent); D-096 and D-097 close S4
+and S7. The spike code is deleted in the cleanup commit; the last commit holding it is
+`25d684c`. The M0.4 part 1 and M0.5 device checks were covered by the same session.
 
-Stream B: the owner is extracting book 466 (التهذيب في التفسير, about 7,325 site
-pages). Nothing else is open in stream B.
+**Phase 1 is open (D-099).** An agent run on key 1 is writing `docs/plans/PHASE1.md`
+and one task file per agent task under `docs/plans/tasks/`; the lead dispatches the
+waves from those files, two or more runs per key, merging each pull request when its
+in-run reviews and CI pass. Requirements whose registry rows are not `Ready` stay
+unbuilt.
+
+Agent runs so far (estimates from the SDK): about $160 across both keys for M0.4
+part 2 and B0.11.
+
+Stream B: the owner is extracting book 466. B0.11 (the pack pipeline) is on `main`
+(D-098).
 
 ## Next actions — stream A (the implementing account)
 
@@ -261,6 +270,23 @@ Open decisions that come later (full list in `docs/DECISIONS.md`):
 
 | ID | Question, as it should be put to him | Needed by |
 | --- | --- | --- |
+| M0.4-1 | «هل ثبّتَّ نسخة التجارب السابقة (CI run 68) أو بدأت تجارب الجهاز للجزء الأول؟ قد تتطلب النسخة الجديدة حذف القديمة أولًا، وهذا يمسح بيانات تجربتي S1 وS5 على الهاتف.» | The part-2 APK |
+| M0.4-2 | «ما طراز هاتفك، وإصدار أندرويد، والذاكرة، وواجهة الشاشة الرئيسية (سامسونج أو شاومي أو غيرها)، وحجم الشاشة؟» | The device run |
+| M0.4-3 | «اختبار الإيماءات: كم مشاركًا (نقترح خمسة، بينهم شخص فوق الستين وآخر يستخدم الخط الكبير)، وعلى أي هواتف، وهل تدير الاختبار بالنص العربي الذي نجهزه؟» | The S7 usability test |
+| M0.4-4 | «في الوثيقة تفتح لمسة فاصلة الآية «أدوات الآية»، وتفتح اللمسة المطوّلة «شريط أدواتها». هل هما الشريط نفسه بأفعاله الخمسة (موصى به، وبه تعمل التجربة الآن)، أم تفتح الفاصلة شيئًا آخر مثل ورقة الآية المصغّرة؟» | M1.6 (settled for the spike by the recommended option) |
+| M0.4-5 | «يشترط AX-02 ألا يقل هدف اللمس عن 48، والكلمة في النص المتدفق لا يتجاوز هدفها عرضها ونصف الفراغين حولها. هل تُستثنى الكلمات وعلامات الوقف داخل النص كما يستثنيها معيار WCAG 2.2 للأهداف داخل النص (موصى به، والتجربة تقيس الأثر)، أم يتغير تصميم الإيماءات؟» | M1.2 (settled for the spike by the recommended option) |
+| M0.4-6 | «ودجة الآية الداكنة غير مرسومة في الهوية. هل نبنيها من ألوان سمة «ليل» بالأدوار نفسها التي في ودجة الورق المرسومة (الأرضية، والإطاران، ولون النص، ولون المرجع) كما بُنيت بطاقة المشاركة الليلية (موصى به)، أم تُرسم لها نسخة في الهوية؟» | Phase 2 (settled for the spike by the recommended option, D-093) |
+| M0.4-7 | «الودجة صورة بمقاسات ثابتة كبطاقة المشاركة، فلا تكبر مع حجم الخط في النظام، والآية التي لا تتسع تُتخطى. هل تبقى كذلك (موصى به)، أم تكبر مع إعداد النظام فتقل الآيات التي تتسع لها؟» | Phase 2 (settled for the spike by the recommended option) |
+| M0.4-8 | «لا يخرج نص الآية من Dart إلى كود الودجة الأصلي (D-094)، فلا يقرأ قارئ الشاشة الآية من الودجة نفسها. هل يكفي أن يقرأ «ودجة الآية، سورة كذا، الآية n» ثم تفتح اللمسة الآية في التطبيق (موصى به)، أم يجب أن يقرأ نص الآية؟» | Task D of M0.4 part 2 (settled for the spike by the recommended option) |
+| M0.4-9 | «في ودجة الآية: ارتفاع سطر الآية ٢٫٢ كما في بطاقات المشاركة وتُوسَّط أسطرها (موصى به، وبه تعمل التجربة)، أم ٢٫٠ كما في اللوحة مع محاذاة الأسطر إلى اليمين، وهذا يحتاج صيغة خاصة بالودجة من نص المصحف في المرحلة الثانية؟» | Phase 2 (settled for the spike by the recommended option) |
+| M0.4-10 | «ودجة الآية بمقاسين، صغير ٢×٢ ومتوسط ٤×٢. هل تكون ودجة واحدة في قائمة الودجات يغيّر المستخدم حجمها فتتبدل هيئتها (موصى به، وبها تعمل التجربة)، أم ودجتين منفصلتين في القائمة، لكل مقاس واحدة؟» | Phase 2 (settled for the spike by the recommended option) |
+| M0.4-11 | «الآية التي لا تتسع تُتخطى، والمقاس الصغير يتسع لآيات أقل من المتوسط. هل يختار كل مقاس آيته مما يتسع له وحده، فقد تختلف آية الودجتين في اليوم نفسه (موصى به، وبه تعمل التجربة)، أم تُختار الآية مما يتسع للمقاسين معًا فتتطابقان دائمًا وتقل الآيات المتاحة؟» | Phase 2 (settled for the spike by the recommended option) |
+| M0.4-12 | «نزّلنا نص تنزيل بخيار «بلا علامات الأحزاب» (rub=false) فجاء الملف مطابقًا بايتًا ببايت للملف الذي فيه العلامات، وفيه ١٩٩ علامة ۞. لا نحذفها نحن لأن النص لا يُعدَّل. هل يبحث فريق المحتوى (المسار ب) في B0.2 عن طريقة رسمية للحصول على الملف دون العلامة، كاستعمال نموذج التنزيل في الموقع نفسه أو مراسلة القائمين على موقع تنزيل (موصى به)، أم تبقى العلامة في الحزمة علامةً مستقلة ويقرر العرض كيف يتعامل معها؟» | B0.2 (D-079; the spike keeps the file as published) |
+| M0.4-13 | «حجم النص في وضع السورة: ثماني درجات (٨٠٪، ٩٠٪، ١٠٠٪، ١١٥٪، ١٣٠٪، ١٥٠٪، ١٧٥٪، ٢٠٠٪) يقفز القرص إلى أقربها (موصى به، وبها تعمل التجربة)، أم درجات متساوية كل ١٠٪ من ٨٠٪ إلى ٢٠٠٪؟» | D-097, after the S7 usability test |
+| M0.4-14 | «مع تفعيل «تقليل الحركة» في النظام: تبقى الصفحة ثابتة أثناء السحب ثم تتلاشى إلى التالية عند رفع الإصبع (موصى به، وبه تعمل التجربة)، أم تتبع الصفحة الإصبع أثناء السحب ويقتصر التلاشي على إكمال القلب؟» | D-097, after the S7 usability test |
+| M0.4-15 | «إذا قُلبت الصفحة وهي مكبّرة: تُفتح الصفحة التالية بحجمها الكامل (موصى به، وبه تعمل التجربة)، أم بالتكبير نفسه؟» | D-097, after the S7 usability test |
+| M0.4-16 | «اسم الودجة «ودجة الآية» ووصفها في قائمة الودجات لا يوجدان في ملف النصوص، ولا طريق الآن لنقل نص عربي منه إلى موارد أندرويد. هل نؤجل الاسم والوصف إلى المرحلة الثانية (WG-01) فنضيفهما إلى ملف النصوص ونولّد منهما موارد أندرويد، وتبقى الودجة في التجربة باسم التطبيق (موصى به)، أم نضيفهما الآن يدويًا للتجربة وحدها؟» | WG-01, Phase 2 (settled for the spike by the recommended option) |
+| M0.4-17 | «في اللوحات تُرسم علامة الآية المختارة بحلقة ورقم باللون الأساسي (#0E5A52)، وفي المكوّن المرجعي ليس للعلامة حالة «مختارة». بالألوان الحالية يقل تباين رقم العلامة على لون التحديد في سمة الورق عن الحد (4.30 من 4.5). هل نضيف للعلامة حالة «مختارة» باللون الأساسي كما في اللوحات (موصى به)، أم تبقى كما هي؟» | M1.2 (the spike keeps the reference marker) |
 | O-01 | «معرّف التطبيق في المتجرين (مثل com.اسمك.quran) واسم الناشر الذي سيظهر للمستخدمين. المعرّف لا يمكن تغييره بعد النشر.» | Before the first store upload |
 | O-04 | «ما التلاوات التي تريدها في الإصدار الأول (خمس على الأقل، اثنتان منها بتوقيت كلمات)، ومن أين نأخذ ملفاتها، وهل يجيز إذن كل منها التنزيل دون اتصال والاستضافة على خادمك؟» | Phase 0 (B0.5) |
 | O-06 | «هل تبقى التفاسير السبعة العامة (الميسر، المختصر، السعدي، الجلالين، البغوي، ابن كثير، الطبري) بجانب كتب المكتبة الزيدية؟» | Phase 0 (B0.7) |
@@ -330,8 +356,6 @@ Permission conditions to confirm with him when each is first needed are listed i
     (D-060), so `ContextSheet` needs its own variant (M1.3).
   - `AyahMarker` is the touch target for the ayah tools; at 26 px it needs a 48 hit
     area when it becomes tappable (M1.6).
-  - `tools/gen/test/generator_test.dart` scans for Arabic without the U+0870–089F
-    block (the code guard covers it); add it with the next generator change.
   - `motionFast` and `motionSlow` have no caller yet; they are the identity's scale
     and are used by the first widgets that animate with them.
 - Left from the M0.5 reviews, for the milestone named:
@@ -365,7 +389,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
-| 2026-10-11 | Implementing session (second account), continued | On the owner's instruction, set up implementation by agents in GitHub Actions on his two API accounts: `agent.yml` and `agent.mjs` (Claude Agent SDK 0.3.296, option names read from its type definitions), the `check` task in CI, D-092, the workflow section. Linted with actionlint and shellcheck; the script was smoke-tested locally with an invalid key. | Pull request #13 |
+| 2026-10-11 | Implementing session (second account), continued | On the owner's instruction, set up implementation by agents in GitHub Actions on his two API accounts: `agent.yml` and `agent.mjs` (Claude Agent SDK 0.3.296, option names read from its type definitions), the `check` task in CI, D-092, the workflow section. Linted with actionlint and shellcheck; the script was smoke-tested locally with an invalid key. After the merge: M0.4 part 2 planned as agent waves (D-093 to D-095) and step 0 done; the trial runs and every other Actions run since 17:13 UTC end in `startup_failure`, a setting the owner must check (M0.4-6). | Pull request #13; `claude/great-hamilton-9n23mt` |
 | 2026-10-11 | Implementing session (second account) | Found the first account's session still at work on the M0.5 branch; the owner chose this session to continue and the other handed over cleanly. Adopted its work (0a, A, B, D) and dropped a duplicate 0a; finished batch C; showed the five sections in the gallery (E); tested that the widgets draw a pack's bytes unchanged and kept the ramp allow-list current (F); code review and identity audit of every batch until both passed, findings applied; D-091; golden images by CI runs 103 and 110; merged; the owner confirmed D-089 and D-091. | Pull requests #10 and #12 |
 | 2026-10-11 | Implementing session (continued) | M0.5: step 0a with code review applied; batches A, B and D (14 widgets, five gallery sections); batch C partial; stopped at the owner's request to continue from the other account. | Draft pull request #10 |
 | 2026-10-07 | Planning session | Linked books 473 (surahs in the book's own order, ayah numbers inside quotations) and 440 (footnotes that name the surah and ayah); found that 737 and 165 cannot be linked to ayat from what they print; D-090; independent review applied; PRD at revision 151. Recorded from Git where the implementing session stopped (draft pull request #10). | Pull request #11 |

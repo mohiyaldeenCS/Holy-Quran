@@ -124,13 +124,25 @@ application code itself.
   different files. Agents do not edit `docs/PROJECT_STATUS.md` or
   `docs/DECISIONS.md`; their reports say what those files should record, and the lead
   records it.
+- **Workflow files stay still while a run is out.** The workflow token has no
+  `workflows` permission, and GitHub refuses its push when the branch carries a
+  version of a file under `.github/workflows/` that no longer matches the base. So
+  while any run started from a base branch is in progress, the lead does not change
+  `.github/workflows/` on that base. On 2026-10-11 a change to `ci.yml` on the
+  milestone branch made task D's finished push fail, and the run's work was lost.
+- **The last message is the report.** Only the last message of each turn reaches the
+  pull request. A background task that finishes after the report starts a new turn
+  whose short answer replaces it, so task texts tell the agent to wait for its
+  background tasks and to make its last message the whole report.
 - **A task text** contains everything an agent needs: the goal, the requirement IDs
   and acceptance criteria, the files it may change and those it must not, the project
   agent to use, the checks to run and what to report. It is self-contained: the agent
   has no memory of the lead's session.
 - **Review.** The lead (or `code-reviewer`) reviews each pull request against the
   project rules and CI and tells the owner which can be merged. Nothing is merged
-  without the owner's approval.
+  without the owner's approval, unless he has delegated merges to the lead (as he did
+  for his absence from 2026-10-11, D-093): then the lead merges a pull request once
+  its review and CI pass and reports it.
 
 ## Git and GitHub
 

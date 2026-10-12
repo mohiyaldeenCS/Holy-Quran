@@ -179,6 +179,40 @@ The log and the results file hold numbers, `U+XXXX` and addresses only.
 - Debug timings on the runner, totals over 114 surahs at 360/1.0x: V1 layout 3.3 s
   (largest surah 209 ms), V2 plan 1.7 s, V2 blocks 1.9 s.
 
+## Rerun on the D-079 URL (M0.4 part 2, CI run 38167073258, `8c15529`)
+
+The spike writer now builds format v1 as amended by D-083 (task A, #17): words and
+marks by D-083's rule (a token holding a `\p{L}` code point is a word), the `mark`
+table, `counts.marks` and the download options.
+
+- **The `rub=false` URL serves the same file.** Fetched on 2026-10-11 from
+  `...&marks=true&sajdah=true&rub=false&agree=true`, the file's SHA-256 is
+  `33f4113df84c1bab0ee2eb69616139fda619bdd56fc163a72532daaf0431bf57`, byte for byte
+  part 1's `rub=true` file. The 199 U+06DE signs are still in the text, so the D-079
+  file was not obtained by this URL. Nothing is removed or adjusted: this is a
+  finding for B0.2 and the owner (status file, M0.4-12).
+- **Pack:** 114 surahs, 6,236 ayat, 77,433 words, 4,578 marks (82,011 tokens). The
+  prediction of 81,812 tokens and 4,379 marks assumed the signs were gone; the
+  difference is exactly the 199 U+06DE. 71 code points, all mapped by the font.
+  Marks by code point as in part 1. `text.sqlite`
+  `ff566f8fa2664b653fefd08c405f80f639c791845964042633a263ff4873e24a`; both hashes are
+  now `ci.yml`'s defaults, so the device pack is refused unless it is this one.
+  Divisions are still synthetic.
+- **The app's integrity suite passes on the real text** for the first time with the
+  D-083 checks: 135 passed, 1 skipped (no pack under `assets/packs/`). Every word
+  holds a letter and no mark does, spans are whole tokens, and only U+0020 lies
+  outside them.
+- **Layout unchanged:** the line-start fingerprints equal part 1's at all four
+  sizes, and V2 equals V1 in every surah. Lines starting with a mark: 102, 189, 106,
+  179, as in part 1.
+- **Hit test, by the new count** (problems on words only; marks are no longer
+  hit-tested): 13, 40, 17 and 27 words at 360/1.0x, 360/2.0x, 412/1.0x and 412/2.0x,
+  every one beside a mark that starts a line except `hafs:52:43:4` at 360/2.0x, as
+  in part 1. The task stays red on it; M1.2 replaces the hit-testing and re-runs the
+  check.
+- Stretch per gap at 360/1.0x: max 40.22 px (surah 33), p99 15.11 px, now counted
+  over word gaps only.
+
 ## Device protocol (owner, Android, profile APK of D-069)
 
 The APK's launcher (`spike/main.dart`) opens the app, the component gallery and the
