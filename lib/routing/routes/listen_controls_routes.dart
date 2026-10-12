@@ -6,12 +6,19 @@ import 'package:holyquran/domain/models/playback_plan_builder.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/routing/routes/feature_routes.dart';
 import 'package:holyquran/ui/features/listen/view_models/controls/play_options_view_model.dart';
+import 'package:holyquran/ui/features/listen/view_models/controls/queue_sheet_view_model.dart';
 import 'package:holyquran/ui/features/listen/view_models/controls/range_sheet_view_model.dart';
+import 'package:holyquran/ui/features/listen/view_models/controls/repeat_sheet_view_model.dart';
+import 'package:holyquran/ui/features/listen/view_models/controls/silence_sheet_view_model.dart';
 import 'package:holyquran/ui/features/listen/views/controls/play_options_sheet.dart';
+import 'package:holyquran/ui/features/listen/views/controls/queue_sheet.dart';
 import 'package:holyquran/ui/features/listen/views/controls/range_sheet.dart';
+import 'package:holyquran/ui/features/listen/views/controls/repeat_sheet.dart';
+import 'package:holyquran/ui/features/listen/views/controls/silence_sheet.dart';
 import 'package:provider/provider.dart';
 
-/// The player's control sheets (M1.9).
+/// The player's control sheets (M1.9). The stop-after and sleep-timer
+/// sheets wait for their words (`docs/plans/PHASE1.md`, Appendices B and C).
 final listenControlsRoutes = FeatureRoutes(
   sheets: [
     SheetRoute(
@@ -36,6 +43,37 @@ final listenControlsRoutes = FeatureRoutes(
           builder: context.read<PlaybackPlanBuilder>(),
           index: context.read<QuranIndexRepository>(),
         ),
+      ),
+    ),
+    SheetRoute(
+      path: RoutePaths.repeatSheet,
+      owner: _player,
+      builder: (context, state) => _Scoped(
+        create: (context) => RepeatSheetViewModel(
+          player: context.read(),
+          builder: context.read(),
+        ),
+        builder: (viewModel) => RepeatSheet(viewModel: viewModel),
+      ),
+    ),
+    SheetRoute(
+      path: RoutePaths.silenceSheet,
+      owner: _player,
+      builder: (context, state) => _Scoped(
+        create: (context) => SilenceSheetViewModel(
+          player: context.read(),
+          builder: context.read(),
+        ),
+        builder: (viewModel) => SilenceSheet(viewModel: viewModel),
+      ),
+    ),
+    SheetRoute(
+      path: RoutePaths.queueSheet,
+      owner: _player,
+      builder: (context, state) => _Scoped(
+        create: (context) =>
+            QueueSheetViewModel(player: context.read(), index: context.read()),
+        builder: (viewModel) => QueueSheet(viewModel: viewModel),
       ),
     ),
   ],

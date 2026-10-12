@@ -12,12 +12,19 @@ abstract final class PlayerControlsMetrics {
     top: Radius.circular(AppRadius.radiusSheet),
   );
 
-  // .qk-sheet: padding var(--space-3) 22px 22px.
+  // The focus ring is drawn 4px outside a control (`:focus-visible`:
+  // outline 2px, offset 2px). The sheet's scrolling content is inset by it,
+  // so a scroll view that clips leaves the ring whole; the sheet's padding
+  // and first gap give it back.
+  static const double focusRingRoom = AppSpacing.space1;
+  static const EdgeInsets scrollPadding = EdgeInsets.all(focusRingRoom);
+
+  // .qk-sheet: padding var(--space-3) 22px 22px, less the ring's room.
   static const EdgeInsets sheetPadding = EdgeInsets.fromLTRB(
-    22,
+    22 - focusRingRoom,
     AppSpacing.space3,
-    22,
-    22,
+    22 - focusRingRoom,
+    22 - focusRingRoom,
   );
 
   // .qk-sheet: gap var(--space-4), less the 4px above and below a ModeChips

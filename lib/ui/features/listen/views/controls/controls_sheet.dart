@@ -63,20 +63,27 @@ class ControlsSheet extends StatelessWidget {
               ),
               Flexible(
                 child: SingleChildScrollView(
+                  padding: PlayerControlsMetrics.scrollPadding,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       if (chips != null) ...[
                         const SizedBox(
-                          height: PlayerControlsMetrics.chipStripGap,
+                          height:
+                              PlayerControlsMetrics.chipStripGap -
+                              PlayerControlsMetrics.focusRingRoom,
                         ),
                         chips,
                       ],
                       for (final (index, child) in body.indexed) ...[
                         SizedBox(
-                          height: index == 0 && chips != null
-                              ? PlayerControlsMetrics.chipStripGap
-                              : AppSpacing.space4,
+                          height: switch ((index, chips)) {
+                            (0, null) =>
+                              AppSpacing.space4 -
+                                  PlayerControlsMetrics.focusRingRoom,
+                            (0, _) => PlayerControlsMetrics.chipStripGap,
+                            _ => AppSpacing.space4,
+                          },
                         ),
                         child,
                       ],

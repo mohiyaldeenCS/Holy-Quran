@@ -46,11 +46,15 @@ class RangeSheet extends StatelessWidget {
             : null,
         children: [
           if (surahName != null)
-            SurahName(
-              surahName,
-              format: SurahNameFormat.titled,
-              style: AppTextStyles.bodyStrong.copyWith(
-                color: context.colors.ink,
+            // Stepping through surahs changes the name with the number.
+            Semantics(
+              liveRegion: true,
+              child: SurahName(
+                surahName,
+                format: SurahNameFormat.titled,
+                style: AppTextStyles.bodyStrong.copyWith(
+                  color: context.colors.ink,
+                ),
               ),
             ),
           Stepper(
