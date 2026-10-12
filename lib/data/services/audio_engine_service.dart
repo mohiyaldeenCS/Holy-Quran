@@ -146,6 +146,10 @@ abstract interface class AudioEngineService {
 
   Future<void> resume();
 
+  /// Shows the session as playing or paused without touching the player,
+  /// as when a silence between ayat is paused or resumed.
+  Future<void> setSessionPlaying(bool playing);
+
   Future<void> stop();
 
   /// From 0 to 1; the sleep timer's fade steps it down (`AU-07`).
@@ -177,8 +181,11 @@ final class PluginAudioEngineService implements AudioEngineService {
   Future<void>? _activating;
   double _speed = 1;
 
-  /// The tracks in the player, current first.
+  /// The tracks in the player, current first, as the pending playlist
+  /// changes leave them.
   List<EngineTrack> _tracks = [];
+  Future<void> _playlistChanges = Future.value();
+  int _playlist = 0;
 
   AudioPlayer get _player =>
       (_handler ?? (throw StateError('the engine is not active'))).player;
@@ -235,29 +242,31 @@ final class PluginAudioEngineService implements AudioEngineService {
     EngineTrack? next,
     Duration from = Duration.zero,
   }) async {
-    // Loading starts with play, so a stalled stream holds back no command.
-    await _setTracks([track, ?next], from: from, preload: false);
     _handler!.playing = true;
-    _play();
+    _replacePlaylist(
+      [track, ?next],
+      from: from,
+      then: () {
+        if (_handler!.playing) _play();
+      },
+    );
   }
 
   @override
   Future<void> load(EngineTrack track) async {
     await _player.pause();
-    unawaited(_setTracks([track], preload: true));
+    _replacePlaylist([track]);
   }
 
   @override
   Future<void> setNext(EngineTrack? next) async {
     if (_tracks.isEmpty) return;
-    if (_tracks.length > 1) {
-      await _player.removeAudioSourceAt(1);
-      _tracks = [_tracks.first];
-    }
-    if (next != null) {
-      await _player.addAudioSource(_source(next));
-      _tracks = [..._tracks, next];
-    }
+    final [current, ...queued] = _tracks;
+    _tracks = [current, ?next];
+    _inOrder(() async {
+      if (queued.isNotEmpty) await _player.removeAudioSourceAt(1);
+      if (next != null) await _player.addAudioSource(_source(next));
+    });
   }
 
   @override
@@ -269,8 +278,14 @@ final class PluginAudioEngineService implements AudioEngineService {
   @override
   Future<void> resume() async {
     _handler!.playing = true;
-    _play();
+    _inOrder(() async {
+      if (_handler!.playing) _play();
+    });
   }
+
+  @override
+  Future<void> setSessionPlaying(bool playing) async =>
+      _handler!.playing = playing;
 
   @override
   Future<void> stop() async {
@@ -281,6 +296,38 @@ final class PluginAudioEngineService implements AudioEngineService {
   // A failure while playing reaches errorStream, so the future's own error
   // is not needed.
   void _play() => unawaited(_player.play().catchError((Object _) {}));
+
+  /// Loads [tracks] in place of the playlist, then runs [then], without
+  /// making the caller wait: a stalled stream must hold back no command. A
+  /// later replacement interrupts the load, and the changes queued for the
+  /// old playlist are dropped.
+  void _replacePlaylist(
+    List<EngineTrack> tracks, {
+    Duration? from,
+    void Function()? then,
+  }) {
+    _tracks = tracks;
+    final generation = ++_playlist;
+    _playlistChanges = _setTracks(tracks, from: from)
+        .then((_) {
+          if (generation == _playlist) then?.call();
+        })
+        .catchError((Object _) {
+          _failed();
+        });
+  }
+
+  /// Runs [change] after the pending changes of the same playlist.
+  void _inOrder(Future<void> Function() change) {
+    final generation = _playlist;
+    _playlistChanges = _playlistChanges
+        .then((_) async {
+          if (generation == _playlist) await change();
+        })
+        .catchError((Object _) {
+          _failed();
+        });
+  }
 
   @override
   Future<void> setVolume(double volume) => _player.setVolume(volume);
@@ -306,18 +353,11 @@ final class PluginAudioEngineService implements AudioEngineService {
     await _events.close();
   }
 
-  Future<void> _setTracks(
-    List<EngineTrack> tracks, {
-    required bool preload,
-    Duration? from,
-  }) async {
-    _tracks = tracks;
+  Future<void> _setTracks(List<EngineTrack> tracks, {Duration? from}) async {
     try {
-      await _player.setAudioSources(
-        [for (final track in tracks) _source(track)],
-        initialPosition: from,
-        preload: preload,
-      );
+      await _player.setAudioSources([
+        for (final track in tracks) _source(track),
+      ], initialPosition: from);
     } on PlayerInterruptedException {
       // Replaced by a later load.
     } on PlayerException {
@@ -343,7 +383,7 @@ final class PluginAudioEngineService implements AudioEngineService {
     final [ended, ...rest] = _tracks;
     _tracks = rest;
     _events.add(TrackEnded(ended.id));
-    unawaited(_player.removeAudioSourceAt(0));
+    _inOrder(() => _player.removeAudioSourceAt(0));
   }
 
   void _onProcessingState(ProcessingState state) {

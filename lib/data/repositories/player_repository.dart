@@ -257,6 +257,7 @@ final class EnginePlayerRepository extends PlayerRepository {
       try {
         await _engine.activate();
       } on Exception {
+        _rules = null;
         _update(
           _state.copyWith(
             playing: false,
@@ -527,7 +528,11 @@ final class EnginePlayerRepository extends PlayerRepository {
       _cancelSilence();
       _silenceLeft = left.isNegative ? Duration.zero : left;
     }
-    await _engine.pause();
+    if (_state.inSilence) {
+      await _engine.setSessionPlaying(false);
+    } else {
+      await _engine.pause();
+    }
     _update(_state.copyWith(playing: false));
   }
 
@@ -544,7 +549,7 @@ final class EnginePlayerRepository extends PlayerRepository {
     if (_state.inSilence) {
       _runSilence(_silenceLeft ?? Duration.zero);
       _silenceLeft = null;
-      return;
+      return _engine.setSessionPlaying(true);
     }
     await _engine.resume();
   }

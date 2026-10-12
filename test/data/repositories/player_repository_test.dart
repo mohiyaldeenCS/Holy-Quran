@@ -100,6 +100,10 @@ String _brief(EngineTrack track) => switch ((track.start, track.end)) {
   _ => track.uri.pathSegments.last,
 };
 
+final class _ActivationFailed implements Exception {
+  const _ActivationFailed();
+}
+
 /// Plays what it is told at once; [finish] ends the current track and moves
 /// into the next one, as a gapless playlist does.
 final class _FakeEngine implements AudioEngineService {
@@ -134,8 +138,14 @@ final class _FakeEngine implements AudioEngineService {
     emit(TrackEnded(ended.id));
   }
 
+  /// Thrown by [activate] while set.
+  Exception? activation;
+
   @override
-  Future<void> activate() async => log.add('activate');
+  Future<void> activate() async {
+    if (activation case final error?) throw error;
+    log.add('activate');
+  }
 
   @override
   Future<void> play(
@@ -179,6 +189,10 @@ final class _FakeEngine implements AudioEngineService {
     playing = true;
     log.add('resume');
   }
+
+  @override
+  Future<void> setSessionPlaying(bool playing) async =>
+      log.add('session ${playing ? 'playing' : 'paused'}');
 
   @override
   Future<void> stop() async {
@@ -459,9 +473,11 @@ void main() {
         expect(h.engine.log.last, 'load 1-2');
         async.elapse(const Duration(seconds: 1));
         h.run((p) => p.pause());
+        expect(h.engine.log.last, 'session paused');
         async.elapse(const Duration(seconds: 30));
         expect(h.state.inSilence, isTrue);
         h.run((p) => p.resume());
+        expect(h.engine.log.last, 'session playing');
         async.elapse(const Duration(seconds: 2));
         expect(h.state.inSilence, isTrue);
         async.elapse(const Duration(seconds: 1));
@@ -589,6 +605,23 @@ void main() {
         'Reciter A',
         'Reciter B',
       ]);
+    });
+  });
+
+  test('a failed activation is reported, and playing again retries it', () {
+    fakeAsync((async) {
+      final h = _Harness(async);
+      h.engine.activation = const _ActivationFailed();
+      h.run((p) => p.play(_plan(_span('1:1', '1:3'))));
+      expect(h.state.error, PlayerError.playbackFailed);
+      expect(h.state.playing, isFalse);
+      h.run((p) => p.resume());
+      h.run((p) => p.pause());
+      expect(h.engine.log, isEmpty);
+      h.engine.activation = null;
+      h.run((p) => p.play(_plan(_span('1:1', '1:3'))));
+      expect(h.state.error, isNull);
+      expect(h.engine.heard, ['1-1']);
     });
   });
 
