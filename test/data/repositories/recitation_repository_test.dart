@@ -34,6 +34,7 @@ void main() {
   late ValueNotifier<int> changes;
   late Catalogue? catalogue;
   late List<InstalledPack> installed;
+  late Future<String> Function() audioDirectory;
 
   setUp(() async {
     root = await Directory.systemTemp.createTemp('recitation_repository');
@@ -43,6 +44,7 @@ void main() {
     changes = ValueNotifier(0);
     catalogue = syntheticCatalogue();
     installed = [];
+    audioDirectory = () async => audio;
   });
 
   tearDown(() async {
@@ -62,9 +64,11 @@ void main() {
         signatures: SignatureNotConfigured(),
       ).verify(directory);
     },
-    integrity: integrity,
+    integrityOf: (pack) => integrity.stateOf(pack),
+    report: (pack, state, version) =>
+        integrity.report(pack, state, version: version),
     files: const PackFileService(),
-    audioDirectory: () async => audio,
+    audioDirectory: audioDirectory,
   );
 
   /// Builds a recitation pack under the root and installs it.
@@ -181,7 +185,7 @@ void main() {
     test('is taken from the device when downloaded whole', () async {
       final pack = await install();
       final expected = fileOf(pack, 128, 1, 1);
-      final local = File('$audio/$_pack/${expected.path}');
+      final local = File('$audio/$_pack/${expected.sha256}.mp3');
       await local.create(recursive: true);
       await local.writeAsBytes(expected.audio);
 
@@ -203,6 +207,17 @@ void main() {
       );
       expect(partial.local, isFalse);
       expect(partial.uri.scheme, 'https');
+    });
+
+    test('is streamed when the device cannot say where files are', () async {
+      await install();
+      audioDirectory = () async =>
+          throw const FileSystemException('synthetic failure');
+      final result = audioOf(
+        await repository().ayahFile(_listed, first, qualityKbps: 64),
+      );
+      expect(result.local, isFalse);
+      expect(result.uri.scheme, 'https');
     });
 
     test('of a recitation by surah is its surah file', () async {
@@ -348,44 +363,72 @@ void main() {
       );
     });
 
-    test('must match the catalogue', () async {
-      final cases = <String, (Catalogue, String, SyntheticRecitationFault?)>{
-        'unit': (catalogueWith((r) => r['unit'] = 'surah'), 'ayah', null),
-        'qualities': (
-          catalogueWith((r) => r['qualities'] = [64]),
-          'ayah',
-          null,
-        ),
-        'riwaya': (catalogueWith((r) => r['riwaya'] = 'warsh'), 'ayah', null),
-        'rows': (
-          syntheticCatalogue(),
-          'ayah',
-          SyntheticRecitationFault.partOfOtherUnit,
-        ),
-      };
-      for (final MapEntry(key: name, value: (edited, unit, fault))
-          in cases.entries) {
-        catalogue = edited;
-        integrity = FakePackIntegrityRepository();
-        await install(unit: unit, fault: fault);
-        final recitations = repository();
-        final address = QuranAddress(
-          edited.recitations.first.recitation.riwaya,
-          1,
-          1,
-        );
-        final result = edited.recitations.first.recitation.unit.name == 'ayah'
-            ? await recitations.ayahFile(_listed, address, qualityKbps: 64)
-            : await recitations.surahFile(_listed, 1, qualityKbps: 64);
-        expect(result, failsWith<PackInconsistent>(), reason: name);
-        expect(integrity.stateOf(_pack), isA<IntegrityFailed>(), reason: name);
-        integrity.dispose();
-        await Directory('${root.path}/packs').delete(recursive: true);
-      }
-      integrity = FakePackIntegrityRepository();
+    test('whose rows break the format fails its check', () async {
+      await install(fault: SyntheticRecitationFault.partOfOtherUnit);
+      expect(
+        await repository().ayahFile(_listed, first, qualityKbps: 64),
+        failsWith<PackInconsistent>(),
+      );
+      expect(integrity.stateOf(_pack), isA<IntegrityFailed>());
     });
 
-    test('of another kind is not a recitation pack', () async {
+    test(
+      'that differs from the catalogue serves nothing, and is sound',
+      () async {
+        await install();
+        for (final (name, edited) in [
+          ('unit', catalogueWith((r) => r['unit'] = 'surah')),
+          ('qualities', catalogueWith((r) => r['qualities'] = [64])),
+          ('riwaya', catalogueWith((r) => r['riwaya'] = 'warsh')),
+        ]) {
+          catalogue = edited;
+          final recitation = edited.recitations.first.recitation;
+          final recitations = repository();
+          final result = await recitations.ayahFile(
+            _listed,
+            QuranAddress(recitation.riwaya, 1, 1),
+            qualityKbps: 64,
+          );
+          expect(
+            result,
+            failsWith<RecitationDiffersFromCatalogue>(),
+            reason: name,
+          );
+          expect(
+            '${(result as Failure).error}',
+            startsWith('RecitationDiffersFromCatalogue($_listed): $name'),
+          );
+          expect(integrity.stateOf(_pack), isA<IntegrityOk>(), reason: name);
+        }
+      },
+    );
+
+    test('of an older version serves by its own unit and qualities', () async {
+      final json = syntheticCatalogueJson();
+      ((json['packs']! as List<Object?>)[2]!
+              as Map<String, Object?>)['version'] =
+          2;
+      ((json['recitations']! as List<Object?>).first!
+          as Map<String, Object?>)['qualities'] = [
+        64,
+        128,
+        192,
+      ];
+      catalogue = (parseCatalogue(catalogueBytes(json)) as Ok<Catalogue>).value;
+      await install();
+      final recitations = repository();
+      expect(
+        await recitations.ayahFile(_listed, first, qualityKbps: 128),
+        isA<Ok<RecitationAudio>>(),
+      );
+      expect(
+        await recitations.ayahFile(_listed, first, qualityKbps: 192),
+        failsWith<RecitationFileNotInPack>(),
+      );
+      expect(integrity.stateOf(_pack), isA<IntegrityOk>());
+    });
+
+    test('of another kind is not the recitation pack', () async {
       final tafsir = await buildSyntheticTafsirPack(
         Directory('${root.path}/packs'),
         id: _pack,
@@ -404,8 +447,10 @@ void main() {
       ];
       expect(
         await repository().ayahFile(_listed, first, qualityKbps: 64),
-        failsWith<PackInconsistent>(),
+        failsWith<RecitationDiffersFromCatalogue>(),
       );
+      expect(verified, isEmpty);
+      expect(integrity.reports, isEmpty);
     });
   });
 }

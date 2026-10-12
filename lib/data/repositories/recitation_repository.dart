@@ -9,13 +9,14 @@ import '../../domain/models/pack_failure.dart';
 import '../../domain/models/pack_integrity.dart';
 import '../../domain/models/pack_manifest.dart';
 import '../../domain/models/quran_address.dart';
+import '../../domain/models/recitation.dart';
 import '../../domain/models/recitation_file.dart';
 import '../../domain/models/verified_pack.dart';
 import '../../utils/result.dart';
 import '../models/pack_manifest_json.dart';
 import '../services/pack_file_service.dart';
 import '../services/recitation_pack_index.dart';
-import 'pack_integrity_repository.dart';
+import 'pack_integrity_repository.dart' show PackCheck;
 
 /// The audio of a surah or ayah: [uri] is a `file:` URI when the file is on
 /// the device ([local]), and otherwise where it is streamed from.
@@ -75,6 +76,18 @@ final class RecitationFileNotInPack extends RecitationFailure {
       'surah $surah${ayah == null ? '' : ', ayah $ayah'}';
 }
 
+/// The installed pack is not the one the catalogue describes: another
+/// kind or riwaya or, at the catalogue's version, another unit or other
+/// qualities. The pack itself may be sound, so its integrity is not touched.
+final class RecitationDiffersFromCatalogue extends RecitationFailure {
+  const RecitationDiffersFromCatalogue(super.recitationId, this.reason);
+
+  final String reason;
+
+  @override
+  String toString() => 'RecitationDiffersFromCatalogue($recitationId): $reason';
+}
+
 /// The recitations that may be listed and played, and their audio
 /// (`AU-01`). Listeners hear when the catalogue or the installed packs
 /// change.
@@ -99,20 +112,25 @@ abstract interface class RecitationRepository implements Listenable {
   });
 }
 
+/// Reports a pack's integrity in this session: its id, state and version.
+typedef IntegrityReport =
+    void Function(String pack, PackIntegrity state, int version);
+
 /// [RecitationRepository] over the recitation packs on the device
 /// (docs/PACK_CATALOGUE.md, "A recitation at playback"). On its first use in
-/// the session a pack is verified in full and checked against the
-/// catalogue, its rows are read, and the outcome is reported to
-/// [_integrity]; a pack that fails, or that another reader reports failed,
-/// serves nothing. A file is local when `<audio directory>/<pack id>/<path>`
-/// has the size the pack states.
+/// the session a pack directory is verified in full, its file count and
+/// rows are checked, and the outcome is given to [_report]; a pack that
+/// fails, or that [_integrityOf] says failed, serves nothing. A file is
+/// local when `<audio directory>/<pack id>/<sha256><extension>` has the size
+/// the pack states.
 final class PackRecitationRepository implements RecitationRepository {
   PackRecitationRepository({
     required this._catalogue,
     required this._installed,
     required this._changes,
     required this._verify,
-    required this._integrity,
+    required this._integrityOf,
+    required this._report,
     required this._files,
     required this._audioDirectory,
   });
@@ -121,13 +139,14 @@ final class PackRecitationRepository implements RecitationRepository {
   final List<InstalledPack> Function() _installed;
   final Listenable _changes;
   final PackCheck _verify;
-  final PackIntegrityRepository _integrity;
+  final PackIntegrity Function(String pack) _integrityOf;
+  final IntegrityReport _report;
   final PackFileService _files;
   final Future<String> Function() _audioDirectory;
 
   /// Each pack directory checked in this session.
   final _checked = <String, Future<Result<_PackFiles>>>{};
-  Future<String>? _audioRoot;
+  String? _audioRoot;
 
   @override
   void addListener(VoidCallback listener) => _changes.addListener(listener);
@@ -179,15 +198,26 @@ final class PackRecitationRepository implements RecitationRepository {
     if (pack == null) {
       return Failure(RecitationPackNotInstalled(recitationId, packId));
     }
+    if (pack.manifest.kind != PackKind.recitation) {
+      return Failure(
+        RecitationDiffersFromCatalogue(
+          recitationId,
+          '$packId is a ${pack.manifest.kind.name} pack',
+        ),
+      );
+    }
     final _PackFiles files;
-    switch (await (_checked[pack.directory] ??= _check(listed, pack))) {
+    switch (await (_checked[pack.directory] ??= _check(pack))) {
       case Ok(:final value):
         files = value;
       case Failure(:final error):
         return Failure(error);
     }
-    if (_integrity.stateOf(packId) is IntegrityFailed) {
+    if (_integrityOf(packId) is IntegrityFailed) {
       return Failure(PackDisabled(packId));
+    }
+    if (_difference(listed, pack, files) case final reason?) {
+      return Failure(RecitationDiffersFromCatalogue(recitationId, reason));
     }
     final file = files.byKey[key];
     if (file == null) {
@@ -201,58 +231,82 @@ final class PackRecitationRepository implements RecitationRepository {
         ),
       );
     }
-    final path =
-        '${await (_audioRoot ??= _audioDirectory())}/$packId/'
-        '${file.path}';
-    final local = await _files.sizeOf(path) == file.bytes;
+    final path = await _localPath(packId, file);
     return Ok(
-      RecitationAudio(
-        file: file,
-        uri: local ? Uri.file(path) : files.baseUrl.resolve(file.path),
-        local: local,
-      ),
+      path == null
+          ? RecitationAudio(
+              file: file,
+              uri: files.baseUrl.resolve(file.path),
+              local: false,
+            )
+          : RecitationAudio(file: file, uri: Uri.file(path), local: true),
     );
   }
 
-  Future<Result<_PackFiles>> _check(
+  /// How [pack] differs from what the catalogue says of [listed]: its
+  /// riwaya always, its unit and qualities only at the catalogue's version,
+  /// since an older version may differ and still serve until it is
+  /// replaced. Null when it does not.
+  String? _difference(
     CatalogueRecitation listed,
     InstalledPack pack,
-  ) async {
+    _PackFiles files,
+  ) {
+    final recitation = listed.recitation;
+    if (pack.manifest.riwaya != recitation.riwaya) {
+      return 'riwaya ${pack.manifest.riwaya}, not ${recitation.riwaya}';
+    }
+    if (_catalogue()?.pack(pack.id)?.version != pack.version) return null;
+    if (files.unit != recitation.unit) {
+      return 'unit ${files.unit.name}, not ${recitation.unit.name}';
+    }
+    if (!listEquals(files.qualities, listed.qualities)) {
+      return 'qualities ${files.qualities}, not ${listed.qualities}';
+    }
+    return null;
+  }
+
+  /// Where [file] is on the device, when it is there whole by its size.
+  /// A device that cannot say leaves it to be streamed.
+  Future<String?> _localPath(String packId, RecitationFile file) async {
+    try {
+      final root = _audioRoot ??= await _audioDirectory();
+      final name = file.path.split('/').last;
+      final dot = name.lastIndexOf('.');
+      final path =
+          '$root/$packId/${file.sha256}${dot < 0 ? '' : name.substring(dot)}';
+      return await _files.sizeOf(path) == file.bytes ? path : null;
+    } on Exception {
+      return null;
+    }
+  }
+
+  Future<Result<_PackFiles>> _check(InstalledPack pack) async {
     final result = switch (await _verify(pack.directory)) {
-      Ok(:final value) => _read(listed, value),
+      Ok(:final value) => _read(value),
       Failure(:final error) => Failure<_PackFiles>(error),
     };
-    _integrity.report(pack.id, switch (result) {
+    _report(pack.id, switch (result) {
       Ok() => const IntegrityOk(),
       Failure(error: final PackFailure failure) => IntegrityFailed(failure),
       Failure(:final error) => IntegrityFailed(
         PackInconsistent(pack.directory, '$error'),
       ),
-    }, version: pack.version);
+    }, pack.version);
     return result;
   }
 
-  /// The files of [pack], once its kind, riwaya, unit, qualities and file
-  /// count are the catalogue's and every row is well formed.
-  static Result<_PackFiles> _read(
-    CatalogueRecitation listed,
-    VerifiedPack pack,
-  ) {
+  /// The files of [pack], once its file count is `counts.files` and every
+  /// row is well formed.
+  static Result<_PackFiles> _read(VerifiedPack pack) {
     final directory = pack.directory;
     final manifest = pack.manifest;
-    final recitation = listed.recitation;
-    Failure<_PackFiles> inconsistent(String reason) =>
-        Failure(PackInconsistent(directory, reason));
     final count = switch (manifest.kindCounts) {
       RecitationCounts(:final files) => files,
       _ => null,
     };
-    if (count == null) return inconsistent('is not a recitation pack');
-    if (manifest.riwaya != recitation.riwaya) {
-      return inconsistent(
-        'riwaya ${manifest.riwaya} is not the catalogue riwaya '
-        '${recitation.riwaya}',
-      );
+    if (count == null) {
+      return Failure(PackInconsistent(directory, 'is not a recitation pack'));
     }
     RecitationPackIndex? index;
     try {
@@ -261,33 +315,31 @@ final class PackRecitationRepository implements RecitationRepository {
         formatVersion: manifest.formatVersion,
       );
       final facts = index.recitation();
-      if (facts.unit != recitation.unit) {
-        return inconsistent(
-          'unit ${facts.unit.name} is not the catalogue unit '
-          '${recitation.unit.name}',
-        );
-      }
       if (index.fileCount() case final stored when stored != count) {
-        return inconsistent('holds $stored files, counts.files is $count');
+        return Failure(
+          PackInconsistent(
+            directory,
+            'holds $stored files, counts.files is $count',
+          ),
+        );
       }
       final qualities = index.qualities();
-      if (!listEquals(qualities, listed.qualities)) {
-        return inconsistent(
-          'qualities $qualities are not the catalogue qualities '
-          '${listed.qualities}',
-        );
-      }
       return Ok(
-        _PackFiles(facts.baseUrl, {
-          for (final quality in qualities)
-            for (final file in index.files(quality))
-              (file.qualityKbps, file.part, file.surah, file.ayah): file,
-        }),
+        _PackFiles(
+          unit: facts.unit,
+          qualities: qualities,
+          baseUrl: facts.baseUrl,
+          byKey: {
+            for (final quality in qualities)
+              for (final file in index.files(quality))
+                (file.qualityKbps, file.part, file.surah, file.ayah): file,
+          },
+        ),
       );
     } on PackFailure catch (failure) {
       return Failure(failure);
     } on Exception catch (error) {
-      return inconsistent('$error');
+      return Failure(PackInconsistent(directory, '$error'));
     } finally {
       index?.close();
     }
@@ -302,8 +354,15 @@ typedef _FileKey = (
 );
 
 final class _PackFiles {
-  const _PackFiles(this.baseUrl, this.byKey);
+  const _PackFiles({
+    required this.unit,
+    required this.qualities,
+    required this.baseUrl,
+    required this.byKey,
+  });
 
+  final RecitationUnit unit;
+  final List<int> qualities;
   final Uri baseUrl;
   final Map<_FileKey, RecitationFile> byKey;
 }

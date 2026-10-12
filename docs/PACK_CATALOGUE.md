@@ -131,15 +131,16 @@ refused at every level, so a field is added only with a new format version.
 - `pack` is the id of a `recitation` pack in `packs`; no two recitations share one.
 - `rights_complete` says whether the recitation's rights record is complete
   (`docs/content/RIGHTS_REGISTER.md`). **A recitation whose record is not complete is
-  never listed and never played** (`AU-01`); it may stay in the catalogue while its
-  record is being completed.
+  never listed, never played, and its pack is not offered for download** (`AU-01`);
+  it may stay in the catalogue while its record is being completed.
 - `word_timing` says whether the recitation has word timing that passed measurement
   (`SY-02`).
 
 ## Joining with the installed packs
 
-A pack's state in the resource manager (`OF-02`, `TF-01`) follows from the catalogue
-and the installer:
+The catalogue offers every pack it lists except a recitation pack whose recitation is
+not listed (`AU-01`). An offered pack's state in the resource manager (`OF-02`,
+`TF-01`) follows from the catalogue and the installer:
 
 | Installed version | Install job | State |
 | --- | --- | --- |
@@ -148,25 +149,35 @@ and the installer:
 | older than the catalogue's | none, or failed | update available, with `changes` |
 | the catalogue's, or newer | none, or failed | downloaded |
 
-A failed job is shown beside the state it leaves. A pack that is installed but no
-longer in the catalogue is not offered for download.
+A failed job is shown beside the state it leaves. A pack that is installed but not
+offered, because the catalogue withdrew it or its recitation's record is not
+complete, is not offered for download and can still be deleted.
 
 ## A recitation at playback
 
 A recitation is played from its recitation pack (`docs/CONTENT_PACKS.md`,
-"Recitation pack"), which must be installed. On the first use in a session the app
-verifies the pack in full (signature, manifest, file hash), checks that its riwaya,
-unit and qualities are the catalogue's, that its file count is `counts.files` and
-that every row is well formed, and records the outcome with the integrity
-repository. A pack that fails serves nothing for the rest of the session.
+"Recitation pack"), which must be installed. On the first use of a pack version in a
+session the app verifies it in full (signature, manifest, file hash), checks that its
+file count is `counts.files` and that every row is well formed, and records the
+outcome with the integrity repository. A pack that fails serves nothing for the rest
+of the session.
+
+The installed pack must also be the one the catalogue describes: a `recitation` pack
+of the recitation's riwaya and, when it is at the catalogue's version, of its unit and
+qualities. An older version may differ until it is replaced, and serves by its own
+unit and qualities. A pack that differs serves nothing, and its integrity is not
+touched: the pack is sound, the catalogue disagrees with it.
 
 The audio file of a surah or ayah at a quality is taken from the device when it is
-there with the size the pack states (`<application support>/recitations/<pack
-id>/<path>`), and otherwise streamed from `base_url` + `path`.
+there with the size the pack states, and otherwise streamed from `base_url` + `path`.
+On the device a file is named by its hash, keeping the extension of its path:
+`<application support>/recitations/<pack id>/<sha256><extension>`. A file that a new
+pack version changes therefore has a new name, and one it keeps is not fetched again.
+Whoever downloads a file checks its size and hash before giving it that name.
 
 ## Offline
 
 The app keeps the last catalogue it accepted, both files, under
 `<application support>/catalogue/`, and checks the copy again, signature and format,
-each time it reads it. When the catalogue cannot be fetched, or the fetched one is
-refused, the app serves that copy.
+each time it reads it. It serves that copy while it fetches the catalogue, and goes on
+serving it when the catalogue cannot be fetched or the fetched one is refused.

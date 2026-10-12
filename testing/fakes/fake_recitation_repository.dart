@@ -5,7 +5,8 @@ import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/utils/result.dart';
 
 /// A [RecitationRepository] in memory, for view-model tests. A test sets
-/// [recitations], which notifies listeners, and [answers], which answers
+/// [recitations], which notifies listeners and, unlike the real
+/// repository, is not filtered by rights; and [answers], which answers
 /// both file calls; every call is logged in [calls] as `(recitation id,
 /// surah, ayah or null, quality)`.
 final class FakeRecitationRepository extends ChangeNotifier

@@ -58,6 +58,16 @@ final class Catalogue {
       .where((pack) => pack.role == CatalogueRole.firstUseTafsir)
       .firstOrNull;
 
+  /// The packs that may be offered: every pack but a recitation pack whose
+  /// recitation is not listed (`AU-01`).
+  List<CatalogueEntry> get offeredPacks {
+    final listed = {for (final r in listedRecitations) r.packId};
+    return [
+      for (final pack in packs)
+        if (pack.kind != PackKind.recitation || listed.contains(pack.id)) pack,
+    ];
+  }
+
   /// The recitations whose rights record is complete, the only ones listed
   /// or played (`AU-01`).
   List<CatalogueRecitation> get listedRecitations => [

@@ -289,6 +289,20 @@ void main() {
       expect(notified, 1);
     });
 
+    test('the kept copy is served before the fetch ends', () async {
+      await publish(json());
+      await repository().refresh();
+      await publish(json(tafsirVersion: 3));
+
+      final catalogue = repository();
+      final seen = <int>[];
+      catalogue.addListener(
+        () => seen.add(catalogue.catalogue!.firstUseTafsir!.version),
+      );
+      expect(await catalogue.refresh(), isA<Ok<Catalogue>>());
+      expect(seen, [2, 3]);
+    });
+
     test('the kept copy is checked again before it is served', () async {
       await publish(json());
       await repository().refresh();

@@ -90,6 +90,26 @@ void main() {
     expect(catalogue.listedRecitations, [listed]);
   });
 
+  test('offers no pack of a recitation that is not listed', () {
+    final catalogue = Catalogue(
+      date: '2026-10-12',
+      packs: [
+        text,
+        audioA,
+        audioB,
+        _pack('synthetic-spare', PackKind.recitation),
+      ],
+      recitations: [
+        _recitation('synthetic-listed', audioA.id),
+        _recitation('synthetic-pending', audioB.id, rightsComplete: false),
+      ],
+    );
+    expect(
+      [for (final pack in catalogue.offeredPacks) pack.id],
+      [text.id, audioA.id],
+    );
+  });
+
   test('refuses an inconsistent catalogue', () {
     for (final (packs, recitations) in [
       ([text, text], <CatalogueRecitation>[]),

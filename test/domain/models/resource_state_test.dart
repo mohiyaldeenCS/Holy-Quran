@@ -7,6 +7,8 @@ import 'package:holyquran/domain/models/installed_pack.dart';
 import 'package:holyquran/domain/models/pack_manifest.dart';
 import 'package:holyquran/domain/models/resource_state.dart';
 
+import '../../../testing/fakes/fake_catalogue_repository.dart';
+
 final _hash = 'a' * 64;
 
 RemoteFile _remote(String name) => RemoteFile(
@@ -136,6 +138,30 @@ void main() {
     expect([for (final r in resources) r.entry], [entry, other]);
     expect(resources[0].state, isA<ResourceDownloading>());
     expect(resources[1].state, const ResourceDownloaded(1));
+  });
+
+  test('a recitation without complete rights is never offered', () {
+    final catalogue = syntheticCatalogue();
+    final ids = [
+      for (final resource in resourcesOf(
+        catalogue,
+        installed: const [],
+        jobs: const [],
+      ))
+        resource.entry.id,
+    ];
+    expect(ids, ['synthetic-text', 'synthetic-tafsir', 'synthetic-recitation']);
+  });
+
+  test('installed packs the catalogue does not offer can be found', () {
+    final catalogue = syntheticCatalogue();
+    final kept = _installed('synthetic-tafsir', 1);
+    final withdrawn = _installed('synthetic-gone', 1);
+    final unlisted = _installed('synthetic-unlisted', 1);
+    expect(installedNotOffered(catalogue, [kept, withdrawn, unlisted]), [
+      withdrawn,
+      unlisted,
+    ]);
   });
 
   test('states compare by value and name themselves', () {

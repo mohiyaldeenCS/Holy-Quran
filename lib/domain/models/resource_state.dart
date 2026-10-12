@@ -99,7 +99,7 @@ final class Resource {
   final InstallFailure? failure;
 }
 
-/// Every pack of [catalogue], in its order, joined with the [installed]
+/// Every pack [catalogue] offers, in its order, joined with the [installed]
 /// packs and the install [jobs] (docs/PACK_CATALOGUE.md, "Joining with the
 /// installed packs").
 List<Resource> resourcesOf(
@@ -107,7 +107,7 @@ List<Resource> resourcesOf(
   required List<InstalledPack> installed,
   required List<InstallJob> jobs,
 }) => [
-  for (final entry in catalogue.packs)
+  for (final entry in catalogue.offeredPacks)
     resourceOf(
       entry,
       installed: installed.where((pack) => pack.id == entry.id).firstOrNull,
@@ -137,4 +137,17 @@ Resource resourceOf(
     (_, final version?) => ResourceDownloaded(version),
   };
   return Resource(entry: entry, state: state, failure: failure);
+}
+
+/// The [installed] packs [catalogue] does not offer: they can still be
+/// deleted, and are not offered for download.
+List<InstalledPack> installedNotOffered(
+  Catalogue catalogue,
+  List<InstalledPack> installed,
+) {
+  final offered = {for (final entry in catalogue.offeredPacks) entry.id};
+  return [
+    for (final pack in installed)
+      if (!offered.contains(pack.id)) pack,
+  ];
 }

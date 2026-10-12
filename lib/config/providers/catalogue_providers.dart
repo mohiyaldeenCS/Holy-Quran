@@ -54,7 +54,9 @@ PackRecitationRepository recitationRepository({
     files: const PackFileService(),
     signatures: Ed25519ManifestVerifier(manifestPublicKeys),
   ).verify,
-  integrity: integrity,
+  integrityOf: integrity.stateOf,
+  report: (pack, state, version) =>
+      integrity.report(pack, state, version: version),
   files: const PackFileService(),
   audioDirectory: () async => '${await applicationSupportPath()}/recitations',
 );

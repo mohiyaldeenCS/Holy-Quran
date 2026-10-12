@@ -18,10 +18,10 @@ abstract interface class CatalogueRepository implements Listenable {
   /// one is.
   Catalogue? get catalogue;
 
-  /// Fetches the catalogue and, once it is accepted, serves and keeps it.
+  /// Serves the catalogue kept on the device if none is served yet, then
+  /// fetches the catalogue and, once it is accepted, serves and keeps it.
   /// When it cannot be fetched or is refused, the [CatalogueFailure] is
-  /// returned and the last catalogue accepted is served, read from the
-  /// device if none was read yet.
+  /// returned and the last catalogue accepted stays served.
   Future<Result<Catalogue>> refresh();
 }
 
@@ -61,16 +61,15 @@ final class RemoteCatalogueRepository extends ChangeNotifier
       _refreshing ??= _refresh().whenComplete(() => _refreshing = null);
 
   Future<Result<Catalogue>> _refresh() async {
-    final fetched = await _fetch();
-    switch (fetched) {
+    if (_catalogue == null) {
+      if (await _kept() case final kept?) _serve(kept);
+    }
+    switch (await _fetch()) {
       case Ok(value: (:final bytes, :final signature, :final catalogue)):
         _serve(catalogue);
         await _keep(bytes, signature);
         return Ok(catalogue);
       case Failure(:final error):
-        if (_catalogue == null) {
-          if (await _kept() case final kept?) _serve(kept);
-        }
         return Failure(error);
     }
   }
@@ -166,7 +165,9 @@ final class RemoteCatalogueRepository extends ChangeNotifier
 
   static CatalogueFailure _unreachable(Uri url, Exception error) =>
       switch (error) {
-        UrlRefused(:final url) => CatalogueRejected('URL not allowed: $url'),
+        UrlRefused(:final url) => CatalogueRejected(
+          'URL refused, or one redirect too many: $url',
+        ),
         _ => CatalogueUnreachable(url, '$error'),
       };
 
