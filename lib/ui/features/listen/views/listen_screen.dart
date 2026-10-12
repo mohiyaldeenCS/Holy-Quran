@@ -1,8 +1,12 @@
 import 'package:flutter/widgets.dart';
 
+import 'package:holyquran/data/repositories/catalogue_repository.dart';
+import 'package:holyquran/data/repositories/pack_install_repository.dart';
 import 'package:holyquran/data/repositories/player_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
+import 'package:holyquran/data/repositories/recitation_repository.dart';
 import 'package:holyquran/ui/features/listen/view_models/player_view_model.dart';
+import 'package:holyquran/ui/features/listen/view_models/recitation_picker_view_model.dart';
 import 'package:holyquran/ui/features/listen/views/player_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -41,6 +45,16 @@ PlayerViewModel? createPlayerViewModel(BuildContext context) {
   if (player == null || index == null) return null;
   return PlayerViewModel(player: player, index: index);
 }
+
+/// The picker's view model over whichever of its repositories the app
+/// provides; with no recitation repository it lists nothing.
+RecitationPickerViewModel createRecitationPickerViewModel(
+  BuildContext context,
+) => RecitationPickerViewModel(
+  recitations: _provided<RecitationRepository>(context),
+  catalogue: _provided<CatalogueRepository>(context),
+  installs: _provided<PackInstallRepository>(context),
+);
 
 // Areas provide a repository only once what it stands on is ready.
 T? _provided<T>(BuildContext context) {
