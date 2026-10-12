@@ -2,13 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
+import 'package:holyquran/domain/models/ui_level.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/router.dart';
 import 'package:holyquran/ui/core/app.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/features/home/views/home_screen.dart';
+import 'package:provider/provider.dart';
+
+import '../../../testing/fakes/fake_app_settings_repository.dart';
 
 void main() {
   testWidgets('starts in Arabic, right to left', (tester) async {
@@ -117,6 +122,90 @@ void main() {
           style.systemNavigationBarColor,
           AppColors.byId[theme.name]!.ground,
         );
+      });
+    }
+  });
+
+  group('with the settings provided', () {
+    Future<void> pumpApp(
+      WidgetTester tester,
+      FakeAppSettingsRepository settings,
+    ) async {
+      await tester.pumpWidget(
+        ChangeNotifierProvider<AppSettingsRepository>.value(
+          value: settings,
+          child: QuranApp(router: createRouter()),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    AppColors colors(WidgetTester tester) =>
+        tester.element(find.byType(HomeScreen)).colors;
+
+    UiLevel level(WidgetTester tester) =>
+        tester.element(find.byType(HomeScreen)).read<UiLevel>();
+
+    testWidgets('takes the stored theme and level', (tester) async {
+      await pumpApp(
+        tester,
+        FakeAppSettingsRepository(
+          themePreference: const ThemePreference(theme: ReadingTheme.sepia),
+          level: UiLevel.study,
+        ),
+      );
+
+      expect(colors(tester), same(AppColors.sepia));
+      expect(level(tester), UiLevel.study);
+    });
+
+    // An animated change would show a blend of the two themes after one frame.
+    testWidgets('applies a change in the next frame, without animation', (
+      tester,
+    ) async {
+      final settings = FakeAppSettingsRepository();
+      await pumpApp(tester, settings);
+
+      await settings.setTheme(ReadingTheme.night);
+      await settings.setLevel(UiLevel.medium);
+      await tester.pump();
+
+      expect(colors(tester), same(AppColors.night));
+      expect(level(tester), UiLevel.medium);
+    });
+
+    testWidgets('keeps the choice across a restart', (tester) async {
+      final settings = FakeAppSettingsRepository();
+      await pumpApp(tester, settings);
+      await settings.setTheme(ReadingTheme.contrast);
+      await settings.setLevel(UiLevel.study);
+
+      await tester.pumpWidget(const SizedBox());
+      await pumpApp(tester, settings);
+
+      expect(colors(tester), same(AppColors.contrast));
+      expect(level(tester), UiLevel.study);
+    });
+
+    for (final (theme, expected) in [
+      (ReadingTheme.paper, AppColors.night),
+      (ReadingTheme.sepia, AppColors.night),
+      (ReadingTheme.contrast, AppColors.contrast),
+    ]) {
+      testWidgets('follows a dark system from ${theme.name} (D-053)', (
+        tester,
+      ) async {
+        tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        final settings = FakeAppSettingsRepository(
+          themePreference: ThemePreference(theme: theme),
+        );
+        await pumpApp(tester, settings);
+
+        await settings.setFollowSystemDark(true);
+        await tester.pump();
+
+        expect(colors(tester), same(expected));
       });
     }
   });
