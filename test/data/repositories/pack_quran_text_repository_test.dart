@@ -281,6 +281,42 @@ void main() {
       expect(await repository.contains(_at('hafs:9:1')), disabled);
     });
 
+    test('reports the failure that disabled the pack, once', () async {
+      final pack = await buildSyntheticPack(
+        root,
+        fault: SyntheticFault.wrongSurahHash,
+      );
+      final verified = switch (await const LocalPackRepository(
+        files: PackFileService(),
+        signatures: SignatureNotConfigured(),
+      ).verify(pack.directory.path)) {
+        Ok(:final value) => value,
+        Failure(:final error) => fail('$error'),
+      };
+      final reported = <PackFailure>[];
+      final repository = ok(
+        PackQuranTextRepository.open(verified, onDisabled: reported.add),
+      );
+      addTearDown(repository.close);
+
+      expect(ok(await repository.ayahText(_at('hafs:2:1'))), isNotNull);
+      expect(
+        await repository.ayahText(_at('hafs:9:1')),
+        fails<AddressNotInPack>(),
+      );
+      expect(reported, isEmpty);
+      expect(
+        await repository.ayahText(_at('hafs:1:1')),
+        fails<SurahHashMismatch>(),
+      );
+      expect(await repository.ayahText(_at('hafs:1:1')), fails<PackDisabled>());
+      expect(reported, [
+        isA<SurahHashMismatch>()
+            .having((f) => f.pack, 'pack', _id)
+            .having((f) => f.surah, 'surah', 1),
+      ]);
+    });
+
     for (final (name, read) in [
       ('basmala', (PackQuranTextRepository r) => r.basmala(1)),
       ('words', (PackQuranTextRepository r) => r.words(_at('hafs:1:3'))),

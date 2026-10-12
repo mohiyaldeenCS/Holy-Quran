@@ -274,6 +274,39 @@ void main() {
       expect(files.calls, contains('sizeOf $textFileName'));
       expect(files.calls.where((call) => call.startsWith('sha256Of')), isEmpty);
     });
+
+    test('by size only in verifySizes', () async {
+      final pack = await buildSyntheticPack(root);
+      final files = _SpyFiles();
+      expect(
+        await repository(files: files).verifySizes(pack.directory.path),
+        isA<Ok<VerifiedPack>>(),
+      );
+      expect(files.calls, [
+        'readIfExists manifest.json',
+        'readIfExists manifest.json.sig',
+        'sizeOf $textFileName',
+      ]);
+    });
+
+    test('verifySizes passes a changed byte and refuses a size', () async {
+      final flipped = await buildSyntheticPack(
+        Directory('${root.path}/flipped'),
+        fault: SyntheticFault.flippedByte,
+      );
+      final resized = await buildSyntheticPack(
+        Directory('${root.path}/resized'),
+        fault: SyntheticFault.wrongFileSize,
+      );
+      expect(
+        await repository().verifySizes(flipped.directory.path),
+        isA<Ok<VerifiedPack>>(),
+      );
+      expect(
+        await repository().verifySizes(resized.directory.path),
+        fails<FileHashMismatch>(),
+      );
+    });
   });
 
   test('passes the faults found only once the file is open', () async {
