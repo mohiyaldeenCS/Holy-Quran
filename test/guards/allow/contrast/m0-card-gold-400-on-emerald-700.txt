@@ -1,0 +1,4 @@
+card text: gold-400 on emerald-700
+decision: D-089
+exception: card 3.90
+The emerald share card: the reference line, judged as the exported image (D-089, 3); the shortfall is open with the owner (O-12).

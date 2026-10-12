@@ -1,0 +1,2 @@
+package:flutter_localizations/
+decision: D-047

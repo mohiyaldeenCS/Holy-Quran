@@ -1,0 +1,3 @@
+package:meta/
+decision: D-114
+Pure Dart; carried over from the M0.2 import guard.

@@ -1,0 +1,4 @@
+text: emerald-950 on ornament
+decision: D-114
+exception: sepia 3.10
+Listed in docs/DESIGN_SYSTEM.md, "Contrast"; the shortfall is open with the owner (O-12).

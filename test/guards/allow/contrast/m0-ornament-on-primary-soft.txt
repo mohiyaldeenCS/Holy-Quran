@@ -1,0 +1,7 @@
+non-text: ornament on primary-soft
+decision: D-114
+exception: paper 2.54
+pinned: night 5.95
+pinned: sepia 3.56
+pinned: contrast 8.65
+M0.5: the dot of the continue-reading badge; the shortfall is decorative.

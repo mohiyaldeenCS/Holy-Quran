@@ -1,0 +1,3 @@
+package:holyquran/
+decision: D-020
+The app's own package; the layer rules decide which of its folders a file may import.

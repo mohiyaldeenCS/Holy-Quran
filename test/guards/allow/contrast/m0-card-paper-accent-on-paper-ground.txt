@@ -1,0 +1,4 @@
+card text: paper-accent on paper-ground
+decision: D-089
+pinned: card 4.90
+The paper share card: the reference line (D-089, 3).

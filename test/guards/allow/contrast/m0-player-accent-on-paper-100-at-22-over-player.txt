@@ -1,0 +1,7 @@
+non-text: player-accent on paper-100@22 over player
+decision: D-089
+exception: paper 2.35
+pinned: night 4.10
+exception: sepia 2.35
+pinned: contrast 8.64
+M0.5: the player-tone ProgressBar fill against its track; the shortfalls are added to O-12 (D-089, 8).

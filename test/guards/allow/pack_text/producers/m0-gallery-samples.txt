@@ -1,0 +1,3 @@
+lib/ui/core/gallery/gallery_samples.dart
+decision: D-086
+The debug gallery's synthetic samples.

@@ -1,0 +1,6 @@
+non-text: line on surface
+decision: D-114
+exception: paper 1.45
+exception: night 1.36
+exception: sepia 1.45
+M0.2: the Switch off track (WCAG 1.4.11); the shortfalls are open with the owner (O-12).

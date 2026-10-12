@@ -1,0 +1,3 @@
+lib/ui/core/widgets/quran_text.dart
+decision: D-062
+QuranText draws Quran text from a pack.

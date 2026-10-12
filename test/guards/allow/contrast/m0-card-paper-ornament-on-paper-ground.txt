@@ -1,0 +1,4 @@
+card non-text: paper-ornament on paper-ground
+decision: D-089
+exception: card 2.90
+The paper share card: the frames (D-089, 3); the shortfall is decorative.

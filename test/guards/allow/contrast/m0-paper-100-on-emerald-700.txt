@@ -1,0 +1,3 @@
+text: paper-100 on emerald-700
+decision: D-114
+M0.2: the Lockup on the emerald brand surface; also the emerald book of the Mark.

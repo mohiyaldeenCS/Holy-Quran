@@ -1,0 +1,3 @@
+non-text: warning on surface
+decision: D-114
+Listed in docs/DESIGN_SYSTEM.md, "Contrast".

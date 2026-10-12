@@ -1,0 +1,3 @@
+text: on-primary-soft on surface
+decision: D-114
+M0.2: the active TabBar label sits on the bar's surface.

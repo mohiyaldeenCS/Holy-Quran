@@ -2,38 +2,20 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'allow_list.dart';
+
 const _package = 'package:holyquran/';
 
 /// Packages any layer may import. Everything else under `package:` counts as a
-/// plugin; a new pure-Dart package is added here deliberately.
-const _nonPlugins = [
-  _package,
-  'package:flutter/',
-  'package:flutter_localizations/',
-  'package:go_router/',
-  'package:intl/',
-  'package:meta/',
-  'package:collection/',
-  'package:provider/',
-];
+/// plugin; a new pure-Dart package is added deliberately.
+final _nonPlugins = loadPackageAllowList(
+  'test/guards/allow/imports/non_plugins',
+);
 
 /// The only files that may reach a raw colour ramp (docs/DESIGN_SYSTEM.md,
-/// "Colour"): fixed brand surfaces, and the gallery's preview backdrops.
-/// Each one exists and imports the ramps, so no permission outlives its use.
-const _rampImporters = {
-  'lib/ui/core/widgets/mark.dart',
-  'lib/ui/core/widgets/lockup.dart',
-  'lib/ui/core/widgets/button.dart',
-  'lib/ui/core/widgets/ayah_marker.dart',
-  'lib/ui/core/widgets/quran_text.dart',
-  'lib/ui/core/widgets/progress_bar.dart',
-  'lib/ui/core/widgets/mini_player.dart',
-  'lib/ui/core/widgets/continue_card.dart',
-  'lib/ui/core/widgets/share_card.dart',
-  'lib/ui/core/widgets/home_header.dart',
-  'lib/ui/core/widgets/splash.dart',
-  'lib/ui/core/gallery/gallery_screen.dart',
-};
+/// "Colour"). Each entry covers a file that imports the ramps, so no
+/// permission outlives its use.
+final _rampImporters = PathAllowList.load('test/guards/allow/imports/ramps');
 
 const _databasePackages = [
   'package:drift',
@@ -69,15 +51,18 @@ List<String> _violations(Map<String, String> sources) => [
       for (final rule in _rulesBroken(path, uri)) '$path: $uri ($rule)',
 ];
 
-/// Entries of [_rampImporters] that are not a file of [sources], or whose file
-/// does not import the ramps, as `path (why)`.
+/// Entries of [_rampImporters] that cover no file of [sources], and covered
+/// files that do not import the ramps, as `path (why)`.
 Iterable<String> _staleRampImporters(Map<String, String> sources) sync* {
-  for (final path in _rampImporters) {
-    final source = sources[path];
-    if (source == null) {
-      yield '$path (no such file)';
-    } else if (!_importsOf(path, source).any(_isRamps)) {
-      yield '$path (no ramps import)';
+  for (final target in _rampImporters.targets) {
+    final covered = sources.entries.where(
+      (source) => PathAllowList.covers(target, source.key),
+    );
+    if (covered.isEmpty) yield '$target (no such file)';
+    for (final MapEntry(key: path, value: source) in covered) {
+      if (!_importsOf(path, source).any(_isRamps)) {
+        yield '$path (no ramps import)';
+      }
     }
   }
 }
@@ -85,7 +70,7 @@ Iterable<String> _staleRampImporters(Map<String, String> sources) sync* {
 bool _isRamps(String uri) => uri.endsWith('/ramps.g.dart');
 
 Iterable<String> _rulesBroken(String path, String uri) sync* {
-  if (_isRamps(uri) && !_rampImporters.contains(path)) {
+  if (_isRamps(uri) && !_rampImporters.allows(path)) {
     yield 'ramps';
   }
   if (uri.startsWith('package:') &&
@@ -139,7 +124,7 @@ void main() {
           feature: "import 'package:holyquran/ui/core/theme/ramps.g.dart';",
           coreWidget: "import '../theme/ramps.g.dart';",
           theme: "export 'ramps.g.dart';",
-          for (final allowed in _rampImporters)
+          for (final allowed in _rampImporters.targets)
             allowed: "import 'package:holyquran/ui/core/theme/ramps.g.dart';",
         }),
         [
@@ -151,7 +136,7 @@ void main() {
     });
 
     test('a ramp allow-list entry that is missing or imports no ramps', () {
-      final [missing, unused, ...used] = _rampImporters.toList();
+      final [missing, unused, ...used] = _rampImporters.targets;
       expect(
         _staleRampImporters({
           unused: '''
