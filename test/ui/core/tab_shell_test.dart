@@ -4,11 +4,15 @@ import 'package:go_router/go_router.dart';
 
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/router.dart';
+import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/app.dart';
+import 'package:holyquran/ui/core/shell_chrome.dart';
 import 'package:holyquran/ui/core/tab_shell.dart';
 import 'package:holyquran/ui/core/widgets/icon.dart' as ds;
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
 import 'package:holyquran/ui/core/widgets/tab_bar.dart';
+import 'package:holyquran/ui/features/home/views/home_screen.dart';
+import 'package:provider/provider.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
 
@@ -28,8 +32,10 @@ GoRouter _nestedRouter() => GoRouter(
   initialLocation: '/b0',
   routes: [
     StatefulShellRoute.indexedStack(
-      builder: (context, state, navigationShell) =>
-          TabShell(navigationShell: navigationShell),
+      builder: (context, state, navigationShell) => ChangeNotifierProvider(
+        create: (context) => ShellChrome(),
+        child: TabShell(navigationShell: navigationShell),
+      ),
       branches: [
         for (var i = 0; i < 5; i++)
           StatefulShellBranch(
@@ -153,5 +159,47 @@ void main() {
     await tester.tap(_tab(_l10n.tabMushaf));
     await tester.pumpAndSettle();
     expect(router.state.uri.path, '/b1');
+  });
+
+  testWidgets('hides the tab bar while the shell chrome says so', (
+    tester,
+  ) async {
+    final router = createRouter();
+    await tester.pumpWidget(QuranApp(router: router));
+    await tester.pumpAndSettle();
+    await tester.tap(_tab(_l10n.tabListen));
+    await tester.pumpAndSettle();
+    final chrome = Provider.of<ShellChrome>(
+      tester.element(find.byType(TabShell)),
+      listen: false,
+    );
+
+    chrome.tabBarVisible = false;
+    await tester.pump();
+    expect(find.byType(TabBar), findsNothing);
+    expect(router.state.uri.path, Routes.listen);
+
+    chrome.tabBarVisible = true;
+    await tester.pump();
+    expect(tester.widget<TabBar>(find.byType(TabBar)).currentIndex, 2);
+  });
+
+  testWidgets('a hidden tab bar leaves the screen the whole height', (
+    tester,
+  ) async {
+    await tester.pumpWidget(QuranApp(router: createRouter()));
+    await tester.pumpAndSettle();
+    final withBar = tester.getSize(find.byType(HomeScreen)).height;
+
+    Provider.of<ShellChrome>(
+      tester.element(find.byType(TabShell)),
+      listen: false,
+    ).tabBarVisible = false;
+    await tester.pump();
+
+    expect(
+      tester.getSize(find.byType(HomeScreen)).height,
+      greaterThan(withBar),
+    );
   });
 }
