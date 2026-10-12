@@ -12,6 +12,7 @@ dependencies:
   background_downloader: 9.5.9
   connectivity_plus: ^7.3.2
   crypto: ^3.0.7
+  cryptography: ^2.9.0
   drift: ^2.35.2
   flutter:
     sdk: flutter
