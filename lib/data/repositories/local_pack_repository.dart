@@ -24,7 +24,20 @@ final class LocalPackRepository implements PackRepository {
   final ManifestSignatureVerifier _signatures;
 
   @override
-  Future<Result<VerifiedPack>> verify(String directory) async {
+  Future<Result<VerifiedPack>> verify(String directory) =>
+      _verify(directory, hashes: true);
+
+  /// [verify] without hashing the files, for a pack whose hashes matched at
+  /// an earlier start (PRD section 9.5): the signature, the manifest, and the
+  /// size of every file it lists. The first read of each surah still checks
+  /// its digest.
+  Future<Result<VerifiedPack>> verifySizes(String directory) =>
+      _verify(directory, hashes: false);
+
+  Future<Result<VerifiedPack>> _verify(
+    String directory, {
+    required bool hashes,
+  }) async {
     final Uint8List? manifest;
     final Uint8List? signature;
     try {
@@ -75,7 +88,7 @@ final class LocalPackRepository implements PackRepository {
       final path = '$directory/${file.name}';
       try {
         if (await _files.sizeOf(path) != file.bytes ||
-            await _files.sha256Of(path) != file.sha256) {
+            (hashes && await _files.sha256Of(path) != file.sha256)) {
           return Failure(FileHashMismatch(directory, file.name));
         }
       } on Exception {
