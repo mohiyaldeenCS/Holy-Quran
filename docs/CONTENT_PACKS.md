@@ -1,4 +1,4 @@
-# Content packs — format v1
+# Content packs — formats 1 and 2
 
 This file defines what a content pack is on disk, so that the app (stream A) and the
 pipeline in `tools/packs/` (stream B) agree without sharing code (D-035, D-064). The
@@ -6,9 +6,11 @@ app's verification and the integrity suite in `test/integrity/` decide whether a
 is accepted. Written in M0.3; the planning session reviews it in the pull request.
 
 Version 1 defines the text pack (`kind: "text"`), which carries the Hafs base text,
-its word offsets, surah metadata and the reference edition's divisions. Other kinds
-(pages, tafsir, timing, recitation, tajweed, linguistic) are added with their
-milestones as new `kind` values and new versions of this file.
+its word offsets, surah metadata and the reference edition's divisions. Version 2
+(P1-06, D-110) adds the source's search forms to the text pack and the kinds `tafsir`
+and `recitation`; see "Format version 2" below, which amends the sections before it.
+Other kinds (pages, timing, tajweed, linguistic) are added with their milestones as
+new `kind` values and new versions of this file.
 
 Nothing in this file is Quran text. Every value shown below is a placeholder.
 
@@ -19,6 +21,8 @@ Nothing in this file is Quran text. Every value shown below is a placeholder.
   manifest.json        UTF-8 without BOM; its exact bytes are what is signed
   manifest.json.sig    detached signature over manifest.json (format fixed by D-024; absent until then)
   text.sqlite          kind "text": exactly one data file with this name
+  tafsir.sqlite        kind "tafsir" (format 2), in place of text.sqlite
+  recitation.sqlite    kind "recitation" (format 2), in place of text.sqlite
 ```
 
 ## Manifest (`manifest.json`)
@@ -57,15 +61,17 @@ apply. Unknown fields are rejected.
 Rules:
 
 - `format` is `holyquran-pack`. `format_version` outside the versions the app knows
-  (today `1`) makes the pack unsupported: it is hidden, not opened.
-- `kind` is one of the known kinds (today `text`). `trust_grade` is `A`, `B` or `C`.
+  (today `1` and `2`) makes the pack unsupported: it is hidden, not opened.
+- `kind` is one of the known kinds (today `text`, and from format 2 `tafsir` and
+  `recitation`). `trust_grade` is `A`, `B` or `C`.
 - Every hash is lowercase hexadecimal SHA-256: `^[0-9a-f]{64}$`.
 - `files[].name` is a bare file name: no `/`, `\` or `..`.
 - The keys of `surah_sha256` are exactly `"1"` to `"<counts.surahs>"`.
 - `sources` is a list because a pack may draw on several registry rows (the base pack
   takes its text from row 1 and its divisions from row 4). Each entry carries its own
   licence and grade (question P1 of the M0.3 review). `role` is `text` or
-  `edition_map`; a text pack has at least one `text` source. Every licence has a
+  `edition_map` (format 2 adds `search_forms`, `tafsir` and `recitation`; see
+  "Manifest by kind"); a text pack has at least one `text` source. Every licence has a
   non-null `text` or `permission_ref`, so no content is shown without a source and a
   permission (PRD §9.1).
 - `options` holds the choices the source file was produced with (on Tanzil's
@@ -241,6 +247,189 @@ flutter test test/integrity --dart-define=HOLYQURAN_PACK_DIR=<path to pack-id/ve
 The suite takes its expected values from the manifest, which the pipeline checked
 against the source (PRD §9.4) and the signature binds. No count of surahs or ayat is
 written in Dart.
+
+## Format version 2
+
+Written in P1-06 (D-110). **It needs the planning session's review in the pull
+request (D-077)** before the pipeline builds against it; the app reads it already.
+Nothing in this section is Quran text, tafsir text or a recitation; every value is a
+placeholder.
+
+### Version rules
+
+- The app reads `format_version` 1 and 2. Any other value makes the pack unsupported,
+  as before.
+- A text pack may be format 1 or 2. A format 1 text pack stays readable and has no
+  search forms. `tafsir` and `recitation` exist from format 2 on; a manifest that
+  names either with `format_version` 1 is refused.
+- `user_version` of the data file equals `format_version`, and the `application_id`
+  is `HQPK` for every kind. The kind is decided by the signed manifest and by the
+  exact schema check; a file of another kind does not pass that check.
+- Unknown fields are refused as in format 1. The key set of the manifest depends on
+  its kind (below); a key of another kind is an unknown field.
+- `riwaya` is required, and not null, for all three kinds, because passages and files
+  are addressed `riwaya:surah:ayah`.
+- The file rules of "Text pack" apply to every data file: UTF-8 set first,
+  `journal_mode = DELETE`, `VACUUM` last, `STRICT` tables, no text beginning with
+  U+FEFF, opened read-only and immutable, never edited in place.
+
+### Manifest by kind
+
+| Key | `text` | `tafsir` | `recitation` |
+| --- | --- | --- | --- |
+| `format`, `format_version`, `id`, `kind`, `version`, `changelog`, `riwaya`, `sources`, `files`, `counts`, `reviews` | required | required | required |
+| `edition`, `font`, `surah_sha256` | required | refused | refused |
+| The one entry of `files` | `text.sqlite` | `tafsir.sqlite` | `recitation.sqlite` |
+| Source roles allowed (first one required) | `text`, `edition_map`, `search_forms` | `tafsir` | `recitation` |
+
+Font, edition and per-surah digests cannot apply to a tafsir or a recitation, so they
+are absent rather than null. The registry row of each source is filled by the
+pipeline from `docs/SOURCES.md`; this format fixes no row number.
+
+`counts` by kind:
+
+- `text`, format 1: unchanged.
+- `text`, format 2: the format 1 counts plus `"search_forms": {"<kind>": n}`. The keys
+  are the form kinds the pack provides, each a source-given name of lower-case
+  letters and digits joined by `-` or `_` (`^[a-z0-9]+(?:[-_][a-z0-9]+)*$`). Each
+  `n` equals `counts.words`, because every word has exactly one form of each kind.
+  `{}` means the pack provides none. A `search_forms` source is listed exactly when
+  this object is not empty.
+- `tafsir`: `{"passages": n}`, `n` at least 1.
+- `recitation`: `{"files": n}`, `n` at least 1.
+
+```json
+{"format": "holyquran-pack", "format_version": 2, "id": "<tafsir id>", "kind": "tafsir",
+ "version": 1, "changelog": [], "riwaya": "hafs",
+ "sources": [{"role": "tafsir", "registry_row": 0, "...": "the fields of format 1"}],
+ "files": [{"name": "tafsir.sqlite", "sha256": "<hex>", "bytes": 0}],
+ "counts": {"passages": 0}, "reviews": []}
+```
+
+### Text pack, format 2: search forms (`SR-03`)
+
+The six tables of format 1, unchanged, plus:
+
+```sql
+CREATE TABLE search_form (
+  surah INTEGER NOT NULL,
+  ayah  INTEGER NOT NULL,
+  word  INTEGER NOT NULL,          -- a row of word; a mark has no form
+  kind  TEXT NOT NULL,             -- a key of counts.search_forms
+  form  TEXT NOT NULL,             -- as the source gives it
+  PRIMARY KEY (surah, ayah, word, kind),
+  FOREIGN KEY (surah, ayah, word) REFERENCES word(surah, ayah, number)
+) STRICT, WITHOUT ROWID;
+```
+
+- One row per word of the word index and per form kind the source provides, filled
+  by the pipeline from the source through the mapping of B0.2 and B0.4. Neither the
+  pipeline nor the app derives a form (D-037); only the user's query, and at most a
+  rebuildable app-side index built from these forms, pass through the fold function.
+- `form` is not empty and is stored byte for byte as the source gives it. It may hold
+  U+0020 when the source spells one indexed word as several; the reverse (one form
+  over two indexed words) has no place in this format, and the pipeline stops on it.
+- The forms are covered by the file hash only, like word offsets: they are never
+  displayed in place of the text.
+
+### Tafsir pack (`kind: "tafsir"`, `tafsir.sqlite`; `TF-04`, `TF-05`)
+
+One book per pack (docs/ARCHITECTURE.md, "Content packs").
+
+```sql
+CREATE TABLE book (
+  title     TEXT NOT NULL,
+  author    TEXT NOT NULL,
+  publisher TEXT,                  -- NULL where the source names none
+  edition   TEXT,
+  editor    TEXT
+) STRICT;                          -- exactly one row
+
+CREATE TABLE passage (
+  number     INTEGER PRIMARY KEY,  -- 1..counts.passages, contiguous, mushaf order
+  surah      INTEGER NOT NULL,
+  first_ayah INTEGER NOT NULL,
+  last_ayah  INTEGER NOT NULL,     -- >= first_ayah
+  text       TEXT NOT NULL,        -- the book's wording, verbatim after the documented conversion
+  UNIQUE (surah, first_ayah)
+) STRICT;
+```
+
+- The book's facts are in the pack so that they reach the badge through the strict
+  decoder. A fact the source does not give is NULL and hidden; none is guessed.
+  `publisher` is there because the Zaydi-library books name publisher, edition and
+  editor on the badge (`docs/SOURCES.md`).
+- The digitisation source and the version of `TF-05` are the manifest's `tafsir`
+  source (`name`, `publisher`, `url`, `version`, `fetched_on`) and the pack
+  `version`; they are not stored twice.
+- A passage explains the ayat `first_ayah`..`last_ayah` of one surah and is shown
+  once with that range. Passages do not overlap and follow in mushaf order, so an
+  ayah has at most one passage. An ayah without a passage has none: there is no
+  empty row. A source passage that crosses a surah boundary, or text a book places
+  before ayah 1 of a surah, stops the pipeline until this format is revised.
+- Quran quotations inside a passage are part of the book's text (`TF-08`).
+- No digest beyond the file hash. Ranges are checked against the text pack of the
+  same riwaya by the integrity suite and by the tafsir repository (P1-20).
+
+### Recitation pack (`kind: "recitation"`, `recitation.sqlite`; `AU-13`, `AU-14`)
+
+The pack is the index of a recitation's audio files; the audio is not in the pack and
+not in `files`, so verifying the pack never reads it. Each audio file is fetched from
+`base_url` + `path` and refused unless its size equals `bytes` and its SHA-256 equals
+`sha256`.
+
+```sql
+CREATE TABLE recitation (
+  reciter  TEXT NOT NULL,
+  style    TEXT NOT NULL,
+  unit     TEXT NOT NULL CHECK (unit IN ('ayah','surah')),
+  base_url TEXT NOT NULL           -- absolute https, ends with '/'
+) STRICT;                          -- exactly one row
+
+CREATE TABLE file (
+  quality_kbps INTEGER NOT NULL CHECK (quality_kbps > 0),
+  part         TEXT NOT NULL CHECK (part IN ('surah','ayah','basmala','istiadha')),
+  surah        INTEGER,            -- NULL for basmala and istiadha
+  ayah         INTEGER,            -- set for part 'ayah' only
+  path         TEXT NOT NULL,      -- relative to base_url
+  bytes        INTEGER NOT NULL,   -- > 0, shown before download
+  sha256       TEXT NOT NULL,      -- lowercase hex
+  duration_ms  INTEGER,            -- > 0; NULL when the source does not state it exactly
+  PRIMARY KEY (path),
+  UNIQUE (quality_kbps, part, surah, ayah)
+) STRICT, WITHOUT ROWID;
+```
+
+- The riwaya is the manifest's, the one signed place that already keys every address.
+- `unit = 'ayah'`: the numbered files are `part = 'ayah'`, with surah and ayah.
+  `unit = 'surah'`: they are `part = 'surah'`, with a surah and no ayah. A file of the
+  other unit's part is refused.
+- `basmala` and `istiadha` are the reciter's own recordings (`AU-24`), with no surah
+  or ayah, at most one of each per quality.
+- At most one file per quality, part, surah and ayah; paths are unique. `path` is
+  segments of `A-Z a-z 0-9 . _ -` joined by `/`, with no `.` or `..` segment.
+- `base_url` is `https`, has a host, ends with `/`, and has no user, query or
+  fragment. Moving the files to another host is a new pack version.
+- Whether a quality must cover the whole mushaf is not fixed by the format; the
+  listing rules decide it (P1-13).
+- Ayah and word timing wait for registry row 6 and come as their own kind.
+
+### Verification by kind
+
+Steps 1 to 4 of "Verification order in the app" apply to every kind, with the schema
+of that kind and version. Step 5 for a format 2 text pack also compares the search
+form rows of each kind with `counts.search_forms`. Steps 5 and 6 for the other kinds:
+a tafsir pack's passage count, numbering and ranges, and a recitation pack's file
+count and rows, are checked by their repositories on first read in a session. The
+integrity suite checks all of it at acceptance:
+
+```
+flutter test test/integrity --dart-define=HOLYQURAN_PACK_DIR=<pack-id/version> \
+  --dart-define=HOLYQURAN_TEXT_PACK_DIR=<text pack-id/version>
+```
+
+The suite chooses its checks by the manifest's `kind`; the text pack is the one whose
+surahs and ayat the passages and files must lie within.
 
 ## Review by the planning session, 2026-10-07
 
