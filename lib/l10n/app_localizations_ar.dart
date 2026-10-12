@@ -487,4 +487,267 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get markLabel => 'رمز القرآن الكريم';
+
+  @override
+  String get homeGreeting => 'السلام عليكم';
+
+  @override
+  String get homeContinueHint => 'أكمل من حيث توقفت';
+
+  @override
+  String readingPositionLine(String ayah, String page, String juz) {
+    return 'الآية $ayah · صفحة $page · الجزء $juz';
+  }
+
+  @override
+  String get indexTitle => 'الفهرس';
+
+  @override
+  String indexSummary(String surahs, String juz) {
+    return '$surahs سورة · $juz جزءًا';
+  }
+
+  @override
+  String get indexTabSurahs => 'السور';
+
+  @override
+  String get indexTabJuz => 'الأجزاء';
+
+  @override
+  String get indexTabHizb => 'الأحزاب';
+
+  @override
+  String juzLabel(String number) {
+    return 'الجزء $number';
+  }
+
+  @override
+  String hizbLabel(String number) {
+    return 'الحزب $number';
+  }
+
+  @override
+  String get rubLabel => 'ربع';
+
+  @override
+  String pageLabel(String number) {
+    return 'صفحة $number';
+  }
+
+  @override
+  String juzPageLine(String juz, String page) {
+    return 'الجزء $juz · صفحة $page';
+  }
+
+  @override
+  String juzHizbLine(String juz, String hizb) {
+    return 'الجزء $juz · الحزب $hizb';
+  }
+
+  @override
+  String get sajdaLabel => 'سجدة';
+
+  @override
+  String surahInfoLine(String revelation, String count, String order) {
+    return '$revelation · $count · ترتيبها $order';
+  }
+
+  @override
+  String get surahIntroTitle => 'مقدمة السورة';
+
+  @override
+  String get goToTitle => 'اذهب إلى';
+
+  @override
+  String get goToSurah => 'سورة';
+
+  @override
+  String get goToAyah => 'آية';
+
+  @override
+  String get goToPage => 'صفحة';
+
+  @override
+  String get goToJuz => 'جزء';
+
+  @override
+  String get goToHizb => 'حزب';
+
+  @override
+  String get goToRub => 'ربع';
+
+  @override
+  String ayahNotInSurah(String ayah, String surah) {
+    return 'لا توجد آية $ayah في $surah';
+  }
+
+  @override
+  String get contextSubtitle => 'ما قبلها وما بعدها';
+
+  @override
+  String get contextAmountLabel => 'مقدار السياق';
+
+  @override
+  String get contextOneAyah => 'آية';
+
+  @override
+  String get contextSurah => 'السورة';
+
+  @override
+  String get toolbarBookmark => 'علامة';
+
+  @override
+  String get toolbarStudy => 'دراسة';
+
+  @override
+  String get toolbarCopy => 'نسخ';
+
+  @override
+  String get toolbarShare => 'مشاركة';
+
+  @override
+  String get copySheetTitle => 'نسخ الآية';
+
+  @override
+  String get copyAyahOnly => 'نص الآية فقط';
+
+  @override
+  String get copyWithSurah => 'الآية مع اسم السورة';
+
+  @override
+  String get copyWithSurahAndNumber => 'الآية مع اسم السورة ورقمها';
+
+  @override
+  String get copyAction => 'انسخ';
+
+  @override
+  String copyFormatFull(String ayah, String surah, String number) {
+    return '﴿$ayah﴾ [$surah: $number]';
+  }
+
+  @override
+  String get shareDesignEmerald => 'زمرد';
+
+  @override
+  String get shareDesignPaper => 'ورق';
+
+  @override
+  String get shareDesignNight => 'ليل';
+
+  @override
+  String get shareTooLong => 'الآية أطول من أن تتسع في بطاقة';
+
+  @override
+  String get searchTitle => 'البحث';
+
+  @override
+  String get searchSortNearest => 'الأقرب';
+
+  @override
+  String get searchSortFrequent => 'الأكثر ورودًا';
+
+  @override
+  String get searchScopeAll => 'القرآن كله';
+
+  @override
+  String get tafsirNoPassage => 'لا يوجد تفسير لهذه الآية في هذا الكتاب';
+
+  @override
+  String get connectionFailed => 'تعذّر الاتصال';
+
+  @override
+  String get noBookmarksYet => 'لا توجد علامات بعد';
+
+  @override
+  String get undo => 'تراجع';
+
+  @override
+  String get back => 'رجوع';
+
+  @override
+  String get returnToRecitation => 'عُد إلى موضع التلاوة';
+
+  @override
+  String get wordTimingTag => 'توقيت كلمات';
+
+  @override
+  String get resourceManagerTitle => 'مدير الموارد';
+
+  @override
+  String get resourceCategoryRecitations => 'التلاوات';
+
+  @override
+  String get resourceCategoryTafsirs => 'التفاسير';
+
+  @override
+  String get resourceCategoryPageMushaf => 'مصحف الصفحات';
+
+  @override
+  String get resourceCategoryRiwayat => 'الروايات';
+
+  @override
+  String get resourceCategoryTajweed => 'التجويد';
+
+  @override
+  String get resourceCategoryLinguistic => 'الموارد اللغوية';
+
+  @override
+  String get resourceAvailableMasculine => 'متاح';
+
+  @override
+  String get resourceRedownload => 'إعادة التنزيل';
+
+  @override
+  String get settingsTitle => 'الإعدادات';
+
+  @override
+  String get themeLabel => 'السمة';
+
+  @override
+  String get textSettingsLabel => 'النص';
+
+  @override
+  String get followSystemDark => 'اتباع وضع النظام الداكن';
+
+  @override
+  String get sourcesTitle => 'المصادر والتراخيص';
+
+  @override
+  String get bookmarksAndNotes => 'العلامات والملاحظات';
+
+  @override
+  String get playerChange => 'تغيير';
+
+  @override
+  String playerAyahOfTotal(String ayah, String total) {
+    return 'الآية $ayah من $total';
+  }
+
+  @override
+  String playerSilenceSeconds(String seconds) {
+    return 'صمت $seconds ث';
+  }
+
+  @override
+  String get queueLabel => 'قائمة التشغيل';
+
+  @override
+  String recitationDownloadedLine(String riwaya) {
+    return '$riwaya · محمّلة';
+  }
+
+  @override
+  String get playOnlyAyah => 'الآية فقط';
+
+  @override
+  String get playToPageEnd => 'حتى نهاية الصفحة';
+
+  @override
+  String get playToSurahEnd => 'حتى نهاية السورة';
+
+  @override
+  String get playToJuzEnd => 'حتى نهاية الجزء';
+
+  @override
+  String get playUntilStopped => 'حتى أوقفه';
 }

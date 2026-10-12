@@ -667,5 +667,419 @@
   "markLabel": "رمز القرآن الكريم",
   "@markLabel": {
     "description": "Spoken name of the Mark on a share card, as the Share and Logo boards label it."
+  },
+  "homeGreeting": "السلام عليكم",
+  "@homeGreeting": {
+    "description": "The greeting line above the home heading. Source: design/identity-boards/Screens.dc.html."
+  },
+  "homeContinueHint": "أكمل من حيث توقفت",
+  "@homeContinueHint": {
+    "description": "The home heading that leads to the last reading position. Source: design/identity-boards/Screens.dc.html."
+  },
+  "readingPositionLine": "الآية {ayah} · صفحة {page} · الجزء {juz}",
+  "@readingPositionLine": {
+    "description": "A reading position: ayah, page and juz, as the continue card on the home screen writes it. ayah is the ayah number; page is the page number; juz is the juz number. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Screens.dc.html.",
+    "placeholders": {
+      "ayah": {
+        "type": "String"
+      },
+      "page": {
+        "type": "String"
+      },
+      "juz": {
+        "type": "String"
+      }
+    }
+  },
+  "indexTitle": "الفهرس",
+  "@indexTitle": {
+    "description": "The title of the index screen. Same wording as homeDoorIndex, which names the home door. Source: design/identity-boards/Screens2.dc.html."
+  },
+  "indexSummary": "{surahs} سورة · {juz} جزءًا",
+  "@indexSummary": {
+    "description": "The summary line under the index title. Its noun forms fit the counts the board shows, 114 surahs and 30 juz; do not reuse it for other numbers. surahs is the number of surahs; juz is the number of juz. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Screens2.dc.html.",
+    "placeholders": {
+      "surahs": {
+        "type": "String"
+      },
+      "juz": {
+        "type": "String"
+      }
+    }
+  },
+  "indexTabSurahs": "السور",
+  "@indexTabSurahs": {
+    "description": "The index tab that lists the surahs. Source: design/identity-boards/Screens2.dc.html."
+  },
+  "indexTabJuz": "الأجزاء",
+  "@indexTabJuz": {
+    "description": "The index tab that lists the juz. Source: design/identity-boards/Screens2.dc.html."
+  },
+  "indexTabHizb": "الأحزاب",
+  "@indexTabHizb": {
+    "description": "The index tab that lists the hizbs. Source: design/identity-boards/Screens2.dc.html."
+  },
+  "juzLabel": "الجزء {number}",
+  "@juzLabel": {
+    "description": "A juz named by its number, as the page frame writes it. number is the juz number. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Mushaf.dc.html.",
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "hizbLabel": "الحزب {number}",
+  "@hizbLabel": {
+    "description": "A hizb named by its number, as it stands after the juz in the page frame line juzHizbLine. number is the hizb number. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Mushaf.dc.html.",
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "rubLabel": "ربع",
+  "@rubLabel": {
+    "description": "The word for a quarter of a hizb, the first line of the quarter mark in the page margin. The mark's second line, the word for the hizb, has no key yet. Source: design/identity-boards/Mushaf.dc.html."
+  },
+  "pageLabel": "صفحة {number}",
+  "@pageLabel": {
+    "description": "A page named by its number, as the listen screen writes it. number is the page number. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Screens2.dc.html.",
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "juzPageLine": "الجزء {juz} · صفحة {page}",
+  "@juzPageLine": {
+    "description": "The position line of the reader: juz and page. juz is the juz number; page is the page number. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Screens.dc.html.",
+    "placeholders": {
+      "juz": {
+        "type": "String"
+      },
+      "page": {
+        "type": "String"
+      }
+    }
+  },
+  "juzHizbLine": "الجزء {juz} · الحزب {hizb}",
+  "@juzHizbLine": {
+    "description": "The page frame line: juz and hizb. juz is the juz number; hizb is the hizb number. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Mushaf.dc.html.",
+    "placeholders": {
+      "juz": {
+        "type": "String"
+      },
+      "hizb": {
+        "type": "String"
+      }
+    }
+  },
+  "sajdaLabel": "سجدة",
+  "@sajdaLabel": {
+    "description": "The margin word beside a sajda mark. Source: design/identity-boards/Mushaf.dc.html."
+  },
+  "surahInfoLine": "{revelation} · {count} · ترتيبها {order}",
+  "@surahInfoLine": {
+    "description": "The information line under a surah header. revelation is revelationMakki or revelationMadani; count is the ayah count from ayahCount; order is the surah's order in the mushaf. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Mushaf.dc.html.",
+    "placeholders": {
+      "revelation": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      },
+      "order": {
+        "type": "String"
+      }
+    }
+  },
+  "surahIntroTitle": "مقدمة السورة",
+  "@surahIntroTitle": {
+    "description": "The title the surah information line opens. Source: design/identity-boards/Mushaf.dc.html."
+  },
+  "goToTitle": "اذهب إلى",
+  "@goToTitle": {
+    "description": "The title of the go-to sheet. Source: docs/prd/PRD.ar.md (§7.1 and NV-03)."
+  },
+  "goToSurah": "سورة",
+  "@goToSurah": {
+    "description": "Go-to target: a surah. Source: docs/prd/PRD.ar.md (NV-03)."
+  },
+  "goToAyah": "آية",
+  "@goToAyah": {
+    "description": "Go-to target: an ayah. Source: docs/prd/PRD.ar.md (NV-03, the ayah of its surah-and-ayah target)."
+  },
+  "goToPage": "صفحة",
+  "@goToPage": {
+    "description": "Go-to target: a page. Source: docs/prd/PRD.ar.md (NV-03)."
+  },
+  "goToJuz": "جزء",
+  "@goToJuz": {
+    "description": "Go-to target: a juz. Source: docs/prd/PRD.ar.md (NV-03)."
+  },
+  "goToHizb": "حزب",
+  "@goToHizb": {
+    "description": "Go-to target: a hizb. Source: docs/prd/PRD.ar.md (NV-03)."
+  },
+  "goToRub": "ربع",
+  "@goToRub": {
+    "description": "Go-to target: a quarter of a hizb. Source: docs/prd/PRD.ar.md (NV-03)."
+  },
+  "ayahNotInSurah": "لا توجد آية {ayah} في {surah}",
+  "@ayahNotInSurah": {
+    "description": "The go-to error for an ayah number the surah does not have. ayah is the ayah number entered; surah is the surah's name from the pack, unchanged. Numbers arrive already written in Arabic-Indic digits. Source: docs/prd/PRD.ar.md (§8.2 acceptance criteria).",
+    "placeholders": {
+      "ayah": {
+        "type": "String"
+      },
+      "surah": {
+        "type": "String"
+      }
+    }
+  },
+  "contextSubtitle": "ما قبلها وما بعدها",
+  "@contextSubtitle": {
+    "description": "The subtitle of the context sheet. Source: design/design-system/components/src/index.jsx (ContextSheet)."
+  },
+  "contextAmountLabel": "مقدار السياق",
+  "@contextAmountLabel": {
+    "description": "Spoken name of the context sheet's amount switch. Source: design/design-system/components/src/index.jsx (ContextSheet)."
+  },
+  "contextOneAyah": "آية",
+  "@contextOneAyah": {
+    "description": "Context amount: one ayah, the first option of the context sheet's amount switch. Source: design/design-system/components/src/index.jsx (ContextSheet)."
+  },
+  "contextSurah": "السورة",
+  "@contextSurah": {
+    "description": "Context amount: the whole surah. Source: design/design-system/components/src/index.jsx (ContextSheet)."
+  },
+  "toolbarBookmark": "علامة",
+  "@toolbarBookmark": {
+    "description": "The selected ayah's toolbar: bookmark it. Source: docs/prd/PRD.ar.md (§7.4)."
+  },
+  "toolbarStudy": "دراسة",
+  "@toolbarStudy": {
+    "description": "The selected ayah's toolbar: open its study sheet. Source: docs/prd/PRD.ar.md (§7.4)."
+  },
+  "toolbarCopy": "نسخ",
+  "@toolbarCopy": {
+    "description": "The selected ayah's toolbar: copy it. Source: docs/prd/PRD.ar.md (§7.4)."
+  },
+  "toolbarShare": "مشاركة",
+  "@toolbarShare": {
+    "description": "The selected ayah's toolbar: share it. Source: docs/prd/PRD.ar.md (§7.4)."
+  },
+  "copySheetTitle": "نسخ الآية",
+  "@copySheetTitle": {
+    "description": "The title of the copy sheet. Source: design/identity-boards/Share.dc.html."
+  },
+  "copyAyahOnly": "نص الآية فقط",
+  "@copyAyahOnly": {
+    "description": "Copy form: the ayah text only. Source: design/identity-boards/Share.dc.html."
+  },
+  "copyWithSurah": "الآية مع اسم السورة",
+  "@copyWithSurah": {
+    "description": "Copy form: the ayah with the surah name. Source: design/identity-boards/Share.dc.html."
+  },
+  "copyWithSurahAndNumber": "الآية مع اسم السورة ورقمها",
+  "@copyWithSurahAndNumber": {
+    "description": "Copy form: the ayah with the surah name and its number. Source: design/identity-boards/Share.dc.html."
+  },
+  "copyAction": "انسخ",
+  "@copyAction": {
+    "description": "The copy sheet's action button. Source: design/identity-boards/Share.dc.html."
+  },
+  "copyFormatFull": "﴿{ayah}﴾ [{surah}: {number}]",
+  "@copyFormatFull": {
+    "description": "The copied text in the full form. ayah is the ayah text taken from the pack by its address, unchanged; surah is the surah's name from the pack, unchanged; number is the ayah number. Numbers arrive already written in Arabic-Indic digits. Source: design/design-system/README.md (the copy format; PRD SH-01 gives the same).",
+    "placeholders": {
+      "ayah": {
+        "type": "String"
+      },
+      "surah": {
+        "type": "String"
+      },
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "shareDesignEmerald": "زمرد",
+  "@shareDesignEmerald": {
+    "description": "Share card design: emerald. Source: design/identity-boards/Share.dc.html."
+  },
+  "shareDesignPaper": "ورق",
+  "@shareDesignPaper": {
+    "description": "Share card design: paper. Source: design/identity-boards/Share.dc.html."
+  },
+  "shareDesignNight": "ليل",
+  "@shareDesignNight": {
+    "description": "Share card design: night. Source: design/identity-boards/Share.dc.html."
+  },
+  "shareTooLong": "الآية أطول من أن تتسع في بطاقة",
+  "@shareTooLong": {
+    "description": "Shown when the ayah cannot fit on any share card size. Source: docs/prd/PRD.ar.md (SH-03)."
+  },
+  "searchTitle": "البحث",
+  "@searchTitle": {
+    "description": "The title of the search screen. Source: design/identity-boards/Search.dc.html."
+  },
+  "searchSortNearest": "الأقرب",
+  "@searchSortNearest": {
+    "description": "Search sort order: nearest match. Source: docs/prd/PRD.ar.md (SR-05)."
+  },
+  "searchSortFrequent": "الأكثر ورودًا",
+  "@searchSortFrequent": {
+    "description": "Search sort order: most frequent. Source: docs/prd/PRD.ar.md (SR-05)."
+  },
+  "searchScopeAll": "القرآن كله",
+  "@searchScopeAll": {
+    "description": "Search scope: the whole Quran. Source: docs/prd/PRD.ar.md (SR-06)."
+  },
+  "tafsirNoPassage": "لا يوجد تفسير لهذه الآية في هذا الكتاب",
+  "@tafsirNoPassage": {
+    "description": "One of the fixed sentences: the chosen tafsir has no passage for this ayah. Source: docs/DESIGN_SYSTEM.md (\"When data is missing\"; PRD §8.8 acceptance criteria)."
+  },
+  "connectionFailed": "تعذّر الاتصال",
+  "@connectionFailed": {
+    "description": "One of the identity's short error sentences: the connection failed. Source: docs/prd/PRD.ar.md (§7.5)."
+  },
+  "noBookmarksYet": "لا توجد علامات بعد",
+  "@noBookmarksYet": {
+    "description": "One of the identity's short empty-state sentences: no bookmarks yet. Source: docs/prd/PRD.ar.md (§7.5)."
+  },
+  "undo": "تراجع",
+  "@undo": {
+    "description": "The undo action after a deletion. Source: docs/DESIGN_SYSTEM.md (the icon table, Delete row)."
+  },
+  "back": "رجوع",
+  "@back": {
+    "description": "Spoken name of the back button of a pushed screen. Source: design/identity-boards/Search.dc.html."
+  },
+  "returnToRecitation": "عُد إلى موضع التلاوة",
+  "@returnToRecitation": {
+    "description": "The button that returns the reader to the recited ayah after manual scrolling. Source: docs/prd/PRD.ar.md (SY-03)."
+  },
+  "wordTimingTag": "توقيت كلمات",
+  "@wordTimingTag": {
+    "description": "The tag on a recitation that has word timing. Source: docs/prd/PRD.ar.md (§8.4 acceptance criteria)."
+  },
+  "resourceManagerTitle": "مدير الموارد",
+  "@resourceManagerTitle": {
+    "description": "The title of the resource manager. Source: docs/prd/PRD.ar.md (§7.1 and the §8.17 heading)."
+  },
+  "resourceCategoryRecitations": "التلاوات",
+  "@resourceCategoryRecitations": {
+    "description": "Resource category: recitations. Source: docs/prd/PRD.ar.md (OF-01)."
+  },
+  "resourceCategoryTafsirs": "التفاسير",
+  "@resourceCategoryTafsirs": {
+    "description": "Resource category: tafsirs. Source: docs/prd/PRD.ar.md (OF-01)."
+  },
+  "resourceCategoryPageMushaf": "مصحف الصفحات",
+  "@resourceCategoryPageMushaf": {
+    "description": "Resource category: the page mushaf. Source: docs/prd/PRD.ar.md (OF-01)."
+  },
+  "resourceCategoryRiwayat": "الروايات",
+  "@resourceCategoryRiwayat": {
+    "description": "Resource category: riwayat. Source: docs/prd/PRD.ar.md (OF-01)."
+  },
+  "resourceCategoryTajweed": "التجويد",
+  "@resourceCategoryTajweed": {
+    "description": "Resource category: tajweed. Source: docs/prd/PRD.ar.md (OF-01)."
+  },
+  "resourceCategoryLinguistic": "الموارد اللغوية",
+  "@resourceCategoryLinguistic": {
+    "description": "Resource category: linguistic resources. Source: docs/prd/PRD.ar.md (OF-01)."
+  },
+  "resourceAvailableMasculine": "متاح",
+  "@resourceAvailableMasculine": {
+    "description": "A resource's state when it can be downloaded, for a masculine noun. Source: docs/prd/PRD.ar.md (OF-02)."
+  },
+  "resourceRedownload": "إعادة التنزيل",
+  "@resourceRedownload": {
+    "description": "The action that downloads a resource again. Source: docs/prd/PRD.ar.md (OF-02)."
+  },
+  "settingsTitle": "الإعدادات",
+  "@settingsTitle": {
+    "description": "The title of the settings screen. Source: docs/prd/PRD.ar.md (§7.1)."
+  },
+  "themeLabel": "السمة",
+  "@themeLabel": {
+    "description": "The settings entry for the theme. Source: docs/prd/PRD.ar.md (§7.1)."
+  },
+  "textSettingsLabel": "النص",
+  "@textSettingsLabel": {
+    "description": "The settings entry for the text. Source: docs/prd/PRD.ar.md (§7.1)."
+  },
+  "followSystemDark": "اتباع وضع النظام الداكن",
+  "@followSystemDark": {
+    "description": "The setting that follows the system dark mode. Source: docs/prd/PRD.ar.md (§7.8 and RD-08)."
+  },
+  "sourcesTitle": "المصادر والتراخيص",
+  "@sourcesTitle": {
+    "description": "The title of the sources and licences screen. Source: docs/prd/PRD.ar.md (§7.1)."
+  },
+  "bookmarksAndNotes": "العلامات والملاحظات",
+  "@bookmarksAndNotes": {
+    "description": "The entry and title for bookmarks and notes. Source: docs/prd/PRD.ar.md (§7.1)."
+  },
+  "playerChange": "تغيير",
+  "@playerChange": {
+    "description": "The listen screen's button that changes the recitation. Source: design/identity-boards/Screens2.dc.html."
+  },
+  "playerAyahOfTotal": "الآية {ayah} من {total}",
+  "@playerAyahOfTotal": {
+    "description": "The player's position: an ayah of the surah's total. ayah is the ayah number; total is the surah's ayah count. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Screens2.dc.html.",
+    "placeholders": {
+      "ayah": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "playerSilenceSeconds": "صمت {seconds} ث",
+  "@playerSilenceSeconds": {
+    "description": "The silence between repeats, in seconds. seconds is the number of seconds. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Screens2.dc.html.",
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "queueLabel": "قائمة التشغيل",
+  "@queueLabel": {
+    "description": "Spoken name of the queue button. Source: design/identity-boards/Screens2.dc.html."
+  },
+  "recitationDownloadedLine": "{riwaya} · محمّلة",
+  "@recitationDownloadedLine": {
+    "description": "A recitation's line: its riwaya, downloaded. riwaya is the riwaya's name from the pack, unchanged. Source: design/identity-boards/Screens2.dc.html.",
+    "placeholders": {
+      "riwaya": {
+        "type": "String"
+      }
+    }
+  },
+  "playOnlyAyah": "الآية فقط",
+  "@playOnlyAyah": {
+    "description": "Play from the ayah tools: this ayah only. Source: docs/prd/PRD.ar.md (AU-03)."
+  },
+  "playToPageEnd": "حتى نهاية الصفحة",
+  "@playToPageEnd": {
+    "description": "Play from the ayah tools: to the end of the page. Source: docs/prd/PRD.ar.md (AU-03)."
+  },
+  "playToSurahEnd": "حتى نهاية السورة",
+  "@playToSurahEnd": {
+    "description": "Play from the ayah tools: to the end of the surah. Source: docs/prd/PRD.ar.md (AU-03)."
+  },
+  "playToJuzEnd": "حتى نهاية الجزء",
+  "@playToJuzEnd": {
+    "description": "Play from the ayah tools: to the end of the juz. Source: docs/prd/PRD.ar.md (AU-03)."
+  },
+  "playUntilStopped": "حتى أوقفه",
+  "@playUntilStopped": {
+    "description": "Play from the ayah tools: until the user stops it. Source: docs/prd/PRD.ar.md (AU-03)."
   }
 }
