@@ -5,6 +5,10 @@ import 'package:holyquran/config/providers/catalogue_providers.dart';
 import 'package:holyquran/domain/models/catalogue.dart';
 import 'package:holyquran/utils/result.dart';
 
+import '../../../testing/fakes/fake_catalogue_repository.dart';
+import '../../../testing/fakes/fake_pack_install_repository.dart';
+import '../../../testing/fakes/fake_pack_integrity_repository.dart';
+
 void main() {
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
@@ -48,5 +52,32 @@ void main() {
         isA<CatalogueRejected>(),
       ),
     );
+  });
+
+  test('the recitations follow the catalogue and the installer', () async {
+    final catalogue = FakeCatalogueRepository(syntheticCatalogue());
+    final installs = FakePackInstallRepository();
+    final integrity = FakePackIntegrityRepository();
+    addTearDown(catalogue.dispose);
+    addTearDown(installs.dispose);
+    addTearDown(integrity.dispose);
+    final recitations = recitationRepository(
+      catalogue: catalogue,
+      installs: installs,
+      integrity: integrity,
+    );
+    var notified = 0;
+    recitations.addListener(() => notified++);
+    expect(
+      [for (final r in recitations.recitations) r.id],
+      ['synthetic-listed'],
+    );
+
+    installs.installed = [];
+    catalogue.catalogue = null;
+    expect(notified, 2);
+    expect(recitations.recitations, isEmpty);
+    await pumpEventQueue();
+    expect(messages, isEmpty);
   });
 }
