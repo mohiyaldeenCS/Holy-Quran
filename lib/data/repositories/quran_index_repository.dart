@@ -68,7 +68,7 @@ final class PackQuranIndexRepository implements QuranIndexRepository {
     required String riwaya,
     required List<SurahInfo> surahs,
     required EditionMap map,
-    bool Function()? serving,
+    required bool Function() serving,
   }) {
     final first = QuranAddress(riwaya, 1, 1);
     for (final division in Division.values) {
@@ -83,9 +83,7 @@ final class PackQuranIndexRepository implements QuranIndexRepository {
         );
       }
     }
-    return Ok(
-      PackQuranIndexRepository._(riwaya, map, surahs, serving ?? () => true),
-    );
+    return Ok(PackQuranIndexRepository._(riwaya, map, surahs, serving));
   }
 
   @override

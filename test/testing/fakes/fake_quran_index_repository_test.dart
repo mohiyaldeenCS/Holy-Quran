@@ -35,6 +35,7 @@ void main() {
                   riwaya: text.riwaya,
                   surahs: (await text.surahs() as Ok<List<SurahInfo>>).value,
                   map: (await text.editionMap() as Ok<EditionMap>).value,
+                  serving: () => true,
                 )
                 as Ok<PackQuranIndexRepository>)
             .value;

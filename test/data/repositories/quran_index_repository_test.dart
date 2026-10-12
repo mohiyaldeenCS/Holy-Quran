@@ -18,6 +18,8 @@ import '../../../testing/packs/synthetic_pack.dart';
 
 QuranAddress _at(String address) => QuranAddress.parse(address);
 
+bool _serving() => true;
+
 void main() {
   late Directory root;
 
@@ -45,7 +47,7 @@ void main() {
 
   Future<Result<PackQuranIndexRepository>> load({
     List<SyntheticDivision> divisions = defaultSyntheticDivisions,
-    bool Function()? serving,
+    bool Function() serving = _serving,
   }) async {
     final text = await textOf(
       await buildSyntheticPack(root, divisions: divisions),
