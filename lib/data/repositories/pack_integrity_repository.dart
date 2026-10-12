@@ -84,6 +84,19 @@ final class LocalPackIntegrityRepository extends ChangeNotifier
   /// pack is [IntegrityFailed]. Returns the verified pack, or null when it
   /// is missing or failed; [stateOf] says which.
   Future<VerifiedPack?> verifyBasePack() async {
+    try {
+      return await _verifyBasePack();
+    } on Exception catch (error) {
+      report(
+        _basePack.id,
+        IntegrityFailed(_named(_basePack.id, error)),
+        version: _basePack.version,
+      );
+      return null;
+    }
+  }
+
+  Future<VerifiedPack?> _verifyBasePack() async {
     final id = _basePack.id;
     final version = _basePack.version;
     final manifest = await _basePack.readBundled(_manifest);
@@ -105,20 +118,22 @@ final class LocalPackIntegrityRepository extends ChangeNotifier
     }
     final directory = await _basePack.directory();
 
+    var failures = 0;
     if (await _basePack.remembers(manifest)) {
       if (await _verifySizes(directory) case Ok(:final value)) {
         report(id, const IntegrityOk(), version: version);
         return value;
       }
+      failures++;
       report(id, const IntegrityRepairing(), version: version);
     }
-    for (var attempt = 1; ; attempt++) {
+    while (true) {
       switch (await _copyAndVerify(names, directory)) {
         case Ok(:final value):
           await _remember(manifest);
           report(id, const IntegrityOk(), version: version);
           return value;
-        case Failure(:final error) when attempt == 2:
+        case Failure(:final error) when ++failures == 2:
           report(id, IntegrityFailed(_named(id, error)), version: version);
           return null;
         case Failure():

@@ -170,6 +170,29 @@ void main() {
       expect(await states(events), ['repairing', 'ok']);
     });
 
+    test('a remembered copy that fails is copied only once more', () async {
+      final first = service();
+      await repository(first).$1.verifyBasePack();
+      File('${await first.directory()}/$textFileName').deleteSync();
+      final basePack = service(spoiled: 1);
+      final (integrity, events) = repository(basePack);
+
+      expect(await integrity.verifyBasePack(), isNull);
+      expect(basePack.extracts, 1);
+      expect(await states(events), ['repairing', startsWith('failed: ')]);
+    });
+
+    test('a support directory that cannot be found fails', () async {
+      final basePack = _CountingService(
+        bundle: bundle,
+        supportDirectory: () async => throw const OSError('synthetic'),
+      );
+      final (integrity, _) = repository(basePack);
+
+      expect(await integrity.verifyBasePack(), isNull);
+      expect(integrity.stateOf(_id), isA<IntegrityFailed>());
+    });
+
     test('a corrupt copy is copied once more, then served', () async {
       final basePack = service(spoiled: 1);
       final (integrity, events) = repository(basePack);

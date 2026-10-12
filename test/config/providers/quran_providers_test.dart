@@ -122,7 +122,9 @@ void main() {
     );
     final integrity = context.read<PackIntegrityRepository>();
     final text = context.read<QuranTextRepository>();
+    final index = context.read<QuranIndexRepository>();
     expect(integrity.stateOf(_id), isA<IntegrityOk>());
+    expect(index.surahs, hasLength(3));
 
     final first = await tester.runAsync(
       () => text.ayahText(QuranAddress('hafs', 1, 1)),
@@ -137,6 +139,7 @@ void main() {
         isA<SurahHashMismatch>(),
       ),
     );
+    expect(index.surahs, isEmpty);
     expect(
       await tester.runAsync(() => text.ayahText(QuranAddress('hafs', 2, 1))),
       isA<Failure<Object>>().having(

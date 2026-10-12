@@ -45,9 +45,18 @@ void main() {
 
   Future<Result<PackQuranIndexRepository>> load({
     List<SyntheticDivision> divisions = defaultSyntheticDivisions,
-  }) async => PackQuranIndexRepository.load(
-    await textOf(await buildSyntheticPack(root, divisions: divisions)),
-  );
+    bool Function()? serving,
+  }) async {
+    final text = await textOf(
+      await buildSyntheticPack(root, divisions: divisions),
+    );
+    return PackQuranIndexRepository.build(
+      riwaya: text.riwaya,
+      surahs: (await text.surahs() as Ok<List<SurahInfo>>).value,
+      map: (await text.editionMap() as Ok<EditionMap>).value,
+      serving: serving,
+    );
+  }
 
   Future<PackQuranIndexRepository> loaded() async => switch (await load()) {
     Ok(:final value) => value,
@@ -211,18 +220,18 @@ void main() {
     );
   });
 
-  test('a pack that cannot be read fails with its failure', () async {
-    final text = await textOf(
-      await buildSyntheticPack(root, fault: SyntheticFault.wrongCounts),
-    );
+  test('lists no surah while the pack serves no text', () async {
+    var serving = true;
+    final index = switch (await load(serving: () => serving)) {
+      Ok(:final value) => value,
+      Failure(:final error) => throw error,
+    };
+    expect(index.surahs, hasLength(3));
 
-    expect(
-      await PackQuranIndexRepository.load(text),
-      isA<Failure<PackQuranIndexRepository>>().having(
-        (f) => f.error,
-        'error',
-        isA<PackInconsistent>(),
-      ),
-    );
+    serving = false;
+
+    expect(index.surahs, isEmpty);
+    expect(index.surahCount, 3);
+    expect(index.positionOf(_at('hafs:2:3')).page, 3);
   });
 }

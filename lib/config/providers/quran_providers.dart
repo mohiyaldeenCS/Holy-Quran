@@ -49,11 +49,16 @@ Future<void> provideQuran(
 
   final verified = await integrity.verifyBasePack();
   if (verified == null) return;
-  void failed(PackFailure failure) {
-    if (integrity.stateOf(basePack.id) is IntegrityFailed) return;
+  bool serving() => integrity.stateOf(basePack.id) is IntegrityOk;
+  void failed(Exception error) {
+    if (!serving()) return;
     integrity.report(
       basePack.id,
-      IntegrityFailed(failure),
+      IntegrityFailed(
+        error is PackFailure
+            ? error
+            : ManifestUnreadable(basePack.id, '$error'),
+      ),
       version: basePack.version,
     );
     unawaited(integrity.forgetBasePackCheck());
@@ -64,20 +69,28 @@ Future<void> provideQuran(
     case Ok(:final value):
       text = value;
     case Failure(:final error):
-      failed(error as PackFailure);
+      failed(error);
       return;
   }
-  final QuranIndexRepository index;
-  switch (await PackQuranIndexRepository.load(text)) {
+  final index = switch ((await text.surahs(), await text.editionMap())) {
+    (Ok(value: final surahs), Ok(value: final map)) =>
+      PackQuranIndexRepository.build(
+        riwaya: text.riwaya,
+        surahs: surahs,
+        map: map,
+        serving: serving,
+      ),
+    (Failure(:final error), _) ||
+    (_, Failure(:final error)) => Failure<PackQuranIndexRepository>(error),
+  };
+  switch (index) {
     case Ok(:final value):
-      index = value;
+      dependencies
+        ..provide<QuranTextRepository>(text)
+        ..provide<QuranIndexRepository>(value)
+        ..provide<QuranStructure>(value);
     case Failure(:final error):
-      failed(error as PackFailure);
+      failed(error);
       text.close();
-      return;
   }
-  dependencies
-    ..provide<QuranTextRepository>(text)
-    ..provide<QuranIndexRepository>(index)
-    ..provide<QuranStructure>(index);
 }

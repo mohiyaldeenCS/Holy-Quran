@@ -90,6 +90,7 @@ void main() {
   test('remembers a manifest until it forgets it', () async {
     final manifest = pack.manifestFile.readAsBytesSync();
     final other = Uint8List.fromList(manifest)..[0] ^= 1;
+    await service.extract([manifestFileName]);
     expect(await service.remembers(manifest), isFalse);
 
     await service.remember(manifest);
@@ -106,6 +107,17 @@ void main() {
     await service.forget();
     expect(await service.remembers(manifest), isFalse);
     await service.forget();
+  });
+
+  test('does not remember a copy whose manifest changed', () async {
+    final manifest = pack.manifestFile.readAsBytesSync();
+    await service.extract([manifestFileName]);
+    await service.remember(manifest);
+    File(
+      '${await service.directory()}/$manifestFileName',
+    ).writeAsBytesSync(Uint8List.fromList(manifest)..[0] ^= 1);
+
+    expect(await service.remembers(manifest), isFalse);
   });
 
   test('never writes into the bundled files', () async {

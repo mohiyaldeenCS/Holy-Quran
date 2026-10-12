@@ -59,10 +59,17 @@ class BasePackService {
     }
   }
 
-  /// Whether [remember] was last given these bytes of `manifest.json`.
+  /// Whether [remember] was last given these bytes of `manifest.json`, and
+  /// the copy's manifest still has them.
   Future<bool> remembers(Uint8List manifest) async {
     try {
-      return await (await _stamp).readAsString() == _stampOf(manifest);
+      if (await (await _stamp).readAsString() != _stampOf(manifest)) {
+        return false;
+      }
+      final copied = await File(
+        '${await directory()}/manifest.json',
+      ).readAsBytes();
+      return listEquals(copied, manifest);
     } on FileSystemException {
       return false;
     }

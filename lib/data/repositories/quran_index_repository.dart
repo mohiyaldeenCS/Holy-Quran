@@ -6,13 +6,13 @@ import '../../domain/models/quran_position.dart';
 import '../../domain/models/quran_structure.dart';
 import '../../domain/models/surah_info.dart';
 import '../../utils/result.dart';
-import 'quran_text_repository.dart';
 
 /// The surahs, divisions and sajdas of the base pack, read once and then
 /// answered synchronously. A number or address outside the edition throws
 /// a [RangeError] or an [ArgumentError], as [QuranStructure] says.
 abstract interface class QuranIndexRepository implements QuranStructure {
-  /// Every surah with its facts, in order.
+  /// Every surah with its facts, in order; none while the pack serves no
+  /// text (PRD section 9.5). The numbers below stay answered.
   List<SurahInfo> get surahs;
 
   /// The page holding the first ayah of [surah].
@@ -35,8 +35,12 @@ abstract interface class QuranIndexRepository implements QuranStructure {
 
 /// The index of a text pack, built from its surahs and edition map.
 final class PackQuranIndexRepository implements QuranIndexRepository {
-  PackQuranIndexRepository._(this.riwaya, this._map, List<SurahInfo> infos)
-    : _ayahCounts = [for (final info in infos) info.ayahCount] {
+  PackQuranIndexRepository._(
+    this.riwaya,
+    this._map,
+    List<SurahInfo> infos,
+    this._serving,
+  ) : _ayahCounts = [for (final info in infos) info.ayahCount] {
     _entries = {
       for (final division in Division.values)
         division: List.unmodifiable([
@@ -44,7 +48,7 @@ final class PackQuranIndexRepository implements QuranIndexRepository {
             _entry(division, number),
         ]),
     };
-    surahs = List.unmodifiable(infos);
+    _surahs = List.unmodifiable(infos);
     sajdas = List.unmodifiable(_map.sajdas.toList()..sort());
     final pageStarts = <int, List<DivisionEntry>>{};
     for (final page in _entries[Division.page]!) {
@@ -56,29 +60,19 @@ final class PackQuranIndexRepository implements QuranIndexRepository {
     };
   }
 
-  /// Reads the surahs and the edition map of [text]. A pack in which some
-  /// division is missing or does not start at the first ayah fails with
-  /// [PackInconsistent], as every ayah must have a position.
-  static Future<Result<PackQuranIndexRepository>> load(
-    QuranTextRepository text,
-  ) async {
-    final List<SurahInfo> infos;
-    switch (await text.surahs()) {
-      case Ok(:final value):
-        infos = value;
-      case Failure(:final error):
-        return Failure(error);
-    }
-    final EditionMap map;
-    switch (await text.editionMap()) {
-      case Ok(:final value):
-        map = value;
-      case Failure(:final error):
-        return Failure(error);
-    }
-    final first = QuranAddress(text.riwaya, 1, 1);
+  /// The index of the [surahs] and edition [map] of a pack in [riwaya].
+  /// Its surahs, which hold the names, are listed while [serving] is true.
+  /// A map in which some division is missing or does not start at the first
+  /// ayah fails with [PackInconsistent], as every ayah must have a position.
+  static Result<PackQuranIndexRepository> build({
+    required String riwaya,
+    required List<SurahInfo> surahs,
+    required EditionMap map,
+    bool Function()? serving,
+  }) {
+    final first = QuranAddress(riwaya, 1, 1);
     for (final division in Division.values) {
-      if (infos.isEmpty ||
+      if (surahs.isEmpty ||
           map.count(division) == 0 ||
           map.startOf(division, 1) != first) {
         return Failure(
@@ -89,7 +83,9 @@ final class PackQuranIndexRepository implements QuranIndexRepository {
         );
       }
     }
-    return Ok(PackQuranIndexRepository._(text.riwaya, map, infos));
+    return Ok(
+      PackQuranIndexRepository._(riwaya, map, surahs, serving ?? () => true),
+    );
   }
 
   @override
@@ -100,11 +96,14 @@ final class PackQuranIndexRepository implements QuranIndexRepository {
   late final Map<Division, List<DivisionEntry>> _entries;
   late final Map<int, List<DivisionEntry>> _pageStarts;
 
-  @override
-  late final List<SurahInfo> surahs;
+  final bool Function() _serving;
+  late final List<SurahInfo> _surahs;
 
   @override
   late final List<QuranAddress> sajdas;
+
+  @override
+  List<SurahInfo> get surahs => _serving() ? _surahs : const [];
 
   DivisionEntry _entry(Division division, int number) {
     final firstAyah = _map.startOf(division, number);

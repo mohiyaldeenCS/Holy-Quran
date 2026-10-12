@@ -8,6 +8,7 @@ import 'package:holyquran/data/services/manifest_signature.dart';
 import 'package:holyquran/data/services/pack_file_service.dart';
 import 'package:holyquran/domain/models/edition_map.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
+import 'package:holyquran/domain/models/surah_info.dart';
 import 'package:holyquran/domain/models/verified_pack.dart';
 import 'package:holyquran/utils/result.dart';
 
@@ -30,7 +31,11 @@ void main() {
             .value;
     addTearDown(text.close);
     final real =
-        (await PackQuranIndexRepository.load(text)
+        (PackQuranIndexRepository.build(
+                  riwaya: text.riwaya,
+                  surahs: (await text.surahs() as Ok<List<SurahInfo>>).value,
+                  map: (await text.editionMap() as Ok<EditionMap>).value,
+                )
                 as Ok<PackQuranIndexRepository>)
             .value;
     final fake = FakeQuranIndexRepository.synthetic();
