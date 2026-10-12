@@ -24,6 +24,7 @@ dependencies:
   provider: ^6.1.5+1
   share_plus: ^13.3.1
   sqlite3: ^3.5.2
+  url_launcher: ^6.3.3
   wakelock_plus: ^1.8.1
 
 dev_dependencies:

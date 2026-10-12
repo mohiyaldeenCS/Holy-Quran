@@ -138,6 +138,7 @@ goes against the proposal, the new line records what replaced it.
 | D-120 | 2026-10-12 | Decided | `path_provider` 2.1.6 (constraint ^2.1.6) gives the application-support directory that holds `user.sqlite` (D-104) and the installed packs (D-107). Imported only by services. | Phase 1 step 0. The version `docs/plans/PHASE1.md` §3 names; a Flutter-team plugin. |
 | D-121 | 2026-10-12 | Decided | `wakelock_plus` ^1.8.1 (resolved 1.8.1) keeps the screen on while reading or reciting (`RD-16`, `SY-05`), behind the keep-awake service of P1-18. Imported only by services. | Phase 1 step 0. The maintained successor of `wakelock`, from the Flutter Community plus family. |
 | D-122 | 2026-10-12 | Decided | `share_plus` ^13.3.1 (resolved 13.3.1) hands the share card image and copied text to the system share sheet (`SH-02`, `TF-10`), behind a service of P1-12. It sends nothing itself. Imported only by services. | Phase 1 step 0. The Flutter Community plugin for the platform share sheet. |
+| D-123 | 2026-10-12 | Decided | `url_launcher` ^6.3.3 (resolved 6.3.3) opens a source's link outside the app, such as the Tanzil credit to tanzil.net (`docs/SOURCES.md`), behind the link service of P1-40. Imported only by services. | Phase 1 step 0. A Flutter-team plugin. |
 
 ## Open decisions
 
