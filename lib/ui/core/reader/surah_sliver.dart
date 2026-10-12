@@ -47,11 +47,10 @@ final class _SurahSliverState extends State<SurahSliver> {
         : _style = ReaderStyle(scaler);
     final last = _layout;
     if (last != null &&
-        _list != null &&
         identical(last.text, widget.text) &&
         last.style == style &&
         last.width == width) {
-      return _list!;
+      return _list ??= _buildList(last, scaler);
     }
     final layout = _layout = SurahLayout.plan(widget.text, style, width);
     if (widget.onLayout case final onLayout?) {
@@ -91,18 +90,6 @@ final class _SurahSliverState extends State<SurahSliver> {
         );
       },
     );
-  }
-
-  @override
-  void didUpdateWidget(SurahSliver oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _list = null;
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _list = null;
   }
 
   @override

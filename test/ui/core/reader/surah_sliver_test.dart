@@ -203,6 +203,22 @@ void main() {
     expect(identical(before, after), isTrue);
   });
 
+  testWidgets('a parent rebuild with the same text keeps the plan', (
+    tester,
+  ) async {
+    setView(tester);
+    final plans = <SurahLayout>[];
+    final surah = fixture.surahs[longSurah]!;
+    for (var k = 0; k < 3; k++) {
+      await tester.pumpWidget(_reader(surah, onLayout: plans.add));
+      await tester.pump();
+    }
+    expect(plans, hasLength(1));
+    await tester.pumpWidget(_reader(surah, step: 1.5, onLayout: plans.add));
+    await tester.pump();
+    expect(plans, hasLength(2));
+  });
+
   testWidgets('at 200% text and the largest step nothing overflows', (
     tester,
   ) async {

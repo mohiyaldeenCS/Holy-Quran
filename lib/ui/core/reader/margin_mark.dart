@@ -10,8 +10,10 @@ import 'package:holyquran/ui/core/widgets/star_outline.dart';
 import 'surah_text.dart';
 
 /// A surah-mode margin mark (`RD-02`, `RD-15`), as the Mushaf board draws
-/// it: the quarter star with the hizb's number at a rub or hizb («ربع» above
-/// it at the first quarter, the one quarter the identity names), the juz's
+/// it: the quarter star with «الحزب n» at a hizb and with «ربع» above it at
+/// the hizb's first quarter, the one quarter the identity names; the half
+/// and the three quarters have no words yet (D-115), so their star stands
+/// alone rather than repeat the hizb's start. The juz's
 /// name in Kufi over a gold line at a juz, and the word «سجدة» alone at a
 /// sajda, whose sign is in the text itself. Where it stands beside its line
 /// is the reader screen's.
@@ -51,6 +53,8 @@ final class MarginMarkView extends StatelessWidget {
             ),
           ),
         );
+      case MarginMarkKind.rub when mark.quarter != 1:
+        return const StarOutline(size: ReaderMetrics.marginStar);
       case MarginMarkKind.rub || MarginMarkKind.hizb:
         final hizb = strings.hizbLabel(arabicDigits(mark.hizb!));
         return Row(
@@ -59,7 +63,9 @@ final class MarginMarkView extends StatelessWidget {
           children: [
             const StarOutline(size: ReaderMetrics.marginStar),
             Text(
-              mark.quarter == 1 ? '${strings.rubLabel}\n$hizb' : hizb,
+              mark.kind == MarginMarkKind.rub
+                  ? '${strings.rubLabel}\n$hizb'
+                  : hizb,
               style: words.copyWith(height: ReaderMetrics.marginLabelHeight),
             ),
           ],

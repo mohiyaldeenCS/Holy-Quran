@@ -189,9 +189,9 @@ void main() {
     );
     expect(find.byType(StarOutline), findsOneWidget);
     // The identity names only the first quarter; the half and the three
-    // quarters show the star and the hizb until the owner gives words.
+    // quarters show the star alone until the owner gives words.
     await show(const MarginMark(MarginMarkKind.rub, 7, hizb: 3, quarter: 2));
-    expect(find.text(strings.hizbLabel(arabicDigits(3))), findsOneWidget);
+    expect(find.byType(Text), findsNothing);
     expect(find.byType(StarOutline), findsOneWidget);
     await show(const MarginMark(MarginMarkKind.hizb, 10, hizb: 2));
     expect(find.text(strings.hizbLabel(arabicDigits(2))), findsOneWidget);
