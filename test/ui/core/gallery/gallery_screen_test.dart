@@ -11,6 +11,7 @@ import 'package:holyquran/ui/core/gallery/sections/audio_gallery.dart';
 import 'package:holyquran/ui/core/gallery/sections/controls_gallery.dart';
 import 'package:holyquran/ui/core/gallery/sections/home_share_gallery.dart';
 import 'package:holyquran/ui/core/gallery/sections/mushaf_gallery.dart';
+import 'package:holyquran/ui/core/gallery/sections/resources_gallery.dart';
 import 'package:holyquran/ui/core/gallery/sections/study_search_gallery.dart';
 import 'package:holyquran/ui/core/theme/app_theme.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
@@ -41,6 +42,7 @@ const _galleries = [
   AudioGallery,
   StudySearchGallery,
   HomeShareGallery,
+  ResourcesGallery,
 ];
 
 const _phone = Size(360, 800);
@@ -254,7 +256,7 @@ void main() {
     final semantics = tester.ensureSemantics();
     // Tall enough for every block and section to be on screen, where the
     // guidelines look.
-    await _pumpGallery(tester, surface: const Size(400, 40000));
+    await _pumpGallery(tester, surface: const Size(400, 42000));
     expect(
       tester
           .state<ScrollableState>(find.byType(Scrollable).first)
