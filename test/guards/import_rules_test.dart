@@ -14,6 +14,7 @@ const _nonPlugins = [
   'package:intl/',
   'package:meta/',
   'package:collection/',
+  'package:provider/',
 ];
 
 /// The only files that may reach a raw colour ramp (docs/DESIGN_SYSTEM.md,
