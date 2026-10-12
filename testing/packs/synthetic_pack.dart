@@ -3,15 +3,18 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
-import 'package:sqlite3/sqlite3.dart';
 
 import 'raw_pack.dart';
+import 'synthetic_files.dart';
+import 'synthetic_search_forms.dart';
+
+export 'synthetic_files.dart' show manifestFileName;
+export 'synthetic_search_forms.dart';
 
 /// The pinned font the text pack names (pubspec.yaml, D-026).
 const amiriQuranFontPath = 'assets/fonts/AmiriQuran-Regular.ttf';
 
 const textFileName = 'text.sqlite';
-const manifestFileName = 'manifest.json';
 
 /// A mark of a synthetic ayah: the number of the word it follows (0 before
 /// the first word) and its UTF-16 half-open span.
@@ -175,6 +178,7 @@ final class SyntheticPack {
     required this.sajdas,
     required this.surahSha256,
     required this.counts,
+    required this.searchForms,
     required this.fault,
   });
 
@@ -189,6 +193,9 @@ final class SyntheticPack {
 
   /// The counts of the stored rows, in the manifest's shape.
   final Map<String, Object?> counts;
+
+  /// The search forms stored, empty in format 1.
+  final List<SyntheticSearchForm> searchForms;
   final SyntheticFault? fault;
 
   File get textFile => File('${directory.path}/$textFileName');
@@ -213,9 +220,7 @@ const List<SyntheticSurah> defaultSyntheticSurahs = [
       SyntheticAyah('Synthetic ayah one'),
       SyntheticAyah('Synthetic \u{E9} \u{6D6} two \u{6D7} \u{6E9}'),
       SyntheticAyah('\u{6DA} Synthetic e\u{301} three'),
-      SyntheticAyah(
-        ' \u{646}\u{635} \u{62A}\u{62C}\u{631}\u{64A}\u{628}\u{64A}  ',
-      ),
+      SyntheticAyah(' $syntheticArabic  '),
     ],
   ),
   SyntheticSurah(
@@ -308,17 +313,33 @@ CREATE TABLE division (
   PRIMARY KEY (kind, number),
   FOREIGN KEY (surah, ayah) REFERENCES ayah(surah, number)
 ) STRICT, WITHOUT ROWID''',
-  '''
+  _sajdaTable,
+];
+
+const _sajdaTable = '''
 CREATE TABLE sajda (
   surah INTEGER NOT NULL,
   ayah  INTEGER NOT NULL,
   PRIMARY KEY (surah, ayah),
   FOREIGN KEY (surah, ayah) REFERENCES ayah(surah, number)
-) STRICT, WITHOUT ROWID''',
-];
+) STRICT, WITHOUT ROWID''';
+
+// Added by format 2 (docs/CONTENT_PACKS.md, "Format version 2").
+const _searchFormTable = '''
+CREATE TABLE search_form (
+  surah INTEGER NOT NULL,
+  ayah  INTEGER NOT NULL,
+  word  INTEGER NOT NULL,
+  kind  TEXT NOT NULL,
+  form  TEXT NOT NULL,
+  PRIMARY KEY (surah, ayah, word, kind),
+  FOREIGN KEY (surah, ayah, word) REFERENCES word(surah, ayah, number)
+) STRICT, WITHOUT ROWID''';
 
 /// Builds `<root>/<id>/<version>/` with `text.sqlite` and `manifest.json`
-/// as docs/CONTENT_PACKS.md defines them, then applies [fault], if any.
+/// as docs/CONTENT_PACKS.md defines them in [formatVersion], then applies
+/// [fault], if any. In format 2 every word has one synthetic form of each of
+/// [searchFormKinds], changed by [searchFormFault], if any.
 Future<SyntheticPack> buildSyntheticPack(
   Directory root, {
   List<SyntheticSurah> surahs = defaultSyntheticSurahs,
@@ -327,7 +348,18 @@ Future<SyntheticPack> buildSyntheticPack(
   SyntheticFault? fault,
   String id = 'synthetic-text',
   int version = 1,
+  int formatVersion = packFormatVersion,
+  List<String> searchFormKinds = defaultSyntheticSearchFormKinds,
+  SyntheticSearchFormFault? searchFormFault,
 }) async {
+  if (formatVersion < 2 && searchFormFault != null) {
+    throw ArgumentError.value(
+      searchFormFault,
+      'searchFormFault',
+      'needs format 2',
+    );
+  }
+  final kinds = formatVersion < 2 ? const <String>[] : searchFormKinds;
   final stored = switch (fault) {
     SyntheticFault.leadingBom => _withLeadingBom(surahs),
     SyntheticFault.overlappingSpans => _withOverlappingSpans(surahs),
@@ -351,7 +383,34 @@ Future<SyntheticPack> buildSyntheticPack(
   ).create(recursive: true);
   final textFile = File('${directory.path}/$textFileName');
 
-  _writeDatabase(textFile, stored, divisions, sajdas, fault);
+  final searchForms = syntheticSearchForms(stored, [
+    ...kinds,
+    if (searchFormFault == SyntheticSearchFormFault.unlistedKind)
+      unlistedSearchFormKind,
+  ]);
+  switch (searchFormFault) {
+    case SyntheticSearchFormFault.missing:
+      searchForms.removeAt(0);
+    case SyntheticSearchFormFault.empty:
+      final first = searchForms.first;
+      searchForms[0] = (
+        surah: first.surah,
+        ayah: first.ayah,
+        word: first.word,
+        kind: first.kind,
+        form: '',
+      );
+    default:
+  }
+  _writeDatabase(
+    textFile,
+    stored,
+    divisions,
+    sajdas,
+    formatVersion,
+    searchForms,
+    fault,
+  );
 
   final textBytes = await textFile.readAsBytes();
   final surahSha256 = {
@@ -380,14 +439,22 @@ Future<SyntheticPack> buildSyntheticPack(
         kind: divisions.where((d) => d.kind == kind).length,
     },
     'sajdas': sajdas.length,
+    if (formatVersion >= 2)
+      'search_forms': {
+        for (final kind in kinds)
+          kind: stored.fold<int>(
+            0,
+            (n, s) => s.ayat.fold<int>(n, (m, a) => m + a.spans.length),
+          ),
+      },
   };
 
-  // A JSON round trip, so the manifest shares no map with the stored truth
-  // and equals what is written.
-  final manifest = _jsonCopy(
+  final manifest = jsonCopy(
     _manifest(
       id: id,
       version: version,
+      formatVersion: formatVersion,
+      hasSearchForms: kinds.isNotEmpty,
       fontSha256: sha256
           .convert(await File(amiriQuranFontPath).readAsBytes())
           .toString(),
@@ -399,10 +466,7 @@ Future<SyntheticPack> buildSyntheticPack(
   );
   _applyManifestFault(manifest, fault);
 
-  final manifestFile = File('${directory.path}/$manifestFileName');
-  await manifestFile.writeAsBytes(
-    utf8.encode('${const JsonEncoder.withIndent('  ').convert(manifest)}\n'),
-  );
+  await writeManifest(directory, manifest);
 
   switch (fault) {
     case SyntheticFault.flippedByte:
@@ -420,6 +484,7 @@ Future<SyntheticPack> buildSyntheticPack(
     sajdas: sajdas,
     surahSha256: surahSha256,
     counts: counts,
+    searchForms: searchForms,
     fault: fault,
   );
 }
@@ -505,33 +570,28 @@ void _writeDatabase(
   List<SyntheticSurah> surahs,
   List<SyntheticDivision> divisions,
   List<(int, int)> sajdas,
+  int formatVersion,
+  List<SyntheticSearchForm> searchForms,
   SyntheticFault? fault,
-) {
-  final db = sqlite3.open(file.path);
-  try {
-    final applicationId = fault == SyntheticFault.wrongApplicationId
-        ? hqpkApplicationId + 1
-        : hqpkApplicationId;
-    final userVersion = fault == SyntheticFault.wrongUserVersion
-        ? packFormatVersion + 1
-        : packFormatVersion;
-    db
-      ..execute("PRAGMA encoding = 'UTF-8'")
-      ..execute('PRAGMA application_id = $applicationId')
-      ..execute('PRAGMA user_version = $userVersion')
-      ..execute('PRAGMA journal_mode = DELETE')
-      ..execute('PRAGMA foreign_keys = ON');
-    for (final table in _schema) {
-      db.execute(
-        fault == SyntheticFault.nonStrictSchema && table == _schema.last
-            ? table.replaceFirst('STRICT, ', '')
-            : table,
-      );
-    }
-
+) => writePackFile(
+  file,
+  userVersion: fault == SyntheticFault.wrongUserVersion
+      ? formatVersion + 1
+      : formatVersion,
+  applicationId: fault == SyntheticFault.wrongApplicationId
+      ? hqpkApplicationId + 1
+      : hqpkApplicationId,
+  wal: fault == SyntheticFault.walHeader,
+  schema: [
+    for (final table in _schema)
+      fault == SyntheticFault.nonStrictSchema && table == _sajdaTable
+          ? table.replaceFirst('STRICT, ', '')
+          : table,
+    if (formatVersion >= 2) _searchFormTable,
+  ],
+  fill: (db) {
     // Text is bound as the UTF-8 bytes written here and cast to TEXT, so the
     // stored bytes do not depend on the driver's string encoding.
-    db.execute('BEGIN');
     for (var s = 0; s < surahs.length; s++) {
       final surah = surahs[s];
       db.execute(
@@ -589,86 +649,51 @@ void _writeDatabase(
     for (final (surah, ayah) in sajdas) {
       db.execute('INSERT INTO sajda VALUES (?, ?)', [surah, ayah]);
     }
-    db
-      ..execute('COMMIT')
-      ..execute('VACUUM');
-    if (fault == SyntheticFault.walHeader) {
-      db.execute('PRAGMA journal_mode = WAL');
+    for (final form in searchForms) {
+      db.execute(
+        'INSERT INTO search_form VALUES (?, ?, ?, ?, CAST(? AS TEXT))',
+        [form.surah, form.ayah, form.word, form.kind, _bytes(form.form)],
+      );
     }
-  } finally {
-    db.close();
-  }
-}
+  },
+);
 
 Uint8List _bytes(String text) => utf8.encode(text);
-
-Map<String, Object?> _jsonCopy(Map<String, Object?> map) =>
-    jsonDecode(jsonEncode(map)) as Map<String, Object?>;
 
 Map<String, Object?> _manifest({
   required String id,
   required int version,
+  required int formatVersion,
+  required bool hasSearchForms,
   required String fontSha256,
   required String textSha256,
   required int textBytes,
   required Map<String, String> surahSha256,
   required Map<String, Object?> counts,
-}) => {
-  'format': 'holyquran-pack',
-  'format_version': packFormatVersion,
-  'id': id,
-  'kind': 'text',
-  'version': version,
-  'changelog': [
-    {'version': version, 'date': '2026-01-01', 'summary': 'Synthetic pack'},
-  ],
-  'riwaya': 'hafs',
-  'edition': 'synthetic-edition',
-  'font': {'family': 'Amiri Quran', 'version': '1.003', 'sha256': fontSha256},
-  'sources': [
-    _source('text', 1, {
-      'synthetic_type': 'synthetic',
-      'synthetic_marks': true,
-      'synthetic_level': 1,
-    }),
-    _source('edition_map', 4, null),
-  ],
-  'files': [
-    {'name': textFileName, 'sha256': textSha256, 'bytes': textBytes},
-  ],
-  'surah_sha256': surahSha256,
-  'counts': counts,
-  'reviews': [
-    {
-      'reviewer': 'synthetic reviewer',
-      'date': '2026-01-01',
-      'scope': 'synthetic test data',
-    },
-  ],
-};
-
-Map<String, Object?> _source(
-  String role,
-  int registryRow,
-  Map<String, Object>? options,
-) => {
-  'role': role,
-  'registry_row': registryRow,
-  'name': 'Synthetic $role source',
-  'publisher': 'Synthetic publisher',
-  'url': 'https://example.invalid/synthetic/$role',
-  'version': '1',
-  'fetched_on': '2026-01-01',
-  'file_sha256': sha256.convert(utf8.encode('synthetic $role')).toString(),
-  'trust_grade': 'A',
-  'options': options,
-  'licence': {
-    'text': null,
-    'permission_ref': 'Synthetic permission $registryRow',
-    'notice': null,
-    'allows_export': true,
+}) => syntheticManifest(
+  formatVersion: formatVersion,
+  id: id,
+  kind: 'text',
+  version: version,
+  fields: {
+    'edition': 'synthetic-edition',
+    'font': {'family': 'Amiri Quran', 'version': '1.003', 'sha256': fontSha256},
+    'sources': [
+      syntheticSource('text', 1, {
+        'synthetic_type': 'synthetic',
+        'synthetic_marks': true,
+        'synthetic_level': 1,
+      }),
+      syntheticSource('edition_map', 4, null),
+      if (hasSearchForms) syntheticSource('search_forms', 1, null),
+    ],
+    'files': [
+      {'name': textFileName, 'sha256': textSha256, 'bytes': textBytes},
+    ],
+    'surah_sha256': surahSha256,
+    'counts': counts,
   },
-};
+);
 
 void _applyManifestFault(Map<String, Object?> manifest, SyntheticFault? fault) {
   final file =
@@ -682,7 +707,7 @@ void _applyManifestFault(Map<String, Object?> manifest, SyntheticFault? fault) {
       final counts = manifest['counts']! as Map<String, Object?>;
       counts['ayat'] = (counts['ayat']! as int) + 1;
     case SyntheticFault.unsupportedFormatVersion:
-      manifest['format_version'] = packFormatVersion + 1;
+      manifest['format_version'] = unsupportedPackFormatVersion;
     case SyntheticFault.pathInFileName:
       file['name'] = '../$textFileName';
     case SyntheticFault.wrongFileSize:

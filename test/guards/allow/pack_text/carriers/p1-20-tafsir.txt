@@ -1,0 +1,3 @@
+lib/data/repositories/tafsir_repository.dart
+decision: D-062
+The repository hands tafsir passages and book facts from a pack to the app.

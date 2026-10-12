@@ -20,24 +20,31 @@ import 'quran_text_repository.dart';
 /// compared with the manifest, each of its texts is decoded and the word
 /// and mark spans of each ayah are checked together. Any of these failing,
 /// or a text the database refuses, fails that call and disables the pack:
-/// every later call fails with [PackDisabled]. A count, numbering, reference
-/// or span that is wrong is a [PackInconsistent].
+/// every later call fails with [PackDisabled], and the failure is passed to
+/// `onDisabled`, so that the pack's integrity can be reported. A count,
+/// numbering, reference or span that is wrong is a [PackInconsistent].
 ///
 /// The reads are synchronous inside; the interface is asynchronous so that
 /// they can move to an isolate without changing it.
 final class PackQuranTextRepository implements QuranTextRepository {
   /// Throws an [ArgumentError] when the manifest names no riwaya; [open]
   /// returns that as a failure instead.
-  PackQuranTextRepository({required VerifiedPack pack, required this._database})
-    : _manifest = pack.manifest,
-      riwaya =
-          pack.manifest.riwaya ??
-          (throw ArgumentError.value(pack.directory, 'pack', 'has no riwaya'));
+  PackQuranTextRepository({
+    required VerifiedPack pack,
+    required this._database,
+    this._onDisabled,
+  }) : _manifest = pack.manifest,
+       riwaya =
+           pack.manifest.riwaya ??
+           (throw ArgumentError.value(pack.directory, 'pack', 'has no riwaya'));
 
   /// Opens `text.sqlite` of [pack] read-only. A file that is not a text pack
   /// of the manifest's format version fails with [UnsupportedPackFormat], a
   /// file that cannot be read with [FileHashMismatch].
-  static Result<PackQuranTextRepository> open(VerifiedPack pack) {
+  static Result<PackQuranTextRepository> open(
+    VerifiedPack pack, {
+    void Function(PackFailure failure)? onDisabled,
+  }) {
     final manifest = pack.manifest;
     if (manifest.kind != PackKind.text || manifest.riwaya == null) {
       return Failure(
@@ -49,7 +56,13 @@ final class PackQuranTextRepository implements QuranTextRepository {
         '${pack.directory}/$textPackFileName',
         formatVersion: manifest.formatVersion,
       );
-      return Ok(PackQuranTextRepository(pack: pack, database: database));
+      return Ok(
+        PackQuranTextRepository(
+          pack: pack,
+          database: database,
+          onDisabled: onDisabled,
+        ),
+      );
     } on PackFailure catch (failure) {
       return Failure(_named(manifest.id, failure));
     }
@@ -57,6 +70,7 @@ final class PackQuranTextRepository implements QuranTextRepository {
 
   final PackManifest _manifest;
   final PackDatabase _database;
+  final void Function(PackFailure failure)? _onDisabled;
 
   @override
   final String riwaya;
@@ -144,7 +158,9 @@ final class PackQuranTextRepository implements QuranTextRepository {
       return Failure(failure);
     } on PackFailure catch (failure) {
       _disabled = true;
-      return Failure(_named(_id, failure));
+      final named = _named(_id, failure);
+      _onDisabled?.call(named);
+      return Failure(named);
     }
   }
 
