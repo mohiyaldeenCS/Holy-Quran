@@ -26,6 +26,83 @@ void main() {
   });
   tearDown(() => root.delete(recursive: true));
 
+  group('format 2', () {
+    test(
+      'stores one form per word and kind, counted in the manifest',
+      () async {
+        final pack = await buildSyntheticPack(root, formatVersion: 2);
+        final raw = RawPack.open(pack.textFile);
+        addTearDown(raw.close);
+        expect(raw.userVersion, 2);
+        expect(pack.manifest['format_version'], 2);
+        final words = pack.counts['words']! as int;
+        expect((pack.manifest['counts']! as Map)['search_forms'], {
+          for (final kind in defaultSyntheticSearchFormKinds) kind: words,
+        });
+        expect(
+          raw.searchForms().map((f) => utf8.decode(f.$5)),
+          pack.searchForms.map((f) => f.form),
+        );
+        expect(pack.searchForms, hasLength(words * 2));
+        expect(
+          [
+            for (final source in pack.manifest['sources']! as List)
+              (source as Map)['role'],
+          ],
+          ['text', 'edition_map', 'search_forms'],
+        );
+      },
+    );
+
+    test('forms are synthetic text that any change would break', () {
+      final forms = syntheticSearchForms(defaultSyntheticSurahs, ['a']);
+      expect(forms.first.form, startsWith(' '));
+      expect(forms.first.form, endsWith('  '));
+      expect(forms.first.form, contains('e\u{301}'));
+      expect(forms.first.form, contains('\u{E9}'));
+      for (final form in forms) {
+        final ayah = defaultSyntheticSurahs[form.surah - 1].ayat[form.ayah - 1];
+        expect(ayah.text, isNot(contains(form.form)));
+      }
+    });
+
+    test('a format 1 pack has no search_form table or forms', () async {
+      final pack = await buildSyntheticPack(root);
+      final raw = RawPack.open(pack.textFile);
+      addTearDown(raw.close);
+      expect(raw.tables().map((t) => t.name), isNot(contains('search_form')));
+      expect(pack.searchForms, isEmpty);
+      expect(
+        () => buildSyntheticPack(
+          Directory('${root.path}/f'),
+          searchFormFault: SyntheticSearchFormFault.missing,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('the search form faults change only the forms', () async {
+      final clean = await buildSyntheticPack(root, formatVersion: 2);
+      final missing = await buildSyntheticPack(
+        Directory('${root.path}/missing'),
+        formatVersion: 2,
+        searchFormFault: SyntheticSearchFormFault.missing,
+      );
+      final unlisted = await buildSyntheticPack(
+        Directory('${root.path}/unlisted'),
+        formatVersion: 2,
+        searchFormFault: SyntheticSearchFormFault.unlistedKind,
+      );
+      expect(missing.searchForms, clean.searchForms.skip(1));
+      expect(missing.counts, clean.counts);
+      expect(unlisted.searchForms.map((f) => f.kind).toSet(), {
+        ...defaultSyntheticSearchFormKinds,
+        unlistedSearchFormKind,
+      });
+      expect(unlisted.counts, clean.counts);
+    });
+  });
+
   group('surah digest', () {
     List<List<int>> encode(List<String> ayat) => [
       for (final ayah in ayat) utf8.encode(ayah),
