@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'allow_list.dart';
 import 'dart_source.dart';
 
 // Pack text stays untouched on its way to the screen (D-062,
@@ -10,33 +11,23 @@ import 'dart_source.dart';
 
 const _packText = 'lib/domain/models/pack_text.dart';
 const _database = 'lib/data/services/pack_database.dart';
+const _allow = 'test/guards/allow/pack_text';
 
-/// The sinks that may read `PackText.verbatim` (D-062, D-084). Adding one is
-/// a reviewed change to this list.
-const _sinks = {
-  'lib/ui/core/widgets/quran_text.dart',
-  'lib/ui/core/widgets/surah_name.dart',
-};
+/// The sinks that may read `PackText.verbatim` (D-062, D-084).
+final _sinks = PathAllowList.load('$_allow/sinks');
 
-/// The files that may create a `PackText`: the database, and the debug
-/// gallery's synthetic samples (D-086).
-const _producers = {_database, 'lib/ui/core/gallery/gallery_samples.dart'};
+/// The files that may create a `PackText`.
+final _producers = PathAllowList.load('$_allow/producers');
 
-/// The only files that may construct a `VerifiedPack`: the repository that
-/// verifies packs, and the model itself.
-const _verifiers = {
-  'lib/data/repositories/local_pack_repository.dart',
-  'lib/domain/models/verified_pack.dart',
-};
+/// The only files that may construct a `VerifiedPack`.
+final _verifiers = PathAllowList.load('$_allow/verifiers');
 
-/// The files that carry `PackText` values from the file to the screen.
+/// The files, besides the sinks, that carry `PackText` values from the file
+/// to the screen.
+final _carriers = PathAllowList.load('$_allow/carriers');
+
 bool _carriesPackText(String path) =>
-    path == _packText ||
-    path == _database ||
-    _sinks.contains(path) ||
-    RegExp(
-      r'^lib/data/repositories/[^/]*quran_text[^/]*\.dart$',
-    ).hasMatch(path);
+    _sinks.allows(path) || _carriers.allows(path);
 
 final _verbatim = RegExp(r'\bverbatim\b');
 final _verifiedPack = RegExp(r'\bVerifiedPack\s*(?:\(|\.\s*new\b)');
@@ -62,17 +53,17 @@ List<String> _violations(Map<String, String> sources) => [
 Iterable<String> _violationsIn(String path, String text) sync* {
   final source = ScannedSource(text);
   String at(Match match) => '$path:${source.lineOf(match.start)}';
-  if (path != _packText && !_sinks.contains(path)) {
+  if (path != _packText && !_sinks.allows(path)) {
     for (final match in _verbatim.allMatches(source.code)) {
       yield '${at(match)}: verbatim outside a sink';
     }
   }
-  if (path != _packText && !_producers.contains(path)) {
+  if (path != _packText && !_producers.allows(path)) {
     for (final match in _fromPack.allMatches(source.code)) {
       yield '${at(match)}: fromPack outside a producer';
     }
   }
-  if (!_verifiers.contains(path)) {
+  if (!_verifiers.allows(path)) {
     for (final match in _verifiedPack.allMatches(source.code)) {
       yield '${at(match)}: VerifiedPack constructed outside verification';
     }
@@ -102,10 +93,13 @@ void main() {
     expect(_violations(sources), isEmpty);
   });
 
-  test('the listed files exist', () {
-    for (final path in {_packText, ..._sinks, ..._producers, ..._verifiers}) {
-      expect(File(path).existsSync(), isTrue, reason: path);
-    }
+  test('the allow-lists load and name pack text where it lives', () {
+    expect(File(_packText).existsSync(), isTrue, reason: _packText);
+    expect(_carriers.allows(_packText), isTrue);
+    expect(_carriers.allows(_database), isTrue);
+    expect(_producers.allows(_database), isTrue);
+    expect(_sinks.entries, isNotEmpty);
+    expect(_verifiers.entries, isNotEmpty);
     expect(
       dartSources('lib/data/repositories').keys.where(_carriesPackText),
       isNotEmpty,
@@ -127,7 +121,8 @@ final d = switch (text) { PackText(:final verbatim) => verbatim };
 ''',
           repository: 'final e = text.verbatim;',
           _packText: 'String get verbatim => _value;',
-          for (final sink in _sinks) sink: 'TextSpan(text: text.verbatim);',
+          for (final sink in _sinks.entries)
+            sink: 'TextSpan(text: text.verbatim);',
         }),
         [
           '$view:1: verbatim outside a sink',
@@ -146,7 +141,7 @@ final d = switch (text) { PackText(:final verbatim) => verbatim };
           view: 'final a = PackText.fromPack(label);',
           repository: 'final f = PackText.fromPack;',
           _packText: 'const PackText.fromPack(this._value);',
-          for (final producer in _producers)
+          for (final producer in _producers.entries)
             producer: 'final t = PackText.fromPack(s);',
         }),
         [
@@ -167,7 +162,7 @@ final d = VerifiedPack . new(directory: d, manifest: m, signatureChecked: false)
 Future<Result<VerifiedPack>> e() => f();
 final VerifiedPack g = h;
 ''',
-          for (final verifier in _verifiers)
+          for (final verifier in _verifiers.entries)
             verifier:
                 'return VerifiedPack(directory: d, manifest: m, '
                 'signatureChecked: c);',
@@ -220,7 +215,12 @@ final f = s.splitMapJoin(x);
 final g = list.map((s) => s.trim);
 ''';
       final violations = _violations({
-        for (final path in [_database, repository, ..._sinks, _packText])
+        for (final path in [
+          _database,
+          repository,
+          ..._sinks.entries,
+          _packText,
+        ])
           path: changes,
         other: changes,
       });
@@ -239,7 +239,7 @@ final g = list.map((s) => s.trim);
       expect(violations.map((v) => v.split(':').first).toSet(), {
         _database,
         repository,
-        ..._sinks,
+        ..._sinks.entries,
         _packText,
       });
     });

@@ -1,0 +1,5 @@
+text: player-accent on player
+decision: D-114
+exception: paper 3.90
+exception: sepia 3.90
+Listed in docs/DESIGN_SYSTEM.md, "Contrast"; the shortfalls are open with the owner (O-12).

@@ -1,0 +1,7 @@
+text: on-player on paper-100@14 over player
+decision: D-114
+pinned: paper 5.23
+pinned: night 8.55
+pinned: sepia 5.00
+pinned: contrast 15.92
+M0.5: the MiniPlayer speed chip.

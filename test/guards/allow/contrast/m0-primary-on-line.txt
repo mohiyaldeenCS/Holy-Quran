@@ -1,0 +1,7 @@
+non-text: primary on line
+decision: D-089
+pinned: paper 5.37
+pinned: night 5.89
+pinned: sepia 4.78
+exception: contrast 1.41
+M0.5: the primary ProgressBar fill against its track; the shortfall is open with the owner (O-12).

@@ -1,0 +1,3 @@
+lib/data/repositories/local_pack_repository.dart
+decision: D-065
+The repository that verifies packs.

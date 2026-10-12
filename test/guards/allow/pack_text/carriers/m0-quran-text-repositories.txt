@@ -1,0 +1,3 @@
+lib/data/repositories/*quran_text*.dart
+decision: D-062
+The repositories that hand pack text to the app.

@@ -1,0 +1,3 @@
+lib/ui/core/widgets/surah_name.dart
+decision: D-084
+SurahName draws surah names from a pack in a closed set of formats.

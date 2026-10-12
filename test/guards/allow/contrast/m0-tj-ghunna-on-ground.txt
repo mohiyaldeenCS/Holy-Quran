@@ -1,0 +1,5 @@
+text: tj-ghunna on ground
+decision: D-114
+exception: paper 4.43
+exception: sepia 3.85
+Listed in docs/DESIGN_SYSTEM.md, "Contrast"; the shortfalls are open with the owner (O-12).

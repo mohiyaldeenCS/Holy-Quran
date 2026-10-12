@@ -1,0 +1,6 @@
+non-text: surface on line
+decision: D-114
+exception: paper 1.45
+exception: night 1.36
+exception: sepia 1.45
+M0.2: the Switch knob when off, on its track; the shortfalls are open with the owner (O-12).

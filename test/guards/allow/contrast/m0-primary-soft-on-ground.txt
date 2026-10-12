@@ -1,0 +1,7 @@
+non-text: primary-soft on ground
+decision: D-089
+exception: paper 1.14
+exception: night 1.52
+exception: sepia 1.03
+exception: contrast 1.72
+M0.5: the selected Tag fill; the check mark and the weight carry the state (D-089, 6).

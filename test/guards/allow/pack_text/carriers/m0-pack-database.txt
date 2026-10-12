@@ -1,0 +1,3 @@
+lib/data/services/pack_database.dart
+decision: D-062
+It reads pack text from the file.

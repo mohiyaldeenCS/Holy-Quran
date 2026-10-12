@@ -1,0 +1,3 @@
+lib/ui/core/widgets/share_card.dart
+decision: D-054
+A fixed brand surface (docs/DESIGN_SYSTEM.md, "Colour").

@@ -1,0 +1,4 @@
+text: tj-iqlab on ground
+decision: D-114
+exception: sepia 4.22
+Listed in docs/DESIGN_SYSTEM.md, "Contrast"; the shortfalls are open with the owner (O-12).

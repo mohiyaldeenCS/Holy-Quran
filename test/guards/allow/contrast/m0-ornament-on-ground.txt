@@ -1,0 +1,4 @@
+non-text: ornament on ground
+decision: D-114
+exception: paper 2.90
+Listed in docs/DESIGN_SYSTEM.md, "Contrast"; the paper shortfall is the identity's stated exception, decorative.
