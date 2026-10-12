@@ -68,4 +68,109 @@ void main() {
     expect(counts.marks, 4);
     expect(() => counts.divisions[Division.juz] = 1, throwsUnsupportedError);
   });
+
+  test('PackCounts has no search forms unless given, and keeps them '
+      'unmodifiable', () {
+    PackCounts counts([Map<String, int>? searchForms]) => searchForms == null
+        ? PackCounts(
+            surahs: 1,
+            ayat: 1,
+            words: 2,
+            marks: 0,
+            divisions: const {},
+            sajdas: 0,
+          )
+        : PackCounts(
+            surahs: 1,
+            ayat: 1,
+            words: 2,
+            marks: 0,
+            divisions: const {},
+            sajdas: 0,
+            searchForms: searchForms,
+          );
+    expect(counts().searchForms, isEmpty);
+    final given = {'synthetic': 2};
+    final withForms = counts(given).searchForms;
+    given['synthetic-later'] = 2;
+    expect(withForms, {'synthetic': 2});
+    expect(() => withForms['x'] = 1, throwsUnsupportedError);
+  });
+
+  group('PackManifest', () {
+    final textCounts = PackCounts(
+      surahs: 1,
+      ayat: 1,
+      words: 1,
+      marks: 0,
+      divisions: const {},
+      sajdas: 0,
+    );
+    const font = PackFont(family: 'Synthetic', version: '1', sha256: '');
+    PackManifest manifest(
+      PackKind kind,
+      PackKindCounts counts, {
+      bool textFields = false,
+    }) => PackManifest(
+      formatVersion: 2,
+      id: 'synthetic',
+      kind: kind,
+      version: 1,
+      changelog: const [],
+      riwaya: 'hafs',
+      edition: textFields ? 'synthetic-edition' : null,
+      font: textFields ? font : null,
+      sources: [_source(null)],
+      files: const [],
+      surahSha256: textFields ? const {1: 'synthetic'} : null,
+      counts: counts,
+      reviews: const [],
+    );
+
+    test('of a text pack gives its edition, font, digests and counts', () {
+      final text = manifest(PackKind.text, textCounts, textFields: true);
+      expect(text.edition, 'synthetic-edition');
+      expect(text.font, same(font));
+      expect(text.surahSha256, {1: 'synthetic'});
+      expect(text.counts, same(textCounts));
+      expect(text.kindCounts, same(textCounts));
+      expect(() => text.surahSha256[2] = '', throwsUnsupportedError);
+    });
+
+    test('of a tafsir or recitation pack has its own counts and no text '
+        'fields', () {
+      const tafsirCounts = TafsirCounts(passages: 3);
+      const recitationCounts = RecitationCounts(files: 4);
+      for (final (kind, counts) in [
+        (PackKind.tafsir, tafsirCounts),
+        (PackKind.recitation, recitationCounts),
+      ]) {
+        final other = manifest(kind, counts);
+        expect(other.kindCounts, same(counts));
+        expect(() => other.edition, throwsStateError, reason: kind.name);
+        expect(() => other.font, throwsStateError, reason: kind.name);
+        expect(() => other.surahSha256, throwsStateError, reason: kind.name);
+        expect(() => other.counts, throwsStateError, reason: kind.name);
+      }
+      expect(tafsirCounts.passages, 3);
+      expect(recitationCounts.files, 4);
+    });
+
+    test('refuses fields that do not match its kind', () {
+      const tafsirCounts = TafsirCounts(passages: 1);
+      for (final (kind, counts, textFields) in [
+        (PackKind.text, textCounts, false),
+        (PackKind.text, tafsirCounts, true),
+        (PackKind.tafsir, tafsirCounts, true),
+        (PackKind.tafsir, textCounts, false),
+        (PackKind.recitation, tafsirCounts, false),
+      ]) {
+        expect(
+          () => manifest(kind, counts, textFields: textFields),
+          throwsArgumentError,
+          reason: '$kind $counts $textFields',
+        );
+      }
+    });
+  });
 }

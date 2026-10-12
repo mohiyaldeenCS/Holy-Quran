@@ -1,0 +1,3 @@
+lib/data/services/surah_name_index.dart
+decision: D-114
+SurahNameIndex compares typed names with the stored surah names, whole and unchanged.
