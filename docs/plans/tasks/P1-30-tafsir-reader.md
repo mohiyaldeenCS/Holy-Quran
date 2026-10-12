@@ -12,8 +12,10 @@ P1-20.
 مرجعيًا»; `TF-10` «نسخ مقطع من التفسير ومشاركته مع نسبته». Criterion: «لكل آية ... مقطع ...
 أو بيان «لا يوجد تفسير لهذه الآية في هذا الكتاب»». PRD §7.7: the tafsir reader
 «`QuranText` و`tafsir`»; the source badge «اسم المصدر وإصداره تحت كل مادة غير قرآنية،
-وتفتح ورقة تفاصيله» from `caption`, `info` and `Icon`. Real tafsirs wait for O-06 and
-B0.7: synthetic packs only.
+وتفتح ورقة تفاصيله» from `caption`, `info` and `Icon`. The first release's tafsirs
+are the Zaydi-library books only; the general tafsirs are deferred (O-06, D-119). The
+books wait for B0.6, B0.7, the reviewer's checks (D-082) and O-07: synthetic packs
+only, and no screen names a book.
 
 ## Do
 

@@ -27,8 +27,9 @@ page cites (`git show <sha>:spike/s5/…`; if the commit is missing, work from t
 2. `lib/data/services/connectivity_service.dart` (`connectivity_plus`): the "waiting
    for Wi-Fi" signal the downloader lacks.
 3. `lib/data/services/free_space_service.dart`: free space by the means the lead
-   chose in step 0 (`docs/DECISIONS.md`); if none was chosen, the interface only, and
-   say so.
+   chose in step 0 (`disk_space_2`'s `getFreeDiskSpaceForPath`, D-124). Create the
+   packs directory before asking; a failure, `null` or `0` is "unknown", never
+   "low", so it cannot stop the queue by mistake.
 4. `lib/data/services/installed_packs_store.dart` (named outside `pack_*.dart`, the
    pack-write guard): `<application support>/packs/<id>/<version>/`, one
    `active.json` per pack id replaced by rename, the previous version kept.
@@ -36,9 +37,13 @@ page cites (`git show <sha>:spike/s5/…`; if the commit is missing, work from t
    each downloads the files, checks every SHA-256 (a bad file is deleted and fetched
    again once), verifies the manifest through `PackRepository.verify`, applies the
    signature policy (refuse `invalid`; accept `notChecked` only when not
-   `kReleaseMode`, D-108), activates atomically, and supports rollback and delete.
+   `kReleaseMode`, D-108; packs are signed in CI by the task `sign-pack`, O-03, and a
+   signature by the key in use or the spare is `valid`), activates atomically, and supports rollback and delete.
    Low space stops the queue with a state the UI can show. Only `https` URLs are
-   accepted; the policy is injected so tests can use a local server.
+   accepted; the policy is injected so tests can use a local server. Test packs are
+   assets of this repository's GitHub Releases (O-08, D-109), whose download URLs
+   redirect to GitHub's storage host: follow `https` redirects, refuse a redirect to
+   any other scheme.
 6. Fill `lib/config/providers/pack_install_providers.dart`; fake
    `testing/fakes/fake_pack_install_repository.dart`.
 
@@ -47,7 +52,8 @@ page cites (`git show <sha>:spike/s5/…`; if the commit is missing, work from t
 With a local `HttpServer` serving synthetic packs from `testing/packs/` and a fake
 downloader: resume after a dropped connection without re-fetching finished bytes;
 corrupt file rejected and re-fetched; bad manifest hash refused; `invalid` signature
-refused; rollback restores the previous version; delete leaves other packs and any
+refused; a pack signed with the spare key accepted; an `https` redirect followed and
+a redirect to `http` refused; rollback restores the previous version; delete leaves other packs and any
 other folder untouched; an `http` URL refused. Device checks (Wi-Fi gating, real low
 space) are pending human checks.
 

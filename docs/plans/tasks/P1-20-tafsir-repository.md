@@ -8,9 +8,12 @@ P1-07.
 `TF-02` and `TF-03` «التنقل آية آية داخل التفسير مع بقاء الآية ظاهرة أعلاه»; `TF-04`
 «التفسير الذي يشرح عدة آيات معًا يُعرض مقطعه مرة واحدة مع بيان نطاقه»; `TF-05` badge
 fields; `TF-08` quoted ayat stay source text; criterion «لكل آية من الآيات كلها مقطع في
-كل تفسير منزَّل أو بيان «لا يوجد تفسير لهذه الآية في هذا الكتاب»». Real tafsirs wait for
-O-06, B0.7 and their rights records (rows 9 and 10 are `Ready`, row 8 is `Verify`,
-Zaydi-library books wait for O-07): this task works on synthetic tafsir packs.
+كل تفسير منزَّل أو بيان «لا يوجد تفسير لهذه الآية في هذا الكتاب»». The first release's
+tafsirs are the Zaydi-library books only; the seven general tafsirs (rows 8, 9 and
+10) are deferred and get no pack (O-06, D-119). The books wait for B0.6 and B0.7, the
+reviewer's checks of their links (D-082) and O-07: this task works on synthetic
+tafsir packs shaped like those books (book, author, edition or editor, digitisation
+source, version; a passage may span several ayat).
 
 ## Do
 

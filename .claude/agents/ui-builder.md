@@ -29,7 +29,9 @@ disagrees with the project documents, the documents win.
 ## Files
 
 You edit `lib/ui/`, `lib/routing/`, `lib/l10n/` and the tests that mirror them, and
-only the files your brief names. You do not edit `pubspec.yaml`, `lib/main.dart`,
+only the files your brief names. In an agent run (`docs/WORKFLOW.md`, "Tasks run by
+agents in GitHub Actions") the files the task text lists as yours are yours for that
+task, wherever they live. Otherwise you do not edit `pubspec.yaml`, `lib/main.dart`,
 `lib/config/`, `lib/domain/`, `lib/data/`, platform folders or documents; if the task
 needs a change there, say so in your report.
 
@@ -56,8 +58,12 @@ needs a change there, say so in your report.
   Highlights are painted; they do not alter the string.
 - Sample text in `design/` (ayat, tafsir lines, explanations) is never copied into
   the app. UI labels are.
-- Strings live in `lib/l10n/app_ar.arb` in the identity's tone. Arabic-Indic digits
-  through the shared helper. Right to left.
+- You write no Arabic wording of your own (D-115). Strings live in
+  `lib/l10n/app_ar.arb`, and their wording comes only from the PRD, the identity or
+  the owner; a phrase from PRD requirement text enters as a label once the owner has
+  approved it. If the key you need does not exist, leave the element out and list
+  the gap in your report. Arabic-Indic digits through the shared helper. Right to
+  left.
 - Every hit area is at least 48, whatever the visual size. Every icon button has a
   label. Every colour-coded state also has a word, a shape or a line.
 - A field, row or section with no data is hidden; no placeholder content. The three
@@ -78,5 +84,7 @@ needs a change there, say so in your report.
 
 A short report: files changed, which design sources you followed, every non-token
 metric you added with its source, tests added and their result, anything you could
-not match to the identity and why, and questions for the lead. Do not commit or push;
-the lead does that.
+not match to the identity and why, strings that were missing, and questions for the
+lead. When you are the main thread of an agent run, commit your task's work on the
+current branch as its text says; never push. When a lead delegates to you inside a
+session, do not commit or push; the lead does that.

@@ -37,7 +37,7 @@ whole previous wave is.
 | 1 | P1-12 | Copy and share-card machinery | M1.6 | ui-builder | 2 | $25 | P1-01, P1-02, P1-03 |
 | 2 | P1-13 | Pack catalogue and recitation listing | M1.4, M1.9 | data-builder | 1 | $30 | P1-05, P1-06, P1-07 |
 | 2 | P1-14 | Reader screen, surah mode | M1.2 | ui-builder | 2 | $30 | P1-04, P1-05, P1-09 |
-| 2 | P1-15 | Settings, first-run level choice, More hub | M1.1 | ui-builder | 1 | $25 | P1-01, P1-04 |
+| 2 | P1-15 | Settings, first-run setup, report sheet, More hub | M1.1 | ui-builder | 1 | $25 | P1-01, P1-04, P1-05, P1-07 |
 | 2 | P1-16 | Home frame: header, greeting, continue-reading card, index door | M1.1, M1.2, M1.3 | ui-builder | 2 | $15 | P1-04, P1-05 |
 | 2 | P1-17 | Index, go-to sheet, context sheet, ayah cards | M1.3 | ui-builder | 1 | $30 | P1-04, P1-05, P1-09, P1-10 |
 | 2 | P1-18 | User data repositories: bookmarks, tags, notes, listening position, search history, integrity log, keep-awake | M1.6, M1.8, M1.9 | data-builder | 2 | $25 | P1-04, P1-05 |
@@ -77,7 +77,7 @@ can without it and names the gap in its report.
 - **Runs at once.** Every task in a wave owns different files (§7), so all of a
   wave's tasks may be started together, on both keys. If the API accounts' rate
   limits throttle, start two at a time (one per key) in table order. `docs/WORKFLOW.md`
-  still says two runs at once; that line changes with D-100.
+  says so since step 0 (D-100).
 - **Order of merging.** Before each merge, update the branch from `main` and run the
   `check` task again: disjoint files do not rule out a broken build. Within wave 3,
   merge P1-28 before P1-23 (the toolbar opens P1-28's play options by path). A pull
@@ -127,14 +127,172 @@ can without it and names the gap in its report.
 5. Put the owner questions of §9 to him in one batch (`ask-owner`).
 6. Before P1-22 starts: D-097 (the tap rule chosen by S7's usability test) must be
    recorded from the owner's device session.
+7. Add the CI task `sign-pack` (O-03, D-108), below, to `.github/workflows/ci.yml`
+   at a moment when no agent run is out on `main` (workflow files stay still while a
+   run is out). The owner first creates the key pair and the secret (steps below);
+   then the lead commits the two public keys.
+
+Items 2 to 4 and the text of item 7 landed with the step-0 pull request; the job
+itself is the lead's, because no agent edits `.github/`.
+
+### 3.1 The CI task `sign-pack`
+
+A pack is built where its sources are (the pipeline of `tools/packs/`, unsigned) and
+put, unsigned, on a GitHub Release of this repository (O-08): one release per pack
+version, tagged `pack-<id>-<version>` (the version is the manifest's integer, as in
+`pack-base-hafs-tanzil-1`), holding `manifest.json`, every file the
+manifest's `files` names (`text.sqlite` in format v1) and, for a text pack, the mark
+table it was built with as `marks.json`. Whoever builds the pack records the SHA-256 of
+`manifest.json` and of `marks.json` where the pack's review is recorded (B0.2: the
+proofreader's sign-off); the manifest holds the hash of every file and the digest of
+every surah, so its hash pins the whole content. The job refuses to sign unless the
+downloaded files have exactly the hashes typed into the run, prints them, verifies the
+pack with its font and mark table, signs `manifest.json` with the secret key, checks the signature against
+the committed public key, and adds `manifest.json.sig` to the same release. It never
+re-signs: `pack.py sign` refuses a pack that has a signature, and `gh release upload`
+without `--clobber` refuses an existing asset.
+
+Inputs added to `workflow_dispatch` (seven in all with `task` and `scope`): `task`
+gains the option `sign-pack`; `release` (the tag), `pack` (`<id>/<version>`),
+`font` (the font paired with the pack's text, default
+`assets/fonts/AmiriQuran-Regular.ttf`), `manifest_sha256` and `marks_sha256` (the
+recorded hashes). The owner, as the environment's required reviewer, sees these
+inputs before he approves the run. The `check` job's condition becomes
+`github.event_name != 'workflow_dispatch' || (inputs.task != 'goldens' && inputs.task != 'sign-pack')`.
+
+```yaml
+  sign-pack:
+    name: Sign a content pack
+    if: github.event_name == 'workflow_dispatch' && inputs.task == 'sign-pack' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # Holds PACK_SIGNING_KEY; the owner approves each run (required reviewer).
+    environment: pack-signing
+    permissions:
+      contents: write
+    concurrency:
+      group: sign-pack
+      cancel-in-progress: false
+    env:
+      RELEASE: ${{ inputs.release }}
+      PACK: ${{ inputs.pack }}
+      FONT: ${{ inputs.font }}
+      MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
+      MARKS_SHA256: ${{ inputs.marks_sha256 }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Check the inputs
+        run: |
+          [[ "$RELEASE" =~ ^pack-[a-z0-9-]+-[1-9][0-9]*$ ]]
+          [[ "$PACK" =~ ^[a-z0-9]+(-[a-z0-9]+)*/[1-9][0-9]*$ ]]
+          [[ "$RELEASE" == "pack-${PACK%/*}-${PACK#*/}" ]]
+          [[ "$FONT" =~ ^assets/fonts/[A-Za-z0-9._-]+\.ttf$ ]]
+          test -f "$FONT"
+          [[ "$MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$MARKS_SHA256" =~ ^[0-9a-f]{64}$ ]]
+
+      - name: Download the unsigned pack and its mark table
+        run: |
+          dir="$RUNNER_TEMP/packs/$PACK"
+          mkdir -p "$dir" "$RUNNER_TEMP/in"
+          gh release download "$RELEASE" --pattern manifest.json --dir "$dir"
+          gh release download "$RELEASE" --pattern marks.json --dir "$RUNNER_TEMP/in"
+          echo "$MANIFEST_SHA256  $dir/manifest.json" | sha256sum --check
+          echo "$MARKS_SHA256  $RUNNER_TEMP/in/marks.json" | sha256sum --check
+          mapfile -t names < <(python3 -I -c 'import json,sys; [print(f["name"]) for f in json.load(open(sys.argv[1]))["files"]]' "$dir/manifest.json")
+          (( ${#names[@]} > 0 ))
+          for name in "${names[@]}"; do
+            [[ "$name" =~ ^[a-z0-9_.-]+$ ]]
+            gh release download "$RELEASE" --pattern "$name" --dir "$dir"
+          done
+          test ! -e "$dir/manifest.json.sig"
+          (cd "$dir" && sha256sum manifest.json "${names[@]}")
+
+      - name: Sign
+        env:
+          PACK_SIGNING_KEY: ${{ secrets.PACK_SIGNING_KEY }}
+        run: |
+          test -n "$PACK_SIGNING_KEY"
+          umask 077
+          key="$RUNNER_TEMP/signing-key.pem"
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n' "$PACK_SIGNING_KEY" > "$key"
+          python3 tools/packs/pack.py sign "$RUNNER_TEMP/packs/$PACK" --key "$key" \
+            --font "$FONT" --mark-table "$RUNNER_TEMP/in/marks.json"
+
+      - name: Check the signature with the committed public key
+        run: |
+          python3 tools/packs/pack.py verify-signature "$RUNNER_TEMP/packs/$PACK" \
+            --public-key tools/packs/keys/pack-signing-1.pub.pem
+
+      - name: Add the signature to the release
+        run: gh release upload "$RELEASE" "$RUNNER_TEMP/packs/$PACK/manifest.json.sig"
+```
+
+Outputs: the asset `manifest.json.sig` on the release `pack-<id>-<version>`, and the
+job log, which shows the files' hashes, the path `pack.py sign` wrote and any problem
+it found by address and code point; OpenSSL's output is dropped and the key is never
+echoed. Nothing is committed.
+
+Limits, for later tasks: `pack.py sign` verifies text packs (format v1) only, so
+tafsir and recitation packs (format v2, D-110) and the catalogue (`catalogue.json.sig`,
+D-109) need a `tools/packs` command that verifies their kind before this job can sign
+them; that is a `content-engineer` task after P1-06 and P1-13 have fixed the formats.
+To move to the spare key, the job reads `PACK_SIGNING_KEY_SPARE` and checks against
+`pack-signing-2.pub.pem`; a new spare then ships in the next app release.
+
+### 3.2 The owner's key steps
+
+Written in English; the lead gives them to the owner in Arabic.
+
+1. On a computer with OpenSSL 3, in a new empty folder outside any Git repository.
+   First run `openssl version`; go on only if it says `OpenSSL 3`. Linux and Git
+   Bash on Windows usually have it; the `openssl` that macOS ships is LibreSSL,
+   which cannot make these keys, so on a Mac install `openssl@3` with Homebrew and
+   use its full path (`$(brew --prefix openssl@3)/bin/openssl`). Then run:
+   `openssl genpkey -algorithm ed25519 -out pack-signing-1.pem`,
+   `openssl genpkey -algorithm ed25519 -out pack-signing-2.pem`,
+   `openssl pkey -in pack-signing-1.pem -pubout -out pack-signing-1.pub.pem` and
+   `openssl pkey -in pack-signing-2.pem -pubout -out pack-signing-2.pub.pem`.
+   Key 1 is the key in use; key 2 is the spare.
+2. On GitHub, in this repository: Settings, Environments, New environment, named
+   `pack-signing`. Under its protection rules, add yourself as a required reviewer
+   and limit deployment branches to `main`. (If GitHub offers no environments here, as
+   for a private repository on the Free plan, stop and tell the lead: without the
+   approval gate any run started on `main`, an agent's included, could sign, so the
+   job is not added until the owner settles it, for example by making the
+   repository public, question 18 of §9.)
+3. In that environment, Add environment secret: name `PACK_SIGNING_KEY`, value the
+   whole content of `pack-signing-1.pem`, the `BEGIN` and `END` lines included. Add
+   a second secret, `PACK_SIGNING_KEY_SPARE`, with the content of
+   `pack-signing-2.pem`.
+4. Send the lead the two `.pub.pem` files. They are public and are committed to
+   `tools/packs/keys/` and built into the app. Never send or commit a file whose
+   name does not end in `.pub.pem`.
+5. Delete `pack-signing-1.pem` and `pack-signing-2.pem` and empty the trash. GitHub
+   never shows a secret again: from now on the private keys exist only as the two
+   secrets. (If you want the spare to survive the loss of the GitHub account, keep
+   `pack-signing-2.pem` on a USB stick kept somewhere safe instead of deleting it.)
+
+Then the lead commits `tools/packs/keys/pack-signing-1.pub.pem` and
+`pack-signing-2.pub.pem`, and puts both keys, as their raw 32 bytes
+(`openssl pkey -pubin -in pack-signing-1.pub.pem -outform DER | tail -c 32 | od -An -tx1`),
+into `lib/config/signing_keys.dart` once P1-05 has created it.
 
 ## 4. Buildable scope, with its task
 
 "Buildable now" means engineering that shows no content of its own: it is built and
 tested on synthetic packs, and shows real content only when a verified pack from a
-`Ready` row arrives. The base pack's real text arrives with B0.2 (proofreader's
-sign-off, O-16; signing, O-03). A real tafsir needs O-06, B0.7 and its rights
-record; a real recitation needs O-04, B0.5 and a complete rights record. Where a
+`Ready` row arrives. The base pack's real text arrives with B0.2 (the sign-off of
+the licensed reciter the owner named, O-16) and is signed by the CI task `sign-pack`
+(O-03, §3.1). A real tafsir is a Zaydi-library book (O-06) and needs B0.6, B0.7, the
+reviewer's checks (D-082), O-07 and its rights record; a real recitation needs the
+planning session's proposal approved by the owner (O-04), B0.5 and a complete rights
+record. The owner's answers are recorded as D-119. Where a
 requirement is partly blocked, the blocked part is named in the same row.
 
 | ID | Task | Part built and its notes |
@@ -218,7 +376,7 @@ requirement is partly blocked, the blocked part is named in the same row.
 | OF-02 | P1-25 | Name, size, state with percent, source and version, actions |
 | OF-03 | P1-25 | Space per category and free space |
 | OF-04 | P1-07 | Sequential resumable queue, Wi-Fi only, stop with an alert on low space |
-| OF-05 | P1-07 | Hash and manifest signature before activation (verifier P1-05; the real key waits for O-03) |
+| OF-05 | P1-07 | Hash and manifest signature before activation (verifier P1-05; packs signed in CI, O-03; the public keys wait for the owner's key steps, §3.2) |
 | OF-06 | P1-07 | Atomic update and rollback; the notice with the change summary is P1-25's |
 | OF-07 | P1-07 | Deleting a pack touches no user row (proven again end to end by P1-34) |
 | AC-01 | P1-15 | Everything works without an account |
@@ -230,7 +388,7 @@ requirement is partly blocked, the blocked part is named in the same row.
 | AX-06 | P1-35 | Reduce motion everywhere |
 | AX-07 | P1-19 | System media controls on headset and lock screen |
 | AX-09 | P1-35 | Visible focus ring with a keyboard |
-| LV-01 | P1-15 | One setting, default «بسيط» |
+| LV-01 | P1-15 | One setting, default «بسيط»; asked in the first-run setup (O-17: the display-mode and recitation steps join it when page mode and a `Ready` recitation exist) |
 | LV-02 | P1-15 | Instant change, no restart, no data lost |
 | LV-03 | P1-23 | The matrix of PRD §7.3 (policy in P1-04) applied in the reader; every screen task applies it |
 | LV-04 | P1-15 | A higher-level tool opened by link works; its "always show" line waits for wording (Appendix C) |
@@ -272,14 +430,21 @@ LX-10, ST-02 to ST-05, SR-09, SR-11, NF-16 (account deletion comes with accounts
 | NF-21 | Blocked | O-18, as above |
 
 Also blocked, with no ID of their own: the category «تفسير» and user-made category
-colours and shapes (O-14, within the bookmark row above); a three-step onboarding and
-"report an error" (O-17; only the level choice is built); every Zaydi-library book
-(O-07, the reviewer's checks of D-082); the page-mode parts named in §4; the eight
+colours and shapes (O-14, within the bookmark row above); the display-mode and
+recitation steps of the first-run setup (O-17, adopted; they wait for page mode and
+for a `Ready` recitation); the send action of «أبلغ عن خطأ» and its entry points
+(O-17, adopted; they wait for the owner's answers 15 and 16 of §9, while P1-15 builds
+the sheet); every Zaydi-library book (O-07, the reviewer's checks of D-082); the seven
+general tafsirs (deferred by O-06); the page-mode parts named in §4; the eight
 icons until the owner approves them (D-051); every string of Appendix C.
 
 ## 6. Shared architecture: proposals for `docs/DECISIONS.md`
 
-The lead records these, renumbering if another branch has taken a number (D-076).
+Recorded in `docs/DECISIONS.md` as D-100 to D-118 with these numbers, and amended
+there for the owner's answers of D-119: D-101 (the `report` feature), D-102 (the
+first-run setup and the report sheet's route), D-108 (signing in CI, a spare key),
+D-109 (GitHub Releases hosting) and D-110 (Zaydi-library books only). The rows in
+`docs/DECISIONS.md` decide; this list keeps the plan's reasoning.
 
 - **D-100 Phase 1 by waves.** Phase 1 runs as the tasks of this file. Within a wave
   no two tasks own a file. Shared files are seams made in wave 0 (§7) or have one
@@ -287,19 +452,20 @@ The lead records these, renumbering if another branch has taken a number (D-076)
   `docs/WORKFLOW.md`: a wave's tasks may all run together.
 - **D-101 Feature folders by screen group.** `lib/ui/features/` holds `onboarding`,
   `home`, `mushaf`, `index`, `listen`, `study` (hub), `search`, `tafsir`,
-  `sheets` (the word and ayah sheets), `more` (hub), `bookmarks`, `resources`, `settings`, `sources`.
+  `sheets` (the word and ayah sheets), `more` (hub), `bookmarks`, `resources`, `settings`, `sources`,
+  and `report` (the «أبلغ عن خطأ» sheet, O-17).
   Features never import each other; a sheet one feature opens in another is a route.
   Amends the feature list of `docs/ARCHITECTURE.md`.
 - **D-102 Routing.** P1-02 fixes every Phase 1 path and a typed location builder for
   each in `lib/routing/routes.dart` (an address route `/mushaf/read/<address>` for
-  in-app links), and composes the router from one route file per feature in
+  in-app links; the report sheet `/sheet/report/<address>`, O-17), and composes the router from one route file per feature in
   `lib/routing/routes/`, each owned by its feature's task. Sheets are modal
   routes on the root navigator, opened with `push` only, as a modal-sheet `Page`; a
   cold start at a sheet path redirects to the screen it belongs to. The shell holds a
   chrome-visibility seam (`lib/ui/core/shell_chrome.dart`) through which the reader
   hides the tab bar (distraction-free mode, simple level). An unknown location redirects to the home tab
-  (closes the M0.1 note on go_router's English error page). Start-up decisions (first
-  run, open at last position) live in `lib/routing/startup_redirect.dart`.
+  (closes the M0.1 note on go_router's English error page). Start-up decisions (the
+  first-run setup of O-17, open at last position) live in `lib/routing/startup_redirect.dart`.
 - **D-103 State and dependencies.** `provider` (confirms D-021). One composition root,
   `lib/config/dependencies.dart`, builds the providers of each area from one file per
   area in `lib/config/providers/` in a fixed order. App-wide state (settings, level,
@@ -331,11 +497,13 @@ The lead records these, renumbering if another branch has taken a number (D-076)
   built now rather than after O-03 (replaces D-080's timing; D-065 stands: no pack is
   published until a real key exists). The bundled base pack is checked by hash at first
   run and, once keys exist, its signature must be `valid` in release builds.
-  The accepted public keys live in `lib/config/`. Until O-03 the list is empty, the
+  Packs are signed by the CI task `sign-pack` with the private key held as a GitHub
+  Actions secret (O-03, §3.1). The accepted public keys, the key in use and a spare,
+  live in `lib/config/`. Until the owner's key steps (§3.2) the list is empty, the
   verifier reports `notChecked`, and a release build refuses to activate a downloaded
   pack that is not `valid`; debug and profile builds accept `notChecked` for testing.
 - **D-109 Catalogue.** One signed JSON file at an HTTPS address set in `lib/config/`
-  (O-08), listing packs by id, kind, version, size, files and hashes, and recitations
+  (O-08: test packs and catalogue on this repository's GitHub Releases), listing packs by id, kind, version, size, files and hashes, and recitations
   with their rights state. Its format lives in `docs/PACK_CATALOGUE.md`. A pack or
   recitation is added by a catalogue update, never by an app release.
 - **D-110 Pack format v2.** The text pack gains a table of the source's search forms,
@@ -343,7 +511,8 @@ The lead records these, renumbering if another branch has taken a number (D-076)
   query is folded); new kinds `tafsir` (passages with an ayah range, book,
   author, edition or editor, digitisation source, version) and `recitation` (files
   per surah or per ayah, per quality, with hashes and sizes). Timing and pages kinds
-  wait for rows 6 and B0.3. `docs/CONTENT_PACKS.md` gains the v2 sections.
+  wait for rows 6 and B0.3. `docs/CONTENT_PACKS.md` gains the v2 sections. In the
+  first release the `tafsir` kind carries the Zaydi-library books only (O-06).
 - **D-111 Audio boundaries.** `PlaybackPlan` and its rules are pure Dart in
   `lib/domain/models`, over one `QuranStructure` interface (P1-02) that the index
   repository implements; `AudioEngineService` is the only importer of `just_audio`,
@@ -459,10 +628,13 @@ owner as labels (question 1 of §9).** «فتح التطبيق على آخر م�
 «ملاحظة»؛ «وسوم»؛ «سجل البحث»؛ «تحديث»؛ «جارٍ · {percent}»؛ «بلا نهاية»؛ «الصمت بين
 الآيات»؛ «قارئ التفسير»؛ «اختيار التلاوة»؛ «محدد النطاق»؛ «التفسير الافتراضي»؛
 «المنزَّل»؛ «المتاح»؛ «المؤلف»؛ «الطبعة أو المحقق»؛ «مصدر الرقمنة»؛ «الإصدار»؛ the
-copy forms «﴿{ayah}﴾» and «﴿{ayah}﴾ [{surah}]».
+copy forms «﴿{ayah}﴾» and «﴿{ayah}﴾ [{surah}]». Added by the owner's answer O-17
+(PRD §15, recommendations 3 and 4): «أبلغ عن خطأ»؛ and the step names of the first-run
+setup «وضع العرض»؛ «المستوى»؛ «التلاوة».
 
-**Appendix C — no wording anywhere (question 2 of §9).** The first-run level prompt
-and its continue button; the integrity alert for the base pack and for a downloaded
+**Appendix C — no wording anywhere (question 2 of §9).** The first-run setup's prompt
+for each step and its continue button; the report sheet's lines other than its title
+(what is reported, the send action, a note on what the report contains); the integrity alert for the base pack and for a downloaded
 pack (title, body, action); go-to errors other than "no such ayah" (page, juz, hizb
 or rub out of range, unknown surah, unreadable input); the level line of the levels
 module ("always show this tool"); low space; the storage summary; the size shown
@@ -482,44 +654,54 @@ Put in one batch with `ask-owner`, recommended option first.
 1. «في الخطة عبارات واجهة مأخوذة حرفيًا من نص الوثيقة (الملحق ب في `docs/plans/PHASE1.md`)، مثل «فتح التطبيق على آخر موضع» و«حجم النص» و«وضع بلا تشتيت». هل نعتمدها عناوين في الواجهة؟» — «اعتمدها كلها كما هي (موصى به)» / «سأراجعها واحدةً واحدة».
 2. «عناصر لا نص لها في الوثيقة ولا في الهوية (الملحق ج): رسالة الإعداد الأول، تنبيه سلامة الحزمة، رسائل الخطأ في «اذهب إلى»، ضيق المساحة، الحالات الفارغة وغيرها. من يكتبها؟» — «يقترحها قائد العمل بنبرة الهوية وتعتمدها قبل إدخالها (موصى به)» / «أكتبها بنفسي».
 3. «الوثيقة تسمّي قائمة الصوت التي تُبنى الآن «قائمة الانتظار» (والقوائم المحفوظة «قوائم التشغيل» في المرحلة 2)، ولوحة الهوية تكتب على زرها «قائمة التشغيل». أيّ اسم يظهر؟» وهل تظهر القائمة في المستوى البسيط؟ (جدول المستويات يخفي «قوائم التشغيل» فيه.) — ««قائمة الانتظار» في المرحلة 1، ظاهرة في كل المستويات، و«قوائم التشغيل» للمرحلة 2 (موصى به)» / ««قائمة التشغيل» كما في اللوحة، مخفية في المستوى البسيط».
-4. «كم مهمة تعمل في وقت واحد؟ الخطة تسمح بتشغيل موجة كاملة (حتى عشر مهام على المفتاحين)، وسقف المرحلة كلها نحو 961 دولارًا، والإنفاق المتوقع أقل منه.» — «شغّل كل موجة كاملة على المفتاحين ما سمحت حدود الحساب (موصى به)» / «مهمتان في كل مرة».
-5. O-17: «في الوثيقة توصيتان لم تعتمدهما بعد: «أبلغ عن خطأ» من أي آية أو مادة، وإعداد أولي من ثلاث خطوات (وضع العرض، المستوى، التلاوة). الآن نبني اختيار المستوى فقط.» — «أبقِ اختيار المستوى وحده في المرحلة 1 وأجّل الباقي (موصى به)» / «اعتمد الاثنتين».
+4. «كم مهمة تعمل في وقت واحد؟ الخطة تسمح بتشغيل موجة كاملة (حتى عشر مهام على المفتاحين)، وسقف المرحلة كلها نحو 981 دولارًا، والإنفاق المتوقع أقل منه.» — «شغّل كل موجة كاملة على المفتاحين ما سمحت حدود الحساب (موصى به)» / «مهمتان في كل مرة».
+5. Answered on 2026-10-12 (O-17, D-119): both adopted, the three-step first-run setup and «أبلغ عن خطأ». Questions 15 to 17 follow from it.
 6. O-14: «تصنيف «تفسير» في العلامات بلا شكل ولا لون في الهوية، ولا لوحة ألوان للتصنيفات التي يضيفها المستخدم.» — «نبني التصنيفات الأربعة الموجودة الآن، ويرسم المصمم الخامس ولوحة الألوان (موصى به)» / «نستعمل لـ«تفسير» شكل «دراسة» بلون الذهب».
-7. O-04: «ما التلاوات الخمس للإصدار الأول، وهل ملفاتها آية آية أم سورة سورة؟ الملفات آية آية تسمح بتمييز الآية دون بيانات توقيت.» — «تلاوات بملفات آية آية حيث توفرت (موصى به)» / «ملفات سور كاملة مع بيانات توقيت».
-8. O-06: «هل تبقى التفاسير العامة السبعة بجانب كتب المكتبة الزيدية؟» — «نعم، ونبدأ بالميسر والمختصر لأن إذنيهما حاصلان (موصى به)» / «كتب المكتبة الزيدية وحدها».
-9. O-03: «من يحتفظ بمفتاح توقيع الحزم وأين يجري التوقيع؟ بدونه لا تُفعَّل حزمة منزَّلة في نسخة الإصدار.» — «أنت، على جهازك، ونعطيك أداة التوقيع جاهزة (موصى به)» / «سرّ مشفّر في GitHub Actions».
-10. O-08: «أين تُستضاف الحزم والفهرس للتجربة؟» — «GitHub Releases في مستودع خاص بالمحتوى (موصى به)» / «خادمك».
+7. Answered on 2026-10-12 (O-04, D-119): the planning session proposes the recitations with their rights records and the owner approves. The plan asks it to prefer recitations served one file per ayah where they exist, which need no timing data to follow the recited ayah (D-112).
+8. Answered on 2026-10-12 (O-06, D-119): the first release ships the Zaydi-library books only; the seven general tafsirs are deferred. Question 19 follows from it.
+9. Answered on 2026-10-12 (O-03, D-119): packs are signed by a CI task with the private key held as a GitHub Actions secret; the app embeds the public key and a spare (§3.1, §3.2).
+10. Answered on 2026-10-12 (O-08, D-119): test packs are hosted on this repository's GitHub Releases. Question 18 follows from it.
 11. O-12: «مواضع في الهوية تباينها دون الحد المطلوب (منها مسار المفتاح وهو مطفأ، والتسمية الذهبية في بطاقة «أكمل القراءة»).» — «نقبلها مؤقتًا ونُدرجها استثناءات معلنة حتى يعدّلها المصمم (موصى به)» / «يعدّلها المصمم قبل استعمالها».
 12. O-18: «هل نضيف تقارير أعطال مجهولة بموافقة المستخدم؟ بدونها لا يُقاس معدل الجلسات بلا انهيار.» — «لا في المرحلة 1، ويبقى القياس معلّقًا (موصى به)» / «نعم، وأختار الخدمة».
 13. «نص الشكر الذي يطلبه كل مصدر في شاشة «المصادر والتراخيص» (تنزيل، المجمع، مركز تفسير، الخطوط).» — «نعرض لكل مصدر اسمه ورابطه ونص ترخيصه كما نشره، وتؤكد ما يلزم من أوراق الإذن (موصى به)» / «أرسل لك نص الشكر لكل مصدر».
 
 14. «العلامة تُنشأ بلمستين من الآية، ولكل علامة تصنيف واحد. أي تصنيف تأخذ العلامة عند اللمسة الثانية؟» — «آخر تصنيف استعمله المستخدم، و«حفظ» أول مرة، ويغيّره من قائمة العلامات (موصى به)» / «تظهر حبّات التصنيفات الأربعة بعد اللمسة الثانية ليختار (لمسة ثالثة)».
 
-Still open and unchanged by this plan: O-01 (application id, before the first store
-upload), O-07 (honorific table, before any Zaydi-library book), O-11 (store accounts,
-release), O-16 (proofreader, Gate 0).
+15. O-17: «اعتمدتَ «أبلغ عن خطأ». إلى أين تذهب البلاغات؟ التطبيق لا يرسل شيئًا من تلقاء نفسه، ولا يجمع بيانات.» — «يفتح التطبيق بريد المستخدم برسالة جاهزة فيها موضع الآية واسم المصدر وإصداره، إلى عنوان بريد تحدده أنت، فيراها المستخدم قبل الإرسال (موصى به)» / «صفحة بلاغات في GitHub تُفتح في المتصفح».
+16. O-17: «لا يرسم دليل الهوية مكانًا لـ«أبلغ عن خطأ» في شريط أدوات الآية ولا في ورقة الآية أو الكلمة ولا تحت مقطع التفسير. أين يظهر؟» — «سطر في أسفل ورقة الآية المصغّرة وفي ورقة تفاصيل المصدر، من مكوّنات الهوية الموجودة، وتراه قبل اعتماده (موصى به)» / «يرسم المصمم موضعه أولًا».
+17. O-17: «في الإعداد الأولي ثلاث خطوات، لكن المرحلة 1 فيها وضع عرض واحد (السورة) حتى يصل مصحف الصفحات، ولا تلاوة جاهزة بعد. هل تُخفى الخطوة التي ليس فيها اختيار؟» — «تُخفى حتى يوجد اختيار، فيرى المستخدم الآن خطوة المستوى وحدها، وتظهر الأخريان تلقائيًا (موصى به)» / «تظهر الخطوات الثلاث دائمًا ولو بخيار واحد».
+18. O-08: «الحزم التجريبية على إصدارات GitHub لهذا المستودع. إن كان المستودع خاصًا فلن يستطيع التطبيق تنزيلها دون مفتاح دخول، ولا يجوز وضع مفتاح في التطبيق.» — «إن كان خاصًا: مستودع عام للحزم وحدها تُرفع إليه الإصدارات، ويبقى الكود هنا (موصى به)» / «نجعل هذا المستودع عامًا».
+19. O-06: «الوثيقة تطلب: «تفسير مختصر واحد يُنزَّل عند أول استخدام». بعد قصر الإصدار الأول على كتب المكتبة الزيدية، أيّ كتاب يكون؟» — «تقترحه جلسة التخطيط مع حزم التفاسير (B0.7) وتعتمده أنت (موصى به)» / «أحدده الآن».
+
+Still open and unchanged by this plan: O-07 (honorific table, before any Zaydi-library
+book), O-11 (store accounts, release). O-01 (application id) is deferred to M1.11 and
+O-16 is answered: the licensed reciter the owner named proofreads the Hafs text (D-119).
 
 ## 10. Contradictions found while planning
 
 - `docs/DESIGN_SYSTEM.md`, "Building a screen the identity does not draw", step 4 says
   to write strings "in the identity's tone"; this run's rules and D-115 forbid
-  inventing wording. Amend step 4.
+  inventing wording. Amend step 4. (Amended in step 0.)
 - `docs/WORKFLOW.md` says milestones run one at a time and two runs work at once;
-  this plan runs several milestones' tasks in parallel (D-100).
+  this plan runs several milestones' tasks in parallel (D-100). (Amended in step 0.)
 - `docs/IMPLEMENTATION_PLAN.md` and `docs/PROJECT_STATUS.md` say Phase 1 does not open
-  before Gate 0; the owner opened it (D-099).
+  before Gate 0; the owner opened it (D-099). (`docs/IMPLEMENTATION_PLAN.md` amended
+  in step 0; the status file is the lead's.)
 - The PRD names the base pack's search forms (§10.7, §9) but format v1 has no table
   for them; format v2 adds it (D-110).
 - Two agent files disagree with this plan: `ui-builder.md` writes strings "in the
   identity's tone" and does not commit; `data-builder.md` does not own `lib/config/` or
-  `testing/` (step 0, item 4).
+  `testing/` (step 0, item 4). (Amended in step 0.)
 - D-062's sink list has no place for surah names used outside display (go-to,
   direct jump, the media notification); D-114 adds sinks.
 - The Screens2 board and `docs/DESIGN_SYSTEM.md` label the queue «قائمة التشغيل»;
   the PRD calls it «قائمة الانتظار» (question 3).
 - `docs/IMPLEMENTATION_PLAN.md` puts all of M1.10 behind row 6; following the
-  recitation by ayah needs no timing when files are per ayah (D-112).
+  recitation by ayah needs no timing when files are per ayah (D-112). (Amended in
+  step 0.)
 - `AyahRow` labels its third action «مركز الدراسة» (identity); in Phase 1 that action
   opens the mini ayah sheet, the study hub being Phase 3 (PRD §7.4). The label is the
   identity's and stays; noted for the owner's look at P1-31.
 - Registry rows 9 and 10 are `Ready`, yet O-06 decides whether those tafsirs ship.
+  Settled by O-06 (D-119): they are deferred; the first release ships the
+  Zaydi-library books only.

@@ -37,12 +37,13 @@ navigation") and D-047. Keep it to what this task lists.
    `/sheet/copy/:address`, `/sheet/share/:address`, `/sheet/note/:address`,
    `/sheet/play-options/:address`, `/sheet/range`, `/sheet/repeat`,
    `/sheet/silence`, `/sheet/stop-after`, `/sheet/sleep`, `/sheet/queue`,
-   `/sheet/first-use-tafsir`. Sheets are opened with `push` only, as a modal-sheet
+   `/sheet/first-use-tafsir`, `/sheet/report/:address` (with an optional `pack`
+   query; «أبلغ عن خطأ», O-17). Sheets are opened with `push` only, as a modal-sheet
    `Page`; a cold start at a sheet path redirects to the screen it belongs to.
 3. `lib/routing/routes/<feature>_routes.dart`, one per feature of D-101: `onboarding`,
    `home`, `mushaf`, `index`, `listen`, `listen_controls`, `study`, `search`,
    `tafsir`, `sheets`, `share`, `more`, `bookmarks`, `resources`, `settings`,
-   `sources`. Each exports the routes its feature adds to its tab branch and the
+   `sources`, `report`. Each exports the routes its feature adds to its tab branch and the
    top-level sheet routes it adds. Today they return only the existing placeholder
    tab screens (`HomeScreen`, `MushafScreen`, `ListenScreen`, `StudyScreen`,
    `MoreScreen`) and the gallery; the rest are empty until their tasks fill them.

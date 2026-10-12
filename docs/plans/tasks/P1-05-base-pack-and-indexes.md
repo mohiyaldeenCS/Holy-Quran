@@ -40,8 +40,12 @@ then 4. If the budget runs short, commit what is done and report where you stopp
    failed, the text repository returns a failure, never text.
 4. `ManifestSignatureVerifier` with Ed25519 (`cryptography`) per D-080:
    `manifest.json.sig` is the raw 64-byte signature of the exact bytes of
-   `manifest.json`; accepted public keys come from `lib/config/signing_keys.dart`,
-   empty until O-03. Results: `valid`, `invalid` (bad signature, wrong length),
+   `manifest.json`; accepted public keys come from `lib/config/signing_keys.dart`.
+   Packs are signed in CI by the task `sign-pack` with the private key held as a
+   GitHub Actions secret (O-03, D-108), so the app holds public keys only: the key in
+   use and a spare, either of which makes a signature `valid`. Each is the raw 32-byte
+   Ed25519 public key; the list stays empty until the lead commits the owner's keys
+   (do not invent or generate any). Results: `valid`, `invalid` (bad signature, wrong length),
    `notChecked` (no key configured or no signature file). The activation policy
    belongs to P1-07; do not add it here.
 5. `QuranIndexRepository` (abstract and implementation): surahs with their facts
@@ -58,7 +62,8 @@ then 4. If the budget runs short, commit what is done and report where you stopp
 Bootstrap with a synthetic pack in a fake asset bundle: first run, update, corrupt
 copy repaired once, then failed; no text served while failed; per-surah check once per
 session; Ed25519 with a key pair generated in the test (never a committed private key):
-valid, tampered, wrong length, no key; index answers on a synthetic pack, including a
+valid, tampered, wrong length, no key, and valid under the second (spare) key of the
+list; index answers on a synthetic pack, including a
 surah crossing pages and a sajda.
 
 ## Acceptance

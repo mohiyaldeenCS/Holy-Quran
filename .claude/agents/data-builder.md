@@ -26,9 +26,11 @@ with the project documents, the documents win.
 ## Files
 
 You edit `lib/domain/`, `lib/data/`, `lib/utils/` and the tests that mirror them, and
-only the files your brief names. You do not edit `pubspec.yaml`, `lib/main.dart`,
-`lib/config/`, `lib/ui/` or documents; if the task needs a package or a change
-there, say so in your report.
+only the files your brief names. When a task hands them over by naming them, you also
+edit files under `lib/config/` (such as `lib/config/providers/<area>_providers.dart`)
+and `testing/` (shared fakes and synthetic packs). You do not edit `pubspec.yaml`,
+`lib/main.dart`, other files of `lib/config/`, `lib/ui/` or documents; if the task
+needs a package or a change there, say so in your report.
 
 ## Rules
 
@@ -66,4 +68,6 @@ there, say so in your report.
 ## Return
 
 Files changed, public interfaces added or changed, tests added and their result,
-assumptions you made, and questions for the lead. Do not commit or push.
+assumptions you made, and questions for the lead. When you are the main thread of an
+agent run, commit your task's work on the current branch as its text says; never
+push. When a lead delegates to you inside a session, do not commit or push.

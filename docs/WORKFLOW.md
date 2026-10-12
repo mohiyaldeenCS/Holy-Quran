@@ -31,8 +31,8 @@ lead commits, pushes and edits `docs/`.
 | Agent (`.claude/agents/`) | Job | Files it may edit |
 | --- | --- | --- |
 | `flutter-architect` | Turns requirements into a file-level plan that fits the architecture | None |
-| `data-builder` | Domain models, use cases, repositories, services, pack reading, user database | `lib/domain`, `lib/data`, `lib/utils`, and the tests that mirror them |
-| `ui-builder` | Design-system widgets, screens, view models, routes, strings | `lib/ui`, `lib/routing`, `lib/l10n`, and the tests that mirror them |
+| `data-builder` | Domain models, use cases, repositories, services, pack reading, user database | `lib/domain`, `lib/data`, `lib/utils`, and the tests that mirror them; files under `lib/config/` and `testing/` that a task hands over |
+| `ui-builder` | Design-system widgets, screens, view models, routes, strings | `lib/ui`, `lib/routing`, `lib/l10n`, and the tests that mirror them; in an agent run, every file its task text lists as its own |
 | `audio-builder` | Playback plan, audio engine, background playback, audio–text sync | The audio files named in its brief, across `lib/domain`, `lib/data` and their tests; native audio settings in `android/` and `ios/` when the brief names them |
 | `content-engineer` | Generators for tokens and icons in `tools/gen/`; the pack pipeline in `tools/packs/` when a session works on stream B | `tools/` |
 | `test-engineer` | Integration tests, guard tests, the integrity suite, shared fakes; test gaps named in its brief | `integration_test/`, `testing/`, `test/guards`, `test/integrity` |
@@ -85,7 +85,13 @@ skill by name reads the file.
    file as it should read once merged, with that number. Wait for CI; merge. Nothing
    is committed to `main` afterwards. Report to the owner in Arabic.
 
-Milestones run one at a time. A second branch is opened only for a small fix.
+Milestones' tasks run in parallel waves (D-100). A phase plan such as
+`docs/plans/PHASE1.md` cuts the milestones into agent tasks and groups them in
+waves: within a wave no two tasks own a file, and a task starts when every task it
+needs is merged into `main`, so tasks of several milestones are open at once. Each
+task has its own `agent/` branch and pull request into `main`. Work outside a
+planned wave runs one milestone at a time; a second branch is opened only for a
+small fix.
 
 ### A brief to an agent contains
 
@@ -120,8 +126,12 @@ application code itself.
   request (a draft when anything failed) or comments on the open one; and starts
   `ci.yml` with the task `check`, because a pull request opened by the workflow token
   starts no `pull_request` run.
-- **Parallel runs.** Two runs, one per key, can work at once. Their tasks must own
-  different files. Agents do not edit `docs/PROJECT_STATUS.md` or
+- **Parallel runs.** Several runs work at once on both keys, two or more per key: a
+  wave's tasks may all be started together (D-100). If an account's rate limit
+  throttles them, start two at a time, one per key, in the plan's order. Runs that
+  are out at the same time own different files. Before each merge, the branch is
+  updated from `main` and `check` runs again: disjoint files do not rule out a broken
+  build. Agents do not edit `docs/PROJECT_STATUS.md` or
   `docs/DECISIONS.md`; their reports say what those files should record, and the lead
   records it.
 - **Workflow files stay still while a run is out.** The workflow token has no
@@ -130,6 +140,10 @@ application code itself.
   while any run started from a base branch is in progress, the lead does not change
   `.github/workflows/` on that base. On 2026-10-11 a change to `ci.yml` on the
   milestone branch made task D's finished push fail, and the run's work was lost.
+- **The APK build never runs beside a test run.** The `apk` task of `ci.yml` is not
+  started while an agent run's tests are running, and an agent that builds the APK
+  does so alone, after its last commit, never beside its own tests. Learned in M0.4
+  part 2.
 - **The last message is the report.** Only the last message of each turn reaches the
   pull request. A background task that finishes after the report starts a new turn
   whose short answer replaces it, so task texts tell the agent to wait for its
@@ -161,7 +175,7 @@ application code itself.
   | | Values |
   | --- | --- |
   | Types | `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `build`, `ci`, `chore`, and `wip` for unfinished work saved before stopping |
-  | Scopes, product | `home`, `onboarding`, `settings`, `reader` (RD), `index` (NV), `audio` (AU), `av-sync` (SY), `waqf` (WQ), `word` (LX), `tafsir` (TF), `search` (SR), `bookmarks` (UD), `ayah` (ST), `share` (SH), `resources` (OF), `account` (AC), `a11y` (AX), `levels` (LV) |
+  | Scopes, product | `home`, `onboarding`, `settings`, `reader` (RD), `index` (NV), `audio` (AU), `av-sync` (SY), `waqf` (WQ), `word` (LX), `tafsir` (TF), `search` (SR), `bookmarks` (UD), `ayah` (ST), `share` (SH), `resources` (OF), `account` (AC), `a11y` (AX), `levels` (LV), `report` («أبلغ عن خطأ», O-17) |
   | Scopes, engineering | `ds` (design system), `theme`, `l10n`, `routing`, `domain`, `packs`, `db`, `tools`, `ci`, `deps`, `skills`, `agents`, `status`, `prd`, `design` |
 
 - Commit after each completed task. Push after each commit, and always before

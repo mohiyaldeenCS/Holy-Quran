@@ -1,6 +1,7 @@
-# P1-15 — Settings, first-run level choice, More hub (M1.1)
+# P1-15 — Settings, first-run setup, report sheet, More hub (M1.1)
 
-Wave 2 · Agent `ui-builder` · Key 1 · Cap $25 · Base `main` · Needs: P1-01, P1-04.
+Wave 2 · Agent `ui-builder` · Key 1 · Cap $25 · Base `main` · Needs: P1-01, P1-04,
+P1-05, P1-07.
 
 ## Why
 
@@ -9,7 +10,10 @@ Wave 2 · Agent `ui-builder` · Key 1 · Cap $25 · Base `main` · Needs: P1-01,
   تعمل، مع سطر يعرض إظهارها دائمًا».
 - `RD-08` «السمات الأربع: ورق، ليل، سيبيا، تباين عالٍ. وخيار اتباع وضع النظام الداكن»
   (D-050, D-053). `AC-01` «كل الوظائف متاحة دون حساب عدا المزامنة»; `NF-13`.
-- PRD §7.3: the level «يُسأل عنه مرة في الإعداد الأولي» (more onboarding waits for O-17).
+- PRD §7.3: the level «يُسأل عنه مرة في الإعداد الأولي».
+- PRD §15, recommendations 3 and 4, adopted by the owner (O-17, D-119): «أبلغ عن خطأ» من
+  أي آية أو مادة («مسار تصحيح منضبط يمر بخط الإنتاج، وبعض المصادر تطلب إبلاغها
+  بالملاحظات»); «إعداد أولي من ثلاث خطوات: وضع العرض، المستوى، التلاوة».
 
 These screens are extensions (PRD §7.6): build them from existing components and
 tokens by `docs/DESIGN_SYSTEM.md`, "Building a screen the identity does not draw".
@@ -24,23 +28,42 @@ tokens by `docs/DESIGN_SYSTEM.md`, "Building a screen the identity does not draw
    labels exist in the ARB. Text size, open at the last position and keep awake have
    their labels in Appendix B: add those rows only if the keys exist; otherwise leave
    them out and report.
-3. First run: `startup_redirect.dart` sends a user whose level is not chosen to
-   `/onboarding`, which shows the `Lockup` and `LevelSwitch`. Its prompt and continue
-   button have no wording (Appendix C): build the screen and the logic, keep the
-   redirect off until the keys exist, and report.
+3. First-run setup: `startup_redirect.dart` sends a user who has not finished it to
+   `/onboarding`: three steps in the PRD's order, display mode, level, recitation,
+   under the `Lockup`. A step is offered only when it has a choice to make: Phase 1
+   has one display mode until page mode lands (`RD-03`, waiting), and no recitation
+   is listed until one has a complete rights record (O-04, B0.5). Build the step
+   sequence so that a step slots in without changing the flow, and the level step
+   (`LevelSwitch`); the display-mode and recitation steps are built by the tasks that
+   bring page mode and the first recitation. The step names are PRD words awaiting
+   the owner's approval as labels (Appendix B); the prompts and the continue button
+   have no wording (Appendix C). Build the screens and the logic, keep the redirect
+   off until the keys exist, and report.
+4. Report sheet (`/sheet/report/:address`, with an optional `pack` query naming the
+   pack of a reported entry, such as a tafsir passage): it shows what is reported,
+   the ayah by `SurahName` (the name from P1-05's index) and its number, and for an
+   entry the pack's `id` and `version` and its first `sources[].name`, read from the
+   installed pack's manifest (P1-07's installed list), and its view model composes the report as data
+   (address, pack id and version). Two things are the owner's and wait for him
+   (`docs/plans/PHASE1.md` §9): where reports go and by which channel, so leave the
+   send action out; and where the identity places the entry on the ayah toolbar,
+   the sheets and tafsir passages, so no other feature opens the sheet yet. Its title
+   «أبلغ عن خطأ» is PRD text (Appendix B); its other strings are Appendix C.
 5. The More hub (`lib/ui/features/more/`): entries «العلامات والملاحظات»، «مدير
    الموارد»، «الإعدادات»، «المصادر والتراخيص» to their routes (a route not built yet
    lands on the home tab), and the debug gallery entry as today.
 6. `LV-04`: a route opened by a link or a search result carries a flag that opens a
    tool above the user's level; the "always show" line has no wording: leave it out.
-7. Route files `settings`, `onboarding`, `more`. The sources screen is P1-40's.
+7. Route files `settings`, `onboarding`, `more`, `report`. The sources screen is
+   P1-40's.
 
 ## Tests
 
 The theme and level apply at once and survive a restart (fake repository); changing
 the level touches no data; follow-system in `paper`, `sepia` and `contrast` (D-053);
 no sign-in gate anywhere and no network call from these screens; the first-run redirect when
-enabled. Golden tests of the settings screen in four themes.
+enabled; a step with no choice is skipped and the sequence finishes; the report
+sheet shows the address and the pack's id, version and source name unchanged. Golden tests of the settings screen in four themes.
 
 ## Acceptance
 
@@ -67,12 +90,18 @@ the report which nits you left and why.
 
 ### You own
 - `lib/ui/core/app.dart`
-- `lib/ui/features/settings/`, `lib/ui/features/onboarding/`, `lib/ui/features/more/`
-- `lib/ui/core/metrics/settings_metrics.dart`, `onboarding_metrics.dart`
-- `lib/routing/routes/settings_routes.dart`, `onboarding_routes.dart`, `more_routes.dart`
+- `lib/ui/features/settings/`, `lib/ui/features/onboarding/`, `lib/ui/features/more/`,
+  `lib/ui/features/report/`
+- `lib/ui/core/metrics/settings_metrics.dart`, `onboarding_metrics.dart`,
+  `report_metrics.dart`
+- `lib/routing/routes/settings_routes.dart`, `onboarding_routes.dart`, `more_routes.dart`,
+  `report_routes.dart`
 - `lib/routing/startup_redirect.dart`
 - `test/ui/core/app_test.dart`
-- `test/ui/features/settings/`, `test/ui/features/onboarding/`, `test/ui/features/more/`
+- `test/ui/features/settings/`, `test/ui/features/onboarding/`, `test/ui/features/more/`,
+  `test/ui/features/report/`
+- `test/guards/allow/pack_text/sinks/p1-15-report.txt` (if the sheet unwraps a pack's
+  name)
 
 ### Do not touch
 `lib/l10n/`, `lib/data/`, `lib/main.dart`, other features.
@@ -100,7 +129,8 @@ the report which nits you left and why.
 ## Commits
 
 - `feat(settings): settings screen with level and theme (LV-01)`
-- `feat(onboarding): first-run level choice (LV-01)`
+- `feat(onboarding): first-run setup with its level step (LV-01)`
+- `feat(report): show what an error report names (M1.1)`
 
 ## Report
 
