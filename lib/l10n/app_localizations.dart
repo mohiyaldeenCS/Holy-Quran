@@ -939,6 +939,480 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'رمز القرآن الكريم'**
   String get markLabel;
+
+  /// The greeting line above the home heading. Source: design/identity-boards/Screens.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'السلام عليكم'**
+  String get homeGreeting;
+
+  /// The home heading that leads to the last reading position. Source: design/identity-boards/Screens.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'أكمل من حيث توقفت'**
+  String get homeContinueHint;
+
+  /// A reading position: ayah, page and juz, as the continue card on the home screen writes it. ayah is the ayah number; page is the page number; juz is the juz number. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Screens.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'الآية {ayah} · صفحة {page} · الجزء {juz}'**
+  String readingPositionLine(String ayah, String page, String juz);
+
+  /// The title of the index screen. Same wording as homeDoorIndex, which names the home door. Source: design/identity-boards/Screens2.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'الفهرس'**
+  String get indexTitle;
+
+  /// The summary line under the index title. Its noun forms fit the counts the board shows, 114 surahs and 30 juz; do not reuse it for other numbers. surahs is the number of surahs; juz is the number of juz. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Screens2.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'{surahs} سورة · {juz} جزءًا'**
+  String indexSummary(String surahs, String juz);
+
+  /// The index tab that lists the surahs. Source: design/identity-boards/Screens2.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'السور'**
+  String get indexTabSurahs;
+
+  /// The index tab that lists the juz. Source: design/identity-boards/Screens2.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأجزاء'**
+  String get indexTabJuz;
+
+  /// The index tab that lists the hizbs. Source: design/identity-boards/Screens2.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأحزاب'**
+  String get indexTabHizb;
+
+  /// A juz named by its number, as the page frame writes it. number is the juz number. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Mushaf.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'الجزء {number}'**
+  String juzLabel(String number);
+
+  /// A hizb named by its number, as it stands after the juz in the page frame line juzHizbLine. number is the hizb number. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Mushaf.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحزب {number}'**
+  String hizbLabel(String number);
+
+  /// The word for a quarter of a hizb, the first line of the quarter mark in the page margin. The mark's second line, the word for the hizb, has no key yet. Source: design/identity-boards/Mushaf.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'ربع'**
+  String get rubLabel;
+
+  /// A page named by its number, as the listen screen writes it. number is the page number. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Screens2.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'صفحة {number}'**
+  String pageLabel(String number);
+
+  /// The position line of the reader: juz and page. juz is the juz number; page is the page number. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Screens.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'الجزء {juz} · صفحة {page}'**
+  String juzPageLine(String juz, String page);
+
+  /// The page frame line: juz and hizb. juz is the juz number; hizb is the hizb number. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Mushaf.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'الجزء {juz} · الحزب {hizb}'**
+  String juzHizbLine(String juz, String hizb);
+
+  /// The margin word beside a sajda mark. Source: design/identity-boards/Mushaf.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجدة'**
+  String get sajdaLabel;
+
+  /// The information line under a surah header. revelation is revelationMakki or revelationMadani; count is the ayah count from ayahCount; order is the surah's order in the mushaf. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Mushaf.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'{revelation} · {count} · ترتيبها {order}'**
+  String surahInfoLine(String revelation, String count, String order);
+
+  /// The title the surah information line opens. Source: design/identity-boards/Mushaf.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'مقدمة السورة'**
+  String get surahIntroTitle;
+
+  /// The title of the go-to sheet. Source: docs/prd/PRD.ar.md (§7.1 and NV-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'اذهب إلى'**
+  String get goToTitle;
+
+  /// Go-to target: a surah. Source: docs/prd/PRD.ar.md (NV-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'سورة'**
+  String get goToSurah;
+
+  /// Go-to target: an ayah. Source: docs/prd/PRD.ar.md (NV-03, the ayah of its surah-and-ayah target).
+  ///
+  /// In ar, this message translates to:
+  /// **'آية'**
+  String get goToAyah;
+
+  /// Go-to target: a page. Source: docs/prd/PRD.ar.md (NV-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'صفحة'**
+  String get goToPage;
+
+  /// Go-to target: a juz. Source: docs/prd/PRD.ar.md (NV-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'جزء'**
+  String get goToJuz;
+
+  /// Go-to target: a hizb. Source: docs/prd/PRD.ar.md (NV-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'حزب'**
+  String get goToHizb;
+
+  /// Go-to target: a quarter of a hizb. Source: docs/prd/PRD.ar.md (NV-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'ربع'**
+  String get goToRub;
+
+  /// The go-to error for an ayah number the surah does not have. ayah is the ayah number entered; surah is the surah's name from the pack, unchanged. Numbers arrive already written in Arabic-Indic digits. Source: docs/prd/PRD.ar.md (§8.2 acceptance criteria).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد آية {ayah} في {surah}'**
+  String ayahNotInSurah(String ayah, String surah);
+
+  /// The subtitle of the context sheet. Source: design/design-system/components/src/index.jsx (ContextSheet).
+  ///
+  /// In ar, this message translates to:
+  /// **'ما قبلها وما بعدها'**
+  String get contextSubtitle;
+
+  /// Spoken name of the context sheet's amount switch. Source: design/design-system/components/src/index.jsx (ContextSheet).
+  ///
+  /// In ar, this message translates to:
+  /// **'مقدار السياق'**
+  String get contextAmountLabel;
+
+  /// Context amount: one ayah, the first option of the context sheet's amount switch. Source: design/design-system/components/src/index.jsx (ContextSheet).
+  ///
+  /// In ar, this message translates to:
+  /// **'آية'**
+  String get contextOneAyah;
+
+  /// Context amount: the whole surah. Source: design/design-system/components/src/index.jsx (ContextSheet).
+  ///
+  /// In ar, this message translates to:
+  /// **'السورة'**
+  String get contextSurah;
+
+  /// The selected ayah's toolbar: bookmark it. Source: docs/prd/PRD.ar.md (§7.4).
+  ///
+  /// In ar, this message translates to:
+  /// **'علامة'**
+  String get toolbarBookmark;
+
+  /// The selected ayah's toolbar: open its study sheet. Source: docs/prd/PRD.ar.md (§7.4).
+  ///
+  /// In ar, this message translates to:
+  /// **'دراسة'**
+  String get toolbarStudy;
+
+  /// The selected ayah's toolbar: copy it. Source: docs/prd/PRD.ar.md (§7.4).
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخ'**
+  String get toolbarCopy;
+
+  /// The selected ayah's toolbar: share it. Source: docs/prd/PRD.ar.md (§7.4).
+  ///
+  /// In ar, this message translates to:
+  /// **'مشاركة'**
+  String get toolbarShare;
+
+  /// The title of the copy sheet. Source: design/identity-boards/Share.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخ الآية'**
+  String get copySheetTitle;
+
+  /// Copy form: the ayah text only. Source: design/identity-boards/Share.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'نص الآية فقط'**
+  String get copyAyahOnly;
+
+  /// Copy form: the ayah with the surah name. Source: design/identity-boards/Share.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'الآية مع اسم السورة'**
+  String get copyWithSurah;
+
+  /// Copy form: the ayah with the surah name and its number. Source: design/identity-boards/Share.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'الآية مع اسم السورة ورقمها'**
+  String get copyWithSurahAndNumber;
+
+  /// The copy sheet's action button. Source: design/identity-boards/Share.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'انسخ'**
+  String get copyAction;
+
+  /// The copied text in the full form. ayah is the ayah text taken from the pack by its address, unchanged; surah is the surah's name from the pack, unchanged; number is the ayah number. Numbers arrive already written in Arabic-Indic digits. Source: design/design-system/README.md (the copy format; PRD SH-01 gives the same).
+  ///
+  /// In ar, this message translates to:
+  /// **'﴿{ayah}﴾ [{surah}: {number}]'**
+  String copyFormatFull(String ayah, String surah, String number);
+
+  /// Share card design: emerald. Source: design/identity-boards/Share.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'زمرد'**
+  String get shareDesignEmerald;
+
+  /// Share card design: paper. Source: design/identity-boards/Share.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'ورق'**
+  String get shareDesignPaper;
+
+  /// Share card design: night. Source: design/identity-boards/Share.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'ليل'**
+  String get shareDesignNight;
+
+  /// Shown when the ayah cannot fit on any share card size. Source: docs/prd/PRD.ar.md (SH-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'الآية أطول من أن تتسع في بطاقة'**
+  String get shareTooLong;
+
+  /// The title of the search screen. Source: design/identity-boards/Search.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'البحث'**
+  String get searchTitle;
+
+  /// Search sort order: nearest match. Source: docs/prd/PRD.ar.md (SR-05).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأقرب'**
+  String get searchSortNearest;
+
+  /// Search sort order: most frequent. Source: docs/prd/PRD.ar.md (SR-05).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأكثر ورودًا'**
+  String get searchSortFrequent;
+
+  /// Search scope: the whole Quran. Source: docs/prd/PRD.ar.md (SR-06).
+  ///
+  /// In ar, this message translates to:
+  /// **'القرآن كله'**
+  String get searchScopeAll;
+
+  /// One of the fixed sentences: the chosen tafsir has no passage for this ayah. Source: docs/DESIGN_SYSTEM.md ("When data is missing"; PRD §8.8 acceptance criteria).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد تفسير لهذه الآية في هذا الكتاب'**
+  String get tafsirNoPassage;
+
+  /// One of the identity's short error sentences: the connection failed. Source: docs/prd/PRD.ar.md (§7.5).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر الاتصال'**
+  String get connectionFailed;
+
+  /// One of the identity's short empty-state sentences: no bookmarks yet. Source: docs/prd/PRD.ar.md (§7.5).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد علامات بعد'**
+  String get noBookmarksYet;
+
+  /// The undo action after a deletion. Source: docs/DESIGN_SYSTEM.md (the icon table, Delete row).
+  ///
+  /// In ar, this message translates to:
+  /// **'تراجع'**
+  String get undo;
+
+  /// Spoken name of the back button of a pushed screen. Source: design/identity-boards/Search.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'رجوع'**
+  String get back;
+
+  /// The button that returns the reader to the recited ayah after manual scrolling. Source: docs/prd/PRD.ar.md (SY-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'عُد إلى موضع التلاوة'**
+  String get returnToRecitation;
+
+  /// The tag on a recitation that has word timing. Source: docs/prd/PRD.ar.md (§8.4 acceptance criteria).
+  ///
+  /// In ar, this message translates to:
+  /// **'توقيت كلمات'**
+  String get wordTimingTag;
+
+  /// The title of the resource manager. Source: docs/prd/PRD.ar.md (§7.1 and the §8.17 heading).
+  ///
+  /// In ar, this message translates to:
+  /// **'مدير الموارد'**
+  String get resourceManagerTitle;
+
+  /// Resource category: recitations. Source: docs/prd/PRD.ar.md (OF-01).
+  ///
+  /// In ar, this message translates to:
+  /// **'التلاوات'**
+  String get resourceCategoryRecitations;
+
+  /// Resource category: tafsirs. Source: docs/prd/PRD.ar.md (OF-01).
+  ///
+  /// In ar, this message translates to:
+  /// **'التفاسير'**
+  String get resourceCategoryTafsirs;
+
+  /// Resource category: the page mushaf. Source: docs/prd/PRD.ar.md (OF-01).
+  ///
+  /// In ar, this message translates to:
+  /// **'مصحف الصفحات'**
+  String get resourceCategoryPageMushaf;
+
+  /// Resource category: riwayat. Source: docs/prd/PRD.ar.md (OF-01).
+  ///
+  /// In ar, this message translates to:
+  /// **'الروايات'**
+  String get resourceCategoryRiwayat;
+
+  /// Resource category: tajweed. Source: docs/prd/PRD.ar.md (OF-01).
+  ///
+  /// In ar, this message translates to:
+  /// **'التجويد'**
+  String get resourceCategoryTajweed;
+
+  /// Resource category: linguistic resources. Source: docs/prd/PRD.ar.md (OF-01).
+  ///
+  /// In ar, this message translates to:
+  /// **'الموارد اللغوية'**
+  String get resourceCategoryLinguistic;
+
+  /// A resource's state when it can be downloaded, for a masculine noun. Source: docs/prd/PRD.ar.md (OF-02).
+  ///
+  /// In ar, this message translates to:
+  /// **'متاح'**
+  String get resourceAvailableMasculine;
+
+  /// The action that downloads a resource again. Source: docs/prd/PRD.ar.md (OF-02).
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة التنزيل'**
+  String get resourceRedownload;
+
+  /// The title of the settings screen. Source: docs/prd/PRD.ar.md (§7.1).
+  ///
+  /// In ar, this message translates to:
+  /// **'الإعدادات'**
+  String get settingsTitle;
+
+  /// The settings entry for the theme. Source: docs/prd/PRD.ar.md (§7.1).
+  ///
+  /// In ar, this message translates to:
+  /// **'السمة'**
+  String get themeLabel;
+
+  /// The settings entry for the text. Source: docs/prd/PRD.ar.md (§7.1).
+  ///
+  /// In ar, this message translates to:
+  /// **'النص'**
+  String get textSettingsLabel;
+
+  /// The setting that follows the system dark mode. Source: docs/prd/PRD.ar.md (§7.8 and RD-08).
+  ///
+  /// In ar, this message translates to:
+  /// **'اتباع وضع النظام الداكن'**
+  String get followSystemDark;
+
+  /// The title of the sources and licences screen. Source: docs/prd/PRD.ar.md (§7.1).
+  ///
+  /// In ar, this message translates to:
+  /// **'المصادر والتراخيص'**
+  String get sourcesTitle;
+
+  /// The entry and title for bookmarks and notes. Source: docs/prd/PRD.ar.md (§7.1).
+  ///
+  /// In ar, this message translates to:
+  /// **'العلامات والملاحظات'**
+  String get bookmarksAndNotes;
+
+  /// The listen screen's button that changes the recitation. Source: design/identity-boards/Screens2.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير'**
+  String get playerChange;
+
+  /// The player's position: an ayah of the surah's total. ayah is the ayah number; total is the surah's ayah count. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Screens2.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'الآية {ayah} من {total}'**
+  String playerAyahOfTotal(String ayah, String total);
+
+  /// The silence between repeats, in seconds. seconds is the number of seconds. Numbers arrive already written in Arabic-Indic digits. Source: design/identity-boards/Screens2.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'صمت {seconds} ث'**
+  String playerSilenceSeconds(String seconds);
+
+  /// Spoken name of the queue button. Source: design/identity-boards/Screens2.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'قائمة التشغيل'**
+  String get queueLabel;
+
+  /// A recitation's line: its riwaya, downloaded. riwaya is the riwaya's name from the pack, unchanged. Source: design/identity-boards/Screens2.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'{riwaya} · محمّلة'**
+  String recitationDownloadedLine(String riwaya);
+
+  /// Play from the ayah tools: this ayah only. Source: docs/prd/PRD.ar.md (AU-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'الآية فقط'**
+  String get playOnlyAyah;
+
+  /// Play from the ayah tools: to the end of the page. Source: docs/prd/PRD.ar.md (AU-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى نهاية الصفحة'**
+  String get playToPageEnd;
+
+  /// Play from the ayah tools: to the end of the surah. Source: docs/prd/PRD.ar.md (AU-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى نهاية السورة'**
+  String get playToSurahEnd;
+
+  /// Play from the ayah tools: to the end of the juz. Source: docs/prd/PRD.ar.md (AU-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى نهاية الجزء'**
+  String get playToJuzEnd;
+
+  /// Play from the ayah tools: until the user stops it. Source: docs/prd/PRD.ar.md (AU-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى أوقفه'**
+  String get playUntilStopped;
 }
 
 class _AppLocalizationsDelegate
