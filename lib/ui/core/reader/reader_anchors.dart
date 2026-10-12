@@ -24,12 +24,15 @@ List<MarginMark> marginMarksIn(EditionMap map, String riwaya, int surah) {
       start.ayah: index + 1,
   };
   final rub = {
-    for (final (_, start) in _starts(map, Division.rub, riwaya, surah))
-      start.ayah,
+    for (final (index, start) in _starts(map, Division.rub, riwaya, surah))
+      start.ayah: index + 1,
   };
   int hizbAt(int ayah) =>
       map.numberAt(Division.hizb, QuranAddress(riwaya, surah, ayah));
-  final ayat = {...juz.keys, ...hizb.keys, ...rub}.toList()..sort();
+  int quarterAt(int ayah) =>
+      rub[ayah]! -
+      map.numberAt(Division.rub, map.startOf(Division.hizb, hizbAt(ayah)));
+  final ayat = {...juz.keys, ...hizb.keys, ...rub.keys}.toList()..sort();
   return [
     for (final ayah in ayat)
       if (juz[ayah] case final number?)
@@ -37,7 +40,12 @@ List<MarginMark> marginMarksIn(EditionMap map, String riwaya, int surah) {
       else if (hizb[ayah] case final number?)
         MarginMark(MarginMarkKind.hizb, ayah, hizb: number)
       else
-        MarginMark(MarginMarkKind.rub, ayah, hizb: hizbAt(ayah)),
+        MarginMark(
+          MarginMarkKind.rub,
+          ayah,
+          hizb: hizbAt(ayah),
+          quarter: quarterAt(ayah),
+        ),
     for (final sajda in map.sajdas.toList()..sort())
       if (sajda.riwaya == riwaya && sajda.surah == surah)
         MarginMark(MarginMarkKind.sajda, sajda.ayah),

@@ -26,10 +26,11 @@ final class ReaderStyle {
   /// The `AyahMarker` diameter, which follows the text scale (D-057).
   double get markerDiameter => scaler.scale(AppSizes.ayahMarker);
 
-  /// The one size of every inline placeholder, a marker with a gap on each
-  /// side. SkParagraph reorders the placeholders of a right-to-left line
-  /// (S1 finding 1), which is undone only when all are one size, so a page
-  /// mark is held to a marker's place.
+  /// The natural size of every inline placeholder, a marker with a gap on
+  /// each side. SkParagraph reorders the placeholders of a right-to-left
+  /// line (S1 finding 1), which is undone only when all on a line are one
+  /// size, so a page mark is held to a marker's place and every slot of a
+  /// line stretches alike.
   Size get slot => Size(_space + markerDiameter + _space, markerDiameter);
 
   /// Where a placeholder's baseline lies below its top: its centre half the
@@ -62,13 +63,15 @@ final class ReaderStyle {
       )
       .getTextStyle(textScaler: scaler);
 
-  void addSlot(ui.ParagraphBuilder builder) => builder.addPlaceholder(
-    slot.width,
-    slot.height,
-    ui.PlaceholderAlignment.baseline,
-    baseline: TextBaseline.alphabetic,
-    baselineOffset: slotBaseline,
-  );
+  /// Adds a slot [width] wide: [slot]'s width with its gaps stretched.
+  void addSlot(ui.ParagraphBuilder builder, double width) =>
+      builder.addPlaceholder(
+        width,
+        slot.height,
+        ui.PlaceholderAlignment.baseline,
+        baseline: TextBaseline.alphabetic,
+        baselineOffset: slotBaseline,
+      );
 
   @override
   bool operator ==(Object other) =>

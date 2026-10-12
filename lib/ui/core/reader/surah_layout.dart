@@ -114,16 +114,17 @@ final class SurahLayout {
       leads.add(pageMark ? 1 : 0);
       fontScales.add(scales);
       measures.add([
-        if (pageMark) UnitWidths(slot),
+        if (pageMark) UnitWidths(slot, endsWithSlot: true),
         for (var k = 0; k < count; k++)
           UnitWidths(
             measure.units[k] + slots[k],
             gapAfter: k < measure.gaps.length ? measure.gaps[k] : 0,
             spaceAfter: k < measure.gaps.length,
+            endsWithSlot: k == count - 1,
           ),
       ]);
     }
-    final lines = breakLines(measures, width);
+    final lines = breakLines(measures, width, hang: style.markGap);
     final segments = _segments(lines, units, leads, fontScales);
     final basmala = text.basmala;
     return SurahLayout._(
@@ -271,11 +272,12 @@ final class SurahLayout {
       final endsLine = planned.end == (ayah: index, unit: k + lead);
       spacing.add(
         endsLine && k < units.gaps.length
-            ? forcedBreakSpacing(width)
+            ? forcedBreakSpacing(width, style.markGap)
             : planned.stretch,
       );
     }
     if (!pageMark && firstUnit == null) return null;
+    double slotOn(int line) => style.slot.width + 2 * lines[line].stretch;
     return PlannedAyah(
       number: index + 1,
       ayah: text.ayat[index],
@@ -286,7 +288,19 @@ final class SurahLayout {
       spacing: spacing,
       fontScales: _fontScales[index],
       lines: lineOf,
+      pageSlot: slotOn(lineOfAyah(index + 1)),
+      markerSlot: slotOn(lineOfAyahEnd(index + 1)),
     );
+  }
+
+  /// The width [segment]'s paragraph is laid out at: the line's width, the
+  /// slack, and room for the overhang of its lines.
+  double paragraphWidthOf(Segment segment) {
+    var overhang = 0.0;
+    for (var line = segment.firstLine; line < segment.endLine; line++) {
+      overhang = math.max(overhang, overhangOf(lines[line], style.markGap));
+    }
+    return width + paragraphSlack + overhang;
   }
 
   /// The ayah measured, with any unit wider than [width] drawn smaller so
@@ -305,9 +319,11 @@ final class SurahLayout {
     for (var round = 0; round < _fitRounds; round++) {
       var changed = false;
       for (var k = 0; k < scales.length; k++) {
-        final room = math.max(width - slots[k], 0.0);
+        // Narrower than a marker's place, a line cannot hold the word and
+        // its marker at any size; the word then keeps its size.
+        final room = width - slots[k];
         final drawn = measure.units[k];
-        if (drawn > room && drawn > 0) {
+        if (drawn > room && drawn > 0 && room > 0) {
           scales[k] *= room / drawn * _fitMargin;
           changed = true;
         }

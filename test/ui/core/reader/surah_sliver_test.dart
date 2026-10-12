@@ -144,10 +144,13 @@ void main() {
     await tester.pump();
     final strings = lookupAppLocalizations(const Locale('ar'));
     expect(find.byType(PageMark), findsWidgets);
-    expect(
-      find.bySemanticsLabel(strings.pageLabel(arabicDigits(3))),
-      findsOneWidget,
+    final labels = _labels(tester);
+    final page = labels.indexOf(strings.pageLabel(arabicDigits(3)));
+    final ayah = labels.indexOf(
+      utf8.decode(fixture.pack.raw.ayat(longSurah)[6].$2),
     );
+    expect(page, greaterThanOrEqualTo(0));
+    expect(ayah, greaterThan(page));
     semantics.dispose();
   });
 
@@ -180,6 +183,24 @@ void main() {
       }
     }
     expect(controller.position.maxScrollExtent + _height, layout!.height);
+  });
+
+  testWidgets('scrolling does not rebuild the blocks on screen', (
+    tester,
+  ) async {
+    setView(tester);
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _reader(fixture.surahs[longSurah]!, controller: controller),
+    );
+    final before = tester.widget<ReaderBlock>(find.byType(ReaderBlock).first);
+    for (var k = 1; k <= 5; k++) {
+      controller.jumpTo(3.0 * k);
+      await tester.pump();
+    }
+    final after = tester.widget<ReaderBlock>(find.byType(ReaderBlock).first);
+    expect(identical(before, after), isTrue);
   });
 
   testWidgets('at 200% text and the largest step nothing overflows', (

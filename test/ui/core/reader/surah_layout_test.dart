@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/ui/core/reader/block_layout.dart';
+import 'package:holyquran/ui/core/reader/line_breaker.dart';
 import 'package:holyquran/ui/core/reader/reader_paragraph.dart';
 import 'package:holyquran/ui/core/reader/reader_style.dart';
 import 'package:holyquran/ui/core/reader/reader_text_scale.dart';
@@ -136,9 +138,8 @@ void main() {
       );
       expect(whole.blocks, hasLength(1));
       expect(blocks.blocks.length, greaterThan(2));
-      final split = [
-        for (final block in _laidOut(blocks)) ...block.laidLineStarts,
-      ];
+      final laid = _laidOut(blocks);
+      final split = [for (final block in laid) ...block.laidLineStarts];
       final one = _laidOut(whole).single;
       expect(split, one.laidLineStarts);
       expect(split, [
@@ -146,6 +147,9 @@ void main() {
           whole.lineStart(line),
       ]);
       one.dispose();
+      for (final block in laid) {
+        block.dispose();
+      }
     });
 
     test('lines fit their width and every line is one height, $name', () {
@@ -155,19 +159,72 @@ void main() {
           _style(size.system, size.step),
           size.width,
         );
-        expect(plan.lines.every((line) => line.natural <= size.width), isTrue);
+        final hang = plan.style.markGap;
+        expect(
+          plan.lines.every(
+            (line) =>
+                line.natural - (line.endsWithSlot ? hang : 0) <= size.width,
+          ),
+          isTrue,
+        );
         for (final block in _laidOut(plan)) {
+          for (final (k, (left, right)) in block.laidLineExtents.indexed) {
+            final line = plan.lines[block.block.firstLine + k];
+            expect(right, lessThanOrEqualTo(size.width + 0.5));
+            expect(left, greaterThanOrEqualTo(-overhangOf(line, hang) - 0.5));
+          }
           for (final ayah in block.ayat) {
+            if (block.pageMarkRect(ayah) case final mark?) {
+              // A page mark's slot may hang past the edge; its middle may not.
+              expect(mark.center.dx, inInclusiveRange(0, size.width));
+            }
             for (final box in [
               ...block.ayahBoxes(ayah),
               block.markerRect(ayah)!,
-              ?block.pageMarkRect(ayah),
             ]) {
               expect(box.left, greaterThanOrEqualTo(-0.01));
               expect(box.right, lessThanOrEqualTo(size.width + 0.01));
               expect(box.top, greaterThanOrEqualTo(-0.01));
               expect(box.bottom, lessThanOrEqualTo(block.height + 0.01));
             }
+          }
+          block.dispose();
+        }
+      }
+    });
+
+    test('justified lines reach both edges, $name', () {
+      for (final surah in fixture.surahs.values) {
+        final plan = SurahLayout.plan(
+          surah,
+          _style(size.system, size.step),
+          size.width,
+        );
+        for (final block in _laidOut(plan)) {
+          final ink = <int, List<Rect>>{};
+          void add(Rect rect) =>
+              (ink[rect.center.dy ~/ plan.lineHeight] ??= []).add(rect);
+          for (final ayah in block.ayat) {
+            for (final word in surah.ayat[ayah - 1].words) {
+              if (block.wordBox(ayah, word.number) case final box?) add(box);
+            }
+            for (final mark in surah.ayat[ayah - 1].marks) {
+              block.markBoxes(ayah, mark.number).forEach(add);
+            }
+            add(block.markerRect(ayah)!);
+          }
+          for (var k = 0; k < block.lineCount; k++) {
+            final line = plan.lines[block.block.firstLine + k];
+            final last = block.block.firstLine + k == plan.lines.length - 1;
+            final stretchable = line.gaps + line.slots > 0;
+            final edges =
+                plan.lineStart(block.block.firstLine + k).offset >= 0 &&
+                block.pageMarkRect(line.end.ayah + 1) == null;
+            if (last || !stretchable || !edges || ink[k] == null) continue;
+            final right = ink[k]!.map((r) => r.right).reduce(math.max);
+            final left = ink[k]!.map((r) => r.left).reduce(math.min);
+            expect(right, closeTo(size.width, 1), reason: 'line $k');
+            expect(left, closeTo(0, 1), reason: 'line $k');
           }
           block.dispose();
         }
@@ -205,12 +262,15 @@ void main() {
   test('a word wider than the line is drawn smaller and stays whole', () {
     final surah = fixture.surahs[overwideSurah]!;
     final plan = SurahLayout.plan(surah, _style(2, 2), 320);
+    final first = plan.plannedAyat(plan.segments.first).first;
+    expect(first.fontScales[1], lessThan(1));
     final block = BlockLayout(plan, 0, ink: _ink.quranInk);
     final box = block.wordBox(1, 2)!;
-    expect(box.width, lessThanOrEqualTo(320));
-    expect(box.left, greaterThanOrEqualTo(0));
     final line = (box.center.dy / plan.lineHeight).floor();
     expect(box.top, closeTo(line * plan.lineHeight, 0.01));
+    final (left, right) = block.laidLineExtents[line];
+    expect(right, lessThanOrEqualTo(320.5));
+    expect(left, greaterThanOrEqualTo(-0.5));
     expect(block.matchesPlan, isTrue);
     block.dispose();
   });
@@ -247,6 +307,33 @@ void main() {
     final none = SurahLayout.plan(fixture.surahs[9]!, _style(1, 1), 360);
     expect(shown.basmalaExtent, greaterThan(0));
     expect(none.basmalaExtent, 0);
+  });
+
+  test('the geometry for targets: bands, ayah tops, marks', () {
+    final surah = fixture.surahs[longSurah]!;
+    final plan = SurahLayout.plan(surah, _style(1, 1), 360);
+    for (final block in _laidOut(plan)) {
+      expect(block.lineBands, hasLength(block.lineCount));
+      expect(block.lineBands.last.bottom, closeTo(block.height, 0.01));
+      for (final ayah in block.ayat) {
+        expect(plan.blockOfAyah(ayah), block.index);
+        final top = block.topOfAyah(ayah)!;
+        expect(top, block.ayahBoxes(ayah).first.top);
+        for (final mark in surah.ayat[ayah - 1].marks) {
+          final boxes = block.markBoxes(ayah, mark.number);
+          expect(boxes, isNotEmpty, reason: 'ayah $ayah mark ${mark.number}');
+          final word = surah.ayat[ayah - 1].words.lastWhere(
+            (w) => w.end <= mark.start,
+          );
+          final wordBox = block.wordBox(ayah, word.number)!;
+          // A mark is drawn on the line of its word, just after it.
+          expect(boxes.single.center.dy, closeTo(wordBox.center.dy, 0.01));
+          expect(boxes.single.right, lessThanOrEqualTo(wordBox.left + 0.5));
+        }
+      }
+      expect(block.topOfAyah(surah.ayat.length + 1), isNull);
+      block.dispose();
+    }
   });
 
   test('positions round-trip from an address to an offset and back', () {

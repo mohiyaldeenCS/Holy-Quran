@@ -142,13 +142,13 @@ void main() {
 
   test('margin marks: the largest division at its first ayah, and sajdas', () {
     expect(fixture.surahs[longSurah]!.marginMarks, const [
-      MarginMark(MarginMarkKind.rub, 5, hizb: 1),
+      MarginMark(MarginMarkKind.rub, 5, hizb: 1, quarter: 1),
       MarginMark(MarginMarkKind.hizb, 10, hizb: 2),
-      MarginMark(MarginMarkKind.rub, 15, hizb: 2),
+      MarginMark(MarginMarkKind.rub, 15, hizb: 2, quarter: 1),
       MarginMark(MarginMarkKind.juz, 20, juz: 2),
-      MarginMark(MarginMarkKind.rub, 25, hizb: 3),
+      MarginMark(MarginMarkKind.rub, 25, hizb: 3, quarter: 1),
       MarginMark(MarginMarkKind.hizb, 30, hizb: 4),
-      MarginMark(MarginMarkKind.rub, 35, hizb: 4),
+      MarginMark(MarginMarkKind.rub, 35, hizb: 4, quarter: 1),
       MarginMark(MarginMarkKind.sajda, sajdaAyah),
     ]);
   });
@@ -182,16 +182,23 @@ void main() {
     Future<void> show(MarginMark mark) =>
         tester.pumpWidget(goldenApp(ReadingTheme.paper, MarginMarkView(mark)));
     final strings = lookupAppLocalizations(const Locale('ar'));
-    await show(const MarginMark(MarginMarkKind.rub, 5, hizb: 3));
+    await show(const MarginMark(MarginMarkKind.rub, 5, hizb: 3, quarter: 1));
     expect(
       find.text('${strings.rubLabel}\n${strings.hizbLabel(arabicDigits(3))}'),
       findsOneWidget,
     );
     expect(find.byType(StarOutline), findsOneWidget);
+    // The identity names only the first quarter; the half and the three
+    // quarters show the star and the hizb until the owner gives words.
+    await show(const MarginMark(MarginMarkKind.rub, 7, hizb: 3, quarter: 2));
+    expect(find.text(strings.hizbLabel(arabicDigits(3))), findsOneWidget);
+    expect(find.byType(StarOutline), findsOneWidget);
     await show(const MarginMark(MarginMarkKind.hizb, 10, hizb: 2));
     expect(find.text(strings.hizbLabel(arabicDigits(2))), findsOneWidget);
+    expect(find.byType(StarOutline), findsOneWidget);
     await show(const MarginMark(MarginMarkKind.juz, 20, juz: 12));
     expect(find.text(strings.juzLabel(arabicDigits(12))), findsOneWidget);
+    expect(find.byType(StarOutline), findsNothing);
     await show(const MarginMark(MarginMarkKind.sajda, 12));
     expect(find.text(strings.sajdaLabel), findsOneWidget);
     expect(find.byType(StarOutline), findsNothing);

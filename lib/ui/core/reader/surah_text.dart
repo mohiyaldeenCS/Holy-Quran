@@ -22,9 +22,11 @@ final class AyahText {
 enum MarginMarkKind { rub, hizb, juz, sajda }
 
 /// A margin mark beside the ayah of [ayah]: the start of a rub, hizb or juz,
-/// with its [hizb] or [juz] number, or a sajda.
+/// with its [hizb] or [juz] number, or a sajda. A rub mark also says which
+/// [quarter] of its hizb begins there: 1, 2 or 3 (the hizb's own start is a
+/// hizb mark).
 final class MarginMark {
-  const MarginMark(this.kind, this.ayah, {this.hizb, this.juz});
+  const MarginMark(this.kind, this.ayah, {this.hizb, this.juz, this.quarter});
 
   final MarginMarkKind kind;
   final int ayah;
@@ -35,16 +37,19 @@ final class MarginMark {
   /// The juz a juz mark names.
   final int? juz;
 
+  final int? quarter;
+
   @override
   bool operator ==(Object other) =>
       other is MarginMark &&
       other.kind == kind &&
       other.ayah == ayah &&
       other.hizb == hizb &&
-      other.juz == juz;
+      other.juz == juz &&
+      other.quarter == quarter;
 
   @override
-  int get hashCode => Object.hash(kind, ayah, hizb, juz);
+  int get hashCode => Object.hash(kind, ayah, hizb, juz, quarter);
 }
 
 /// A whole surah for surah mode: its ayat from 1 on, its stored basmala, the

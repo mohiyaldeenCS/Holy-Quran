@@ -91,9 +91,10 @@ final class TextRun extends SegmentRun {
 
 /// The slot of the ayah's marker or of the page mark before it.
 final class SlotRun extends SegmentRun {
-  const SlotRun(super.ayah, {required this.pageMark});
+  const SlotRun(super.ayah, {required this.pageMark, required this.width});
 
   final bool pageMark;
+  final double width;
 }
 
 /// The runs of one segment: ayat or parts of them, each preceded by its
@@ -107,9 +108,11 @@ List<SegmentRun> segmentRuns(
   required Color Function(int line) colourOfLine,
 }) => [
   for (final planned in ayat) ...[
-    if (planned.pageMark) SlotRun(planned.number, pageMark: true),
+    if (planned.pageMark)
+      SlotRun(planned.number, pageMark: true, width: planned.pageSlot),
     ..._ayahRuns(planned, style, colourOfLine),
-    if (planned.hasMarker) SlotRun(planned.number, pageMark: false),
+    if (planned.hasMarker)
+      SlotRun(planned.number, pageMark: false, width: planned.markerSlot),
   ],
 ];
 
@@ -128,8 +131,8 @@ ui.Paragraph buildSegment(
           ..pushStyle(runStyle)
           ..addText(text)
           ..pop();
-      case SlotRun():
-        style.addSlot(builder);
+      case SlotRun(:final width):
+        style.addSlot(builder, width);
     }
   }
   return builder.build()..layout(ui.ParagraphConstraints(width: width));

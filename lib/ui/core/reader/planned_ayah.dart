@@ -1,11 +1,11 @@
 import 'break_units.dart';
 import 'surah_text.dart';
 
-/// How one ayah, or the part of it one paragraph holds, is set: per unit, the word spacing of the
-/// space that follows it (the stretch of its justified line, or a spacing no
-/// line holds, which forces the break after it), the font scale of a unit
-/// that would not fit its line whole, and the paragraph line it is on.
-/// [number] counts from 1.
+/// How one ayah, or the part of it one paragraph holds, is set: per unit,
+/// the word spacing of the space that follows it (the stretch of its
+/// justified line, or a spacing no line holds, which forces the break after
+/// it), the font scale of a unit that would not fit its line whole, and the
+/// paragraph line it is on. [number] counts from 1.
 final class PlannedAyah {
   const PlannedAyah({
     required this.number,
@@ -17,6 +17,8 @@ final class PlannedAyah {
     required this.spacing,
     required this.fontScales,
     required this.lines,
+    required this.pageSlot,
+    required this.markerSlot,
   });
 
   final int number;
@@ -37,6 +39,11 @@ final class PlannedAyah {
   /// One per unit of the whole ayah.
   final List<double> fontScales;
   final List<int> lines;
+
+  /// The widths of the page mark's and the marker's slots: a slot's gaps
+  /// stretch with its line.
+  final double pageSlot;
+  final double markerSlot;
 
   bool get hasText => endUnit > firstUnit;
 

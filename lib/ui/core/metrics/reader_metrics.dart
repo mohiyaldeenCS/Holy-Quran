@@ -5,14 +5,10 @@ abstract final class ReaderMetrics {
   /// (`Screens.dc.html`, the surah-mode reader).
   static const double textInset = 28;
 
-  /// The reader's text column, `gap: 22px`: between the surah header, the
-  /// basmala and the text (`Screens.dc.html`).
+  /// The reader's text column, `gap: 22px`, between its parts
+  /// (`Screens.dc.html`). That board draws al-Fatiha, which has no separate
+  /// basmala; the same gap below the basmala line is a reading.
   static const double sectionGap = 22;
-
-  /// «رقم الصفحة», the page number, `font-size: 15px; font-weight: 600` in
-  /// the gold of the page's marks (`Mushaf.dc.html`, «تشريح الصفحة»): the
-  /// number of a page mark inside the line (D-071).
-  static const double pageNumberSize = 15;
 
   /// The quarter star in the margin, `width="40"` (`Mushaf.dc.html`,
   /// «الأرباع والأحزاب»).
@@ -24,7 +20,14 @@ abstract final class ReaderMetrics {
 
   /// The margin words «ربع» and «الحزب», `font-size: 14px; font-weight: 600;
   /// line-height: 1.3` (`Mushaf.dc.html`, «الأرباع والأحزاب»); «سجدة» takes
-  /// the same size and weight («موضع السجدة»).
+  /// the same size and weight with no line height («موضع السجدة»).
   static const double marginLabelSize = 14;
   static const double marginLabelHeight = 1.3;
+
+  /// The juz's name in the margin, Reem Kufi `font-size: 20px; font-weight:
+  /// 600` over `border-bottom: 2px solid` gold with `padding-bottom: 2px`
+  /// (`Mushaf.dc.html`, «بداية الجزء»).
+  static const double juzNameSize = 20;
+  static const double juzRule = 2;
+  static const double juzRuleGap = 2;
 }

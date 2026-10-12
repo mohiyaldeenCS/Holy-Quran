@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
-import 'line_breaker.dart';
 import 'planned_ayah.dart';
 import 'reader_paragraph.dart';
 import 'surah_layout.dart';
@@ -28,7 +27,7 @@ final class BlockLayout {
       final ayat = plan.plannedAyat(segment);
       final lastLocal = segment.lineCount - 1;
       final centres = segment.endLine - 1 == finalLine;
-      final width = paragraphWidth(plan.width);
+      final width = plan.paragraphWidthOf(segment);
       final body = buildSegment(
         ayat,
         plan.style,
@@ -56,6 +55,7 @@ final class BlockLayout {
         ),
       );
     }
+    assert(matchesPlan, 'block $index broke its lines unlike its plan');
   }
 
   final SurahLayout plan;
@@ -185,13 +185,15 @@ final class BlockLayout {
         ),
   ];
 
-  /// How far the surah's last line was moved to centre it; 0 when this block
-  /// does not hold it.
-  double get lastLineShift => _segments.isEmpty ? 0 : _segments.last.shift;
-
   /// Where each line starts, as the paragraphs broke them.
   List<LineStart> get laidLineStarts => [
     for (final segment in _segments) ...segment.laidLineStarts(),
+  ];
+
+  /// The left and right edges of each line as laid out, in block
+  /// coordinates, unclamped: what a line really covers, its overhang too.
+  List<(double, double)> get laidLineExtents => [
+    for (final segment in _segments) ...segment.extents(),
   ];
 
   /// Where each line starts by the plan.
@@ -257,7 +259,7 @@ final class _LaidSegment {
     this.twin,
     this.top,
     double markGap,
-    double width,
+    this._width,
   ) {
     var at = 0;
     for (final planned in ayat) {
@@ -283,7 +285,7 @@ final class _LaidSegment {
       final last = body.computeLineMetrics().last;
       // The line ends with the last marker's slot, whose far gap is not ink:
       // centre what is drawn.
-      shift = (width - last.width - markGap) / 2 - last.left + paragraphSlack;
+      shift = (_width - last.width - markGap) / 2 - last.left - _origin;
     }
   }
 
@@ -292,6 +294,7 @@ final class _LaidSegment {
   final ui.Paragraph body;
   final ui.Paragraph? twin;
   final double top;
+  final double _width;
   double shift = 0;
   final _pieces = <_Piece>[];
   final _placeholders = <_Piece>[];
@@ -321,7 +324,12 @@ final class _LaidSegment {
   int get _lastLine => segment.lineCount - 1;
 
   double _dx(int line) =>
-      -paragraphSlack + (twin != null && line == _lastLine ? shift : 0);
+      _origin + (twin != null && line == _lastLine ? shift : 0);
+
+  /// Where the paragraph's left edge lies in the block: lines keep to the
+  /// right of a paragraph wider than the block, so it is moved left by the
+  /// difference, its overhang and slack past the block's left edge.
+  double get _origin => _width - body.width;
 
   int _lineAtY(double y) =>
       (y / (body.height / segment.lineCount)).floor().clamp(0, _lastLine);
@@ -332,7 +340,7 @@ final class _LaidSegment {
   /// the block's edge.
   List<Rect> boxes(int start, int end) {
     final lineHeight = body.height / segment.lineCount;
-    final width = body.width - paragraphSlack;
+    final width = _width;
     final byLine = <int, Rect>{};
     for (final box in body.getBoxesForRange(start, end)) {
       final line = _lineAtY((box.top + box.bottom) / 2);
@@ -349,8 +357,10 @@ final class _LaidSegment {
     return [for (final line in byLine.keys.toList()..sort()) byLine[line]!];
   }
 
+  /// A page mark takes its whole slot, gaps and all, so that a page
+  /// number wider than a marker still fits.
   Rect? pageMarkRect(int ayah) =>
-      _pageMarkAt[ayah] == null ? null : _childRect(_pageMarkAt[ayah]!);
+      _pageMarkAt[ayah] == null ? null : _slot(_pageMarkAt[ayah]!);
 
   /// The slot placeholder [k] is drawn in. SkParagraph (Flutter 3.44) lays
   /// the placeholders of a right-to-left line out in the reverse of their
@@ -425,8 +435,13 @@ final class _LaidSegment {
     };
   }
 
+  List<(double, double)> extents() => [
+    for (final (k, line) in body.computeLineMetrics().indexed)
+      (line.left + _dx(k), line.left + line.width + _dx(k)),
+  ];
+
   void paint(Canvas canvas, Offset offset) {
-    final origin = offset.translate(-paragraphSlack, top);
+    final origin = offset.translate(_origin, top);
     canvas.drawParagraph(body, origin);
     if (twin case final twin?) {
       canvas.drawParagraph(twin, origin.translate(shift, 0));
