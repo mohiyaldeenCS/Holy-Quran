@@ -16,16 +16,19 @@ import 's4/widget_bridge.dart';
 import 's4/widget_slots.dart';
 import 's4/widget_test_pack.dart';
 import 's5/s5_screen.dart';
+import 's7/s7_screen.dart';
+import 's7/synthetic_pages.dart';
 
 // The launcher with the S3 screen, S1's storage and S4's widget plugin
 // replaced, so that no test reaches the audio service, the network or the
 // home-screen widget.
 
-/// In the device session's order: S1, S7 (added after task G), S4, S3, S5.
+/// In the device session's order: S1, S7, S4, S3, S5.
 const _entries = [
   'App',
   'Component gallery',
   'S1 surah rendering',
+  'S7 gestures',
   'S4 home-screen widget',
   'S3 background audio',
   'S5 downloads',
@@ -46,6 +49,11 @@ Future<void> _settleIo(WidgetTester tester) async {
       find.byType(LinearProgressIndicator).evaluate().isNotEmpty &&
           clock.elapsed < const Duration(seconds: 10));
 }
+
+/// Leaves the route showing [screen], as the system back does; some spike
+/// screens have no app bar.
+Future<void> _systemBack(WidgetTester tester, Finder screen) =>
+    Navigator.of(tester.element(screen)).maybePop();
 
 /// The widget plugin as the launcher sees it: the link that launched the
 /// activity, asked for each time, and the taps while it runs, both parsed
@@ -255,6 +263,61 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.byType(S4Screen), findsNothing);
+  });
+
+  testWidgets('S7 opens on its route with the synthetic fallback when no '
+      'pack is prepared, and back leads to the launcher', (tester) async {
+    await tester.pumpWidget(spikeRoot());
+    await tester.tap(find.widgetWithText(ListTile, 'S7 gestures'));
+    await tester.pump();
+    await _settleIo(tester);
+    expect(find.byType(S7Screen), findsOneWidget);
+    expect(
+      ModalRoute.of(tester.element(find.byType(S7Screen)))?.settings.name,
+      S7Screen.routeName,
+    );
+    expect(find.textContaining('No prepared pack'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(S7Screen),
+        matching: find.byType(ListTile),
+      ),
+      findsOneWidget,
+      reason: 'page mode only, no surah',
+    );
+
+    await tester.tap(find.text('Page mode only'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SyntheticPages), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    // The session has no app bar; back is the system's.
+    await _systemBack(tester, find.byType(SyntheticPages));
+    await tester.pumpAndSettle();
+    expect(find.byType(SyntheticPages), findsNothing);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(ListTile, 'S7 gestures'), findsOne);
+  });
+
+  testWidgets('each spike entry opens its screen and back leads to the '
+      'launcher', (tester) async {
+    await tester.pumpWidget(spikeRoot());
+    for (final (entry, screen) in [
+      ('S1 surah rendering', find.byType(S1Screen)),
+      ('S7 gestures', find.byType(S7Screen)),
+      ('S4 home-screen widget', find.byType(S4Screen)),
+      ('S3 background audio', find.text('S3 stand-in')),
+      ('S5 downloads', find.byType(S5Screen)),
+    ]) {
+      await tester.tap(find.widgetWithText(ListTile, entry));
+      await tester.pump();
+      await _settleIo(tester);
+      expect(screen, findsOneWidget, reason: entry);
+      await _systemBack(tester, screen);
+      await tester.pumpAndSettle();
+      expect(find.text('Spikes'), findsOneWidget, reason: entry);
+    }
   });
 
   testWidgets('S5 opens from the launcher', (tester) async {
