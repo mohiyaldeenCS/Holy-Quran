@@ -163,7 +163,7 @@ final class PlaybackRules {
   /// another ayah or surah: the sleep timer keeps its deadline and the
   /// stop-after carries over where [plan] supports them; a stopped run has
   /// no sleep timer left, since a stop ends it. Serials go on from this
-  /// run's.
+  /// run's, so hand over from the current run only: this one is finished.
   PlaybackRules handOver(PlaybackPlan plan, {int startAt = 0}) {
     final next = PlaybackRules(plan, clock: clock, startAt: startAt)
       .._serial = _serial;
