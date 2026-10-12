@@ -139,7 +139,8 @@ itself is the lead's, because no agent edits `.github/`.
 
 A pack is built where its sources are (the pipeline of `tools/packs/`, unsigned) and
 put, unsigned, on a GitHub Release of this repository (O-08): one release per pack
-version, tagged `pack-<id>-<version>`, holding `manifest.json`, every file the
+version, tagged `pack-<id>-<version>` (the version is the manifest's integer, as in
+`pack-base-hafs-tanzil-1`), holding `manifest.json`, every file the
 manifest's `files` names (`text.sqlite` in format v1) and, for a text pack, the mark
 table it was built with as `marks.json`. The job verifies the pack with its font and
 mark table, signs `manifest.json` with the secret key, checks the signature against
@@ -176,8 +177,8 @@ gains the option `sign-pack`; `release` (the tag), `pack` (`<id>/<version>`) and
 
       - name: Check the inputs
         run: |
-          [[ "$RELEASE" =~ ^pack-[a-z0-9-]+-[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          [[ "$PACK" =~ ^[a-z0-9-]+/[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$RELEASE" =~ ^pack-[a-z0-9-]+-[1-9][0-9]*$ ]]
+          [[ "$PACK" =~ ^[a-z0-9]+(-[a-z0-9]+)*/[1-9][0-9]*$ ]]
           [[ "$RELEASE" == "pack-${PACK%/*}-${PACK#*/}" ]]
           [[ "$FONT" =~ ^assets/fonts/[A-Za-z0-9._-]+\.ttf$ ]]
           test -f "$FONT"
