@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/domain/models/install_job.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
@@ -215,6 +217,27 @@ void main() {
       expect(model.storageBytes, 500 + 2900);
     },
   );
+
+  test('a free-space answer overtaken by a later read is dropped', () async {
+    final answers = <Completer<int?>>[];
+    final model = ResourcesViewModel(
+      catalogue: catalogue,
+      installs: installs,
+      integrity: integrity,
+      freeBytes: () => (answers..add(Completer<int?>())).last.future,
+    );
+    addTearDown(model.dispose);
+    installs.installed = [installedTafsir(downloadedId, bytes: 500)];
+    installs.installed = [installedTafsir(downloadedId, bytes: 500)];
+    expect(answers, hasLength(3));
+
+    answers[2].complete(2000);
+    await pumpEventQueue();
+    answers[1].complete(9000);
+    answers[0].complete(9000);
+    await pumpEventQueue();
+    expect(model.storageBytes, 500 + 2000);
+  });
 
   test('says the catalogue is unreachable when none is kept', () async {
     catalogue.catalogue = null;
