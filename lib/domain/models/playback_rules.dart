@@ -1,0 +1,189 @@
+import 'playback_plan.dart';
+import 'playback_segment.dart';
+import 'quran_address.dart';
+import 'sleep_timer.dart';
+import 'stop_after.dart';
+
+/// What the engine reports to the rules.
+sealed class PlaybackInput {
+  const PlaybackInput();
+}
+
+final class SegmentEnded extends PlaybackInput {
+  const SegmentEnded();
+}
+
+final class SilenceEnded extends PlaybackInput {
+  const SilenceEnded();
+}
+
+/// The engine's timer for a [SleepAfter] went off; the rules check the
+/// clock, so a stale timer does nothing.
+final class SleepTimerFired extends PlaybackInput {
+  const SleepTimerFired();
+}
+
+final class UserStopped extends PlaybackInput {
+  const UserStopped();
+}
+
+/// What the rules tell the engine and the reader.
+sealed class PlaybackOutput {
+  const PlaybackOutput();
+}
+
+final class SegmentStarted extends PlaybackOutput {
+  const SegmentStarted(this.segment);
+
+  final PlaybackSegment segment;
+}
+
+/// The reader follows this ayah (D-112).
+final class AyahStarted extends PlaybackOutput {
+  const AyahStarted(this.ayah);
+
+  final QuranAddress ayah;
+}
+
+final class SilenceStarted extends PlaybackOutput {
+  const SilenceStarted(this.duration);
+
+  final Duration duration;
+}
+
+enum StopReason { sleepTimer, stopAfter, user, endOfPlan }
+
+final class PlaybackStopped extends PlaybackOutput {
+  const PlaybackStopped(this.reason, {this.fade = false});
+
+  final StopReason reason;
+
+  /// Whether the engine fades out first: only when a [SleepAfter] stops
+  /// playback in the middle of a segment.
+  final bool fade;
+}
+
+enum _State { idle, playing, silent, stopped }
+
+/// Runs a [PlaybackPlan]: at the end of each segment the sleep timer comes
+/// first, then stop-after, then the plan's next segment, which already holds
+/// its repeats before any continuation (`AU-23`).
+final class PlaybackRules {
+  PlaybackRules(this.plan, {required this.clock})
+    : _segments = plan.segments.iterator;
+
+  final PlaybackPlan plan;
+  final DateTime Function() clock;
+  final Iterator<PlaybackSegment> _segments;
+
+  _State _state = _State.idle;
+  PlaybackSegment? _current;
+  SleepTimer? _sleepTimer;
+  DateTime? _sleepDeadline;
+  StopAfter? _stopAfter;
+
+  /// The segment playing, or the one just heard during a silence.
+  PlaybackSegment? get current => _current;
+
+  bool get isStopped => _state == _State.stopped;
+
+  SleepTimer? get sleepTimer => _sleepTimer;
+
+  StopAfter? get stopAfter => _stopAfter;
+
+  /// Time left on a [SleepAfter], never negative.
+  Duration? get sleepRemaining {
+    final deadline = _sleepDeadline;
+    if (deadline == null) return null;
+    final left = deadline.difference(clock());
+    return left.isNegative ? Duration.zero : left;
+  }
+
+  /// A [SleepAfter] counts from now. Throws an [ArgumentError] when the plan
+  /// has no boundary for [timer].
+  set sleepTimer(SleepTimer? timer) {
+    if (timer != null && !plan.supportsSleepTimer(timer)) {
+      throw ArgumentError.value(timer, 'timer', 'needs ayah boundaries');
+    }
+    _sleepTimer = timer;
+    _sleepDeadline = timer is SleepAfter ? clock().add(timer.duration) : null;
+  }
+
+  /// Throws an [ArgumentError] when the plan has no boundary for [stopAfter].
+  set stopAfter(StopAfter? stopAfter) {
+    if (stopAfter != null && !plan.supportsStopAfter(stopAfter)) {
+      throw ArgumentError.value(
+        stopAfter,
+        'stopAfter',
+        'needs ayah boundaries',
+      );
+    }
+    _stopAfter = stopAfter;
+  }
+
+  List<PlaybackOutput> start() {
+    if (_state != _State.idle) {
+      throw StateError('playback has already started');
+    }
+    return _next();
+  }
+
+  List<PlaybackOutput> handle(PlaybackInput input) => switch ((input, _state)) {
+    (_, _State.stopped || _State.idle) => const [],
+    (UserStopped(), _) => _stop(StopReason.user),
+    (SleepTimerFired(), _) =>
+      _sleepTimeUp ? _stop(StopReason.sleepTimer, fade: true) : const [],
+    (SegmentEnded(), _State.playing) => _afterSegment(),
+    (SilenceEnded(), _State.silent) =>
+      _sleepTimeUp ? _stop(StopReason.sleepTimer) : _next(),
+    (SegmentEnded() || SilenceEnded(), _) => const [],
+  };
+
+  bool get _sleepTimeUp {
+    final deadline = _sleepDeadline;
+    return deadline != null && !clock().isBefore(deadline);
+  }
+
+  List<PlaybackOutput> _afterSegment() {
+    final ended = _current!;
+    if (_sleepsAfter(ended)) return _stop(StopReason.sleepTimer);
+    if (_stopsAfter(ended)) return _stop(StopReason.stopAfter);
+    if (ended.silenceAfter > Duration.zero) {
+      _state = _State.silent;
+      return [SilenceStarted(ended.silenceAfter)];
+    }
+    return _next();
+  }
+
+  bool _sleepsAfter(PlaybackSegment ended) =>
+      _sleepTimeUp ||
+      switch (_sleepTimer) {
+        SleepAtEndOfAyah() => ended.kind == SegmentKind.ayah,
+        SleepAtEndOfSurah() => ended.endsSurah,
+        SleepAfter() || null => false,
+      };
+
+  bool _stopsAfter(PlaybackSegment ended) => switch (_stopAfter) {
+    StopAfter.ayah => ended.kind == SegmentKind.ayah,
+    StopAfter.page => ended.endsPage,
+    StopAfter.surah => ended.endsSurah,
+    null => false,
+  };
+
+  List<PlaybackOutput> _next() {
+    if (!_segments.moveNext()) return _stop(StopReason.endOfPlan);
+    final segment = _segments.current;
+    _current = segment;
+    _state = _State.playing;
+    return [
+      SegmentStarted(segment),
+      if (segment.kind == SegmentKind.ayah) AyahStarted(segment.address),
+    ];
+  }
+
+  List<PlaybackOutput> _stop(StopReason reason, {bool fade = false}) {
+    _state = _State.stopped;
+    _sleepDeadline = null;
+    return [PlaybackStopped(reason, fade: fade)];
+  }
+}
