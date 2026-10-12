@@ -25,6 +25,9 @@ final class WholeQuran extends SearchScope {
 
   @override
   int get hashCode => (WholeQuran).hashCode;
+
+  @override
+  String toString() => 'WholeQuran()';
 }
 
 final class SurahScope extends SearchScope {
@@ -37,6 +40,9 @@ final class SurahScope extends SearchScope {
 
   @override
   int get hashCode => Object.hash(SurahScope, surah);
+
+  @override
+  String toString() => 'SurahScope($surah)';
 }
 
 final class JuzScope extends SearchScope {
@@ -49,6 +55,9 @@ final class JuzScope extends SearchScope {
 
   @override
   int get hashCode => Object.hash(JuzScope, juz);
+
+  @override
+  String toString() => 'JuzScope($juz)';
 }
 
 /// A search of the Quran: [text] as typed, compared through [QueryFold] with

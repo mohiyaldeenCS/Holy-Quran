@@ -1,6 +1,10 @@
+import 'dart:math';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/data/repositories/search_repository.dart';
 import 'package:holyquran/data/services/search_index_service.dart';
+import 'package:holyquran/domain/models/edition_map.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
@@ -8,6 +12,7 @@ import 'package:holyquran/domain/models/quran_range.dart';
 import 'package:holyquran/domain/models/search_form.dart';
 import 'package:holyquran/domain/models/search_hit.dart';
 import 'package:holyquran/domain/models/search_query.dart';
+import 'package:holyquran/domain/models/surah_info.dart';
 import 'package:holyquran/utils/result.dart';
 
 import '../../../testing/fakes/fake_quran_index_repository.dart';
@@ -216,5 +221,111 @@ void main() {
     expect(await repository.formKinds(), isA<Failure<List<String>>>());
     expect(failures, [failure]);
     expect(builds, 1);
+  });
+
+  group('the 300 ms budget (NF-03)', () {
+    // A full-size synthetic Quran: 6,236 ayat in 114 surahs and 30 juz, of
+    // about 78,000 placeholder words drawn log-uniformly from 14,000, so that
+    // the first few are very frequent, as the commonest words are.
+    const budget = Duration(milliseconds: 300);
+    final ayatPerSurah = [...List.filled(110, 55), 46, 46, 47, 47];
+    late PackSearchRepository full;
+    late List<String> longAyah;
+
+    setUpAll(() async {
+      final random = Random(1);
+      String word() => 'w${(pow(14001, random.nextDouble()) - 1).floor()}';
+      final forms = <SearchForm>[];
+      final ayat = <QuranAddress>[];
+      longAyah = [];
+      for (final (s, count) in ayatPerSurah.indexed) {
+        for (var a = 1; a <= count; a++) {
+          final words = [for (var w = random.nextInt(24); w >= 0; w--) word()];
+          if (words.length > longAyah.length) longAyah = words;
+          ayat.add(_ayah(s + 1, a));
+          for (final (i, form) in words.indexed) {
+            for (final kind in [_kind, 'synthetic_spelled']) {
+              forms.add(
+                SearchForm(
+                  word: QuranAddress('hafs', s + 1, a, i + 1),
+                  kind: kind,
+                  form: PackText.fromPack(form),
+                ),
+              );
+            }
+          }
+        }
+      }
+      expect(ayat.length, 6236);
+      final stopwatch = Stopwatch()..start();
+      final index = SearchIndex.fromForms('synthetic-text', forms);
+      debugPrint(
+        'NF-03: index of ${ayat.length} ayat, ${index.count(_kind)} words '
+        'per kind, 2 kinds, built in ${stopwatch.elapsedMilliseconds} ms',
+      );
+      full = PackSearchRepository(
+        pack: 'synthetic-text',
+        build: () async => Ok(index),
+        structure: FakeQuranIndexRepository(
+          surahs: [
+            for (final (s, count) in ayatPerSurah.indexed)
+              SurahInfo(
+                number: s + 1,
+                name: PackText.fromPack('Synthetic surah ${s + 1}'),
+                ayahCount: count,
+              ),
+          ],
+          map: EditionMap(
+            edition: 'synthetic-edition',
+            starts: {
+              Division.juz: [for (var j = 0; j < 30; j++) ayat[j * 207]],
+              Division.page: [ayat.first],
+            },
+            sajdas: const {},
+          ),
+        ),
+        serving: () => true,
+      );
+      await full.formKinds();
+    });
+
+    Future<void> answersWithin(SearchQuery query, SearchOrder order) async {
+      final stopwatch = Stopwatch()..start();
+      final results = (await full.search(query) as Ok<SearchResults>).value;
+      final ordered = results.ordered(order);
+      final elapsed = stopwatch.elapsed;
+      debugPrint(
+        'NF-03: ${query.mode.name} "${query.text}" in ${query.scope}, '
+        '${order.name}: ${results.ayat} ayat, ${results.occurrences} '
+        'occurrences in ${elapsed.inMicroseconds / 1000} ms',
+      );
+      expect(ordered, isNotEmpty);
+      expect(elapsed, lessThan(budget));
+    }
+
+    test('the commonest phrase', () async {
+      await answersWithin(_query('w0 w1'), SearchOrder.frequency);
+    });
+
+    test('the commonest scattered words, nearest first', () async {
+      await answersWithin(
+        _query('w2 w0 w1', mode: SearchMode.scattered),
+        SearchOrder.closeness,
+      );
+    });
+
+    test('the longest whole ayah', () async {
+      await answersWithin(
+        _query(longAyah.join(' '), mode: SearchMode.wholeAyah),
+        SearchOrder.mushaf,
+      );
+    });
+
+    test('a common word within a juz', () async {
+      await answersWithin(
+        _query('w0', scope: const JuzScope(30)),
+        SearchOrder.frequency,
+      );
+    });
   });
 }

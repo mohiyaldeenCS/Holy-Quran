@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/data/models/pack_manifest_json.dart';
 import 'package:holyquran/data/services/search_index_service.dart';
@@ -267,6 +268,62 @@ void main() {
         expect(query.words.length, greaterThan(1));
         final hits = built.search(stored.kind, query.words, query.mode);
         expect(hits.single.matches, [_words(2, 3, 1, 1)]);
+      },
+    );
+
+    test(
+      'builds the index of a full-size pack within a reported time',
+      () async {
+        // 6,236 placeholder ayat of 12 words; the pack gives each word one
+        // form of each of two kinds, of four words each.
+        final surahs = [
+          for (final (s, count) in [
+            ...List.filled(110, 55),
+            46,
+            46,
+            47,
+            47,
+          ].indexed)
+            SyntheticSurah(
+              name: 'Synthetic surah ${s + 1}',
+              ayat: [
+                for (var a = 0; a < count; a++)
+                  const SyntheticAyah('aa bb cc dd ee ff gg hh ii jj kk ll'),
+              ],
+            ),
+        ];
+        final pack = await buildSyntheticPack(
+          root,
+          surahs: surahs,
+          divisions: const [
+            SyntheticDivision('juz', 1, 1, 1),
+            SyntheticDivision('hizb', 1, 1, 1),
+            SyntheticDivision('rub', 1, 1, 1),
+            SyntheticDivision('page', 1, 1, 1),
+          ],
+          sajdas: const [],
+          formatVersion: 2,
+        );
+        final stopwatch = Stopwatch()..start();
+        final built = (await build(pack) as Ok<SearchIndex>).value;
+        final buildTime = stopwatch.elapsedMilliseconds;
+        final stored = pack.searchForms.last;
+        final query = SearchQuery(
+          text: stored.form,
+          kind: stored.kind,
+          mode: SearchMode.phrase,
+        );
+        stopwatch.reset();
+        final hits = built.search(stored.kind, query.words, query.mode);
+        final searchTime = stopwatch.elapsedMicroseconds / 1000;
+        debugPrint(
+          'NF-03: index of a ${surahs.length}-surah pack, '
+          '${built.count(stored.kind)} words per kind, built in $buildTime ms; '
+          'a phrase of four words searched in $searchTime ms',
+        );
+        expect(built.count(stored.kind), 6236 * 12);
+        expect(hits.single.ayah, _ayah(114, 47));
+        expect(searchTime, lessThan(300));
       },
     );
 
