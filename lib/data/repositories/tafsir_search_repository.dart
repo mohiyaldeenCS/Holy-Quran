@@ -13,18 +13,20 @@ import '../services/tafsir_pack_database.dart';
 
 /// Searches the passages of downloaded tafsir books (`TF-07`).
 abstract interface class TafsirSearchRepository {
-  /// The passages of [books], pack ids of installed tafsir books, whose text
-  /// holds the words of [query] in order, each with where it does; book by
-  /// book in the order given, passages in book order. None for a query with
-  /// no words. Completes with an [ArgumentError] for a book not installed.
+  /// The passages of [books], pack ids of installed tafsir books, whose
+  /// text holds the folded words of [query] in order, separated by white
+  /// space, anywhere, inside a word too; each with where it does. Book by
+  /// book in the order given, passages in book order; a book no longer
+  /// installed is left out. None for a query with no words.
   Future<Result<List<TafsirHit>>> search(String query, List<String> books);
 }
 
 /// Reads each book's passages off the main isolate, every surah of the
 /// edition, and compares them with the query through [QueryFold.findAll]; a
-/// passage is never folded, cut or copied. A sink of D-114. A book that
-/// fails to read fails the call and is passed to `onFailed`, so that its
-/// integrity can be reported.
+/// passage is never folded, cut or copied. A sink of D-114. `installed`
+/// lists only verified books that are serving. A book that fails to read
+/// fails the call and is passed to `onFailed`, so that its integrity can be
+/// reported.
 final class PackTafsirSearchRepository implements TafsirSearchRepository {
   PackTafsirSearchRepository({
     required this._installed,
@@ -44,11 +46,7 @@ final class PackTafsirSearchRepository implements TafsirSearchRepository {
     final installed = {
       for (final pack in await _installed()) pack.manifest.id: pack,
     };
-    final packs = [
-      for (final book in books)
-        installed[book] ??
-            (throw ArgumentError.value(book, 'books', 'is not installed')),
-    ];
+    final packs = [for (final book in books) ?installed[book]];
     final folded = QueryFold.words(query).join(' ');
     if (folded.isEmpty) return const Ok([]);
     final hits = <TafsirHit>[];

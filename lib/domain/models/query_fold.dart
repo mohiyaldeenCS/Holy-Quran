@@ -18,7 +18,26 @@ abstract final class QueryFold {
     0x0652,
   };
 
-  static final _space = RegExp(r'\s+');
+  /// White space: the units of `\s` in a Dart regular expression.
+  static const _spaces = {
+    0x0009,
+    0x000A,
+    0x000B,
+    0x000C,
+    0x000D,
+    0x0020,
+    0x00A0,
+    0x1680,
+    0x2028,
+    0x2029,
+    0x202F,
+    0x205F,
+    0x3000,
+    0xFEFF,
+  };
+
+  static bool _isSpace(int unit) =>
+      _spaces.contains(unit) || (unit >= 0x2000 && unit <= 0x200A);
 
   static bool _drops(int unit) => _dropped.contains(unit);
 
@@ -29,16 +48,26 @@ abstract final class QueryFold {
   ]);
 
   /// The folded words of [query], split at runs of white space.
-  static List<String> words(String query) => [
-    for (final word in fold(query).split(_space))
-      if (word.isNotEmpty) word,
-  ];
+  static List<String> words(String query) {
+    final words = <String>[];
+    final word = <int>[];
+    for (final unit in [...query.codeUnits, 0x0020]) {
+      if (!_isSpace(unit)) {
+        if (!_drops(unit)) word.add(unit);
+      } else if (word.isNotEmpty) {
+        words.add(String.fromCharCodes(word));
+        word.clear();
+      }
+    }
+    return words;
+  }
 
-  /// Where [folded], a folded query, occurs in [text], left to right and not
-  /// overlapping, as offsets into [text] in UTF-16 code units. A match
-  /// starts at a unit the fold keeps, and its end reaches over the dropped
-  /// units that follow it, so that a letter keeps its marks. An empty
-  /// [folded] occurs nowhere.
+  /// Where [folded], a query's folded words joined by U+0020, occurs in
+  /// [text], left to right and not overlapping, as offsets into [text] in
+  /// UTF-16 code units. A space of [folded] meets any run of white space. A
+  /// match starts at a unit the fold keeps, and its end reaches over the
+  /// dropped units that follow it, so that a letter keeps its marks. An
+  /// empty [folded] occurs nowhere.
   static List<({int start, int end})> findAll(String text, String folded) {
     final found = <({int start, int end})>[];
     if (folded.isEmpty) return found;
@@ -62,9 +91,16 @@ abstract final class QueryFold {
       while (at < text.length && _drops(text.codeUnitAt(at))) {
         at++;
       }
-      if (at == text.length || text.codeUnitAt(at) != folded.codeUnitAt(i)) {
-        return null;
+      if (at == text.length) return null;
+      final unit = folded.codeUnitAt(i);
+      if (unit == 0x0020) {
+        if (!_isSpace(text.codeUnitAt(at))) return null;
+        while (at < text.length && _isSpace(text.codeUnitAt(at))) {
+          at++;
+        }
+        continue;
       }
+      if (text.codeUnitAt(at) != unit) return null;
       at++;
     }
     while (at < text.length && _drops(text.codeUnitAt(at))) {

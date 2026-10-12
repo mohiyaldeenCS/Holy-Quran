@@ -120,6 +120,37 @@ void main() {
       expect(ayatOf(last.hits), [_ayah(2, 1), _ayah(2, 3), _ayah(3, 1)]);
     });
 
+    test('a juz that starts inside a surah', () async {
+      final synthetic = FakeQuranIndexRepository.synthetic();
+      final split = PackSearchRepository(
+        pack: 'synthetic-text',
+        build: () async => Ok(_index()),
+        structure: FakeQuranIndexRepository(
+          surahs: synthetic.surahs,
+          map: EditionMap(
+            edition: 'synthetic-edition',
+            starts: {
+              Division.juz: [_ayah(1, 1), _ayah(1, 3), _ayah(2, 2)],
+              Division.page: [_ayah(1, 1)],
+            },
+            sajdas: const {},
+          ),
+        ),
+        serving: () => true,
+      );
+      Future<List<QuranAddress>> found(String text, int juz) async => ayatOf(
+        (await split.search(_query(text, scope: JuzScope(juz)))
+                as Ok<SearchResults>)
+            .value
+            .hits,
+      );
+      expect(await found('alpha', 1), [_ayah(1, 1), _ayah(1, 2)]);
+      expect(await found('alpha', 2), [_ayah(1, 3), _ayah(2, 1)]);
+      expect(await found('gamma', 2), [_ayah(1, 4)]);
+      expect(await found('other', 3), [_ayah(2, 2)]);
+      expect(await found('alpha', 3), [_ayah(2, 3), _ayah(3, 1)]);
+    });
+
     test('a surah or juz outside the edition is an argument error', () {
       expect(
         repository.search(_query('alpha', scope: const SurahScope(4))),

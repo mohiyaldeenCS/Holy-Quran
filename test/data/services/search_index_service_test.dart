@@ -206,6 +206,29 @@ void main() {
       );
     });
 
+    test('a form stored with harakat is not met by a folded query', () {
+      // Pinned until D-037 decides, against the golden set (B0.10), whether
+      // an index folded with the query is built for such a kind.
+      const marked = 'a\u064Eb';
+      final kind = SearchIndex.fromForms('p', [
+        ..._forms({
+          (1, 1): [marked],
+        }, kind: 'synthetic-marked'),
+      ]);
+      for (final typed in [marked, 'ab']) {
+        final words = SearchQuery(
+          text: typed,
+          kind: 'synthetic-marked',
+          mode: SearchMode.phrase,
+        ).words;
+        expect(words, ['ab']);
+        expect(
+          kind.search('synthetic-marked', words, SearchMode.phrase),
+          isEmpty,
+        );
+      }
+    });
+
     test('keeps to the range it is given', () {
       final within = QuranRange(_ayah(1, 2), _ayah(2, 1));
       expect(ayatOf(search('alpha beta', SearchMode.phrase, within: within)), [

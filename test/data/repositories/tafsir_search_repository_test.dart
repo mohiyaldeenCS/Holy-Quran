@@ -144,8 +144,17 @@ void main() {
     expect(await search(' \u064E ', ['synthetic-a']), isEmpty);
   });
 
-  test('a book not installed is an argument error', () {
-    expect(repository.search('Synthetic', ['absent']), throwsArgumentError);
+  test('leaves out a book no longer installed', () async {
+    expect(passagesOf(await search('Synthetic', ['absent', 'synthetic-b'])), [
+      ('synthetic-b', 1),
+      ('synthetic-b', 3),
+    ]);
+  });
+
+  test('a space of the query meets any run of white space', () async {
+    expect(slices(await search('Synthetic  last', ['synthetic-a'])), [
+      'Synthetic\nlast',
+    ]);
   });
 
   test('a book that breaks the format fails, naming it', () async {

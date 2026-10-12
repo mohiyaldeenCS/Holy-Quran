@@ -54,6 +54,15 @@ void main() {
       ]);
     });
 
+    test('splits at every unit of white space', () {
+      expect(QueryFold.words('a\u2003b\u3000c\uFEFFd\u200Be'), [
+        'a',
+        'b',
+        'c',
+        'd\u200Be',
+      ]);
+    });
+
     test('a query of white space or harakat only has no words', () {
       expect(QueryFold.words(' \t '), isEmpty);
       expect(QueryFold.words('$_fatha$_sukun'), isEmpty);
@@ -87,6 +96,15 @@ void main() {
       expect(QueryFold.findAll(text, 'z'), isEmpty);
       expect(QueryFold.findAll('', 'a'), isEmpty);
       expect(QueryFold.findAll('a$_fatha', 'ab'), isEmpty);
+    });
+
+    test('a space of the query meets any run of white space', () {
+      expect(QueryFold.findAll('x\n y', 'x y'), [(start: 0, end: 4)]);
+      expect(QueryFold.findAll('x  y x\u2003y', 'x y'), [
+        (start: 0, end: 4),
+        (start: 5, end: 8),
+      ]);
+      expect(QueryFold.findAll('xy x-y', 'x y'), isEmpty);
     });
 
     test('is exact on every other unit', () {

@@ -8,7 +8,7 @@ enum SearchMode {
   /// They follow one another, in order, somewhere in the ayah.
   phrase,
 
-  /// Each is somewhere in the ayah, in any order.
+  /// Each distinct word is somewhere in the ayah, in any order.
   scattered,
 }
 
