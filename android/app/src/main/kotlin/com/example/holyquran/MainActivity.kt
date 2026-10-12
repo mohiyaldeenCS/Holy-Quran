@@ -1,12 +1,5 @@
 package com.example.holyquran
 
-import com.ryanheise.audioservice.AudioServiceActivity
-import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.android.FlutterActivity
 
-class MainActivity : AudioServiceActivity() {
-    // Spike S4 (D-068): the shaping probe's channel.
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-        ShapingProbe(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
-    }
-}
+class MainActivity : FlutterActivity()

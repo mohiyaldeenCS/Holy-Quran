@@ -179,104 +179,23 @@ raw extraction output; signing keys. The 13 logo SVG files are in
 
 ## In progress
 
-Stream A: **M0.4 part 2** on `claude/great-hamilton-9n23mt` (D-093).
+**M0.4 is complete** (part 2 on `claude/great-hamilton-9n23mt`, pull request #14). The
+owner ran the device session on 2026-10-12 with the APK of CI run 38190527706 and
+reported every check done and ready (no measurements sent); D-096 and D-097 close S4
+and S7. The spike code is deleted in the cleanup commit; the last commit holding it is
+`25d684c`. The M0.4 part 1 and M0.5 device checks were covered by the same session.
 
-- Done: the agent workflow is on `main` (#13); step 0 of the plan: the part-1 spike
-  code restored from `be4fbc2`, the part-1 packages and `home_widget` 0.10.0, S3's and
-  S5's native files, the `spike-s1-text` and `spike-apk` CI tasks with the D-079 URL.
-  Analysis is clean; 14 spike tests in `spike/s1` fail until task A brings the writer
-  to D-083, so `ci.yml`'s check does not run `spike` yet.
-- From 17:13 to 17:37 UTC every Actions run ended in `startup_failure`; the owner
-  set "Actions permissions" back to allow all actions (M0.4-6, answered).
-- The agent workflow works on both keys (D-092). Key 1: the generator test now scans
-  the Arabic Extended-B block, as the code guard does (#15, merged; $0.22, 8 turns,
-  `content-engineer`). Key 2: a no-change smoke run ($0.09). Both sessions report
-  their key source as `ANTHROPIC_API_KEY`; the secrets show as `***` in the logs.
-  A pull request opened by the workflow also starts a `pull_request` CI run that
-  waits for approval (`action_required`); the workflow's own `check` run is the one
-  that counts.
-- The early `spike-apk` build passes with `home_widget` 0.10.0 on AGP 9 (run
-  38160449095): a 90.5 MB profile APK. Flutter warns that `home_widget` applies the
-  Kotlin Gradle plugin, which future Flutter versions will refuse (a Phase 2 risk).
-- Draft milestone pull request #14.
-- Wave 1 merged into this branch:
-  - Task A, the S1 text path and checks brought to D-083 (#17, key 1, `content-engineer`,
-    $7.59). `code-reviewer`: ready to merge. `flutter test spike` went from 166 passed and
-    14 failed to 296 passed and 6 skipped (the six need the real pack). The integrity
-    suite passes on the tool's fixture pack.
-  - Task B, the S4 face and fit (#16, key 2, `ui-builder`, $2.05, plus $1.29 for the
-    review fixes). `identity-auditor`: conforms; its should-fix items (tests that could
-    not fail, the `caption` token) were applied, and six mutations of the face now fail.
-    The ayah box is 333 x 117 at 4x2 and 139 x 117 at 2x2.
-  - `ci.yml`'s check now runs `spike` too. On the merged branch: format clean, analysis
-    clean, 2,022 passed and 8 skipped (goldens included).
-- Two runs lost their detailed report: a late background notice started a new turn,
-  whose short answer replaced the report. Task texts now ask the agent to wait for
-  background tasks and to make its last message the whole report.
-- Until task C merges, the S1 screen must not run on a pack with marks: `PageBlocksV2`
-  passes no marks to `SurahTextBlock`, so a block that starts at a mark throws. The CI
-  measurement does not use the widgets.
-- The S1 rerun on the D-079 URL (run 38167073258): the `rub=false` URL serves part 1's
-  file byte for byte (same SHA-256), so the 199 U+06DE signs remain (M0.4-12, for
-  B0.2). The integrity suite passes on the real text with the D-083 checks (135
-  passed); layout fingerprints equal part 1's; the one unexplained hit,
-  `hafs:52:43:4` at 360/2.0x, is part 1's and keeps the task red. Both hashes are
-  pinned in `ci.yml`. Details on the S1 page.
-- Task D's first run (key 2, $5.94) finished with its checks green, but GitHub refused
-  its push: the branch carried the `ci.yml` of `8c15529`, and the lead had since
-  changed `ci.yml` on the base (the pinned hashes); the workflow token cannot push a
-  workflow file that differs. The work was lost and D was started again. Rule added to
-  `docs/WORKFLOW.md`: no change under `.github/workflows/` on a base while a run from it
-  is out.
-- Task D merged (#18, key 2, `data-builder`, $6.49): Flutter renders the S4 face to
-  PNGs per local day for 7 days, in both looks and both sizes; the native widget picks
-  the slot and the look (launcher-side on API 31+, at update time on 26 to 30) and
-  speaks «سورة {name} · الآية {n}»; the shaping probe measures native text against
-  Flutter's on synthetic samples. `code-reviewer`: ready to merge; 2,044 passed; the
-  DST rule checked. Its two should-fix items (a digest per image, Flutter deep linking
-  off) and four smaller ones run now as a follow-up on key 1. The APK build is the
-  agent's claim; the next `spike-apk` run confirms it.
-- Task C merged (#19, key 1, `ui-builder`, $11.08 + $10.62 for the review fixes): the
-  lead session's reviews found the scroll winning a pinch with one finger still and the
-  selection drawn as a small box on a marker-only line, among others; the fix run
-  accepts the pinch on the second finger, draws the selection as one inline box with
-  band-high slices and one line between lines, paints word marks above it, and ran its
-  own code-reviewer and identity-auditor rounds (second code review: ready to merge).
-  2,034 passed.
-- Task E merged (#20, key 2, `ui-builder`, $3.94), after an independent review-and-fix
-  run on key 2 ($5.47): a near-vertical flick no longer turns the page, a fling back
-  cancels a turn, the conceal bars carry their line and the page number is 15 px as the
-  board draws it; 12 mutations caught; 2,013 passed.
-- Task D's review fixes merged (#21, key 2, `data-builder`, $2.43; a first run lost its
-  runner to a shutdown signal while building the APK beside the test suite): a SHA-256
-  per widget image checked on the decoded bytes, Flutter deep linking off, and four
-  smaller fixes, each proven by a mutation; the debug APK builds.
-- `ci.yml`: the S7 and S4 real-text steps now run after a red S1 step (`!cancelled()`).
-- Tasks F (#22, $6.82), G (#23, $15.52) and H's S4 part (#25, $9.84) merged, each
-  with its own code-reviewer and identity-auditor rounds. The real-text run after F
-  (38183752515) measured S7 and S4 on every ayah: results on `docs/spikes/S7-gestures.md`
-  and `docs/spikes/S4-home-widget.md`. Running: H2, the S7 entry in the launcher.
-- B0.11 (D-098): the pack pipeline merged to `main` (#24, $17.31; CI step #26). O-03's
-  recommended answer from that run: the owner keeps the private key offline on his
-  computer with an offline backup and signs with `pack.py sign`; the app embeds two
-  public keys (main and spare).
-- H2 merged (#27, $1.82): the launcher lists S1, S7, S4, S3, S5. **The device APK is
-  built**: CI run 38190527706 at `7d12981` (task `spike-apk`, profile, the pinned pack
-  hashes), artifact `holyquran-spike-apk` (id 11721574000). It replaces run 68's APK
-  (D-093). Waiting on the owner's device session (S1, S7, S4, S3, S5) and the S7
-  usability test; then D-096, D-097, the pages' device sections, the cleanup commit
-  (spike/ deleted; pubspec, android/ and ci.yml back to main) and pull request #14.
-- From 2026-10-11 21:00 the owner asked to save this session's budget: reviews and task
-  planning now run on the API keys too (each fix or task run reviews its own diff with
-  `code-reviewer` and `identity-auditor` through the Task tool); the lead only writes
-  short task texts, reads the reports and CI, merges and keeps this file.
+**Phase 1 is open (D-099).** An agent run on key 1 is writing `docs/plans/PHASE1.md`
+and one task file per agent task under `docs/plans/tasks/`; the lead dispatches the
+waves from those files, two or more runs per key, merging each pull request when its
+in-run reviews and CI pass. Requirements whose registry rows are not `Ready` stay
+unbuilt.
 
+Agent runs so far (estimates from the SDK): about $160 across both keys for M0.4
+part 2 and B0.11.
 
-M0.4 part 1 and M0.5 still wait on the owner's device run and his look at the gallery
-images.
-
-Stream B: the owner is extracting book 466 (التهذيب في التفسير, about 7,325 site
-pages). Nothing else is open in stream B.
+Stream B: the owner is extracting book 466. B0.11 (the pack pipeline) is on `main`
+(D-098).
 
 ## Next actions — stream A (the implementing account)
 

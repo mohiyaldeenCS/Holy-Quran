@@ -45,3 +45,10 @@ resolves to itself.
 
 The rule is chosen after the usability test (D-097); the zone rules trade word
 accuracy at 1.0x for mark and marker accuracy.
+
+## Device session (2026-10-12)
+
+The owner ran the session with the APK of CI run 38190527706 (`7d12981`) and reported
+every check done and ready; no measurements or logs were sent, so this page records no
+device numbers. Decision: D-097. The spike code was deleted after
+`25d684c`, the last commit that holds it.

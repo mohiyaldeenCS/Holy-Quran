@@ -22,3 +22,10 @@ up; no ayah fits the 2x2 face better than the 4x2).
   the run's `s4-results.json` artifact.
 - At line height 2.0 (the board's) two lines would fit at 28 where 2.2 needs 26
   (M0.4-9).
+
+## Device session (2026-10-12)
+
+The owner ran the session with the APK of CI run 38190527706 (`7d12981`) and reported
+every check done and ready; no measurements or logs were sent, so this page records no
+device numbers. Decision: D-096. The spike code was deleted after
+`25d684c`, the last commit that holds it.
