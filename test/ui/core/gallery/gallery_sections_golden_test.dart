@@ -17,10 +17,10 @@ import '../../../../testing/golden.dart';
 // Each section as the gallery draws it: 400 wide, like the M0.2 block's
 // image, and a little taller than the section measured at 100%, so the whole
 // section is in the image. A section that outgrows its surface overflows and
-// fails here. Measured: mushaf 1,164, controls 554, audio 1,556, study and
+// fails here. Measured: mushaf 1,433, controls 554, audio 1,556, study and
 // search 1,534, home and share 2,885.
 const _sections = [
-  (name: 'mushaf', gallery: MushafGallery(), height: 1200.0),
+  (name: 'mushaf', gallery: MushafGallery(), height: 1450.0),
   (name: 'controls', gallery: ControlsGallery(), height: 600.0),
   (name: 'audio', gallery: AudioGallery(), height: 1600.0),
   (name: 'study_search', gallery: StudySearchGallery(), height: 1650.0),
