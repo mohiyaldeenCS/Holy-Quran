@@ -3,10 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
-import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/core/widgets/icon.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
 import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
+import 'package:holyquran/ui/core/widgets/pressable.dart';
+import 'package:holyquran/ui/core/widgets/small_button.dart';
 
 import '../../../../testing/golden.dart';
 
@@ -62,14 +63,15 @@ void main() {
     );
   });
 
-  testWidgets('its action is a labelled outline button, 48 high or more', (
+  testWidgets('its action is a small outline button, 44 drawn in a 48 target', (
     tester,
   ) async {
     var pressed = 0;
     await _pump(tester, _full(() => pressed++));
-    final button = find.byType(Button);
-    expect(tester.widget<Button>(button).variant, ButtonVariant.outline);
+    final button = find.byType(SmallButton);
+    expect(tester.widget<SmallButton>(button).outlined, isTrue);
     expect(tester.getSize(button).height, greaterThanOrEqualTo(48));
+    expect(tester.getSize(find.byType(Pressable)).height, 44);
     expect(find.bySemanticsLabel(_l10n.resourceRedownload), findsOneWidget);
     await tester.tap(button);
     expect(pressed, 1);
@@ -78,7 +80,7 @@ void main() {
   testWidgets('leaves out what it is not given', (tester) async {
     await _pump(tester, IntegrityAlert(title: _l10n.connectionFailed));
     expect(find.text(_l10n.connectionFailed), findsOneWidget);
-    expect(find.byType(Button), findsNothing);
+    expect(find.byType(SmallButton), findsNothing);
 
     await _pump(
       tester,
@@ -87,7 +89,7 @@ void main() {
       ),
     );
     expect(find.byType(Text), findsOneWidget);
-    expect(find.byType(Button), findsOneWidget);
+    expect(find.byType(SmallButton), findsOneWidget);
   });
 
   testWidgets('the icon is decoration; the words are read', (tester) async {

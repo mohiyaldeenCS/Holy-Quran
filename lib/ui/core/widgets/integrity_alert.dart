@@ -2,14 +2,14 @@ import 'package:flutter/widgets.dart' hide Icon;
 
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
-import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/core/widgets/icon.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
+import 'package:holyquran/ui/core/widgets/small_button.dart';
 
 /// The alert of PRD §7.7 («تنبيه السلامة»: `error` with an icon and a word),
 /// also used for «تعذّر الاتصال», which tokens.md gives to `error` too: the
 /// `alert` icon in `error` beside its [title] in `error`, its [body] in
-/// `ink`, and its [action] as an outline button.
+/// `ink`, and its [action] as a small outline button, like «حذف».
 ///
 /// The words are the caller's; whichever of them is null is left out.
 class IntegrityAlert extends StatelessWidget {
@@ -51,10 +51,10 @@ class IntegrityAlert extends StatelessWidget {
                     style: AppTextStyles.body.copyWith(color: colors.ink),
                   ),
                 if (action != null)
-                  Button(
+                  SmallButton(
                     label: action.label,
-                    variant: ButtonVariant.outline,
                     onPressed: action.onPressed,
+                    outlined: true,
                   ),
               ],
             ),
