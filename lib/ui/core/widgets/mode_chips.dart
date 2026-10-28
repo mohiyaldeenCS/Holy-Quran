@@ -1,7 +1,6 @@
 import 'package:flutter/semantics.dart' show SemanticsRole;
 import 'package:flutter/widgets.dart' hide Icon;
 
-import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/focus_ring.dart';
@@ -39,7 +38,8 @@ const TextStyle _labelStyle = TextStyle(
 /// The search modes (`ModeChips`, `.qk-chips`): a radio group of chips in a
 /// strip that scrolls sideways, the first on the right. One is always
 /// selected; it fills with `primary-soft` and carries a check mark, so the
-/// choice is not told by colour alone.
+/// choice is not told by colour alone. The group is announced by [label],
+/// the reference's `aria-label`, as the range picker uses it too.
 ///
 /// [options] are the modes whose data exists (PRD §7.8); the caller leaves
 /// out the rest. The strip is 48 high: the chips' 40 and the 4 above and
@@ -47,12 +47,14 @@ const TextStyle _labelStyle = TextStyle(
 /// start, so the caller places it on the content edge.
 class ModeChips extends StatelessWidget {
   const ModeChips({
+    required this.label,
     required this.options,
     required this.selectedIndex,
     required this.onChanged,
     super.key,
   }) : assert(selectedIndex >= 0 && selectedIndex < options.length);
 
+  final String label;
   final List<String> options;
   final int selectedIndex;
   final ValueChanged<int> onChanged;
@@ -62,7 +64,7 @@ class ModeChips extends StatelessWidget {
     container: true,
     explicitChildNodes: true,
     role: SemanticsRole.radioGroup,
-    label: AppLocalizations.of(context).searchModesLabel,
+    label: label,
     child: ClipRect(
       clipper: const _OutsetClipper(),
       child: SingleChildScrollView(

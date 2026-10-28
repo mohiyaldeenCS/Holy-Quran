@@ -1086,6 +1086,18 @@
       }
     }
   },
+  "playerSilenceBetweenAyat": "الصمت بين الآيات",
+  "@playerSilenceBetweenAyat": {
+    "description": "Label of the Stepper that sets the silence between ayat (AU-11). Source: Appendix B of docs/plans/PHASE1.md, approved by the owner (D-128, 4)."
+  },
+  "playerSecondsUnit": "ث",
+  "@playerSecondsUnit": {
+    "description": "The seconds unit after a Stepper's value, as the identity's Stepper preview writes it for the silence."
+  },
+  "rangeSelectorTitle": "محدد النطاق",
+  "@rangeSelectorTitle": {
+    "description": "Title of the range picker sheet and spoken name of its range kinds (PRD §7.7). Source: Appendix B of docs/plans/PHASE1.md, approved by the owner (D-128, 4)."
+  },
   "queueLabel": "قائمة التشغيل",
   "@queueLabel": {
     "description": "Spoken name of the queue button. Source: design/identity-boards/Screens2.dc.html."
