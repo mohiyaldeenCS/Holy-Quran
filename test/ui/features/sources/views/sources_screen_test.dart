@@ -109,6 +109,58 @@ void main() {
     expect(find.text('Synthetic OFL two'), findsOneWidget);
   });
 
+  testWidgets('lays each text out in the direction of its own words', (
+    tester,
+  ) async {
+    const latin = 'Synthetic Latin notice.';
+    const arabic = 'نص تجريبي';
+    await _pump(
+      tester,
+      _list(
+        sources: const [
+          SourceCredit(
+            name: 'Synthetic source',
+            url: 'https://example.invalid/synthetic/dir',
+            publisher: null,
+            version: null,
+            licenceText: arabic,
+            notice: latin,
+          ),
+        ],
+        fontLicences: const [],
+      ),
+    );
+
+    TextDirection of(String text) =>
+        Directionality.of(tester.element(find.text(text)));
+    expect(of(latin), TextDirection.ltr);
+    expect(of(arabic), TextDirection.rtl);
+  });
+
+  testWidgets('announces a failed link and marks names as headings', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await _pump(tester, _list(linkFailed: true));
+
+    expect(
+      tester.getSemantics(
+        find
+            .ancestor(
+              of: find.byType(IntegrityAlert),
+              matching: find.byType(Semantics),
+            )
+            .first,
+      ),
+      isSemantics(isLiveRegion: true),
+    );
+    expect(
+      tester.getSemantics(find.text(_full.name)),
+      isSemantics(isHeader: true),
+    );
+    handle.dispose();
+  });
+
   testWidgets('opens the link of the source tapped', (tester) async {
     final opened = <SourceCredit>[];
     await _pump(tester, _list(onOpen: opened.add));

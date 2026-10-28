@@ -12,6 +12,7 @@ import 'package:holyquran/ui/core/widgets/icon_button.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
 import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/features/sources/view_models/sources_view_model.dart';
+import 'package:intl/intl.dart' show Bidi;
 
 /// «المصادر والتراخيص» (PRD §7.1): each source of the installed packs with
 /// its name, its link and its licence or credit text, as the pack carries
@@ -103,7 +104,13 @@ class SourcesList extends StatelessWidget {
       padding: SettingsMetrics.content,
       children: [
         if (linkFailed) ...[
-          IntegrityAlert(title: AppLocalizations.of(context).connectionFailed),
+          Semantics(
+            container: true,
+            liveRegion: true,
+            child: IntegrityAlert(
+              title: AppLocalizations.of(context).connectionFailed,
+            ),
+          ),
           const SizedBox(height: SettingsMetrics.contentGap),
         ],
         for (var i = 0; i < sources.length; i++)
@@ -198,9 +205,12 @@ class _SourceRow extends StatelessWidget {
     return _RowFrame(
       last: last,
       children: [
-        Text(
-          source.name,
-          style: AppTextStyles.bodyStrong.copyWith(color: colors.ink),
+        Semantics(
+          header: true,
+          child: Text(
+            source.name,
+            style: AppTextStyles.bodyStrong.copyWith(color: colors.ink),
+          ),
         ),
         if (details.isNotEmpty) Text(details, style: secondary),
         // A web address reads left to right inside the right-to-left screen.
@@ -215,9 +225,26 @@ class _SourceRow extends StatelessWidget {
             ),
           ),
         ),
-        if (licence != null) Text(licence, style: secondary),
-        if (notice != null) Text(notice, style: secondary),
+        if (licence != null) _OwnDirectionText(licence, style: secondary),
+        if (notice != null) _OwnDirectionText(notice, style: secondary),
       ],
     );
   }
+}
+
+/// A text from a pack, laid out in the direction of its own words, so Latin
+/// text ending in a full stop is not mirrored on this right-to-left screen.
+class _OwnDirectionText extends StatelessWidget {
+  const _OwnDirectionText(this.text, {required this.style});
+
+  final String text;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: Bidi.detectRtlDirectionality(text)
+        ? TextDirection.rtl
+        : TextDirection.ltr,
+    child: Text(text, style: style),
+  );
 }
