@@ -28,7 +28,9 @@ Read only, from `design/design-system/`:
 | `tokens.json` | Colour themes (`id`), colour tokens (`name`, `value`), type `fonts` (`family`, `weight`), `families`, styles (`name`, `fontSize`, `lineHeight`, `fontWeight`), `spacing`, `radius`, `shadow`, `size` (`name`, `value`) |
 | `components/src/index.jsx` | The `ICONS` map, the `FILLED` set and the `BOOK` path of `Mark` |
 | `components/index.d.ts` | The `IconName` type, checked against the keys of `ICONS` |
-| `tools/gen/project_icons/*.svg` | The eight owner-approved project icons (D-051, D-128), copied byte for byte from `docs/plans/icons/` |
+
+Read only, from `tools/gen/project_icons/`: the eight owner-approved project icons
+(D-051, D-128), copied byte for byte from `docs/plans/icons/`.
 
 `sample` and `usage` in `tokens.json` are accepted as known fields and never read:
 `sample` holds illustrative Quran text. Theme names and group names (Arabic) are not
@@ -77,7 +79,12 @@ Each one is fixed and tested; anything that does not fit stops the generator.
   four decimals: `path_parsing` computes arcs in single precision with `sin`/`cos`,
   whose last digits differ between platforms, and the output must be the same bytes
   everywhere.
-- **Project icons:** the files of `tools/gen/project_icons/` are appended to `IconName` after the identity's 26, in the fixed order of `projectIconNames` (copy, delete, info, nextSurah, note, previousSurah, share, stop). Each must have the frame the `Icon` component gives a line icon and the same shapes as above; all are line icons. A missing file, a file not in the list (not approved) or another frame stops the generator.
+- **Project icons:** the files of `tools/gen/project_icons/` are appended to
+  `IconName` after the identity's 26, in the fixed order of `projectIconNames` (copy,
+  delete, info, nextSurah, note, previousSurah, share, stop). Each must have the frame
+  the `Icon` component gives a line icon and the same shapes as above; all are line
+  icons. A missing file, a file not in the list (not approved) or another frame stops
+  the generator.
 - **Formatting:** every output goes through `dart format` as if it were at its target
   path, so the package's language version applies.
 
