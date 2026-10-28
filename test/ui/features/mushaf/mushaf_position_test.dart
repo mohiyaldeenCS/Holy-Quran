@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/ui/core/shell_chrome.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/mushaf_view_model.dart';
+import 'package:holyquran/ui/features/mushaf/views/mushaf_screen.dart';
 
 import '../../../../testing/fakes/fake_reading_position_repository.dart';
 import 'mushaf_harness.dart';
@@ -263,27 +264,66 @@ void main() {
 
   group('coming back', () {
     for (final leaving in leavings.where((l) => l.back != null)) {
-      testWidgets('reopens where the user was after ${leaving.name}', (
-        tester,
-      ) async {
+      testWidgets('keeps its place after ${leaving.name}', (tester) async {
         final positions = FakeReadingPositionRepository();
         final viewModel = await pumpReader(
           tester,
           positions,
           address: at(2, 1),
         );
-        await dragUp(tester);
-        final saved = viewModel.position!.address;
+        final controller = controllerOf(tester);
+        controller.jumpTo(controller.position.maxScrollExtent);
+        await tester.pumpAndSettle();
+        final surahs = viewModel.surahs;
         final anchor = viewModel.anchor;
+        final offset = controller.offset;
+        expect(surahs.length, greaterThan(1));
 
         await leaving.leave(tester);
         await leaving.back!(tester);
 
-        expect(viewModel.anchor, isNot(same(anchor)));
-        expect(viewModel.anchor, saved);
-        expect(controllerOf(tester).offset, greaterThan(0));
+        expect(viewModel.surahs, same(surahs));
+        expect(viewModel.anchor, same(anchor));
+        expect(controllerOf(tester).offset, offset);
       });
     }
+
+    testWidgets('reopens at the position a reader over it saved', (
+      tester,
+    ) async {
+      final positions = FakeReadingPositionRepository();
+      final base = await pumpReader(tester, positions, address: at(2, 1));
+      await dragUp(tester);
+      final first = positions.saved.last;
+
+      final upper = rig.viewModel(address: first, positions: positions);
+      addTearDown(upper.dispose);
+      unawaited(
+        navigatorOf(tester).push(
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                SizedBox.expand(child: MushafScreen(viewModel: upper)),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.drag(
+        find.byType(CustomScrollView).last,
+        const Offset(0, -1200),
+      );
+      await tester.pumpAndSettle();
+      final second = positions.saved.last;
+      expect(second.ayah, greaterThan(first.ayah));
+      final savedBefore = positions.saved.length;
+
+      navigatorOf(tester).pop();
+      await tester.pumpAndSettle();
+
+      expect(base.anchor, second);
+      expect(positions.saved.skip(savedBefore), everyElement(second));
+      await dragUp(tester, 100);
+      expect(positions.saved.last.ayah, greaterThanOrEqualTo(second.ayah));
+    });
   });
 
   group('the tab bar', () {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
@@ -30,7 +32,10 @@ final class ReaderUnavailable implements Exception {
 /// It opens at the address of its route, else at the last reading position,
 /// else at the first ayah. The first visible ayah is saved when a scroll the
 /// user made ends and when the reader is left (`RD-12`, D-106); a reader only
-/// opened, or only shown again, never overwrites the position.
+/// opened, or only shown again, never overwrites the position. Shown again,
+/// it keeps what it has when no other reader saved a position meanwhile, and
+/// else reopens at the saved position (a reader opened over this one moves
+/// the position on).
 final class MushafViewModel extends ChangeNotifier {
   MushafViewModel({
     this._text,
@@ -40,6 +45,7 @@ final class MushafViewModel extends ChangeNotifier {
     this._address,
   }) {
     _integrity?.addListener(_onIntegrity);
+    _positions?.addListener(_onPositions);
   }
 
   final QuranTextRepository? _text;
@@ -50,6 +56,13 @@ final class MushafViewModel extends ChangeNotifier {
   bool _moved = false;
   EditionMap? _map;
   bool _disposed = false;
+  bool _opened = false;
+  bool _shown = false;
+  bool _changedWhileOpening = false;
+
+  /// The saved position this reader knows of: the one it found when it
+  /// opened or the one it saved itself. Another reader's save differs.
+  QuranAddress? _seen;
 
   /// Reads the surah to open at and shows it.
   late final Command0<void> open = Command0(_open);
@@ -104,11 +117,30 @@ final class MushafViewModel extends ChangeNotifier {
   }
 
   Future<Result<void>> _open() async {
+    Result<void> result;
+    do {
+      _changedWhileOpening = false;
+      result = await _openOnce();
+    } while (_changedWhileOpening && !_disposed && result is Ok<void>);
+    return result;
+  }
+
+  Future<Result<void>> _openOnce() async {
     final index = _index;
     if (_text == null || index == null || index.surahs.isEmpty) {
       return _unavailable();
     }
-    final target = _target(index);
+    _shown = true;
+    final elsewhere = _savedElsewhere;
+    final target = _target(index, elsewhere);
+    final kept =
+        _opened &&
+        !elsewhere &&
+        _status == ReaderStatus.ready &&
+        _surahs.any((surah) => surah.info.number == target.surah);
+    _seen = _positions?.last;
+    if (kept) return const Ok(null);
+    _opened = true;
     final surah = await _readSurah(target.surah);
     if (_disposed) return const Ok(null);
     if (index.surahs.isEmpty) return _unavailable();
@@ -153,24 +185,47 @@ final class MushafViewModel extends ChangeNotifier {
     if (_moved) await _save();
   }
 
-  /// The reader is no longer shown: the user's position is saved, and the
-  /// reader opens there when shown again. One that was only opened leaves
-  /// the saved position as it is.
+  /// The reader is no longer shown: the user's position is saved. One that
+  /// was only opened leaves the saved position as it is.
   Future<void> leave() async {
+    _shown = false;
     if (!_moved) return;
     _moved = false;
-    _address = _position?.address ?? _address;
     await _save();
   }
 
   Future<void> _save() async {
     if (_position case final position?) {
+      _seen = position.address;
       await _positions?.save(position.address);
     }
   }
 
-  QuranAddress _target(QuranIndexRepository index) {
-    for (final candidate in [_address, _positions?.last]) {
+  /// Another reader saved a position since this one last knew of it.
+  bool get _savedElsewhere {
+    final last = _positions?.last;
+    return _opened && last != null && last != _seen;
+  }
+
+  // A reader opened over this one saved a position that this one, shown again
+  // too early, did not see (the save may complete after the route is gone).
+  void _onPositions() {
+    if (!_shown || _disposed || !_savedElsewhere) return;
+    if (open.running) {
+      _changedWhileOpening = true;
+    } else {
+      unawaited(open.execute());
+    }
+  }
+
+  QuranAddress _target(QuranIndexRepository index, bool elsewhere) {
+    final last = _positions?.last;
+    final candidates = !_opened
+        ? [_address, last]
+        : elsewhere
+        ? [last, _position?.address, _address]
+        : [_position?.address, _address, last];
+    for (final candidate in candidates) {
       if (candidate != null && _inEdition(index, candidate)) {
         return candidate.ayahAddress;
       }
@@ -247,6 +302,7 @@ final class MushafViewModel extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _integrity?.removeListener(_onIntegrity);
+    _positions?.removeListener(_onPositions);
     open.dispose();
     loadNext.dispose();
     super.dispose();

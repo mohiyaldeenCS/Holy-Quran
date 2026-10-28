@@ -104,4 +104,36 @@ void main() {
 
     expect(shown(viewModel), [5]);
   });
+
+  test(
+    'a position saved by another reader while shown reopens there',
+    () async {
+      final positions = FakeReadingPositionRepository();
+      final viewModel = rig.viewModel(positions: positions);
+      addTearDown(viewModel.dispose);
+      await viewModel.open.execute();
+      expect(viewModel.anchor, at(1, 1));
+
+      await positions.save(at(5, 1));
+      await pumpEventQueue();
+
+      expect(viewModel.anchor, at(5, 1));
+      expect(positions.saved, [at(5, 1)]);
+    },
+  );
+
+  test('a reader shown again keeps the position it saved itself', () async {
+    final positions = FakeReadingPositionRepository();
+    final viewModel = rig.viewModel(address: at(2, 1), positions: positions);
+    addTearDown(viewModel.dispose);
+    await viewModel.open.execute();
+    final anchor = viewModel.anchor;
+    viewModel.showFirstVisible(at(2, 10), byUser: true);
+    await viewModel.leave();
+    expect(positions.last, at(2, 10));
+
+    await viewModel.open.execute();
+
+    expect(viewModel.anchor, same(anchor));
+  });
 }
