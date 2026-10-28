@@ -154,7 +154,15 @@ final class _ReaderPinchStepperState extends State<ReaderPinchStepper> {
           ? null
           : (focal: focal, viewportY: local.dy);
     }
+    final from = widget.step;
     widget.onStep(next);
+    // A screen that did not take the step brings no new plan, so the finger
+    // position must not outlive this frame as the anchor of a later turn.
+    WidgetsBinding.instance
+      ..addPostFrameCallback((_) {
+        if (mounted && widget.step == from) _pinch = null;
+      })
+      ..ensureVisualUpdate();
   }
 
   @override
