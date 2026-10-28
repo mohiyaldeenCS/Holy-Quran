@@ -35,7 +35,10 @@ final class PlayerViewModel extends ChangeNotifier {
 
   String? get style => _state.plan?.recitation.style;
 
-  QuranAddress? get _ayah => _state.ayah ?? _state.segment?.address;
+  // The segment, not PlayerState.ayah: that keeps the last plan's ayah until
+  // the new plan reaches an ayah of its own, as a plan of whole surahs never
+  // does, and would name the wrong surah.
+  QuranAddress? get _ayah => _state.segment?.address ?? _state.ayah;
 
   SurahInfo? get surah => switch (_ayah) {
     final ayah? =>
@@ -51,6 +54,10 @@ final class PlayerViewModel extends ChangeNotifier {
     (final ayah?, _?) => _index.positionOf(ayah).page,
     _ => null,
   };
+
+  /// The network was lost while streaming; the position is kept. The other
+  /// errors have no wording yet.
+  bool get connectionFailed => _state.error == PlayerError.connectionFailed;
 
   PlaybackSpeed get speed => _state.speed;
 

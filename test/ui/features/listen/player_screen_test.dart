@@ -274,6 +274,77 @@ void main() {
     );
   });
 
+  testWidgets('a new plan of whole surahs names its own surah, not the one '
+      'last heard', (tester) async {
+    final (:player, :viewModel) = _player(_playing());
+    await _pump(tester, viewModel);
+    expect(find.text('Synthetic surah 1'), findsNothing);
+    expect(
+      find.text(_l10n.surahAyahReference('Synthetic surah 1', arabicDigits(2))),
+      findsOneWidget,
+    );
+
+    // The player keeps PlayerState.ayah of the last plan until the new one
+    // reaches an ayah of its own, which a surah file never does.
+    player.state = player.state.copyWith(
+      plan: _plan(range: WholeSurah(3), boundaries: false),
+      segment: PlaybackSegment(
+        kind: SegmentKind.surah,
+        address: _at(3, 1),
+        source: const SurahFile(3),
+        repeat: 1,
+      ),
+    );
+    await tester.pump();
+
+    expect(player.state.ayah, _at(1, 2));
+    expect(find.text('Synthetic surah 3'), findsOneWidget);
+    expect(find.textContaining('Synthetic surah 1'), findsNothing);
+    expect(find.text(_l10n.pageLabel(arabicDigits(4))), findsOneWidget);
+  });
+
+  testWidgets('says when the connection failed, and only then', (tester) async {
+    final (:player, :viewModel) = _player(_playing());
+    await _pump(tester, viewModel);
+    expect(find.text(_l10n.connectionFailed), findsNothing);
+
+    player.state = player.state.copyWith(
+      playing: false,
+      error: () => PlayerError.connectionFailed,
+    );
+    await tester.pump();
+    expect(find.text(_l10n.connectionFailed), findsOneWidget);
+
+    // The other errors have no wording yet.
+    player.state = player.state.copyWith(error: () => PlayerError.fileMissing);
+    await tester.pump();
+    expect(find.text(_l10n.connectionFailed), findsNothing);
+
+    player.state = player.state.copyWith(error: () => null);
+    await tester.pump();
+    expect(find.text(_l10n.connectionFailed), findsNothing);
+  });
+
+  testWidgets('the connection failure is announced and readable in every '
+      'theme', (tester) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      final (:player, :viewModel) = _player(
+        _playing().copyWith(error: () => PlayerError.connectionFailed),
+      );
+      for (final theme in ReadingTheme.values) {
+        await _pump(tester, viewModel, theme: theme, textScale: 2);
+        expect(tester.takeException(), isNull);
+        expect(
+          tester.getSemantics(find.text(_l10n.connectionFailed)),
+          matchesSemantics(label: _l10n.connectionFailed, isLiveRegion: true),
+        );
+      }
+    } finally {
+      semantics.dispose();
+    }
+  });
+
   testWidgets('a range other than the ayah tools has no chip', (tester) async {
     await _pump(
       tester,

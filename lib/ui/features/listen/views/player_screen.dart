@@ -116,6 +116,15 @@ class PlayerScreen extends StatelessWidget {
                           ),
                       ],
                     ),
+                  if (player != null && player.connectionFailed)
+                    // The word is the state; the colour only adds to it.
+                    Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        l10n.connectionFailed,
+                        style: AppTextStyles.body.copyWith(color: colors.error),
+                      ),
+                    ),
                 ],
               ),
             ),
