@@ -8,6 +8,7 @@ import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/metrics/index_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/core/widgets/level_switch.dart';
 import 'package:holyquran/ui/core/widgets/surah_list_item.dart';
 import 'package:holyquran/ui/features/index/view_models/index_view_model.dart';
@@ -43,6 +44,7 @@ class IndexScreen extends StatelessWidget {
                             arabicDigits(viewModel.juzCount),
                           )
                         : null,
+                    goTo: viewModel.hasData ? const _GoTo() : null,
                     tabs: viewModel.hasData ? _Tabs(viewModel) : null,
                   ),
                   if (viewModel.hasData)
@@ -57,10 +59,11 @@ class IndexScreen extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.title, this.summary, this.tabs});
+  const _Header({required this.title, this.summary, this.goTo, this.tabs});
 
   final String title;
   final String? summary;
+  final Widget? goTo;
   final Widget? tabs;
 
   @override
@@ -92,11 +95,25 @@ class _Header extends StatelessWidget {
                 ),
             ],
           ),
+          ?goTo,
           ?tabs,
         ],
       ),
     );
   }
+}
+
+/// The way to «اذهب إلى» (D-140, 11), in the slot the board keeps between the
+/// title row and the tabs for its search field.
+class _GoTo extends StatelessWidget {
+  const _GoTo();
+
+  @override
+  Widget build(BuildContext context) => Button(
+    label: AppLocalizations.of(context).goToTitle,
+    variant: ButtonVariant.tonal,
+    onPressed: () => context.push(Routes.goToSheet),
+  );
 }
 
 class _Tabs extends StatelessWidget {

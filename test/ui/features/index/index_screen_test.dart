@@ -10,10 +10,12 @@ import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
+import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/core/widgets/level_switch.dart';
 import 'package:holyquran/ui/core/widgets/surah_list_item.dart';
 import 'package:holyquran/ui/core/widgets/surah_name.dart';
 import 'package:holyquran/ui/features/index/views/division_row.dart';
+import 'package:holyquran/ui/features/index/views/go_to_sheet.dart';
 import 'package:holyquran/ui/features/index/views/index_screen.dart';
 
 import '../../../../testing/fakes/fake_reading_position_repository.dart';
@@ -203,6 +205,17 @@ void main() {
     );
   });
 
+  testWidgets('a button under the title opens the go-to sheet', (tester) async {
+    final router = await openIndex(tester);
+    final button = find.widgetWithText(Button, _l10n.goToTitle);
+    expect(button, findsOneWidget);
+    expect(tester.getSize(button).height, greaterThanOrEqualTo(48));
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(router.state.uri.path, Routes.goToSheet);
+    expect(find.byType(GoToSheet), findsOneWidget);
+  });
+
   testWidgets('shows the title alone while the app has no base pack', (
     tester,
   ) async {
@@ -214,6 +227,7 @@ void main() {
     );
     expect(find.text(_l10n.indexTitle), findsOneWidget);
     expect(find.byType(LevelSwitch), findsNothing);
+    expect(find.byType(Button), findsNothing);
     expect(find.byType(SurahListItem), findsNothing);
   });
 
