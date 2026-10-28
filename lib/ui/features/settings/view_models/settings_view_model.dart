@@ -25,11 +25,33 @@ final class SettingsViewModel extends ChangeNotifier {
   Future<Result<void>> selectTheme(ReadingTheme theme) =>
       _settings.setTheme(theme);
 
-  Future<Result<void>> setFollowSystemDark(bool follow) =>
-      _settings.setFollowSystemDark(follow);
+  bool? _followSystemDark;
+  var _followWrites = 0;
+  var _disposed = false;
+
+  /// Whether the theme follows the system's dark mode, as it will be stored
+  /// once the last change is saved.
+  bool get followSystemDark =>
+      _followSystemDark ?? _settings.themePreference.followSystemDark;
+
+  /// Turns following the system's dark mode the other way from
+  /// [followSystemDark], so that quick taps each count. A failed last save
+  /// shows the stored choice again.
+  Future<Result<void>> toggleFollowSystemDark() async {
+    final follow = _followSystemDark = !followSystemDark;
+    final write = ++_followWrites;
+    notifyListeners();
+    final result = await _settings.setFollowSystemDark(follow);
+    if (write == _followWrites && !_disposed) {
+      _followSystemDark = null;
+      notifyListeners();
+    }
+    return result;
+  }
 
   @override
   void dispose() {
+    _disposed = true;
     _settings.removeListener(notifyListeners);
     super.dispose();
   }

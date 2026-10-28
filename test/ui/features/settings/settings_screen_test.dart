@@ -145,6 +145,21 @@ void main() {
     );
   });
 
+  testWidgets('two quick taps on the switch end where they began', (
+    tester,
+  ) async {
+    final settings = FakeAppSettingsRepository();
+    await _pumpSettings(tester, settings);
+    final toggle = find.widgetWithText(Switch, _l10n.followSystemDark);
+
+    await tester.tap(toggle);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+
+    expect(settings.themePreference.followSystemDark, isFalse);
+    expect(tester.widget<Switch>(toggle).value, isFalse);
+  });
+
   testWidgets('the back button returns to the More hub', (tester) async {
     final router = await _pumpSettings(tester, FakeAppSettingsRepository());
 

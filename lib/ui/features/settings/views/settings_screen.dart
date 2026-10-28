@@ -88,8 +88,8 @@ class SettingsScreen extends StatelessWidget {
                 const SizedBox(height: SettingsMetrics.contentGap),
                 Switch(
                   label: l10n.followSystemDark,
-                  value: preference.followSystemDark,
-                  onChanged: viewModel.setFollowSystemDark,
+                  value: viewModel.followSystemDark,
+                  onChanged: (_) => viewModel.toggleFollowSystemDark(),
                 ),
                 const SizedBox(height: AppSpacing.space5),
               ],
