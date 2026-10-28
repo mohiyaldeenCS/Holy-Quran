@@ -75,21 +75,41 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
       _surahs = _model.surahs;
       _takeAnchor();
     });
+    if (_pendingAnchor != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _retryAnchor());
+    }
+  }
+
+  // An anchor near the end of the surah is out of reach until the next surah
+  // gives the scroll more extent.
+  void _retryAnchor() {
+    final anchor = _pendingAnchor;
+    if (!mounted || anchor == null) return;
+    final layout = _layouts[anchor.surah];
+    final current = _surahs.where((s) => s.info.number == anchor.surah);
+    if (layout == null ||
+        current.isEmpty ||
+        !identical(layout.text, current.first.text)) {
+      return;
+    }
+    if (_jumpTo(anchor, layout)) _pendingAnchor = null;
   }
 
   void _onLayout(SurahLayout layout) {
     _layouts[layout.text.surah] = layout;
-    final target = _pendingAnchor ?? _model.position?.address;
+    final pending = _pendingAnchor;
+    final target = pending ?? _model.position?.address;
     if (target != null && target.surah == layout.text.surah) {
-      _pendingAnchor = null;
-      _jumpTo(target, layout);
+      if (_jumpTo(target, layout) && pending != null) _pendingAnchor = null;
     }
     _loadNextIfNear();
   }
 
-  void _jumpTo(QuranAddress address, SurahLayout layout) {
+  /// Whether the scroll reached [address]; false when the surahs shown end
+  /// before it can be at the top.
+  bool _jumpTo(QuranAddress address, SurahLayout layout) {
     final text = _sliverOf(_textKeys, address.surah);
-    if (text == null || !_controller.hasClients) return;
+    if (text == null || !_controller.hasClients) return false;
     final position = _controller.position;
     final offset = address.ayah == 1
         ? _startOf(address.surah)
@@ -99,6 +119,7 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
       offset.clamp(position.minScrollExtent, position.maxScrollExtent),
     );
     _jumping = false;
+    return offset <= position.maxScrollExtent;
   }
 
   /// Where a surah begins: the very top for the first one shown, else the top
@@ -115,6 +136,7 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
 
   bool _onScroll(ScrollNotification notification) {
     if (!widget.active || _jumping || notification.depth != 0) return false;
+    if (notification is ScrollStartNotification) _pendingAnchor = null;
     if (notification is ScrollUpdateNotification ||
         notification is ScrollEndNotification) {
       _trackFirstVisible(notification.metrics.pixels);
