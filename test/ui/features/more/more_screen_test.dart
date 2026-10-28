@@ -14,6 +14,7 @@ import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/features/more/views/more_screen.dart';
 import 'package:holyquran/ui/features/settings/views/settings_screen.dart';
+import 'package:holyquran/ui/features/sources/views/sources_screen.dart';
 
 import '../../../../testing/test_app.dart';
 import '../settings/text_fit.dart';
@@ -44,9 +45,20 @@ void main() {
     expect(labels, [
       _l10n.resourceManagerTitle,
       _l10n.settingsTitle,
+      _l10n.sourcesTitle,
       if (kDebugMode) _l10n.galleryTitle,
     ]);
     expect(find.bySemanticsLabel(_l10n.tabMore), findsAtLeastNWidgets(1));
+  });
+
+  testWidgets('opens the sources and licences', (tester) async {
+    final router = await _pumpMore(tester);
+
+    await tester.tap(_entry(_l10n.sourcesTitle));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SourcesScreen), findsOneWidget);
+    expect(router.state.uri.path, Routes.sources);
   });
 
   testWidgets('opens the settings', (tester) async {
@@ -61,7 +73,6 @@ void main() {
 
   for (final (label, path, location) in [
     (_l10n.bookmarksAndNotes, RoutePaths.bookmarks, Routes.bookmarks),
-    (_l10n.sourcesTitle, RoutePaths.sources, Routes.sources),
   ]) {
     testWidgets('shows «$label» once its screen has a route (PRD §7.1)', (
       tester,
