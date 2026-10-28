@@ -254,7 +254,7 @@ void main() {
     final semantics = tester.ensureSemantics();
     // Tall enough for every block and section to be on screen, where the
     // guidelines look.
-    await _pumpGallery(tester, surface: const Size(400, 50000));
+    await _pumpGallery(tester, surface: const Size(400, 40000));
     expect(
       tester
           .state<ScrollableState>(find.byType(Scrollable).first)
