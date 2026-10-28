@@ -626,6 +626,9 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get shareDesignSwitchLabel => 'بطاقات مشاركة الآية';
+
+  @override
   String get shareDesignEmerald => 'زمرد';
 
   @override

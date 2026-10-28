@@ -91,6 +91,7 @@ void main() {
         _l10n.shareDesignNight,
       ]);
       expect(level.selectedIndex, 0);
+      expect(level.semanticLabel, _l10n.shareDesignSwitchLabel);
       expect(find.byWidget(_card), findsOneWidget);
       expect(find.text(_l10n.shareTooLong), findsNothing);
 

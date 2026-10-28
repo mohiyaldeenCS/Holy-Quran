@@ -904,6 +904,10 @@
       }
     }
   },
+  "shareDesignSwitchLabel": "بطاقات مشاركة الآية",
+  "@shareDesignSwitchLabel": {
+    "description": "Spoken label of the share sheet's switch between the three card designs. Source: design/identity-boards/Share.dc.html (the title of the share cards)."
+  },
   "shareDesignEmerald": "زمرد",
   "@shareDesignEmerald": {
     "description": "Share card design: emerald. Source: design/identity-boards/Share.dc.html."

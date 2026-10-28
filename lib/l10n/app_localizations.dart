@@ -1174,6 +1174,12 @@ abstract class AppLocalizations {
   /// **'﴿{ayah}﴾ [{surah}: {number}]'**
   String copyFormatFull(String ayah, String surah, String number);
 
+  /// Spoken label of the share sheet's switch between the three card designs. Source: design/identity-boards/Share.dc.html (the title of the share cards).
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقات مشاركة الآية'**
+  String get shareDesignSwitchLabel;
+
   /// Share card design: emerald. Source: design/identity-boards/Share.dc.html.
   ///
   /// In ar, this message translates to:
