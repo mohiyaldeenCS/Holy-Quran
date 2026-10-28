@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/metrics/report_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
@@ -23,7 +24,6 @@ class ReportSheet extends StatelessWidget {
     final surahName = viewModel.surahName;
     final pack = viewModel.pack;
     final sourceName = pack?.sourceName;
-    final secondary = AppTextStyles.secondary.copyWith(color: colors.inkMuted);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.surface,
@@ -57,20 +57,19 @@ class ReportSheet extends StatelessWidget {
                   ayah: viewModel.address.ayah,
                   style: AppTextStyles.bodyStrong.copyWith(color: colors.ink),
                 ),
+              // One data line, its items apart by the identity's middle dot
+              // (docs/DESIGN_SYSTEM.md, Ground rules, 6). The Latin id keeps
+              // its own left-to-right run inside the line.
               if (pack != null)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  spacing: AppSpacing.space1,
-                  children: [
-                    // A pack id is a Latin identifier, read left to right.
-                    Text(
-                      pack.id,
-                      textDirection: TextDirection.ltr,
-                      style: secondary,
-                    ),
-                    Text(arabicDigits(pack.version), style: secondary),
-                    if (sourceName != null) Text(sourceName, style: secondary),
-                  ],
+                Text(
+                  [
+                    pack.id,
+                    arabicDigits(pack.version),
+                    ?sourceName,
+                  ].join(AppLocalizations.of(context).dataSeparator),
+                  style: AppTextStyles.secondary.copyWith(
+                    color: colors.inkMuted,
+                  ),
                 ),
             ],
           ),

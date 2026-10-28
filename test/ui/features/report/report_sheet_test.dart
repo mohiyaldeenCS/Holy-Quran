@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/data/repositories/pack_install_repository.dart';
@@ -65,27 +66,49 @@ void main() {
       find.text(_l10n.surahAyahReference(name, arabicDigits(4))),
       findsOneWidget,
     );
-    expect(find.text(tafsir.id), findsNothing);
+    expect(find.textContaining(tafsir.id), findsNothing);
   });
 
-  testWidgets("shows an entry's pack id, version and source unchanged", (
-    tester,
-  ) async {
+  testWidgets("shows an entry's pack id, version and source unchanged on "
+      'one line, apart by the middle dot', (tester) async {
     await pushReport(tester, Routes.reportSheet(address, pack: tafsir.id));
 
     final manifest = tafsir.manifest;
+    final items = [
+      manifest.id,
+      arabicDigits(manifest.version),
+      manifest.sources.first.name,
+    ];
+    final line = items.join(_l10n.dataSeparator);
+    expect(_l10n.dataSeparator, ' · ');
     expect(find.byType(SurahName), findsOneWidget);
-    expect(find.text(manifest.id), findsOneWidget);
-    expect(find.text(arabicDigits(manifest.version)), findsOneWidget);
-    expect(find.text(manifest.sources.first.name), findsOneWidget);
+    expect(find.text(line), findsOneWidget);
+
+    // Read right to left: the id first, then the version, then the source.
+    final paragraph = tester.renderObject<RenderParagraph>(find.text(line));
+    double rightOf(String item) {
+      final start = line.indexOf(item);
+      return paragraph
+          .getBoxesForSelection(
+            TextSelection(baseOffset: start, extentOffset: start + item.length),
+          )
+          .map((box) => box.right)
+          .reduce(math.max);
+    }
+
+    expect(rightOf(items[0]), greaterThan(rightOf(items[1])));
+    expect(rightOf(items[1]), greaterThan(rightOf(items[2])));
   });
 
   testWidgets('shows nothing for a pack that is not installed', (tester) async {
     await pushReport(tester, Routes.reportSheet(address, pack: 'not-there'));
 
     expect(find.byType(SurahName), findsOneWidget);
-    expect(find.text('not-there'), findsNothing);
-    expect(find.text(tafsir.manifest.sources.first.name), findsNothing);
+    expect(find.textContaining('not-there'), findsNothing);
+    expect(
+      find.textContaining(tafsir.manifest.sources.first.name),
+      findsNothing,
+    );
   });
 
   testWidgets('fits a small phone at 200% text', (tester) async {
@@ -94,12 +117,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byType(ReportSheet), findsOneWidget);
-    for (final text in [
-      tafsir.manifest.id,
-      tafsir.manifest.sources.first.name,
-    ]) {
-      expectWordsFit(tester, find.text(text));
-    }
+    expectWordsFit(tester, find.textContaining(tafsir.manifest.id));
   });
 
   testWidgets('is not opened over nothing at a cold start', (tester) async {
