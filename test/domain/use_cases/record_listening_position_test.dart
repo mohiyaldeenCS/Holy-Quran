@@ -167,4 +167,24 @@ void main() {
       expect(saved, hasLength(2));
     });
   });
+
+  test('does not replace the position with a start that failed', () {
+    final state = playing(Duration.zero);
+    recorder.update(state);
+    recorder.update(
+      state.copyWith(playing: false, error: () => PlayerError.fileMissing),
+    );
+
+    expect(saved, isEmpty);
+  });
+
+  test('saves a stop by a lost connection, which kept its position', () {
+    final state = playing(const Duration(seconds: 5));
+    recorder.update(state);
+    recorder.update(
+      state.copyWith(playing: false, error: () => PlayerError.connectionFailed),
+    );
+
+    expect(saved, [position(const Duration(seconds: 5))]);
+  });
 }

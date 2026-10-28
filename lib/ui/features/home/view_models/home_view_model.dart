@@ -175,8 +175,8 @@ final class HomeViewModel extends ChangeNotifier {
   }
 
   // A recitation served by whole surahs, without timing data, cannot start
-  // inside a surah: it plays the surah, whose segment names the surah's
-  // first ayah.
+  // inside a surah: it plays the surah and the surahs after it, whose segment
+  // names the surah's first ayah.
   PlaybackPlan? _planFrom(Recitation recitation, QuranAddress address) {
     final plans = _plans!;
     var outcome = plans.build(
@@ -184,7 +184,11 @@ final class HomeViewModel extends ChangeNotifier {
       FromAyahTool(address, AyahToolEnd.untilStopped),
     );
     if (outcome case PlanRefused(reason: PlanRefusal.needsAyahTiming)) {
-      outcome = plans.build(recitation, WholeSurah(address.surah));
+      outcome = plans.build(
+        recitation,
+        WholeSurah(address.surah),
+        continueToNextSurah: true,
+      );
     }
     return switch (outcome) {
       PlanReady(:final plan) => plan,

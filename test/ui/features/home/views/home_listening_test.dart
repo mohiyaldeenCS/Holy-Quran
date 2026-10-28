@@ -250,6 +250,7 @@ void main() {
 
       expect(player.commands, ['play 0']);
       expect(player.state.plan!.range, isA<WholeSurah>());
+      expect(player.state.plan!.continuesToNextSurah, isTrue);
       expect(player.state.plan!.segments.first.address, _at(2, 1));
     });
 

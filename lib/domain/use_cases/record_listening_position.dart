@@ -47,6 +47,9 @@ final class RecordListeningPosition {
     final plan = state?.plan;
     final segment = state?.segment;
     if (state == null || plan == null || segment == null) return;
+    // A start that failed before any sound would overwrite the position the
+    // user is trying to go back to with its beginning.
+    if (state.error != null && state.position == Duration.zero) return;
     final heard =
         (segment.kind == SegmentKind.ayah ||
             segment.kind == SegmentKind.surah) &&
