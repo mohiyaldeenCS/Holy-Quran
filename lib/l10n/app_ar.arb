@@ -1406,6 +1406,15 @@
   "@surahNotFound": {
     "description": "Lead, 2026-10-28, D-128 (5)"
   },
+  "surahNumberNotFound": "لا توجد سورة {surah}",
+  "@surahNumberNotFound": {
+    "description": "Lead, 2026-10-28, D-128 (5)",
+    "placeholders": {
+      "surah": {
+        "type": "String"
+      }
+    }
+  },
   "addressUnreadable": "لم نتعرّف على الموضع المكتوب",
   "@addressUnreadable": {
     "description": "Lead, 2026-10-28, D-128 (5)"

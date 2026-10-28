@@ -171,7 +171,10 @@ class _Refusal extends StatelessWidget {
         ayah,
         style,
       ),
-      NoSuchSurah() => Text(l10n.surahNotFound, style: style),
+      NoSuchSurah(:final surah) => Text(
+        l10n.surahNumberNotFound(arabicDigits(surah)),
+        style: style,
+      ),
       DivisionOutOfRange(:final division, :final number) => Text(
         _divisionMissing(l10n, division, arabicDigits(number)),
         style: style,

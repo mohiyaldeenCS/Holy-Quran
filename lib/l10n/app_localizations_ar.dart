@@ -972,6 +972,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get surahNotFound => 'لا توجد سورة بهذا الاسم';
 
   @override
+  String surahNumberNotFound(String surah) {
+    return 'لا توجد سورة $surah';
+  }
+
+  @override
   String get addressUnreadable => 'لم نتعرّف على الموضع المكتوب';
 
   @override

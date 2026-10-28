@@ -201,16 +201,36 @@ void main() {
     }
   });
 
-  testWidgets('a surah the pack does not have, and input that is not a '
-      'number, name the reason', (tester) async {
+  testWidgets('a surah the pack does not have is named by its number, in '
+      'either digit system', (tester) async {
     await openSheet(tester);
-    await type(tester, 0, '${fixture.index.surahCount + 1}');
+    final beyond = fixture.index.surahCount + 1;
+    for (final digits in [(int n) => '$n', arabicDigits]) {
+      await type(tester, 0, digits(beyond));
+      await submit(tester);
+      expect(
+        find.text(_l10n.surahNumberNotFound(arabicDigits(beyond))),
+        findsOneWidget,
+      );
+      expect(find.text(_l10n.surahNotFound), findsNothing);
+      await type(tester, 0, '');
+    }
+    await type(tester, 0, '0');
     await submit(tester);
-    expect(find.text(_l10n.surahNotFound), findsOneWidget);
+    expect(
+      find.text(_l10n.surahNumberNotFound(arabicDigits(0))),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('input that is not a number says it is unreadable', (
+    tester,
+  ) async {
+    await openSheet(tester);
     await type(tester, 0, 'x');
-    expect(find.text(_l10n.surahNotFound), findsNothing);
     await submit(tester);
     expect(find.text(_l10n.addressUnreadable), findsOneWidget);
+    expect(find.text(_l10n.surahNotFound), findsNothing);
     await type(tester, 0, '');
     expect(find.text(_l10n.addressUnreadable), findsNothing);
   });

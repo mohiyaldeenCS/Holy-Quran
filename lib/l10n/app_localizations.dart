@@ -1807,6 +1807,12 @@ abstract class AppLocalizations {
   /// Lead, 2026-10-28, D-128 (5)
   ///
   /// In ar, this message translates to:
+  /// **'لا توجد سورة {surah}'**
+  String surahNumberNotFound(String surah);
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
   /// **'لم نتعرّف على الموضع المكتوب'**
   String get addressUnreadable;
 
