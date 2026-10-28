@@ -10,9 +10,9 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-28 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **19 merged**: P1-01 to P1-13, P1-15, P1-16, P1-18 to P1-21 (P1-12 and P1-15 partial). **3 in open pull requests**: #50 (P1-28), #52 (P1-25), #53 (P1-27). **18 not started**. Work resumes from a local session (D-128); merges into `main` need the owner's approval (D-132) |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **18 merged**: P1-01 to P1-13, P1-16, P1-18 to P1-21 (P1-12 partial). **Ready to merge, awaiting the owner's approval (D-132)**: #51 (P1-15). **3 more open**: #50 (P1-28), #52 (P1-25), #53 (P1-27). **18 not started**. Work resumes from a local session (D-128) |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | `docs/resume-2026-10-28`: this status correction and D-128, D-129. Then one branch and pull request per task |
+| Working branch | One branch per task (`agent/p1-*`); worktrees under the session's scratchpad for parallel agents (D-132) |
 | Last session | 2026-10-28, local session on the owner's Windows machine: state recovered from Git, the owner's pending decisions taken (D-128), resumption settled (D-129) |
 
 ## What is in the repository
@@ -191,8 +191,7 @@ unbuilt.
 
 **Resumed 2026-10-28 from a local session (D-128).** Merged since: #54 (status and
 D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generator's
-`dart format` through a shell, separators, closed packs), #44 (P1-12, below), #51
-(P1-15, below).
+`dart format` through a shell, separators, closed packs), #44 (P1-12, below).
 
 - **P1-12 merged (#44), partial.** Copy sheet with the board's preview (Share.dc.html
   l.54) drawn from the pack, `QuranText.quoted` and `SurahName.span` (D-130); share
@@ -202,12 +201,12 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   owner sees 1:1 and 9:16 first); the share sheet's states are not in the gallery;
   SH-01's clause on copying several consecutive ayat, each with its number, has no
   task yet. Reviewed by `code-reviewer` (twice) and `identity-auditor` (twice).
-- **P1-15 merged (#51), partial.** Settings screen (level, theme, follow-system),
+- **P1-15 (#51), ready to merge, awaiting the owner's approval (D-132); partial.** Settings screen (level, theme, follow-system),
   first-run setup frame with its level step, report sheet (address, pack id, version
   and source on one line), More hub. The user database and the settings repository are
   provided from `user.sqlite`; if it cannot be read the app starts on in-memory
   defaults and leaves the file untouched (D-133); Android keeps it out of backup
-  (D-133); More shows only entries whose screen has a route (D-134). RD-08 and LV-02
+  (D-133; before user data is wired, a failed settings read must also put the user database in memory); More shows only entries whose screen has a route (D-134). RD-08 and LV-02
   are met in the app (visual checks pending); LV-01 partial (the first-run redirect is
   off until the continue button has wording); LV-04 not met. Follow-ups: LV-04's route
   flag in `routes.dart`; the setup's strings, continue button and redirect switched on
