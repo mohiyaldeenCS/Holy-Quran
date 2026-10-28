@@ -13,13 +13,16 @@ import 'package:holyquran/ui/core/widgets/seek_track.dart';
 /// The emerald card at the foot of the Screens2 listen screen: the gold
 /// track, which seeks when [progress] is known, the position line, five
 /// buttons (sleep timer, previous ayah, play or pause, next ayah, repeat)
-/// and a row of chips: the range, the repeat, the speed and the silence.
-/// A null label hides its line or chip; a null [onSleepTimer] hides the sleep
+/// and a row of chips: the range, the repeat, the speed and the silence. The
+/// range and silence chips are the only way to their sheets, so they always
+/// show. A null label hides the position line or the repeat chip; a null [onSleepTimer] hides the sleep
 /// timer, leaving its place empty so the other buttons keep theirs.
 class PlayerPanel extends StatelessWidget {
   const PlayerPanel({
     required this.playing,
     required this.speed,
+    required this.range,
+    required this.silence,
     required this.onPlayPause,
     required this.onPrevious,
     required this.onNext,
@@ -33,9 +36,7 @@ class PlayerPanel extends StatelessWidget {
     this.onSleepTimer,
     this.position,
     this.repeat,
-    this.range,
     this.repeatLabel,
-    this.silence,
     super.key,
   });
 
@@ -50,9 +51,9 @@ class PlayerPanel extends StatelessWidget {
 
   /// The repeat count drawn on the repeat button.
   final int? repeat;
-  final String? range;
+  final String range;
   final String? repeatLabel;
-  final String? silence;
+  final String silence;
   final VoidCallback onPlayPause;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
@@ -69,9 +70,7 @@ class PlayerPanel extends StatelessWidget {
     final progress = this.progress;
     final position = this.position;
     final repeat = this.repeat;
-    final range = this.range;
     final repeatLabel = this.repeatLabel;
-    final silence = this.silence;
     return Container(
       width: double.infinity,
       padding: PlayerMetrics.panelPadding,
@@ -158,13 +157,11 @@ class PlayerPanel extends StatelessWidget {
             spacing: AppSpacing.space2,
             runSpacing: AppSpacing.space2,
             children: [
-              if (range != null)
-                PanelChip(label: range, onPressed: onRange, active: true),
+              PlayerPanelChip(label: range, onPressed: onRange, active: true),
               if (repeatLabel != null)
-                PanelChip(label: repeatLabel, onPressed: onRepeat),
-              PanelChip(label: speed, onPressed: onSpeed),
-              if (silence != null)
-                PanelChip(label: silence, onPressed: onSilence),
+                PlayerPanelChip(label: repeatLabel, onPressed: onRepeat),
+              PlayerPanelChip(label: speed, onPressed: onSpeed),
+              PlayerPanelChip(label: silence, onPressed: onSilence),
             ],
           ),
         ],

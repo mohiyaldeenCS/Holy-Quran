@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import 'package:holyquran/ui/core/metrics/settings_metrics.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 
 /// The layout of the listen screen, measured from the player of
@@ -7,22 +8,13 @@ import 'package:holyquran/ui/core/theme/tokens.g.dart';
 /// متناول اليد»). The recitation picker, which the identity does not draw,
 /// follows it.
 abstract final class PlayerMetrics {
-  // Screens2: the content block under the header, `padding:4px 20px 0`.
-  static const EdgeInsets bodyPadding = EdgeInsets.fromLTRB(
-    _bodySide,
-    AppSpacing.space1,
-    _bodySide,
-    0,
-  );
-  static const double _bodySide = 20;
+  // The content block and the header are SettingsMetrics', which holds the
+  // Screens2 player values for the screens built after it (D-134).
+  static const EdgeInsets bodyPadding = SettingsMetrics.content;
+  static const EdgeInsets headerPadding = SettingsMetrics.header;
 
-  // Screens2: the header, `padding:24px 16px 8px`.
-  static const EdgeInsets headerPadding = EdgeInsets.fromLTRB(
-    AppSpacing.space4,
-    AppSpacing.space5,
-    AppSpacing.space4,
-    AppSpacing.space2,
-  );
+  // Screens2: the emerald card's side padding, as the content block's.
+  static const double _bodySide = 20;
 
   // Screens2: the reciter card, `padding:12px 14px;border-radius:20px`.
   static const EdgeInsets reciterCardPadding = EdgeInsets.symmetric(

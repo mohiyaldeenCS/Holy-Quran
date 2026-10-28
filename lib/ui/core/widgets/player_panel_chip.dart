@@ -8,8 +8,8 @@ import 'package:holyquran/ui/core/widgets/pressable.dart';
 /// A chip of the panel: [active] is the board's paper chip, the others its
 /// tinted chips. Drawn 36 high in a target-min hit area; it grows with the
 /// text.
-class PanelChip extends StatelessWidget {
-  const PanelChip({
+class PlayerPanelChip extends StatelessWidget {
+  const PlayerPanelChip({
     required this.label,
     required this.onPressed,
     this.active = false,

@@ -258,7 +258,6 @@ void main() {
     await _pump(tester, _player(_playing()).viewModel);
 
     expect(find.text(_l10n.playerRepeat), findsNothing);
-    expect(find.textContaining(_l10n.playerSilenceSeconds('')), findsNothing);
     // An ayah file's length is not known, so there is no track to seek.
     expect(find.byType(ProgressBar), findsNothing);
   });
@@ -347,12 +346,15 @@ void main() {
     }
   });
 
-  testWidgets('a range other than the ayah tools has no chip', (tester) async {
-    await _pump(
+  testWidgets('with nothing set, the range and silence chips still open '
+      'their sheets', (tester) async {
+    final router = await _pump(
       tester,
       _player(_playing(plan: _plan(range: WholeSurah(1)))).viewModel,
     );
 
+    // The range has no end of the ayah tools to name, and there is no
+    // silence: the chips say so, as they are the only way to their sheets.
     for (final label in [
       _l10n.playOnlyAyah,
       _l10n.playToPageEnd,
@@ -361,6 +363,17 @@ void main() {
       _l10n.playUntilStopped,
     ]) {
       expect(find.text(label), findsNothing);
+    }
+    for (final (label, sheet) in [
+      (_l10n.rangeSelectorTitle, Routes.rangeSheet),
+      (_l10n.playerSilenceSeconds(arabicDigits(0)), Routes.silenceSheet),
+    ]) {
+      expect(find.text(label), findsOneWidget);
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, sheet, reason: label);
+      router.pop();
+      await tester.pumpAndSettle();
     }
   });
 

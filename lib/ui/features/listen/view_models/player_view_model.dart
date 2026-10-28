@@ -37,8 +37,9 @@ final class PlayerViewModel extends ChangeNotifier {
 
   // The segment, not PlayerState.ayah: that keeps the last plan's ayah until
   // the new plan reaches an ayah of its own, as a plan of whole surahs never
-  // does, and would name the wrong surah.
-  QuranAddress? get _ayah => _state.segment?.address ?? _state.ayah;
+  // does, and would name the wrong surah. The player sets an ayah only after
+  // the segment that holds it, so there is none without a segment.
+  QuranAddress? get _ayah => _state.segment?.address;
 
   SurahInfo? get surah => switch (_ayah) {
     final ayah? =>

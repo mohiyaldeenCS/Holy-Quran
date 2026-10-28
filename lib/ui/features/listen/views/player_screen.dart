@@ -160,13 +160,14 @@ class PlayerScreen extends StatelessWidget {
           : null,
       speed: speedLabel(l10n, player.speed),
       repeat: repeat,
-      range: rangeEnd == null ? null : _rangeLabel(l10n, rangeEnd),
+      // Both chips open their sheets, so they show with nothing set.
+      range: rangeEnd == null
+          ? l10n.rangeSelectorTitle
+          : _rangeLabel(l10n, rangeEnd),
       repeatLabel: repeat == null
           ? null
           : l10n.playerRepeatTimes(repeat, arabicDigits(repeat)),
-      silence: silence == null
-          ? null
-          : l10n.playerSilenceSeconds(arabicDigits(silence)),
+      silence: l10n.playerSilenceSeconds(arabicDigits(silence ?? 0)),
       onPlayPause: player.playPause,
       onPrevious: player.previousAyah,
       onNext: player.nextAyah,
