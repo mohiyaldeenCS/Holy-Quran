@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/data/repositories/sources_repository.dart';
 import 'package:holyquran/ui/features/sources/view_models/sources_view_model.dart';
 
+import '../../../../../testing/fakes/fake_licence_text_service.dart';
 import '../../../../../testing/fakes/fake_link_service.dart';
 import '../../../../../testing/fakes/fake_pack_install_repository.dart';
 import '../sources_fixtures.dart';
@@ -12,19 +13,44 @@ void main() {
   late Directory root;
   late FakePackInstallRepository installs;
   late FakeLinkService links;
+  late FakeLicenceTextService licences;
   late SourcesViewModel viewModel;
 
   setUp(() {
     root = Directory.systemTemp.createTempSync('sources_view_model');
     installs = FakePackInstallRepository();
     links = FakeLinkService();
+    licences = FakeLicenceTextService(['Synthetic OFL text']);
     viewModel = SourcesViewModel(
-      repository: PackSourcesRepository(installs: installs, links: links),
+      repository: PackSourcesRepository(
+        installs: installs,
+        links: links,
+        licences: licences,
+      ),
     );
   });
   tearDown(() {
     viewModel.dispose();
     root.deleteSync(recursive: true);
+  });
+
+  test('reads the font licences', () async {
+    await Future<void>.delayed(Duration.zero);
+
+    expect(viewModel.fontLicences, ['Synthetic OFL text']);
+  });
+
+  test('leaves no listener on the installer once disposed', () {
+    final counting = FakePackInstallRepository();
+    SourcesViewModel(
+      repository: PackSourcesRepository(
+        installs: counting,
+        links: links,
+        licences: licences,
+      ),
+    ).dispose();
+
+    expect(counting.listenerCount, 0);
   });
 
   test('has no sources while no pack is installed', () {

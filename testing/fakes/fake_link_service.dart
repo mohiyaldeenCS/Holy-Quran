@@ -10,6 +10,6 @@ final class FakeLinkService implements LinkService {
   @override
   Future<Result<void>> open(Uri url) async {
     opened.add(url);
-    return fails ? Failure(LinkNotOpened(url)) : const Ok(null);
+    return fails ? Failure(LinkNotOpened('$url')) : const Ok(null);
   }
 }

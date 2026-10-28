@@ -13,6 +13,7 @@ import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/features/sources/view_models/sources_view_model.dart';
 import 'package:holyquran/ui/features/sources/views/sources_screen.dart';
 
+import '../../../../../testing/fakes/fake_licence_text_service.dart';
 import '../../../../../testing/fakes/fake_link_service.dart';
 import '../../../../../testing/fakes/fake_pack_install_repository.dart';
 import '../../../../../testing/golden.dart';
@@ -23,12 +24,16 @@ final _l10n = lookupAppLocalizations(const Locale('ar'));
 const _full = SourceCredit(
   name: 'Synthetic source name',
   url: 'https://example.invalid/synthetic/source',
+  publisher: 'Synthetic publisher',
+  version: '1',
   licenceText: 'Synthetic licence text',
   notice: 'Synthetic credit notice',
 );
 const _bare = SourceCredit(
   name: 'Synthetic bare source',
   url: 'https://example.invalid/synthetic/bare',
+  publisher: null,
+  version: null,
   licenceText: null,
   notice: null,
 );
@@ -60,10 +65,12 @@ Future<void> _pump(
 
 Widget _list({
   List<SourceCredit> sources = const [_full, _bare],
+  List<String> fontLicences = const ['Synthetic OFL one', 'Synthetic OFL two'],
   bool linkFailed = false,
   void Function(SourceCredit)? onOpen,
 }) => SourcesList(
   sources: sources,
+  fontLicences: fontLicences,
   linkFailed: linkFailed,
   onOpen: onOpen ?? (_) {},
 );
@@ -81,12 +88,25 @@ void main() {
   });
 
   testWidgets('hides the texts a source does not have', (tester) async {
-    await _pump(tester, _list(sources: const [_bare]));
+    await _pump(tester, _list(sources: const [_bare], fontLicences: const []));
 
     expect(find.text(_bare.name), findsOneWidget);
     expect(find.text(_bare.url), findsOneWidget);
     expect(find.text('Synthetic licence text'), findsNothing);
     expect(find.byType(Text), findsNWidgets(2));
+  });
+
+  testWidgets('shows the publisher and version, and the font licences', (
+    tester,
+  ) async {
+    await _pump(tester, _list());
+
+    expect(
+      find.text('Synthetic publisher${_l10n.dataSeparator}1'),
+      findsOneWidget,
+    );
+    expect(find.text('Synthetic OFL one'), findsOneWidget);
+    expect(find.text('Synthetic OFL two'), findsOneWidget);
   });
 
   testWidgets('opens the link of the source tapped', (tester) async {
@@ -145,6 +165,7 @@ void main() {
       repository: PackSourcesRepository(
         installs: FakePackInstallRepository(installed: [pack]),
         links: links,
+        licences: FakeLicenceTextService(['Synthetic OFL text']),
       ),
     );
     addTearDown(viewModel.dispose);
@@ -154,6 +175,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Synthetic source name'), findsOneWidget);
+    expect(find.text('Synthetic OFL text'), findsOneWidget);
     expect(links.opened, [
       Uri.parse('https://example.invalid/synthetic/source'),
     ]);

@@ -15,6 +15,8 @@ Future<InstalledPack> installedWithSource(
   String id = 'synthetic-text',
   String name = 'Synthetic source name',
   String url = 'https://example.invalid/synthetic/source',
+  String publisher = 'Synthetic publisher',
+  String version = '1',
   String? licenceText = 'Synthetic licence text',
   String? notice = 'Synthetic credit notice',
 }) async {
@@ -24,6 +26,8 @@ Future<InstalledPack> installedWithSource(
   first
     ..['name'] = name
     ..['url'] = url
+    ..['publisher'] = publisher
+    ..['version'] = version
     ..['licence'] = {
       'text': licenceText,
       'permission_ref': 'Synthetic permission 1',

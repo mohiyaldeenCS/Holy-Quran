@@ -16,6 +16,25 @@ void main() {
     expect(launched, [https]);
   });
 
+  for (final address in ['https:synthetic', 'https:///synthetic']) {
+    test('refuses $address, which has no host', () async {
+      var launched = false;
+      final service = SystemLinkService((url) async => launched = true);
+
+      final result = await service.open(Uri.parse(address));
+
+      expect(
+        result,
+        isA<Failure<void>>().having(
+          (failure) => (failure.error as LinkNotOpened).address,
+          'address',
+          address,
+        ),
+      );
+      expect(launched, isFalse);
+    });
+  }
+
   for (final scheme in ['file', 'javascript', 'tel']) {
     test('refuses a $scheme address without launching it', () async {
       var launched = false;

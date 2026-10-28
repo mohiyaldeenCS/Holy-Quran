@@ -2,15 +2,15 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../utils/result.dart';
 
-/// The link was not an `http` or `https` address, or the system had nothing
-/// to open it with.
+/// The link was not an `http` or `https` address with a host, or the system
+/// had nothing to open it with. [address] is the address as given.
 final class LinkNotOpened implements Exception {
-  const LinkNotOpened(this.url);
+  const LinkNotOpened(this.address);
 
-  final Uri url;
+  final String address;
 
   @override
-  String toString() => 'LinkNotOpened($url)';
+  String toString() => 'LinkNotOpened($address)';
 }
 
 /// Opens a web address outside the app. It sends nothing itself.
@@ -29,11 +29,13 @@ final class SystemLinkService implements LinkService {
 
   @override
   Future<Result<void>> open(Uri url) async {
-    if (url.scheme != 'https' && url.scheme != 'http') {
-      return Failure(LinkNotOpened(url));
+    if ((url.scheme != 'https' && url.scheme != 'http') || url.host.isEmpty) {
+      return Failure(LinkNotOpened('$url'));
     }
     try {
-      return await _launch(url) ? const Ok(null) : Failure(LinkNotOpened(url));
+      return await _launch(url)
+          ? const Ok(null)
+          : Failure(LinkNotOpened('$url'));
     } on Exception catch (error) {
       return Failure(error);
     }
