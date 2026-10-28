@@ -129,14 +129,18 @@ final class MushafViewModel extends ChangeNotifier {
   Future<Result<void>> _loadNext() async {
     final index = _index;
     if (_status != ReaderStatus.ready || index == null) return const Ok(null);
-    final next = index.nextSurah(_surahs.last.info.number);
+    final shown = _surahs;
+    final next = index.nextSurah(shown.last.info.number);
     if (next == null) return const Ok(null);
     final surah = await _readSurah(next);
     if (_disposed || _status != ReaderStatus.ready) return const Ok(null);
     if (index.surahs.isEmpty) return _unavailable();
+    // An open that ran meanwhile replaced the surahs; the next one of the old
+    // list does not belong to the new one.
+    if (!identical(shown, _surahs)) return const Ok(null);
     switch (surah) {
       case Ok(:final value):
-        _surahs = List.unmodifiable([..._surahs, value]);
+        _surahs = List.unmodifiable([...shown, value]);
         notifyListeners();
         return const Ok(null);
       case Failure(:final error):
