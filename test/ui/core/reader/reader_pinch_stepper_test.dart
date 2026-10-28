@@ -30,12 +30,14 @@ final class _Host extends StatefulWidget {
     required this.controller,
     required this.steps,
     required this.firstStep,
+    this.takesSteps = true,
   });
 
   final SurahText text;
   final ScrollController controller;
   final List<int> steps;
   final int firstStep;
+  final bool takesSteps;
 
   @override
   State<_Host> createState() => _HostState();
@@ -58,7 +60,7 @@ final class _HostState extends State<_Host> {
     step: step,
     onStep: (next) {
       widget.steps.add(next);
-      setState(() => step = next);
+      if (widget.takesSteps) setState(() => step = next);
     },
     child: SizedBox.expand(
       child: CustomScrollView(
@@ -102,6 +104,7 @@ void main() {
     required int step,
     required double offset,
     Size size = _portrait,
+    bool takesSteps = true,
   }) async {
     tester.view
       ..physicalSize = size
@@ -118,6 +121,7 @@ void main() {
           controller: controller,
           steps: steps,
           firstStep: step,
+          takesSteps: takesSteps,
         ),
       ),
     );
@@ -260,6 +264,23 @@ void main() {
     expect(landscape.width, isNot(portrait.width));
     expect(landscape.ayahAt(controller.offset), first);
     tester.view.physicalSize = _portrait;
+    await tester.pumpAndSettle();
+    expect(layoutOf(tester).ayahAt(controller.offset), first);
+  });
+
+  testWidgets('a pinch the screen ignored does not anchor a later turn', (
+    tester,
+  ) async {
+    final portrait = await open(
+      tester,
+      step: 2,
+      offset: 700,
+      takesSteps: false,
+    );
+    final first = portrait.ayahAt(controller.offset);
+    await pinch(tester, 1.3);
+    expect(steps, hasLength(1));
+    tester.view.physicalSize = _landscape;
     await tester.pumpAndSettle();
     expect(layoutOf(tester).ayahAt(controller.offset), first);
   });
