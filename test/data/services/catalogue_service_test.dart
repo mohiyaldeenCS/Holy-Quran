@@ -161,7 +161,7 @@ void main() {
         expect(kept.signature, isNull);
         expect(
           Directory('${root.path}/catalogue').listSync().map((e) => e.path),
-          ['${root.path}/catalogue/catalogue.json'],
+          ['${root.path}/catalogue${Platform.pathSeparator}catalogue.json'],
         );
       },
     );

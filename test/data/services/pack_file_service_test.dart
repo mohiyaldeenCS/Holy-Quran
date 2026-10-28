@@ -19,7 +19,9 @@ void main() {
     bytes = Uint8List.fromList([
       for (var i = 0; i < 3 * 65536 + 17; i++) random.nextInt(256),
     ]);
-    file = await File('${root.path}/data.bin').writeAsBytes(bytes);
+    file = await File(
+      '${root.path}${Platform.pathSeparator}data.bin',
+    ).writeAsBytes(bytes);
   });
   tearDown(() => root.delete(recursive: true));
 

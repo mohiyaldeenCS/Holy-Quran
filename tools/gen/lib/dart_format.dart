@@ -13,7 +13,7 @@ Future<String> formatDart(String source, {required String path}) async {
       '--output=show',
       '--summary=none',
       '--stdin-name=$path',
-    ]);
+    ], runInShell: Platform.isWindows);
   } on ProcessException catch (e) {
     throw GeneratorError('Cannot run dart format: ${e.message}');
   }
@@ -31,7 +31,8 @@ Future<String> formatDart(String source, {required String path}) async {
 }
 
 /// The running `dart` when there is one (`dart run`); otherwise the `dart`
-/// on the PATH (under `flutter test` the runner is not `dart`).
+/// on the PATH (under `flutter test` the runner is not `dart`). On Windows
+/// that one is `dart.bat`, which only a shell can start.
 String _dartExecutable() {
   final running = Platform.resolvedExecutable;
   final name = Uri.file(running).pathSegments.last;

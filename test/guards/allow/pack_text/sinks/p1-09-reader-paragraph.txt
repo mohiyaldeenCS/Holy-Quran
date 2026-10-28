@@ -1,0 +1,3 @@
+lib/ui/core/reader/reader_paragraph.dart
+decision: D-113
+The surah-mode engine sets whole ayat sliced at stored offsets, measures them and the basmala, and gives each ayah its screen-reader label (D-114).
