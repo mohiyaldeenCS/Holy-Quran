@@ -15,8 +15,10 @@ import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/theme/app_theme.dart';
+import 'package:holyquran/ui/core/widgets/icon_button.dart' as ds;
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
 import 'package:holyquran/ui/core/widgets/mini_player.dart';
+import 'package:holyquran/ui/core/widgets/player_panel.dart';
 import 'package:holyquran/ui/core/widgets/progress_bar.dart';
 import 'package:holyquran/ui/features/listen/view_models/player_view_model.dart';
 import 'package:holyquran/ui/features/listen/views/player_screen.dart';
@@ -83,7 +85,7 @@ const _sheets = [
   Routes.silenceSheet,
 ];
 
-GoRouter _router(PlayerViewModel? viewModel) => GoRouter(
+GoRouter _router(PlayerViewModel? viewModel, List<String> sheets) => GoRouter(
   initialLocation: Routes.listen,
   routes: [
     GoRoute(
@@ -97,7 +99,7 @@ GoRouter _router(PlayerViewModel? viewModel) => GoRouter(
         ),
       ],
     ),
-    for (final sheet in _sheets)
+    for (final sheet in sheets)
       GoRoute(
         path: sheet,
         builder: (context, state) => const SizedBox.expand(),
@@ -111,12 +113,13 @@ Future<GoRouter> _pump(
   ReadingTheme theme = ReadingTheme.paper,
   double textScale = 1,
   Size size = const Size(390, 844),
+  List<String> sheets = _sheets,
 }) async {
   tester.view
     ..physicalSize = size
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final router = _router(viewModel);
+  final router = _router(viewModel, sheets);
   addTearDown(router.dispose);
   await tester.pumpWidget(
     MaterialApp.router(
@@ -162,9 +165,47 @@ void main() {
     await _pump(tester, null);
 
     expect(find.text(_l10n.tabListen), findsOneWidget);
-    expect(find.bySemanticsLabel(_l10n.queueLabel), findsOneWidget);
+    // The queue is the player's: without one, its button would open a sheet
+    // that throws.
+    expect(find.byType(ds.IconButton), findsNothing);
     expect(find.text(_l10n.playerChange), findsOneWidget);
     expect(find.byType(PlayerPanel), findsNothing);
+  });
+
+  testWidgets('with a player, the queue button opens the queue', (
+    tester,
+  ) async {
+    final router = await _pump(tester, _player().viewModel);
+
+    expect(find.byType(ds.IconButton), findsOneWidget);
+    await tester.tap(find.byType(ds.IconButton));
+    await tester.pumpAndSettle();
+    expect(router.state.uri.path, Routes.queueSheet);
+  });
+
+  testWidgets('the sleep timer shows only once its route exists', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _player(_playing()).viewModel,
+      sheets: [
+        for (final sheet in _sheets)
+          if (sheet != Routes.sleepSheet) sheet,
+      ],
+    );
+
+    expect(_button(IconName.night), findsNothing);
+    expect(_button(IconName.repeat), findsOneWidget);
+    expect(_button(IconName.previous), findsOneWidget);
+    expect(_button(IconName.pause), findsOneWidget);
+    expect(_button(IconName.next), findsOneWidget);
+  });
+
+  testWidgets('with its route, the sleep timer shows', (tester) async {
+    await _pump(tester, _player(_playing()).viewModel);
+
+    expect(_button(IconName.night), findsOneWidget);
   });
 
   testWidgets('before anything is played, the panel is hidden', (tester) async {

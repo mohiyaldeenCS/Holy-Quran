@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart' hide IconButton;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-
 import 'package:holyquran/domain/models/catalogue.dart';
 import 'package:holyquran/domain/models/catalogue_entry.dart';
 import 'package:holyquran/domain/models/download_progress.dart';
@@ -14,8 +13,8 @@ import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/theme/app_theme.dart';
+import 'package:holyquran/ui/core/widgets/recitation_card.dart';
 import 'package:holyquran/ui/features/listen/view_models/recitation_picker_view_model.dart';
-import 'package:holyquran/ui/features/listen/views/player_screen.dart';
 import 'package:holyquran/ui/features/listen/views/recitation_picker_screen.dart';
 
 import '../../../../testing/fakes/fake_catalogue_repository.dart';

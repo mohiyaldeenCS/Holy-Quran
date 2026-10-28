@@ -99,6 +99,15 @@ abstract final class PlayerMetrics {
     fontWeight: FontWeight.w600,
   );
 
+  // Not from the board, which draws no mini player over the tab bar: its gaps
+  // are the spacing scale's.
+  static const EdgeInsets miniPlayerPadding = EdgeInsets.fromLTRB(
+    AppSpacing.space4,
+    AppSpacing.space2,
+    AppSpacing.space4,
+    AppSpacing.space2,
+  );
+
   // Not from the board: how far one screen-reader increase or decrease
   // moves the position, as the board draws a track and no step.
   static const Duration seekStep = Duration(seconds: 5);

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/gallery/gallery_section.dart';
@@ -8,10 +7,11 @@ import 'package:holyquran/ui/core/gallery/sections/audio_gallery.dart';
 import 'package:holyquran/ui/core/widgets/continue_card.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
 import 'package:holyquran/ui/core/widgets/mini_player.dart';
+import 'package:holyquran/ui/core/widgets/player_panel.dart';
 import 'package:holyquran/ui/core/widgets/progress_bar.dart';
 import 'package:holyquran/ui/core/widgets/reader_player_bar.dart';
+import 'package:holyquran/ui/core/widgets/recitation_card.dart';
 import 'package:holyquran/ui/core/widgets/resource_row.dart';
-import 'package:holyquran/ui/features/listen/views/player_screen.dart';
 
 import '../../../../testing/golden.dart';
 

@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart' hide Icon;
 import 'package:go_router/go_router.dart';
-
 import 'package:holyquran/domain/models/resource_state.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
@@ -9,8 +8,8 @@ import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/icon_button.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
+import 'package:holyquran/ui/core/widgets/recitation_card.dart';
 import 'package:holyquran/ui/features/listen/view_models/recitation_picker_view_model.dart';
-import 'package:holyquran/ui/features/listen/views/player_screen.dart';
 
 /// The recitation picker (`AU-01`), an extension screen that follows the
 /// listen screen of the Screens2 board: each recitation is the board's

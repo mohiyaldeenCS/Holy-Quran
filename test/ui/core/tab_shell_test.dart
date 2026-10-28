@@ -21,6 +21,7 @@ import 'package:holyquran/ui/core/tab_shell.dart';
 import 'package:holyquran/ui/core/widgets/icon.dart' as ds;
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
 import 'package:holyquran/ui/core/widgets/mini_player.dart';
+import 'package:holyquran/ui/core/widgets/progress_bar.dart';
 import 'package:holyquran/ui/core/widgets/tab_bar.dart';
 import 'package:holyquran/ui/features/home/views/home_screen.dart';
 import 'package:holyquran/ui/features/listen/views/listen_screen.dart';
@@ -390,6 +391,56 @@ void main() {
       await tester.pump();
 
       expect(player.commands, ['pause', 'resume', 'nextAyah', 'previousAyah']);
+    });
+
+    testWidgets('has no sleep timer until its route exists', (tester) async {
+      await _pumpWithPlayer(tester, FakePlayerRepository(state: _playing));
+
+      expect(
+        tester.widget<MiniPlayer>(find.byType(MiniPlayer)).showSleepTimer,
+        isFalse,
+      );
+      expect(_playerButton(IconName.night), findsNothing);
+      expect(_playerButton(IconName.repeat), findsOneWidget);
+    });
+
+    testWidgets('draws its track only for a segment whose length is known', (
+      tester,
+    ) async {
+      final player = FakePlayerRepository(state: _playing);
+      await _pumpWithPlayer(tester, player);
+      // An ayah file's length is not known: no track, not an empty one.
+      expect(
+        tester.widget<MiniPlayer>(find.byType(MiniPlayer)).progress,
+        isNull,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(MiniPlayer),
+          matching: find.byType(ProgressBar),
+        ),
+        findsNothing,
+      );
+
+      player.state = _playing.copyWith(
+        segment: PlaybackSegment(
+          kind: SegmentKind.ayah,
+          address: _at(1, 2),
+          source: SurahClip(1, Duration.zero, const Duration(seconds: 10)),
+          repeat: 1,
+        ),
+        position: const Duration(seconds: 4),
+      );
+      await tester.pump();
+
+      expect(tester.widget<MiniPlayer>(find.byType(MiniPlayer)).progress, 0.4);
+      expect(
+        find.descendant(
+          of: find.byType(MiniPlayer),
+          matching: find.byType(ProgressBar),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('lays out at 200% text without overflow', (tester) async {

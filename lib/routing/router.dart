@@ -26,6 +26,7 @@ import 'package:holyquran/routing/routes/tafsir_routes.dart';
 import 'package:holyquran/routing/startup_redirect.dart';
 import 'package:holyquran/ui/core/shell_chrome.dart';
 import 'package:holyquran/ui/core/tab_shell.dart';
+import 'package:holyquran/ui/features/listen/views/listen_mini_player.dart';
 import 'package:provider/provider.dart';
 
 /// Every feature's routes (D-101, D-102).
@@ -62,7 +63,10 @@ GoRouter createRouter({List<FeatureRoutes>? features}) {
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => ChangeNotifierProvider(
           create: (context) => ShellChrome(),
-          child: TabShell(navigationShell: navigationShell),
+          child: TabShell(
+            navigationShell: navigationShell,
+            miniPlayer: createListenMiniPlayer,
+          ),
         ),
         branches: [
           for (final tab in ShellTab.values)

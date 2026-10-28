@@ -10,10 +10,11 @@ import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/continue_card.dart';
 import 'package:holyquran/ui/core/widgets/mini_player.dart';
+import 'package:holyquran/ui/core/widgets/player_panel.dart';
 import 'package:holyquran/ui/core/widgets/progress_bar.dart';
 import 'package:holyquran/ui/core/widgets/reader_player_bar.dart';
+import 'package:holyquran/ui/core/widgets/recitation_card.dart';
 import 'package:holyquran/ui/core/widgets/resource_row.dart';
-import 'package:holyquran/ui/features/listen/views/player_screen.dart';
 
 // ProgressBar/preview.html: `value: 70, height: 8`, then `value: 46` in the
 // player tone on a `player` box padded 16 with radius 16.
