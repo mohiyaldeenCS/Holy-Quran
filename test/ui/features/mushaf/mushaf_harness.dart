@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -99,13 +100,14 @@ T _ok<T>(Result<T> result) => switch (result) {
 };
 
 /// The reader on a phone-sized view, in [theme] at system text scale
-/// [textScale].
+/// [textScale]. [shown] stands for the tab being the one shown.
 Widget readerApp(
   MushafViewModel viewModel, {
   ReadingTheme theme = ReadingTheme.paper,
   double textScale = 1,
   Size size = const Size(readerWidth, readerHeight),
   ShellChrome? chrome,
+  ValueListenable<bool>? shown,
 }) => goldenApp(
   theme,
   Builder(
@@ -114,6 +116,14 @@ Widget readerApp(
         size: size,
         child: MushafScreen(key: ObjectKey(viewModel), viewModel: viewModel),
       );
+      if (shown != null) {
+        final inner = screen;
+        screen = ValueListenableBuilder<bool>(
+          valueListenable: shown,
+          builder: (_, enabled, _) =>
+              TickerMode(enabled: enabled, child: inner),
+        );
+      }
       if (chrome != null) {
         screen = ChangeNotifierProvider.value(value: chrome, child: screen);
       }

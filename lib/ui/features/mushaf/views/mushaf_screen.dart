@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
-import 'package:provider/provider.dart';
-
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/metrics/reader_screen_metrics.dart';
 import 'package:holyquran/ui/core/reader/page_mark.dart';
@@ -11,6 +9,7 @@ import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/position_bar.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/mushaf_view_model.dart';
 import 'package:holyquran/ui/features/mushaf/views/mushaf_scroll_view.dart';
+import 'package:provider/provider.dart';
 
 /// The reader in surah mode (`RD-02`), as the Screens and Mushaf boards draw
 /// it: the position bar, the surahs as one scroll, and the reference page
@@ -54,7 +53,8 @@ class _MushafScreenState extends State<MushafScreen> {
     _chrome = context.read<ShellChrome?>();
     // A screen outside a navigator is shown.
     _shown =
-        (ModalRoute.isCurrentOf(context) ?? true) && TickerMode.of(context);
+        (ModalRoute.isCurrentOf(context) ?? true) &&
+        TickerMode.valuesOf(context).enabled;
     _refreshAfterBuild();
   }
 
