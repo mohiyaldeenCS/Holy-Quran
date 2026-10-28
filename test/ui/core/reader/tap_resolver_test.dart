@@ -263,34 +263,10 @@ void main() {
         expect(tried, greaterThan(0), reason: 'no mark is near a line start');
       });
 
-      test(
-        'a mark that starts its line resolves, $name',
-        () {
-          var starts = 0;
-          for (final block in _blocks(
-            _plan(
-              fixture,
-              longSurah,
-              width: size.width,
-              system: size.system,
-              step: size.step,
-            ),
-          )) {
-            final g = TargetGeometry.of(block);
-            for (final MapEntry(key: (ayah, mark), :value) in g.marks.entries) {
-              if (_targetsBefore(g, value).isNotEmpty) continue;
-              starts++;
-              expect(resolveTap(value.center, g), WaqfMarkTarget(ayah, mark));
-            }
-            block.dispose();
-          }
-          expect(starts, greaterThan(0), reason: 'no mark starts a line');
-        },
-        skip:
-            'the line breaker hangs a mark on the word before it, so no '
-            'synthetic line starts with one (surah_layout_test); the case '
-            'is covered with hand-built geometry above',
-      );
+      // No case for a mark that starts its line: the line breaker hangs a
+      // mark on the word before it, so AyahUnits.of never yields one
+      // (surah_layout_test); 'a mark that starts its line resolves, with
+      // hand-built geometry' covers the rule.
     }
 
     test('taps 6, 12 and 18 px away keep their shares at 1.0x', () {
