@@ -37,7 +37,6 @@ void main() {
     test('plays the plan with the silence, from the same segment', () async {
       final player = playerAt(
         planOf(builder, WholeSurah(1), repeat: RepeatMode(RepeatUnit.ayah, 2)),
-        ayah: at(1, 2),
         segment: 3,
       );
       final vm = viewModel(player)..setSeconds(12);
@@ -68,6 +67,15 @@ void main() {
       final vm = viewModel(player)..setSeconds(4);
       expect(await Future.wait([vm.play(), vm.play()]), [true, false]);
       expect(player.commands, ['play 3']);
+    });
+
+    test('a play the player refuses reports false', () async {
+      final player = playerAt(planOf(builder, WholeSurah(1)), segment: 3)
+        ..playFailure = Exception('refused');
+      final vm = viewModel(player)..setSeconds(4);
+      expect(await vm.play(), isFalse);
+      expect(player.commands, isEmpty);
+      expect(await vm.play(), isTrue);
     });
 
     test('offers nothing for whole surahs without timing', () async {

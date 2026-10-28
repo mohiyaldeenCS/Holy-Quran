@@ -32,7 +32,7 @@ final class RangeSheetViewModel extends ChangeNotifier with PlaysOnce {
         ? RangeKind.values
         : const [RangeKind.surah];
     _kind = _kinds.first;
-    final at = _player.state.ayah ?? _builder.ayatOf(plan.range).first;
+    final at = heardIn(_player.state) ?? _builder.ayatOf(plan.range).first;
     _surah = at.surah;
     _values = {
       RangeKind.ayah: at.ayah,
@@ -97,8 +97,9 @@ final class RangeSheetViewModel extends ChangeNotifier with PlaysOnce {
     notifyListeners();
   }
 
-  /// Plays [range] in place of what is playing, with its recitation; false
-  /// when nothing has played or the recitation cannot play the range.
+  /// Plays [range] in place of what is playing, with its recitation; a
+  /// surah goes on into the next ones when the plan playing did (`AU-04`).
+  /// False when nothing has played or the recitation cannot play the range.
   Future<bool> play() => playOnce(() async {
     final plan = _player.state.plan;
     if (plan == null || _kinds.isEmpty) return false;

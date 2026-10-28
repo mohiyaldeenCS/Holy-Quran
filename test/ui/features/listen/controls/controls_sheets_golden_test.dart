@@ -30,7 +30,6 @@ void main() {
       repeat: RepeatMode(RepeatUnit.ayah, 3),
       silence: const Duration(seconds: 2),
     ),
-    ayah: at(1, 2),
     segment: 3,
   );
 

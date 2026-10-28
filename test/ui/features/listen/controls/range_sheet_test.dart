@@ -28,7 +28,7 @@ void main() {
   group('RangeSheetViewModel', () {
     test('starts where playback is, in each kind of range', () {
       final vm = viewModel(
-        playerAt(planOf(builder, WholeSurah(1)), ayah: at(1, 4)),
+        playerAt(planOf(builder, WholeSurah(1)), segment: 3),
       );
       expect(vm.kinds, RangeKind.values);
       final values = {
@@ -45,7 +45,7 @@ void main() {
 
     test('keeps each number within its bounds', () {
       final vm = viewModel(
-        playerAt(planOf(builder, WholeSurah(1)), ayah: at(1, 1)),
+        playerAt(planOf(builder, WholeSurah(1)), segment: 0),
       );
       final bounds = {
         for (final kind in RangeKind.values)
@@ -75,7 +75,7 @@ void main() {
           repeat: RepeatMode(RepeatUnit.ayah, 3),
           silence: const Duration(seconds: 4),
         ),
-        ayah: at(2, 2),
+        segment: 4,
       );
       final vm = viewModel(player)..selectKind(RangeKind.hizb);
       expect(await vm.play(), isTrue);
@@ -88,7 +88,7 @@ void main() {
 
     test('builds an ayah, a page, a juz and a hizb', () {
       final vm = viewModel(
-        playerAt(planOf(builder, WholeSurah(1)), ayah: at(1, 3)),
+        playerAt(planOf(builder, WholeSurah(1)), segment: 2),
       );
       expect((vm.range as SingleAyah).ayah, at(1, 3));
       vm.selectKind(RangeKind.page);
@@ -101,18 +101,78 @@ void main() {
       expect(vm.range, isA<WholeSurah>().having((r) => r.surah, 'surah', 1));
     });
 
-    test('a new range does not continue into the next surah', () async {
+    test('a surah picked goes on into the next ones as the plan did', () async {
       final player = playerAt(
         planOf(builder, WholeSurah(1), continueToNextSurah: true),
-        ayah: at(1, 2),
+        segment: 1,
       );
-      await (viewModel(player)..selectKind(RangeKind.surah)).play();
+      final vm = viewModel(player)
+        ..selectKind(RangeKind.surah)
+        ..setValue(2);
+      await vm.play();
+      final plan = player.state.plan!;
+      expect(plan.continuesToNextSurah, isTrue);
+      expect(plan.recitation, syntheticRecitation());
+      expect(plan.segments.map((s) => s.address.surah).toSet(), {2, 3});
+      // The other kinds end where they end.
+      await (vm..selectKind(RangeKind.hizb)).play();
       expect(player.state.plan!.continuesToNextSurah, isFalse);
-      expect(player.state.plan!.recitation, syntheticRecitation());
+    });
+
+    test('a surah picked stops at its end when the plan did', () async {
+      final player = playerAt(planOf(builder, WholeSurah(1)), segment: 1);
+      await (viewModel(player)
+            ..selectKind(RangeKind.surah)
+            ..setValue(2))
+          .play();
+      final plan = player.state.plan!;
+      expect(plan.continuesToNextSurah, isFalse);
+      expect(plan.segments.map((s) => s.address.surah).toSet(), {2});
+    });
+
+    group('on a plan of surah files that went on into surah 18', () {
+      final long = longIndex(20);
+      final longBuilder = syntheticBuilder(long);
+      final surahFiles = syntheticRecitation(unit: RecitationUnit.surah);
+      final plan = planOf(
+        longBuilder,
+        WholeSurah(17),
+        recitation: surahFiles,
+        continueToNextSurah: true,
+      );
+
+      RangeSheetViewModel opened(FakePlayerRepository player) =>
+          RangeSheetViewModel(
+            player: player,
+            builder: longBuilder,
+            index: long,
+          );
+
+      test('opens at surah 18 though no ayah was followed', () {
+        final player = playerAt(plan, segment: 1);
+        expect(player.state.ayah, isNull);
+        final vm = opened(player);
+        expect(vm.kinds, [RangeKind.surah]);
+        expect(vm.value, 18);
+      });
+
+      test('opens at surah 18 over an ayah left by an earlier plan', () {
+        final vm = opened(playerAt(plan, segment: 1, ayah: at(5, 2)));
+        expect(vm.value, 18);
+      });
+    });
+
+    test('a play the player refuses reports false', () async {
+      final player = playerAt(planOf(builder, WholeSurah(1)), segment: 0)
+        ..playFailure = Exception('refused');
+      final vm = viewModel(player)..selectKind(RangeKind.juz);
+      expect(await vm.play(), isFalse);
+      expect(player.commands, isEmpty);
+      expect(await vm.play(), isTrue);
     });
 
     test('plays with the plan playing at play time, not at opening', () async {
-      final player = playerAt(planOf(builder, WholeSurah(1)), ayah: at(1, 1));
+      final player = playerAt(planOf(builder, WholeSurah(1)), segment: 0);
       final vm = viewModel(player);
       final other = syntheticRecitation(unit: RecitationUnit.surah);
       player.state = player.state.copyWith(
@@ -132,7 +192,7 @@ void main() {
             WholeSurah(1),
             recitation: syntheticRecitation(unit: RecitationUnit.surah),
           ),
-          ayah: at(1, 1),
+          segment: 0,
         ),
       );
       expect(vm.kinds, [RangeKind.surah]);
@@ -140,7 +200,7 @@ void main() {
     });
 
     test('a second play while the first runs starts nothing', () async {
-      final player = playerAt(planOf(builder, WholeSurah(1)), ayah: at(1, 1));
+      final player = playerAt(planOf(builder, WholeSurah(1)), segment: 0);
       final vm = viewModel(player);
       expect(await Future.wait([vm.play(), vm.play()]), [true, false]);
       expect(player.commands, ['play 0']);
@@ -159,7 +219,7 @@ void main() {
 
   group('RangeSheet', () {
     testWidgets('picks a page with the stepper and plays it', (tester) async {
-      final player = playerAt(planOf(builder, WholeSurah(1)), ayah: at(1, 1));
+      final player = playerAt(planOf(builder, WholeSurah(1)), segment: 0);
       final app = ControlsApp(player: player, builder: builder, index: index);
       await app.open(tester, Routes.rangeSheet);
 
@@ -184,7 +244,7 @@ void main() {
     ) async {
       final handle = tester.ensureSemantics();
       final app = ControlsApp(
-        player: playerAt(planOf(builder, WholeSurah(1)), ayah: at(1, 1)),
+        player: playerAt(planOf(builder, WholeSurah(1)), segment: 0),
         builder: builder,
         index: index,
       );
@@ -208,7 +268,7 @@ void main() {
       tester,
     ) async {
       final player = _HeldPlayer(
-        playerAt(planOf(builder, WholeSurah(1)), ayah: at(1, 1)),
+        playerAt(planOf(builder, WholeSurah(1)), segment: 0),
       );
       final app = ControlsApp(player: player, builder: builder, index: index);
       await app.open(tester, Routes.rangeSheet);
@@ -229,7 +289,7 @@ void main() {
 
     testWidgets('disables the stepper button at each bound', (tester) async {
       final app = ControlsApp(
-        player: playerAt(planOf(builder, WholeSurah(1)), ayah: at(1, 1)),
+        player: playerAt(planOf(builder, WholeSurah(1)), segment: 0),
         builder: builder,
         index: index,
       );
@@ -284,7 +344,7 @@ void main() {
 
     testWidgets('fits at 200% text', (tester) async {
       final app = ControlsApp(
-        player: playerAt(planOf(builder, WholeSurah(1)), ayah: at(1, 1)),
+        player: playerAt(planOf(builder, WholeSurah(1)), segment: 0),
         builder: builder,
         index: index,
       );

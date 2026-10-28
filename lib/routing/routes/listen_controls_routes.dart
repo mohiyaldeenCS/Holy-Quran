@@ -1,8 +1,5 @@
 import 'package:flutter/widgets.dart';
 
-import 'package:holyquran/data/repositories/player_repository.dart';
-import 'package:holyquran/data/repositories/quran_index_repository.dart';
-import 'package:holyquran/domain/models/playback_plan_builder.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/routing/routes/feature_routes.dart';
 import 'package:holyquran/ui/features/listen/view_models/controls/play_options_view_model.dart';
@@ -36,13 +33,14 @@ final listenControlsRoutes = FeatureRoutes(
     SheetRoute(
       path: RoutePaths.playOptionsSheet,
       owner: (state) => Routes.mushafRead(Routes.addressOf(state)!),
-      builder: (context, state) => PlayOptionsSheet(
-        viewModel: PlayOptionsViewModel(
+      builder: (context, state) => _Scoped(
+        create: (context) => PlayOptionsViewModel(
           address: Routes.addressOf(state)!,
-          player: context.read<PlayerRepository>(),
-          builder: context.read<PlaybackPlanBuilder>(),
-          index: context.read<QuranIndexRepository>(),
+          player: context.read(),
+          builder: context.read(),
+          index: context.read(),
         ),
+        builder: (viewModel) => PlayOptionsSheet(viewModel: viewModel),
       ),
     ),
     SheetRoute(

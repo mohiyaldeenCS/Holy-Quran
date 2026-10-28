@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:holyquran/data/repositories/player_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/domain/models/edition_map.dart';
+import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/playback_plan.dart';
 import 'package:holyquran/domain/models/playback_plan_builder.dart';
 import 'package:holyquran/domain/models/playback_range.dart';
@@ -15,6 +16,7 @@ import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/domain/models/recitation.dart';
 import 'package:holyquran/domain/models/repeat_mode.dart';
+import 'package:holyquran/domain/models/surah_info.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes/listen_controls_routes.dart';
 import 'package:holyquran/routing/routes/sheet_page.dart';
@@ -83,14 +85,47 @@ PlaybackPlan planOf(
             as PlanReady)
         .plan;
 
-/// A player that has played [plan] and is at [ayah], segment [segment].
+/// A player that has played [plan] and is hearing its segment [segment].
+/// [ayah] is the ayah the reader follows, which a whole surah does not set
+/// and a later plan does not clear.
 FakePlayerRepository playerAt(
   PlaybackPlan? plan, {
-  QuranAddress? ayah,
   int? segment,
+  QuranAddress? ayah,
 }) => FakePlayerRepository(
-  state: PlayerState(plan: plan, ayah: ayah, segmentIndex: segment),
+  state: PlayerState(
+    plan: plan,
+    segment: segment == null ? null : plan!.segments.elementAt(segment),
+    segmentIndex: segment,
+    ayah: ayah,
+  ),
 );
+
+/// An index of [FakeQuranIndexRepository] with [surahs] surahs of two ayat
+/// each, one page and one hizb to a surah, and one juz.
+FakeQuranIndexRepository longIndex(int surahs) {
+  final starts = [for (var surah = 1; surah <= surahs; surah++) at(surah, 1)];
+  return FakeQuranIndexRepository(
+    surahs: [
+      for (var number = 1; number <= surahs; number++)
+        SurahInfo(
+          number: number,
+          name: PackText.fromPack('Synthetic surah $number'),
+          ayahCount: 2,
+        ),
+    ],
+    map: EditionMap(
+      edition: 'synthetic-long-edition',
+      starts: {
+        Division.juz: [at(1, 1)],
+        Division.hizb: starts,
+        Division.rub: starts,
+        Division.page: starts,
+      },
+      sajdas: const {},
+    ),
+  );
+}
 
 /// The app with the control sheets' routes over an empty home, its
 /// dependencies provided; [open] pushes [location] from home.

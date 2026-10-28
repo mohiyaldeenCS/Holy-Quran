@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'package:holyquran/data/repositories/player_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
@@ -11,7 +13,7 @@ import 'current_plan.dart';
 /// Play from the ayah tools (`AU-03`): from [address] to the end of the
 /// ayah, page, surah or juz, or until stopped. It plays with the recitation,
 /// repeat and silence of the last plan; before any plan it offers nothing.
-final class PlayOptionsViewModel with PlaysOnce {
+final class PlayOptionsViewModel extends ChangeNotifier with PlaysOnce {
   PlayOptionsViewModel({
     required this.address,
     required this._player,

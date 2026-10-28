@@ -7,6 +7,7 @@ import 'package:holyquran/domain/models/repeat_mode.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/features/listen/view_models/controls/play_options_view_model.dart';
+import 'package:holyquran/ui/features/listen/views/controls/play_options_sheet.dart';
 
 import '../../../../../testing/fakes/fake_player_repository.dart';
 import 'controls_harness.dart';
@@ -116,6 +117,34 @@ void main() {
         AyahToolEnd.surah,
       );
       expect(app.sheetOpen, isFalse);
+    });
+
+    testWidgets('stays open when the player refuses to play', (tester) async {
+      final player = playerAt(planOf(builder, WholeSurah(3)))
+        ..playFailure = Exception('refused');
+      final app = ControlsApp(player: player, builder: builder, index: index);
+      await app.open(tester, Routes.playOptionsSheet(at(1, 2)));
+      await tester.tap(find.text(l10n.playToSurahEnd));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(app.sheetOpen, isTrue);
+      expect(player.commands, isEmpty);
+    });
+
+    testWidgets('keeps its view model when the route rebuilds', (tester) async {
+      final app = ControlsApp(
+        player: playerAt(planOf(builder, WholeSurah(3))),
+        builder: builder,
+        index: index,
+      );
+      await app.open(tester, Routes.playOptionsSheet(at(1, 2)));
+      PlayOptionsViewModel shown() => tester
+          .widget<PlayOptionsSheet>(find.byType(PlayOptionsSheet))
+          .viewModel;
+      final first = shown();
+      app.router.refresh();
+      await tester.pumpAndSettle();
+      expect(shown(), same(first));
     });
 
     testWidgets('shows nothing before any plan', (tester) async {

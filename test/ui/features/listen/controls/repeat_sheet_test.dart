@@ -44,7 +44,7 @@ void main() {
           SingleAyah(at(1, 2)),
           repeat: RepeatMode(RepeatUnit.ayah, 2),
         ),
-        ayah: at(1, 2),
+        segment: 0,
       );
       final vm = viewModel(player)..setCount(7);
       expect(await vm.play(), isTrue);
@@ -56,11 +56,7 @@ void main() {
     });
 
     test('goes on from the ayah being heard', () async {
-      final player = playerAt(
-        planOf(builder, WholeSurah(1)),
-        ayah: at(1, 3),
-        segment: 2,
-      );
+      final player = playerAt(planOf(builder, WholeSurah(1)), segment: 2);
       final vm = viewModel(player)..setCount(3);
       await vm.play();
       final plan = player.state.plan!;
@@ -70,10 +66,83 @@ void main() {
       expect(plan.segments.length, 12);
     });
 
+    group('on a plan of surah files that went on into surah 18', () {
+      final long = longIndex(20);
+      final longBuilder = syntheticBuilder(long);
+      final plan = planOf(
+        longBuilder,
+        WholeSurah(17),
+        recitation: syntheticRecitation(unit: RecitationUnit.surah),
+        continueToNextSurah: true,
+      );
+
+      Future<List<String>> playTwice(FakePlayerRepository player) async {
+        await (RepeatSheetViewModel(
+          player: player,
+          builder: longBuilder,
+        )..setCount(2)).play();
+        return player.commands;
+      }
+
+      // Surah 17 is heard twice, so surah 18 now starts at segment 2.
+      test('goes on from surah 18 though no ayah was followed', () async {
+        final player = playerAt(plan, segment: 1);
+        expect(player.state.ayah, isNull);
+        expect(await playTwice(player), ['play 2']);
+      });
+
+      test(
+        'goes on from surah 18 over an ayah left by an earlier plan',
+        () async {
+          final player = playerAt(plan, segment: 1, ayah: at(17, 1));
+          expect(await playTwice(player), ['play 2']);
+        },
+      );
+    });
+
+    group('on a plan without end', () {
+      final unlimited = planOf(
+        builder,
+        WholeSurah(1),
+        repeat: const RepeatMode.unlimited(RepeatUnit.range),
+      );
+
+      test('opens at 1 and plays nothing while the count is not set', () async {
+        final player = playerAt(unlimited, segment: 2);
+        final vm = viewModel(player);
+        expect(vm.count, 1);
+        expect(await vm.play(), isTrue);
+        expect(player.commands, isEmpty);
+        expect(player.state.plan, same(unlimited));
+      });
+
+      test('takes the count once it is set', () async {
+        final player = playerAt(unlimited, segment: 2);
+        final vm = viewModel(player)
+          ..setCount(3)
+          ..setCount(1);
+        expect(await vm.play(), isTrue);
+        expect(player.state.plan!.repeat, RepeatMode(RepeatUnit.range, 1));
+        expect(player.commands, ['play 2']);
+      });
+    });
+
+    test(
+      'a play the player refuses reports false and can be tried again',
+      () async {
+        final player = playerAt(planOf(builder, WholeSurah(1)), segment: 0)
+          ..playFailure = Exception('refused');
+        final vm = viewModel(player)..setCount(2);
+        expect(await vm.play(), isFalse);
+        expect(player.commands, isEmpty);
+        expect(await vm.play(), isTrue);
+      },
+    );
+
     test('keeps the recitation and the next-surah run', () async {
       final player = playerAt(
         planOf(builder, WholeSurah(2), continueToNextSurah: true),
-        ayah: at(2, 1),
+        segment: 0,
       );
       await (viewModel(player)..setCount(2)).play();
       final plan = player.state.plan!;
@@ -101,7 +170,7 @@ void main() {
     });
 
     test('a second play while the first runs starts nothing', () async {
-      final player = playerAt(planOf(builder, WholeSurah(1)), ayah: at(1, 1));
+      final player = playerAt(planOf(builder, WholeSurah(1)), segment: 0);
       final vm = viewModel(player);
       expect(await Future.wait([vm.play(), vm.play()]), [true, false]);
       expect(player.commands, ['play 0']);
@@ -119,7 +188,7 @@ void main() {
 
   group('RepeatSheet', () {
     testWidgets('steps the count and plays it', (tester) async {
-      final player = playerAt(planOf(builder, WholeSurah(1)), ayah: at(1, 1));
+      final player = playerAt(planOf(builder, WholeSurah(1)), segment: 0);
       final app = ControlsApp(player: player, builder: builder, index: index);
       await app.open(tester, Routes.repeatSheet);
 
@@ -137,9 +206,21 @@ void main() {
       expect(app.sheetOpen, isFalse);
     });
 
+    testWidgets('stays open when the player refuses to play', (tester) async {
+      final player = playerAt(planOf(builder, WholeSurah(1)), segment: 0)
+        ..playFailure = Exception('refused');
+      final app = ControlsApp(player: player, builder: builder, index: index);
+      await app.open(tester, Routes.repeatSheet);
+      await tester.tap(find.text(l10n.playerPlay));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(app.sheetOpen, isTrue);
+      expect(player.commands, isEmpty);
+    });
+
     testWidgets('announces the count as it changes', (tester) async {
       final app = ControlsApp(
-        player: playerAt(planOf(builder, WholeSurah(1)), ayah: at(1, 1)),
+        player: playerAt(planOf(builder, WholeSurah(1)), segment: 0),
         builder: builder,
         index: index,
       );
@@ -156,7 +237,7 @@ void main() {
 
     testWidgets('keeps the count when the route rebuilds', (tester) async {
       final app = ControlsApp(
-        player: playerAt(planOf(builder, WholeSurah(1)), ayah: at(1, 1)),
+        player: playerAt(planOf(builder, WholeSurah(1)), segment: 0),
         builder: builder,
         index: index,
       );

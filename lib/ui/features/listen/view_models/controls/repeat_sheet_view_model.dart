@@ -9,14 +9,23 @@ import 'current_plan.dart';
 
 /// The repeat count (`AU-09`), from 1 to 99, opening at the count of the
 /// plan playing. Its unit stays the plan's. Playing builds the plan playing
-/// then again with the count and goes on from the ayah being heard.
+/// then again with the count and goes on from the segment being heard.
+///
+/// A plan without end opens at 1 and stays without end until the count is
+/// changed: the sheet has no choice for it yet, so playing then changes
+/// nothing.
 final class RepeatSheetViewModel extends ChangeNotifier with PlaysOnce {
   RepeatSheetViewModel({required this._player, required this._builder})
-    : _count = _player.state.plan?.repeat.count ?? RepeatMode.minCount;
+    : _count = switch (_player.state.plan) {
+        final plan? => plan.repeat.count,
+        null => RepeatMode.minCount,
+      };
 
   final PlayerRepository _player;
   final PlaybackPlanBuilder _builder;
-  int _count;
+
+  /// Null while a plan without end is left as it is.
+  int? _count;
 
   /// False before any plan, and when the plan repeats ayat or pages of
   /// surah files without timing data, which repeat whole surahs only
@@ -29,7 +38,7 @@ final class RepeatSheetViewModel extends ChangeNotifier with PlaysOnce {
     null => false,
   };
 
-  int get count => _count;
+  int get count => _count ?? min;
 
   int get min => RepeatMode.minCount;
 
@@ -43,19 +52,21 @@ final class RepeatSheetViewModel extends ChangeNotifier with PlaysOnce {
   }
 
   Future<bool> play() => playOnce(() async {
-    if (_outcome() case PlanReady(:final plan)) {
-      await _player.play(plan, startAt: segmentOf(plan, _player.state.ayah));
-      return true;
-    }
-    return false;
-  });
-
-  PlanOutcome? _outcome() => switch (_player.state.plan) {
-    final plan? when available => rebuildPlan(
+    final state = _player.state;
+    final plan = state.plan;
+    if (plan == null || !available) return false;
+    final count = _count;
+    if (count == null && plan.repeat.isUnlimited) return true;
+    final outcome = rebuildPlan(
       _builder,
       plan,
-      repeat: RepeatMode(plan.repeat.unit, _count),
-    ),
-    _ => null,
-  };
+      repeat: count == null ? plan.repeat : RepeatMode(plan.repeat.unit, count),
+    );
+    if (outcome is! PlanReady) return false;
+    await _player.play(
+      outcome.plan,
+      startAt: segmentOf(outcome.plan, heardIn(state)),
+    );
+    return true;
+  });
 }
