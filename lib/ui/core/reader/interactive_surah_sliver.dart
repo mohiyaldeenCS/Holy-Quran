@@ -3,9 +3,11 @@ import 'package:flutter/widgets.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/widgets/quran_text.dart';
 
+import 'block_highlights.dart';
 import 'block_layout.dart';
 import 'gesture_target.dart';
 import 'reader_block.dart';
+import 'reader_highlights.dart';
 import 'reader_style.dart';
 import 'reader_text_scale.dart';
 import 'surah_layout.dart';
@@ -33,6 +35,7 @@ final class InteractiveSurahSliver extends StatefulWidget {
     required this.text,
     this.step = 1,
     this.onLayout,
+    this.highlights = ReaderHighlights.none,
     this.onTap,
     this.onLongPress,
     this.blockOverlayBuilder,
@@ -42,6 +45,10 @@ final class InteractiveSurahSliver extends StatefulWidget {
   final SurahText text;
   final double step;
   final ValueChanged<SurahLayout>? onLayout;
+
+  /// Painted behind the glyphs, and the recited ayah's marker filled; the
+  /// text itself is never changed (`docs/DESIGN_SYSTEM.md`).
+  final ReaderHighlights highlights;
   final ValueChanged<GestureTarget>? onTap;
   final ValueChanged<GestureTarget>? onLongPress;
   final BlockOverlayBuilder? blockOverlayBuilder;
@@ -58,7 +65,8 @@ final class _InteractiveSurahSliverState extends State<InteractiveSurahSliver> {
   @override
   void didUpdateWidget(InteractiveSurahSliver oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if ((oldWidget.onTap == null) != (widget.onTap == null) ||
+    if (oldWidget.highlights != widget.highlights ||
+        (oldWidget.onTap == null) != (widget.onTap == null) ||
         (oldWidget.onLongPress == null) != (widget.onLongPress == null) ||
         (oldWidget.blockOverlayBuilder == null) !=
             (widget.blockOverlayBuilder == null)) {
@@ -126,6 +134,7 @@ final class _InteractiveSurahSliverState extends State<InteractiveSurahSliver> {
           key: ValueKey((layout, index - basmala)),
           layout: layout,
           index: index - basmala,
+          highlights: widget.highlights,
           onTap: widget.onTap == null ? null : _tap,
           onLongPress: widget.onLongPress == null ? null : _longPress,
           overlayBuilder: widget.blockOverlayBuilder == null ? null : _overlay,
@@ -152,6 +161,7 @@ final class _BlockHost extends StatefulWidget {
   const _BlockHost({
     required this.layout,
     required this.index,
+    required this.highlights,
     required this.onTap,
     required this.onLongPress,
     required this.overlayBuilder,
@@ -160,6 +170,7 @@ final class _BlockHost extends StatefulWidget {
 
   final SurahLayout layout;
   final int index;
+  final ReaderHighlights highlights;
   final ValueChanged<GestureTarget>? onTap;
   final ValueChanged<GestureTarget>? onLongPress;
   final BlockOverlayBuilder? overlayBuilder;
@@ -194,7 +205,9 @@ final class _BlockHostState extends State<_BlockHost> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
+          ...highlightsUnder(context, block, widget.highlights),
           ReaderBlock(block),
+          ...highlightsOver(context, block, widget.highlights),
           if (widget.overlayBuilder case final overlay?)
             Positioned.fill(child: overlay(context, block)),
         ],
