@@ -15,6 +15,8 @@ import 'package:holyquran/config/providers/share_providers.dart';
 import 'package:holyquran/config/providers/tafsir_providers.dart';
 import 'package:holyquran/config/providers/user_data_providers.dart';
 import 'package:holyquran/config/providers/user_database_providers.dart';
+import 'package:holyquran/data/services/clipboard_service.dart';
+import 'package:holyquran/data/services/share_service.dart';
 import 'package:provider/provider.dart';
 
 final class _Database {
@@ -48,8 +50,13 @@ void main() {
     ]);
   });
 
-  test('builds with every area empty', () async {
-    expect(await buildDependencies(), isEmpty);
+  test('builds without a base pack or a catalogue, providing only the '
+      'services that need neither', () async {
+    final providers = await buildDependencies();
+    expect(providers.map((provider) => provider.runtimeType), [
+      Provider<ClipboardService>,
+      Provider<ShareService>,
+    ]);
   });
 
   test(

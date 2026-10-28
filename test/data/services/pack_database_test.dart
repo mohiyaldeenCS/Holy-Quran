@@ -555,9 +555,9 @@ void main() {
   });
 
   test('opens a path with spaces and URI characters', () async {
-    final pack = await buildSyntheticPack(
-      Directory('${root.path}/a b#c?d%20e'),
-    );
+    // Windows forbids `?` in a file name; `&` stands in for it there.
+    final name = Platform.isWindows ? 'a b#c&d%20e' : 'a b#c?d%20e';
+    final pack = await buildSyntheticPack(Directory('${root.path}/$name'));
     final db = open(pack);
     expect(db.ayahText(3, 1)!.verbatim, 'Synthetic last ayah');
   });
