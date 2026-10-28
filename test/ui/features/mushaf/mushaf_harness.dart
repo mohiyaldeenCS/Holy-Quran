@@ -5,12 +5,15 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/data/repositories/pack_quran_text_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
+import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
+import 'package:holyquran/ui/core/shell_chrome.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/mushaf_view_model.dart';
 import 'package:holyquran/ui/features/mushaf/views/mushaf_screen.dart';
 import 'package:holyquran/utils/result.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../testing/fakes/fake_pack_integrity_repository.dart';
 import '../../../../testing/golden.dart';
@@ -73,9 +76,13 @@ final class MushafRig {
   final PackQuranIndexRepository index;
   final FakePackIntegrityRepository integrity;
 
-  MushafViewModel viewModel({QuranAddress? address}) => MushafViewModel(
+  MushafViewModel viewModel({
+    QuranAddress? address,
+    ReadingPositionRepository? positions,
+  }) => MushafViewModel(
     text: text,
     index: index,
+    positions: positions,
     integrity: integrity,
     address: address,
   );
@@ -98,18 +105,25 @@ Widget readerApp(
   ReadingTheme theme = ReadingTheme.paper,
   double textScale = 1,
   Size size = const Size(readerWidth, readerHeight),
+  ShellChrome? chrome,
 }) => goldenApp(
   theme,
   Builder(
-    builder: (context) => MediaQuery(
-      data: MediaQuery.of(
-        context,
-      ).copyWith(textScaler: TextScaler.linear(textScale)),
-      child: SizedBox.fromSize(
+    builder: (context) {
+      Widget screen = SizedBox.fromSize(
         size: size,
         child: MushafScreen(key: ObjectKey(viewModel), viewModel: viewModel),
-      ),
-    ),
+      );
+      if (chrome != null) {
+        screen = ChangeNotifierProvider.value(value: chrome, child: screen);
+      }
+      return MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
+        child: screen,
+      );
+    },
   ),
 );
 

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
+import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/domain/models/edition_map.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
@@ -25,15 +26,28 @@ final class ReaderUnavailable implements Exception {
 /// from the base pack, the address to open at, and the first visible ayah
 /// with its place in the mushaf. The layout itself is the view's. While the
 /// pack fails its check, no text is held (PRD §9.5).
+///
+/// It opens at the address of its route, else at the last reading position,
+/// else at the first ayah. The first visible ayah is saved when a scroll the
+/// user made ends and when the reader is left (`RD-12`, D-106); a reader only
+/// opened, or only shown again, never overwrites the position.
 final class MushafViewModel extends ChangeNotifier {
-  MushafViewModel({this._text, this._index, this._integrity, this._address}) {
+  MushafViewModel({
+    this._text,
+    this._index,
+    this._positions,
+    this._integrity,
+    this._address,
+  }) {
     _integrity?.addListener(_onIntegrity);
   }
 
   final QuranTextRepository? _text;
   final QuranIndexRepository? _index;
+  final ReadingPositionRepository? _positions;
   final PackIntegrityRepository? _integrity;
-  final QuranAddress? _address;
+  QuranAddress? _address;
+  bool _moved = false;
   EditionMap? _map;
   bool _disposed = false;
 
@@ -74,8 +88,10 @@ final class MushafViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// The first visible ayah is now [address]; the position bar follows.
-  void showFirstVisible(QuranAddress address) {
+  /// The first visible ayah is now [address]; the position bar follows. A
+  /// [byUser] scroll makes the position worth saving.
+  void showFirstVisible(QuranAddress address, {bool byUser = false}) {
+    if (byUser) _moved = true;
     final index = _index;
     if (index == null || _status != ReaderStatus.ready) return;
     final names = index.surahs;
@@ -128,9 +144,32 @@ final class MushafViewModel extends ChangeNotifier {
     }
   }
 
+  /// Saves the first visible ayah, after the user scrolled.
+  Future<void> saveFirstVisible() async {
+    if (_moved) await _save();
+  }
+
+  /// The reader is no longer shown: the user's position is saved, and the
+  /// reader opens there when shown again. One that was only opened leaves
+  /// the saved position as it is.
+  Future<void> leave() async {
+    if (!_moved) return;
+    _moved = false;
+    _address = _position?.address ?? _address;
+    await _save();
+  }
+
+  Future<void> _save() async {
+    if (_position case final position?) {
+      await _positions?.save(position.address);
+    }
+  }
+
   QuranAddress _target(QuranIndexRepository index) {
-    if (_address case final address? when _inEdition(index, address)) {
-      return address.ayahAddress;
+    for (final candidate in [_address, _positions?.last]) {
+      if (candidate != null && _inEdition(index, candidate)) {
+        return candidate.ayahAddress;
+      }
     }
     return QuranAddress(index.riwaya, 1, 1);
   }

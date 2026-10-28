@@ -19,8 +19,10 @@ import 'package:holyquran/ui/features/mushaf/views/surah_info_text.dart';
 /// each a header and its text. It scrolls to the view model's anchor when its
 /// text is first laid out, keeps the first visible ayah in place when the
 /// layout changes (rotation, text scale), tells the view model which ayah is
-/// first visible, and asks for the next surah before the reader reaches the
-/// end. While not [active] it neither tracks nor loads.
+/// first visible, saves it when a scroll ends (`RD-12`), and asks for the
+/// next surah before the reader reaches the end. While not [active] it
+/// neither tracks, saves nor loads. Every scroll it did not make itself
+/// counts as the user's, a screen reader's included.
 final class MushafScrollView extends StatefulWidget {
   const MushafScrollView({
     required this.viewModel,
@@ -117,6 +119,9 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
         notification is ScrollEndNotification) {
       _trackFirstVisible(notification.metrics.pixels);
     }
+    if (notification is ScrollEndNotification) {
+      unawaited(_model.saveFirstVisible());
+    }
     _loadNextIfNear(notification.metrics);
     return false;
   }
@@ -139,7 +144,7 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
       if (pixels >= start + sliver.geometry!.scrollExtent) continue;
       final layout = _layouts[number];
       if (layout != null && identical(layout.text, surah.text)) {
-        _model.showFirstVisible(layout.ayahAt(pixels - start));
+        _model.showFirstVisible(layout.ayahAt(pixels - start), byUser: true);
       }
       return;
     }
