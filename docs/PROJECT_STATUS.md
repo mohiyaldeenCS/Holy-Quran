@@ -10,7 +10,7 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-28 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **20 merged**: P1-01 to P1-13, P1-15, P1-16, P1-18 to P1-21, P1-28 (P1-12, P1-15 and P1-28 partial). **Open**: #52 (P1-25), #53 (P1-27), P1-39 (local). **17 not started**. The lead merges after an independent review and CI (D-136) |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **20 merged**: P1-01 to P1-13, P1-15, P1-16, P1-18 to P1-21, P1-28 (P1-12, P1-15 and P1-28 partial). **Open**: #52 (P1-25), #53 (P1-27), P1-39 (local); #56 (gallery test, D-136) merged. **17 not started**. The lead merges after an independent review and CI (D-136) |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/p1-*`); worktrees under the session's scratchpad for parallel agents (D-132) |
 | Last session | 2026-10-28, local session on the owner's Windows machine: state recovered from Git, the owner's pending decisions taken (D-128), resumption settled (D-129) |
@@ -211,13 +211,13 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   off until the continue button has wording); LV-04 not met. Follow-ups: LV-04's route
   flag in `routes.dart`; the setup's strings, continue button and redirect switched on
   (no task owns `startup_redirect.dart` before P1-26); the display-mode step with one
-  choice (D-127, D-134); the mail send action of «أبلغ عن خطأ» (D-127); a shared
+  choice (D-127, D-134), the recitation step hidden until a recitation is `Ready` (D-136); the mail send action of «أبلغ عن خطأ» (D-127); a shared
   sheet-frame widget (word, copy, report and player sheets each copy `.qk-sheet`);
   `LevelSwitch` and the theme switch at 320 wide and 200% (P1-35); user-data screens
   saying when the database is in memory (D-133); `userDataProviders` wiring
   (bookmarks, notes, keep-awake). Reviewed by `code-reviewer` (once, then fixes) and
   `identity-auditor`.
-- Open pull requests: #52 (P1-25), #53 (P1-27), #56 (gallery test, D-136). Their old CI runs wait for approval
+- Open pull requests: #52 (P1-25), #53 (P1-27). #56 (the gallery tap-target test sized to the gallery; D-136) merged. Their old CI runs wait for approval
 - **P1-28 merged (#50), partial.**
   Range, play-options, repeat, silence and queue sheets (D-135). AU-11 met; AU-02
   partial (ayah to ayah, several pages, a set of surahs and to the end of the mushaf
