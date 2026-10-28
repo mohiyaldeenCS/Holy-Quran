@@ -156,25 +156,54 @@ void main() {
       await tester.scrollUntilVisible(link, 300, scrollable: list);
       await tester.ensureVisible(link.first);
       await tester.pumpAndSettle();
+      final card = find.ancestor(
+        of: link.first,
+        matching: find.byType(SearchResult),
+      );
+      final key = tester.widget<SearchResult>(card).ayahNumber;
+      final cardKey = ValueKey(QuranAddress(fixture.index.riwaya, 2, key));
+      expect(
+        find.descendant(of: find.byKey(cardKey), matching: link),
+        findsOneWidget,
+      );
       await tester.tap(link.first);
       await tester.pumpAndSettle();
-      final wholeBefore = tester
-          .widgetList<SearchResult>(find.byType(SearchResult))
-          .where((r) => r.expanded)
-          .map((r) => r.ayahNumber)
-          .toList();
-      expect(wholeBefore, hasLength(1));
+      expect(
+        find.descendant(of: find.byKey(cardKey), matching: link),
+        findsNothing,
+      );
+      expect(
+        tester
+            .widget<SearchResult>(
+              find.descendant(
+                of: find.byKey(cardKey),
+                matching: find.byType(SearchResult),
+              ),
+            )
+            .expanded,
+        isTrue,
+      );
 
       await tester.drag(list, const Offset(0, 5000));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(link, 300, scrollable: list);
+      expect(find.byKey(cardKey), findsNothing, reason: 'built away');
+      await tester.scrollUntilVisible(
+        find.byKey(cardKey),
+        300,
+        scrollable: list,
+      );
 
-      final wholeAfter = tester
-          .widgetList<SearchResult>(find.byType(SearchResult))
-          .where((r) => r.expanded)
-          .map((r) => r.ayahNumber)
-          .toList();
-      expect(wholeAfter, wholeBefore);
+      expect(
+        tester
+            .widget<SearchResult>(
+              find.descendant(
+                of: find.byKey(cardKey),
+                matching: find.byType(SearchResult),
+              ),
+            )
+            .expanded,
+        isTrue,
+      );
     });
 
     testWidgets('the order control goes through the three orders', (

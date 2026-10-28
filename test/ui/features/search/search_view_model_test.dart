@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/data/repositories/search_repository.dart';
 import 'package:holyquran/domain/models/edition_map.dart';
 import 'package:holyquran/domain/models/go_to_error.dart';
 import 'package:holyquran/domain/models/go_to_target.dart';
@@ -25,6 +27,22 @@ typedef _Opened = ({
   FakeSearchRepository search,
   FakeSearchHistoryRepository history,
 });
+
+/// A search that answers when the test lets it, to put two in flight.
+final class _SlowSearch implements SearchRepository {
+  final pending = <(SearchQuery, Completer<Result<SearchResults>>)>[];
+
+  @override
+  Future<Result<List<String>>> formKinds() async =>
+      const Ok([SearchKinds.word]);
+
+  @override
+  Future<Result<SearchResults>> search(SearchQuery query) {
+    final completer = Completer<Result<SearchResults>>();
+    pending.add((query, completer));
+    return completer.future;
+  }
+}
 
 void main() {
   late Directory root;
@@ -329,6 +347,55 @@ void main() {
       expect(it.search.queries, isEmpty);
       await it.viewModel.submit(query);
       expect(it.viewModel.refusal, isNull);
+    });
+  });
+
+  group('searches in flight', () {
+    test(
+      'only the latest answers; an emptied field cancels the rest',
+      () async {
+        final slow = _SlowSearch();
+        final viewModel = SearchViewModel(
+          search: slow,
+          text: fixture.text,
+          index: fixture.index,
+          words: jumpWords,
+          history: FakeSearchHistoryRepository(),
+        );
+        addTearDown(viewModel.dispose);
+        await viewModel.load();
+
+        final first = viewModel.submit('one');
+        await pumpEventQueue();
+        final second = viewModel.submit('two');
+        await pumpEventQueue();
+        expect(slow.pending, hasLength(2));
+        SearchResults found(int index, List<SearchHit> hits) =>
+            SearchResults(query: slow.pending[index].$1, hits: hits);
+        slow.pending[1].$2.complete(Ok(found(1, [hit(fixture, 2, 3)])));
+        await second;
+        slow.pending[0].$2.complete(Ok(found(0, [hit(fixture, 3, 1)])));
+        await first;
+
+        expect(viewModel.query, 'two');
+        expect(viewModel.ayat, 1);
+        expect(viewModel.ayahAt(0).surah, 2);
+
+        final third = viewModel.submit('three');
+        await pumpEventQueue();
+        viewModel.edit('');
+        slow.pending[2].$2.complete(Ok(found(2, [hit(fixture, 3, 1)])));
+        await third;
+        expect(viewModel.searched, isFalse);
+      },
+    );
+
+    test('a search that fails is not kept in the history', () async {
+      final it = await open();
+      it.search.failure = Exception('broken');
+      await it.viewModel.submit(query);
+
+      expect(it.viewModel.history, isEmpty);
     });
   });
 

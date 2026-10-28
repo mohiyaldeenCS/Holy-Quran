@@ -72,9 +72,9 @@ const TextStyle _moreStyle = TextStyle(
 /// the compact Quran size, on a `surface` card.
 ///
 /// [ayahText] is one whole ayah from the pack, with no inline marker (D-087);
-/// [matches] are painted behind it, not cut into it (D-088). With [clamp], an ayah laid out taller than
-/// 92 px, grown as the ayah's text is, is cut there under a 40 px fade, with
-/// a link that shows it whole; one that fits is shown whole as without
+/// [matches] are painted behind it, not cut into it (D-088). With [clamp], an
+/// ayah laid out taller than 92 px, grown as the ayah's text is, is cut there
+/// under a 40 px fade, with a link that shows it whole; one that fits is shown whole as without
 /// [clamp]. A screen reader always gets the whole ayah, after the reference
 /// and before the actions (AX-01).
 ///

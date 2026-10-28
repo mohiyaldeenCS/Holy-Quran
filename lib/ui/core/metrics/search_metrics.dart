@@ -5,9 +5,8 @@ import 'package:holyquran/ui/core/metrics/settings_metrics.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 
 /// Screen metrics of the search screen, read from the first phone of
-/// `design/identity-boards/Search.dc.html`, and of the study hub, which takes
-/// the More hub's layout (`SettingsMetrics`). The scope row and the history
-/// are not drawn there; they use only the board's gaps and the tokens.
+/// `design/identity-boards/Search.dc.html`. The scope row and the history are
+/// not drawn there; they use only the board's gaps and the tokens.
 abstract final class SearchMetrics {
   // Search.dc.html, the header: `padding:24px 16px 8px; gap:10px`.
   static const EdgeInsets header = SettingsMetrics.header;
@@ -60,9 +59,4 @@ abstract final class SearchMetrics {
     border: InputBorder.none,
     contentPadding: EdgeInsets.zero,
   );
-
-  // The tab roots' header, for the study hub.
-  static const EdgeInsets hubHeader = SettingsMetrics.tabRootHeader;
-  static const EdgeInsets hubContent = SettingsMetrics.content;
-  static const double hubGap = SettingsMetrics.contentGap;
 }

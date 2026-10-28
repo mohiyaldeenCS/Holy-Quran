@@ -53,17 +53,22 @@ class _ScopeFieldState extends State<ScopeField> {
             padding: SearchMetrics.fieldPadding,
             child: Material(
               type: MaterialType.transparency,
-              child: TextField(
-                controller: widget.controller,
-                keyboardType: TextInputType.number,
-                textInputAction: TextInputAction.done,
-                textDirection: TextDirection.rtl,
-                onChanged: widget.onChanged,
-                style: SearchFieldBox.inputStyle.copyWith(color: colors.ink),
-                cursorColor: colors.ink,
-                decoration: SearchMetrics.fieldDecoration.copyWith(
-                  hintText: widget.label,
-                  hintStyle: SearchFieldBox.hintStyle(colors.inkMuted),
+              child: Semantics(
+                // The hint names the empty field; once it holds text the
+                // hint is gone and this does, as the search field's does.
+                label: widget.controller.text.isEmpty ? null : widget.label,
+                child: TextField(
+                  controller: widget.controller,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.done,
+                  textDirection: TextDirection.rtl,
+                  onChanged: widget.onChanged,
+                  style: SearchFieldBox.inputStyle.copyWith(color: colors.ink),
+                  cursorColor: colors.ink,
+                  decoration: SearchMetrics.fieldDecoration.copyWith(
+                    hintText: widget.label,
+                    hintStyle: SearchFieldBox.hintStyle(colors.inkMuted),
+                  ),
                 ),
               ),
             ),

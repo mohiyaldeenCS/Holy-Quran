@@ -5,7 +5,7 @@ import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/route_table.dart';
 import 'package:holyquran/routing/routes.dart';
-import 'package:holyquran/ui/core/metrics/search_metrics.dart';
+import 'package:holyquran/ui/core/metrics/settings_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
@@ -38,7 +38,7 @@ class StudyScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: SearchMetrics.hubHeader,
+            padding: SettingsMetrics.tabRootHeader,
             child: Semantics(
               header: true,
               child: Text(
@@ -51,7 +51,7 @@ class StudyScreen extends StatelessWidget {
           ),
           Expanded(
             child: ListView(
-              padding: SearchMetrics.hubContent,
+              padding: SettingsMetrics.content,
               children: [
                 for (final (label, location) in entries) ...[
                   Button(
@@ -59,7 +59,7 @@ class StudyScreen extends StatelessWidget {
                     variant: ButtonVariant.outline,
                     onPressed: () => context.go(location),
                   ),
-                  const SizedBox(height: SearchMetrics.hubGap),
+                  const SizedBox(height: SettingsMetrics.contentGap),
                 ],
               ],
             ),

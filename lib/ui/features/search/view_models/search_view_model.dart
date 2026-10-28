@@ -142,6 +142,7 @@ final class SearchViewModel extends ChangeNotifier {
   /// The field's text changed. Emptying it shows the history again.
   void edit(String text) {
     _typed = text;
+    _refusal = null;
     if (text.trim().isEmpty) _forget();
     _notify();
   }
@@ -157,12 +158,15 @@ final class SearchViewModel extends ChangeNotifier {
       _notify();
       return null;
     }
+    // A later edit or submit makes this one stale while its lookup runs.
+    final generation = ++_generation;
     final jump = await parseDirectJump(
       query,
       words: _words,
       structure: _index,
       surahNamed: _addresses?.surahNamed ?? _noNames,
     );
+    if (generation != _generation) return null;
     switch (jump) {
       case Ok(:final value):
         _forget();
@@ -174,13 +178,13 @@ final class SearchViewModel extends ChangeNotifier {
         _notify();
         return null;
       case _:
+        // Not a place, or the name lookup failed: the text is searched for.
         break;
     }
     _refusal = null;
     _query = query;
     _whole.clear();
-    await _run();
-    await _history?.record(query);
+    if (await _run()) await _history?.record(query);
     return null;
   }
 
@@ -237,9 +241,10 @@ final class SearchViewModel extends ChangeNotifier {
     if (_cards.containsKey(ayah) || !_loading.add(ayah)) return;
     final text = await _text.ayahText(ayah);
     final spans = await _text.words(ayah);
+    if (generation != _generation) return;
     _loading.remove(ayah);
     final name = surahName(ayah.surah);
-    if (generation != _generation || name == null) return;
+    if (name == null) return;
     if (text is Ok<PackText> && spans is Ok<List<WordSpan>>) {
       _cards[ayah] = SearchCard(
         ayah: ayah,
@@ -259,14 +264,15 @@ final class SearchViewModel extends ChangeNotifier {
     if (_query != null) await _run();
   }
 
-  Future<void> _run() async {
+  /// Searches for [_query]; whether it was searched and the engine answered.
+  Future<bool> _run() async {
     final query = _query;
     final scope = _scope;
     if (query == null || scope == null || _kinds.isEmpty) {
       _results = null;
       _resetCards();
       _notify();
-      return;
+      return false;
     }
     final generation = ++_generation;
     final found = await _search.search(
@@ -277,13 +283,14 @@ final class SearchViewModel extends ChangeNotifier {
         scope: scope,
       ),
     );
-    if (generation != _generation) return;
+    if (generation != _generation) return false;
     _results = switch (found) {
       Ok(:final value) => value,
       Failure() => null,
     };
     _resetCards();
     _notify();
+    return _results != null;
   }
 
   SearchScope? get _scope {
