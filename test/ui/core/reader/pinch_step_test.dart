@@ -42,6 +42,17 @@ void main() {
       expect(stepAfterPinch(at100, 1), at100);
     });
 
+    test('judged on a log scale, as S7 did', () {
+      // The midpoint of two steps is their geometric mean: between 1.75 and
+      // 2.0 it is sqrt(3.5), 1.8708, below the arithmetic 1.875.
+      final at175 = readerTextSteps.indexOf(1.75);
+      expect(readerTextSteps[stepAfterPinch(at175, 1.07)], 2.0);
+      expect(readerTextSteps[stepAfterPinch(at175, 1.06)], 1.75);
+      // Between 0.8 and 0.9: sqrt(0.72), 0.8485, below the arithmetic 0.85.
+      expect(readerTextSteps[stepAfterPinch(at100, 0.8495)], 0.9);
+      expect(readerTextSteps[stepAfterPinch(at100, 0.8475)], 0.8);
+    });
+
     test('and stops at both ends', () {
       expect(stepAfterPinch(at100, 9), readerTextSteps.length - 1);
       expect(stepAfterPinch(at100, 0.1), 0);
