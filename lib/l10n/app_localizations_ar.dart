@@ -776,4 +776,302 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get playUntilStopped => 'حتى أوقفه';
+
+  @override
+  String get openAtLastPosition => 'فتح التطبيق على آخر موضع';
+
+  @override
+  String get keepScreenAwake => 'منع إطفاء الشاشة أثناء القراءة أو التلاوة';
+
+  @override
+  String get textSizeLabel => 'حجم النص';
+
+  @override
+  String get distractionFreeMode => 'وضع بلا تشتيت';
+
+  @override
+  String get playerSpeed => 'السرعة';
+
+  @override
+  String get playerEndOfAyah => 'نهاية الآية';
+
+  @override
+  String get playerEndOfSurah => 'نهاية السورة';
+
+  @override
+  String get stopAfterAyah => 'التوقف بعد الآية';
+
+  @override
+  String get stopAfterPage => 'التوقف بعد الصفحة';
+
+  @override
+  String get stopAfterSurah => 'التوقف بعد السورة';
+
+  @override
+  String get playerStop => 'إيقاف';
+
+  @override
+  String get nextSurah => 'السورة التالية';
+
+  @override
+  String get previousSurah => 'السورة السابقة';
+
+  @override
+  String get qualityLabel => 'الجودة';
+
+  @override
+  String get wifiOnly => 'Wi-Fi فقط';
+
+  @override
+  String get sortNewest => 'الأحدث';
+
+  @override
+  String get noteLabel => 'ملاحظة';
+
+  @override
+  String get tagsLabel => 'وسوم';
+
+  @override
+  String get searchHistoryTitle => 'سجل البحث';
+
+  @override
+  String get resourceUpdate => 'تحديث';
+
+  @override
+  String resourceInProgress(String percent) {
+    return 'جارٍ · $percent';
+  }
+
+  @override
+  String get repeatUnlimited => 'بلا نهاية';
+
+  @override
+  String get tafsirReaderTitle => 'قارئ التفسير';
+
+  @override
+  String get recitationPickerTitle => 'اختيار التلاوة';
+
+  @override
+  String get defaultTafsirLabel => 'التفسير الافتراضي';
+
+  @override
+  String get resourcesDownloaded => 'المنزَّل';
+
+  @override
+  String get resourcesAvailable => 'المتاح';
+
+  @override
+  String get sourceAuthor => 'المؤلف';
+
+  @override
+  String get sourceEditionOrEditor => 'الطبعة أو المحقق';
+
+  @override
+  String get sourceDigitisation => 'مصدر الرقمنة';
+
+  @override
+  String get versionLabel => 'الإصدار';
+
+  @override
+  String copyFormatAyahOnly(String ayah) {
+    return '﴿$ayah﴾';
+  }
+
+  @override
+  String copyFormatWithSurah(String ayah, String surah) {
+    return '﴿$ayah﴾ [$surah]';
+  }
+
+  @override
+  String get reportError => 'أبلغ عن خطأ';
+
+  @override
+  String get setupStepDisplayMode => 'وضع العرض';
+
+  @override
+  String get setupStepLevel => 'المستوى';
+
+  @override
+  String get setupStepRecitation => 'التلاوة';
+
+  @override
+  String copyReferenceSurah(String surah) {
+    return ' [$surah]';
+  }
+
+  @override
+  String get setupDisplayModePrompt => 'اختر طريقة عرض المصحف';
+
+  @override
+  String get setupLevelPrompt =>
+      'اختر مستوى الواجهة، ويمكنك تغييره متى شئت من الإعدادات';
+
+  @override
+  String get setupRecitationPrompt => 'اختر التلاوة التي تستمع إليها';
+
+  @override
+  String get setupContinue => 'متابعة';
+
+  @override
+  String get setupFinish => 'ابدأ القراءة';
+
+  @override
+  String get reportSend => 'أرسل البلاغ';
+
+  @override
+  String get reportNote =>
+      'يفتح البلاغ تطبيق البريد برسالة فيها الموضع والمصدر وإصداره، وتراها قبل أن ترسلها.';
+
+  @override
+  String get integrityBaseTitle => 'نص المصحف لم يجتز التحقق';
+
+  @override
+  String get integrityBaseBody =>
+      'لن يُعرض نص لم يجتز التحقق. حدّث التطبيق أو أعد تثبيته.';
+
+  @override
+  String get integrityPackTitle => 'هذه الحزمة لم تجتز التحقق';
+
+  @override
+  String get integrityPackBody => 'لن يُعرض محتواها حتى تُنزَّل من جديد.';
+
+  @override
+  String get integrityIconLabel => 'تنبيه';
+
+  @override
+  String pageNotFound(String page) {
+    return 'لا توجد صفحة $page';
+  }
+
+  @override
+  String juzNotFound(String juz) {
+    return 'لا يوجد جزء $juz';
+  }
+
+  @override
+  String hizbNotFound(String hizb) {
+    return 'لا يوجد حزب $hizb';
+  }
+
+  @override
+  String rubNotFound(String rub) {
+    return 'لا يوجد ربع $rub';
+  }
+
+  @override
+  String get surahNotFound => 'لا توجد سورة بهذا الاسم';
+
+  @override
+  String get addressUnreadable => 'لم نتعرّف على الموضع المكتوب';
+
+  @override
+  String get levelAlwaysShow => 'أظهر هذه الأداة دائمًا';
+
+  @override
+  String get lowSpace => 'المساحة المتاحة في الجهاز لا تكفي';
+
+  @override
+  String storageSummary(String used, String free) {
+    return 'المستخدم $used · المتاح $free';
+  }
+
+  @override
+  String downloadSize(String size) {
+    return 'الحجم $size';
+  }
+
+  @override
+  String get waitingForWifi => 'بانتظار شبكة Wi-Fi';
+
+  @override
+  String get updateAvailable => 'يتوفر إصدار جديد';
+
+  @override
+  String get deletePackTitle => 'حذف الحزمة';
+
+  @override
+  String get deletePackBody => 'يمكنك تنزيلها من جديد متى شئت.';
+
+  @override
+  String get downloadNotSaved => 'تعذّر حفظ الملف';
+
+  @override
+  String get noNotesYet => 'لا توجد ملاحظات بعد';
+
+  @override
+  String get noSearchResults => 'لم نجد نتائج';
+
+  @override
+  String get noTafsirsYet => 'لا توجد تفاسير منزَّلة بعد';
+
+  @override
+  String get noRecitationsYet => 'لا توجد تلاوات منزَّلة بعد';
+
+  @override
+  String get queueEmpty => 'قائمة التشغيل فارغة';
+
+  @override
+  String get noteHint => 'اكتب ملاحظتك';
+
+  @override
+  String get noteSave => 'احفظ';
+
+  @override
+  String get noteDelete => 'احذف الملاحظة';
+
+  @override
+  String get shareSheetTitle => 'مشاركة الآية';
+
+  @override
+  String get addToQueue => 'أضف إلى قائمة التشغيل';
+
+  @override
+  String repeatCounter(String current, String total) {
+    return 'التكرار $current من $total';
+  }
+
+  @override
+  String get rangeFrom => 'من';
+
+  @override
+  String get rangeTo => 'إلى';
+
+  @override
+  String get repeatUnitAyah => 'الآية';
+
+  @override
+  String get repeatUnitRange => 'النطاق';
+
+  @override
+  String get userDataNotSaved =>
+      'تعذّر فتح بيانات التطبيق، فلن تُحفظ تغييراتك في هذه الجلسة.';
+
+  @override
+  String searchPlaces(int count, String digits) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$digits موضع',
+      many: '$digits موضعًا',
+      few: '$digits مواضع',
+      two: 'موضعان',
+      one: 'موضع واحد',
+      zero: 'لا مواضع',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String minutesCount(int count, String digits) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$digits دقيقة',
+      many: '$digits دقيقة',
+      few: '$digits دقائق',
+      two: 'دقيقتان',
+      one: 'دقيقة واحدة',
+    );
+    return '$_temp0';
+  }
 }

@@ -1461,6 +1461,504 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'حتى أوقفه'**
   String get playUntilStopped;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح التطبيق على آخر موضع'**
+  String get openAtLastPosition;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'منع إطفاء الشاشة أثناء القراءة أو التلاوة'**
+  String get keepScreenAwake;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'حجم النص'**
+  String get textSizeLabel;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'وضع بلا تشتيت'**
+  String get distractionFreeMode;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'السرعة'**
+  String get playerSpeed;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'نهاية الآية'**
+  String get playerEndOfAyah;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'نهاية السورة'**
+  String get playerEndOfSurah;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'التوقف بعد الآية'**
+  String get stopAfterAyah;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'التوقف بعد الصفحة'**
+  String get stopAfterPage;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'التوقف بعد السورة'**
+  String get stopAfterSurah;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'إيقاف'**
+  String get playerStop;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'السورة التالية'**
+  String get nextSurah;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'السورة السابقة'**
+  String get previousSurah;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'الجودة'**
+  String get qualityLabel;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'Wi-Fi فقط'**
+  String get wifiOnly;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأحدث'**
+  String get sortNewest;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'ملاحظة'**
+  String get noteLabel;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'وسوم'**
+  String get tagsLabel;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'سجل البحث'**
+  String get searchHistoryTitle;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'تحديث'**
+  String get resourceUpdate;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ · {percent}'**
+  String resourceInProgress(String percent);
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'بلا نهاية'**
+  String get repeatUnlimited;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'قارئ التفسير'**
+  String get tafsirReaderTitle;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'اختيار التلاوة'**
+  String get recitationPickerTitle;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'التفسير الافتراضي'**
+  String get defaultTafsirLabel;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'المنزَّل'**
+  String get resourcesDownloaded;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'المتاح'**
+  String get resourcesAvailable;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤلف'**
+  String get sourceAuthor;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'الطبعة أو المحقق'**
+  String get sourceEditionOrEditor;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'مصدر الرقمنة'**
+  String get sourceDigitisation;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'الإصدار'**
+  String get versionLabel;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'﴿{ayah}﴾'**
+  String copyFormatAyahOnly(String ayah);
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'﴿{ayah}﴾ [{surah}]'**
+  String copyFormatWithSurah(String ayah, String surah);
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'أبلغ عن خطأ'**
+  String get reportError;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'وضع العرض'**
+  String get setupStepDisplayMode;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'المستوى'**
+  String get setupStepLevel;
+
+  /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
+  ///
+  /// In ar, this message translates to:
+  /// **'التلاوة'**
+  String get setupStepRecitation;
+
+  /// Owner, 2026-10-28 (D-130). The copy preview's reference part of copyFormatWithSurah: the space after the closing bracket, then the surah's name from the pack, unchanged, in square brackets.
+  ///
+  /// In ar, this message translates to:
+  /// **' [{surah}]'**
+  String copyReferenceSurah(String surah);
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر طريقة عرض المصحف'**
+  String get setupDisplayModePrompt;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر مستوى الواجهة، ويمكنك تغييره متى شئت من الإعدادات'**
+  String get setupLevelPrompt;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر التلاوة التي تستمع إليها'**
+  String get setupRecitationPrompt;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة'**
+  String get setupContinue;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ القراءة'**
+  String get setupFinish;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل البلاغ'**
+  String get reportSend;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'يفتح البلاغ تطبيق البريد برسالة فيها الموضع والمصدر وإصداره، وتراها قبل أن ترسلها.'**
+  String get reportNote;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'نص المصحف لم يجتز التحقق'**
+  String get integrityBaseTitle;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'لن يُعرض نص لم يجتز التحقق. حدّث التطبيق أو أعد تثبيته.'**
+  String get integrityBaseBody;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه الحزمة لم تجتز التحقق'**
+  String get integrityPackTitle;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'لن يُعرض محتواها حتى تُنزَّل من جديد.'**
+  String get integrityPackBody;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'تنبيه'**
+  String get integrityIconLabel;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد صفحة {page}'**
+  String pageNotFound(String page);
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد جزء {juz}'**
+  String juzNotFound(String juz);
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد حزب {hizb}'**
+  String hizbNotFound(String hizb);
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد ربع {rub}'**
+  String rubNotFound(String rub);
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد سورة بهذا الاسم'**
+  String get surahNotFound;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'لم نتعرّف على الموضع المكتوب'**
+  String get addressUnreadable;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'أظهر هذه الأداة دائمًا'**
+  String get levelAlwaysShow;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'المساحة المتاحة في الجهاز لا تكفي'**
+  String get lowSpace;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'المستخدم {used} · المتاح {free}'**
+  String storageSummary(String used, String free);
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'الحجم {size}'**
+  String downloadSize(String size);
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار شبكة Wi-Fi'**
+  String get waitingForWifi;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'يتوفر إصدار جديد'**
+  String get updateAvailable;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف الحزمة'**
+  String get deletePackTitle;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك تنزيلها من جديد متى شئت.'**
+  String get deletePackBody;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر حفظ الملف'**
+  String get downloadNotSaved;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد ملاحظات بعد'**
+  String get noNotesYet;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'لم نجد نتائج'**
+  String get noSearchResults;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد تفاسير منزَّلة بعد'**
+  String get noTafsirsYet;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد تلاوات منزَّلة بعد'**
+  String get noRecitationsYet;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'قائمة التشغيل فارغة'**
+  String get queueEmpty;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب ملاحظتك'**
+  String get noteHint;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'احفظ'**
+  String get noteSave;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'احذف الملاحظة'**
+  String get noteDelete;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'مشاركة الآية'**
+  String get shareSheetTitle;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف إلى قائمة التشغيل'**
+  String get addToQueue;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'التكرار {current} من {total}'**
+  String repeatCounter(String current, String total);
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'من'**
+  String get rangeFrom;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'إلى'**
+  String get rangeTo;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'الآية'**
+  String get repeatUnitAyah;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'النطاق'**
+  String get repeatUnitRange;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر فتح بيانات التطبيق، فلن تُحفظ تغييراتك في هذه الجلسة.'**
+  String get userDataNotSaved;
+
+  /// Lead, 2026-10-28, D-128 (5). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, zero{لا مواضع} one{موضع واحد} two{موضعان} few{{digits} مواضع} many{{digits} موضعًا} other{{digits} موضع}}'**
+  String searchPlaces(int count, String digits);
+
+  /// Lead, 2026-10-28, D-128 (5). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, one{دقيقة واحدة} two{دقيقتان} few{{digits} دقائق} many{{digits} دقيقة} other{{digits} دقيقة}}'**
+  String minutesCount(int count, String digits);
 }
 
 class _AppLocalizationsDelegate
