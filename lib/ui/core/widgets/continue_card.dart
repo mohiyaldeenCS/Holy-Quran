@@ -5,6 +5,7 @@ import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/ramps.g.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/player_surface_border.dart';
 import 'package:holyquran/ui/core/widgets/pressable.dart';
 import 'package:holyquran/ui/core/widgets/progress_bar.dart';
 import 'package:holyquran/ui/core/widgets/star_outline.dart';
@@ -69,8 +70,9 @@ class ContinueCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final colors = context.colors;
     final meta = this.meta;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(_radius),
+    final radius = BorderRadius.circular(_radius);
+    final card = ClipRRect(
+      borderRadius: radius,
       child: ColoredBox(
         color: colors.player,
         child: Stack(
@@ -126,6 +128,14 @@ class ContinueCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+    final border = playerSurfaceBorder(context);
+    if (border == null) return card;
+    // Drawn over the clipped card, so the border is not clipped with it.
+    return DecoratedBox(
+      position: DecorationPosition.foreground,
+      decoration: BoxDecoration(border: border, borderRadius: radius),
+      child: card,
     );
   }
 }

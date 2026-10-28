@@ -8,6 +8,7 @@ import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/icon.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
+import 'package:holyquran/ui/core/widgets/player_surface_border.dart';
 import 'package:holyquran/ui/core/widgets/pressable.dart';
 import 'package:holyquran/ui/core/widgets/progress_bar.dart';
 import 'package:holyquran/ui/core/widgets/surah_name.dart';
@@ -107,6 +108,7 @@ class MiniPlayer extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: colors.player,
+        border: playerSurfaceBorder(context),
         borderRadius: BorderRadius.circular(AppRadius.radiusCard),
         boxShadow: context.shadows.shadowSheet,
       ),

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 
 /// The surah-mode text sizes (`RD-07`: 80% to 200%): S7's eight steps,
@@ -8,12 +10,17 @@ const List<double> readerTextSteps = [0.8, 0.9, 1.0, 1.15, 1.3, 1.5, 1.75, 2.0];
 final int defaultReaderTextStep = readerTextSteps.indexOf(1);
 
 /// The index of the step nearest to [factor], for a pinch that ends between
-/// steps.
+/// steps. Nearest is judged on a log scale, as S7 did (`text_size_ladder.dart`
+/// of the spike): a text size is felt as a ratio, so the midpoint of two
+/// steps is their geometric mean. A [factor] at or under the first step, or
+/// not positive, is the first.
 int nearestReaderTextStep(double factor) {
+  if (factor <= readerTextSteps.first) return 0;
+  final log = math.log(factor);
   var best = 0;
   for (var k = 1; k < readerTextSteps.length; k++) {
-    if ((readerTextSteps[k] - factor).abs() <
-        (readerTextSteps[best] - factor).abs()) {
+    if ((math.log(readerTextSteps[k]) - log).abs() <
+        (math.log(readerTextSteps[best]) - log).abs()) {
       best = k;
     }
   }

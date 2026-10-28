@@ -6,6 +6,7 @@ import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
 import 'package:holyquran/ui/core/widgets/mini_player.dart';
+import 'package:holyquran/ui/core/widgets/player_surface_border.dart';
 import 'package:holyquran/ui/core/widgets/surah_name.dart';
 
 // The reader's floating player bar on Screens.dc.html, the paper reader with
@@ -78,6 +79,7 @@ class ReaderPlayerBar extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: colors.player,
+        border: playerSurfaceBorder(context),
         borderRadius: BorderRadius.circular(_radius),
         boxShadow: context.shadows.shadowSheet,
       ),
