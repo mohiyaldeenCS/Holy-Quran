@@ -1,0 +1,40 @@
+name: Key check
+
+# Asks the API for one token with each key and prints only the HTTP status and
+# the error, so the owner knows which key has credit. Runs on a push to this
+# branch only; never on main.
+on:
+  push:
+    branches: [chore/key-check]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Try each key
+        env:
+          KEY_1: ${{ secrets.ANTHROPIC_API_KEY }}
+          KEY_2: ${{ secrets.ANTHROPIC_API_KEY2 }}
+        run: |
+          try() {
+            name="$1"; key="$2"
+            if [ -z "$key" ]; then
+              echo "$name: the secret is empty"
+              return
+            fi
+            status="$(curl -s -o "$RUNNER_TEMP/body.json" -w '%{http_code}' \
+              https://api.anthropic.com/v1/messages \
+              -H "x-api-key: $key" \
+              -H 'anthropic-version: 2023-06-01' \
+              -H 'content-type: application/json' \
+              -d '{"model":"claude-haiku-5-5","max_tokens":1,"messages":[{"role":"user","content":"1"}]}')"
+            detail="$(jq -r 'if .type == "error" then .error.type + ": " + .error.message else "ok, model " + .model end' "$RUNNER_TEMP/body.json")"
+            echo "$name: HTTP $status, $detail"
+            rm -f "$RUNNER_TEMP/body.json"
+          }
+          try ANTHROPIC_API_KEY "$KEY_1"
+          try ANTHROPIC_API_KEY2 "$KEY_2"
