@@ -12,10 +12,6 @@ final onboardingRoutes = FeatureRoutes(
   topLevel: [
     GoRoute(
       path: Routes.onboarding,
-      // The setup stores its choices in the settings; without them there is
-      // nothing to ask.
-      redirect: (context, state) =>
-          context.read<AppSettingsRepository?>() == null ? Routes.home : null,
       builder: (context, state) => ChangeNotifierProvider(
         create: (context) {
           final settings = context.read<AppSettingsRepository>();

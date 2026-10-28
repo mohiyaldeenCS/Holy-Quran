@@ -22,7 +22,7 @@ FutureOr<String?> startupRedirect(BuildContext context, GoRouterState state) =>
 /// The first-run setup for a user who has not finished it (O-17, D-127).
 String? firstRunRedirect(BuildContext context, GoRouterState state) {
   if (state.uri.path == Routes.onboarding) return null;
-  final settings = context.read<AppSettingsRepository?>();
-  if (settings == null || setupFinished(setupSteps(settings))) return null;
-  return Routes.onboarding;
+  return setupFinished(setupSteps(context.read<AppSettingsRepository>()))
+      ? null
+      : Routes.onboarding;
 }

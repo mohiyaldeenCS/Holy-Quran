@@ -14,10 +14,11 @@ import 'package:holyquran/ui/features/home/views/home_screen.dart';
 import 'package:provider/provider.dart';
 
 import '../../../testing/fakes/fake_app_settings_repository.dart';
+import '../../../testing/test_app.dart';
 
 void main() {
   testWidgets('starts in Arabic, right to left', (tester) async {
-    await tester.pumpWidget(QuranApp(router: createRouter()));
+    await tester.pumpWidget(testApp(createRouter()));
     await tester.pumpAndSettle();
 
     final context = tester.element(find.byType(HomeScreen));
@@ -26,7 +27,7 @@ void main() {
   });
 
   testWidgets('the window title is the localized app name', (tester) async {
-    await tester.pumpWidget(QuranApp(router: createRouter()));
+    await tester.pumpWidget(testApp(createRouter()));
     await tester.pumpAndSettle();
 
     final title = tester.widget<Title>(find.byType(Title)).title;
@@ -43,11 +44,13 @@ void main() {
       tester.platformDispatcher.platformBrightnessTestValue = system;
       addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
       await tester.pumpWidget(
-        QuranApp(
-          router: createRouter(),
-          themePreference: ThemePreference(
-            theme: theme,
-            followSystemDark: followSystemDark,
+        testApp(
+          createRouter(),
+          settings: FakeAppSettingsRepository(
+            themePreference: ThemePreference(
+              theme: theme,
+              followSystemDark: followSystemDark,
+            ),
           ),
         ),
       );
@@ -56,7 +59,7 @@ void main() {
     }
 
     testWidgets('is paper by default', (tester) async {
-      await tester.pumpWidget(QuranApp(router: createRouter()));
+      await tester.pumpWidget(testApp(createRouter()));
       await tester.pumpAndSettle();
       expect(
         tester.element(find.byType(HomeScreen)).colors,
@@ -104,9 +107,11 @@ void main() {
         tester,
       ) async {
         await tester.pumpWidget(
-          QuranApp(
-            router: createRouter(),
-            themePreference: ThemePreference(theme: theme),
+          testApp(
+            createRouter(),
+            settings: FakeAppSettingsRepository(
+              themePreference: ThemePreference(theme: theme),
+            ),
           ),
         );
         await tester.pumpAndSettle();
@@ -172,6 +177,21 @@ void main() {
 
       expect(colors(tester), same(AppColors.night));
       expect(level(tester), UiLevel.medium);
+    });
+
+    testWidgets('is not rebuilt by a setting it does not apply', (
+      tester,
+    ) async {
+      final settings = FakeAppSettingsRepository();
+      await pumpApp(tester, settings);
+      final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+
+      await settings.setKeepScreenAwake(false);
+      await settings.setSurahTextScale(1.5);
+      await settings.setOpenAtLastPosition(true);
+      await tester.pump();
+
+      expect(tester.widget<MaterialApp>(find.byType(MaterialApp)), same(app));
     });
 
     testWidgets('keeps the choice across a restart', (tester) async {

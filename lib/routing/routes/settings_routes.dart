@@ -12,10 +12,6 @@ final settingsRoutes = FeatureRoutes(
     ShellTab.more: [
       GoRoute(
         path: RoutePaths.settings,
-        // With no settings provided there is nothing to show, as with a
-        // route not built yet.
-        redirect: (context, state) =>
-            context.read<AppSettingsRepository?>() == null ? Routes.home : null,
         builder: (context, state) => ChangeNotifierProvider(
           create: (context) =>
               SettingsViewModel(context.read<AppSettingsRepository>()),

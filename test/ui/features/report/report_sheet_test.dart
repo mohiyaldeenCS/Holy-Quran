@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/data/repositories/pack_install_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/domain/models/installed_pack.dart';
@@ -18,8 +19,10 @@ import 'package:holyquran/ui/core/widgets/surah_name.dart';
 import 'package:holyquran/ui/features/report/views/report_sheet.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../testing/fakes/fake_app_settings_repository.dart';
 import '../../../../testing/fakes/fake_pack_install_repository.dart';
 import '../../../../testing/fakes/fake_quran_index_repository.dart';
+import '../../../../testing/test_app.dart';
 import '../settings/text_fit.dart';
 import 'report_test_support.dart';
 
@@ -44,6 +47,9 @@ void main() {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
+          ChangeNotifierProvider<AppSettingsRepository>.value(
+            value: FakeAppSettingsRepository(),
+          ),
           Provider<QuranIndexRepository>.value(value: index),
           ListenableProvider<PackInstallRepository>.value(
             value: FakePackInstallRepository(installed: [tafsir]),
@@ -122,7 +128,7 @@ void main() {
 
   testWidgets('is not opened over nothing at a cold start', (tester) async {
     final router = createRouter();
-    await tester.pumpWidget(QuranApp(router: router));
+    await tester.pumpWidget(testApp(router));
     router.go(Routes.reportSheet(address, pack: tafsir.id));
     await tester.pumpAndSettle();
 

@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/router.dart';
 import 'package:holyquran/routing/routes.dart';
-import 'package:holyquran/ui/core/app.dart';
 import 'package:holyquran/ui/core/shell_chrome.dart';
 import 'package:holyquran/ui/core/tab_shell.dart';
 import 'package:holyquran/ui/core/widgets/icon.dart' as ds;
@@ -14,6 +13,7 @@ import 'package:holyquran/ui/core/widgets/tab_bar.dart';
 import 'package:holyquran/ui/features/home/views/home_screen.dart';
 import 'package:holyquran/ui/features/listen/views/listen_screen.dart';
 import 'package:provider/provider.dart';
+import '../../../testing/test_app.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
 
@@ -62,7 +62,7 @@ void main() {
   testWidgets('the shell shows the identity tab bar, not Material', (
     tester,
   ) async {
-    await tester.pumpWidget(QuranApp(router: createRouter()));
+    await tester.pumpWidget(testApp(createRouter()));
     await tester.pumpAndSettle();
 
     expect(find.byType(TabBar), findsOneWidget);
@@ -89,7 +89,7 @@ void main() {
   testWidgets('the tab bar is named for screen readers', (tester) async {
     final semantics = tester.ensureSemantics();
     try {
-      await tester.pumpWidget(QuranApp(router: createRouter()));
+      await tester.pumpWidget(testApp(createRouter()));
       await tester.pumpAndSettle();
 
       expect(find.bySemanticsLabel(_l10n.mainNavigationLabel), findsOneWidget);
@@ -119,7 +119,7 @@ void main() {
   ) async {
     final semantics = tester.ensureSemantics();
     try {
-      await tester.pumpWidget(QuranApp(router: createRouter()));
+      await tester.pumpWidget(testApp(createRouter()));
       await tester.pumpAndSettle();
 
       await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
@@ -131,7 +131,7 @@ void main() {
   });
 
   testWidgets('the selected tab follows the branch', (tester) async {
-    await tester.pumpWidget(QuranApp(router: createRouter()));
+    await tester.pumpWidget(testApp(createRouter()));
     await tester.pumpAndSettle();
 
     await tester.tap(_tab(_l10n.tabStudy));
@@ -144,7 +144,7 @@ void main() {
     tester,
   ) async {
     final router = _nestedRouter();
-    await tester.pumpWidget(QuranApp(router: router));
+    await tester.pumpWidget(testApp(router));
     await tester.pumpAndSettle();
 
     router.go('/b1/sub');
@@ -167,7 +167,7 @@ void main() {
   ) async {
     final router = createRouter();
     addTearDown(router.dispose);
-    await tester.pumpWidget(QuranApp(router: router));
+    await tester.pumpWidget(testApp(router));
     await tester.pumpAndSettle();
     await tester.tap(_tab(_l10n.tabListen));
     await tester.pumpAndSettle();
@@ -191,7 +191,7 @@ void main() {
   ) async {
     final router = createRouter();
     addTearDown(router.dispose);
-    await tester.pumpWidget(QuranApp(router: router));
+    await tester.pumpWidget(testApp(router));
     await tester.pumpAndSettle();
     final withBar = tester.getSize(find.byType(HomeScreen)).height;
 

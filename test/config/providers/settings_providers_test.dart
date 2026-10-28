@@ -2,12 +2,15 @@ import 'dart:io';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/config/dependencies.dart';
 import 'package:holyquran/config/providers/settings_providers.dart';
+import 'package:holyquran/config/providers/user_database_providers.dart';
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
+import 'package:holyquran/data/repositories/in_memory_app_settings_repository.dart';
 import 'package:holyquran/data/services/user_database.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/domain/models/ui_level.dart';
@@ -20,11 +23,14 @@ import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/level_switch.dart';
 import 'package:holyquran/ui/features/home/views/home_screen.dart';
 import 'package:holyquran/ui/features/settings/views/settings_screen.dart';
+import 'package:holyquran/utils/result.dart';
 import 'package:provider/provider.dart';
 
 import '../../../testing/application_support.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
+
+const _pathProvider = MethodChannel('plugins.flutter.io/path_provider');
 
 Future<Dependencies> _settingsOver(UserDatabase database) async {
   late Dependencies provided;
@@ -39,6 +45,7 @@ Future<Dependencies> _settingsOver(UserDatabase database) async {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
   group('the area', () {
@@ -61,15 +68,59 @@ void main() {
       expect(second.level, UiLevel.study);
     });
 
-    test('stops the start when the settings cannot be read', () async {
+    test('starts on the defaults in memory when the settings file is '
+        'unreadable, and leaves the file as it is', () async {
       final directory = await Directory.systemTemp.createTemp('settings_test');
       addTearDown(() => directory.delete(recursive: true));
       final file = File('${directory.path}/${UserDatabase.fileName}')
         ..writeAsStringSync('synthetic text that is not a database file' * 100);
+      final bytes = file.readAsBytesSync();
       final unreadable = UserDatabase(NativeDatabase(file));
       addTearDown(unreadable.close);
 
-      await expectLater(_settingsOver(unreadable), throwsA(isA<Exception>()));
+      final settings = (await _settingsOver(
+        unreadable,
+      )).read<AppSettingsRepository>();
+
+      expect(settings, isA<InMemoryAppSettingsRepository>());
+      expect(settings.themePreference, const ThemePreference());
+      expect(settings.level, UiLevel.initial);
+
+      var notified = 0;
+      settings.addListener(() => notified++);
+      expect(await settings.setTheme(ReadingTheme.night), isA<Ok<void>>());
+      expect(settings.themePreference.theme, ReadingTheme.night);
+      expect(notified, 1);
+      expect(file.readAsBytesSync(), bytes);
+    });
+
+    test('starts on the defaults, writing nothing to disk, when application '
+        'support cannot be found', () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(
+        _pathProvider,
+        (call) async => throw PlatformException(code: 'synthetic'),
+      );
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(_pathProvider, null),
+      );
+      late Dependencies provided;
+
+      await buildDependencies(
+        areas: [
+          userDatabaseProviders,
+          settingsProviders,
+          (dependencies) async => provided = dependencies,
+        ],
+      );
+      addTearDown(provided.read<UserDatabase>().close);
+      final settings = provided.read<AppSettingsRepository>();
+
+      expect(settings.themePreference, const ThemePreference());
+      expect(settings.level, UiLevel.initial);
+      expect(await settings.setTheme(ReadingTheme.night), isA<Ok<void>>());
+      expect(settings.themePreference.theme, ReadingTheme.night);
     });
 
     test('needs the user database from the area before it', () async {

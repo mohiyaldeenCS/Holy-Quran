@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
@@ -17,6 +18,7 @@ import 'package:holyquran/routing/routes/study_routes.dart';
 import 'package:holyquran/ui/core/app.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../testing/fakes/fake_app_settings_repository.dart';
 import '../../../../testing/fakes/fake_quran_index_repository.dart';
 import '../../../../testing/fakes/fake_reading_position_repository.dart';
 
@@ -67,6 +69,11 @@ Future<GoRouter> pumpHome(
   await tester.pumpWidget(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider<AppSettingsRepository>.value(
+          value: FakeAppSettingsRepository(
+            themePreference: ThemePreference(theme: theme),
+          ),
+        ),
         ChangeNotifierProvider<ReadingPositionRepository>(
           create: (context) => FakeReadingPositionRepository(last: last),
         ),
@@ -75,10 +82,7 @@ Future<GoRouter> pumpHome(
             value: FakeQuranIndexRepository.synthetic(),
           ),
       ],
-      child: QuranApp(
-        router: router,
-        themePreference: ThemePreference(theme: theme),
-      ),
+      child: QuranApp(router: router),
     ),
   );
   await tester.pumpAndSettle();

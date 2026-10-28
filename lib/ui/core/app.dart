@@ -12,24 +12,19 @@ import 'package:provider/provider.dart';
 
 /// The app, in the theme and at the level of the provided
 /// [AppSettingsRepository], rebuilt at once when either changes (`RD-08`,
-/// `LV-02`). Screens read the level as a [UiLevel] from above them.
+/// `LV-02`) and only then. Screens read the level as a [UiLevel] from above
+/// them.
 class QuranApp extends StatelessWidget {
-  const QuranApp({
-    required this.router,
-    this.themePreference = const ThemePreference(),
-    super.key,
-  });
+  const QuranApp({required this.router, super.key});
 
   final GoRouter router;
 
-  /// The theme while no [AppSettingsRepository] is provided.
-  final ThemePreference themePreference;
-
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<AppSettingsRepository?>();
-    final preference = settings?.themePreference ?? themePreference;
-    final level = settings?.level ?? UiLevel.initial;
+    final (preference, level) = context
+        .select<AppSettingsRepository, (ThemePreference, UiLevel)>(
+          (settings) => (settings.themePreference, settings.level),
+        );
     final follow = preference.followSystemDark;
     return MaterialApp.router(
       routerConfig: router,

@@ -210,18 +210,6 @@ void main() {
 
     expect(overrides.clients, 0);
   });
-
-  testWidgets('without the settings, the route lands on the home tab', (
-    tester,
-  ) async {
-    final router = createRouter();
-    await tester.pumpWidget(QuranApp(router: router));
-    router.go(Routes.settings);
-    await tester.pumpAndSettle();
-
-    expect(find.byType(SettingsScreen), findsNothing);
-    expect(router.state.uri.path, Routes.home);
-  });
 }
 
 final class _CountingHttpOverrides extends HttpOverrides {

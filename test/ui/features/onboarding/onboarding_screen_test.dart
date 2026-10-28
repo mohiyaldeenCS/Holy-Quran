@@ -16,6 +16,7 @@ import 'package:holyquran/ui/features/onboarding/views/onboarding_screen.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../testing/fakes/fake_app_settings_repository.dart';
+import '../../../../testing/test_app.dart';
 import '../settings/text_fit.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
@@ -104,7 +105,7 @@ void main() {
   group('the first-run redirect', () {
     Future<GoRouter> pumpRedirecting(
       WidgetTester tester,
-      FakeAppSettingsRepository? settings, {
+      FakeAppSettingsRepository settings, {
       String location = Routes.home,
     }) async {
       final router = GoRouter(
@@ -116,15 +117,7 @@ void main() {
         ],
       );
       addTearDown(router.dispose);
-      final app = QuranApp(router: router);
-      await tester.pumpWidget(
-        settings == null
-            ? app
-            : ChangeNotifierProvider<AppSettingsRepository>.value(
-                value: settings,
-                child: app,
-              ),
-      );
+      await tester.pumpWidget(testApp(router, settings: settings));
       await tester.pumpAndSettle();
       return router;
     }
@@ -155,12 +148,6 @@ void main() {
       );
 
       expect(router.state.uri.path, Routes.more);
-    });
-
-    testWidgets('does nothing without the settings', (tester) async {
-      final router = await pumpRedirecting(tester, null);
-
-      expect(router.state.uri.path, Routes.home);
     });
   });
 }

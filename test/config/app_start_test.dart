@@ -1,16 +1,23 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/data/repositories/app_settings_repository.dart';
+import 'package:holyquran/data/repositories/in_memory_app_settings_repository.dart';
 import 'package:holyquran/data/services/user_database.dart';
+import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/main.dart' as app;
+import 'package:holyquran/ui/core/theme/theme_context.dart';
+import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/splash.dart';
 import 'package:holyquran/ui/features/home/views/home_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
 import '../../testing/application_support.dart';
+import '../../testing/fakes/fake_app_settings_repository.dart';
 
 void main() {
   testWidgets('shows the splash until the dependencies are built', (
@@ -22,7 +29,11 @@ void main() {
     expect(find.byType(Splash), findsOneWidget);
     expect(find.byType(HomeScreen), findsNothing);
 
-    dependencies.complete(const []);
+    dependencies.complete([
+      ChangeNotifierProvider<AppSettingsRepository>.value(
+        value: FakeAppSettingsRepository(),
+      ),
+    ]);
     await tester.pumpAndSettle();
 
     expect(find.byType(Splash), findsNothing);
@@ -54,6 +65,38 @@ void main() {
 
     expect(tester.takeException(), isStateError);
     expect(find.byType(Splash), findsOneWidget);
+  });
+
+  testWidgets('an unreadable user database no longer stops the start: the '
+      'app runs on the defaults in memory and leaves the file as it is', (
+    tester,
+  ) async {
+    final support = useTemporaryApplicationSupport();
+    final file = File('${support.path}/${UserDatabase.fileName}')
+      ..writeAsStringSync('synthetic text that is not a database file' * 100);
+    final bytes = file.readAsBytesSync();
+    app.main();
+    await pumpUntil(
+      tester,
+      () => find.byType(HomeScreen).evaluate().isNotEmpty,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Splash), findsNothing);
+    final home = tester.element(find.byType(HomeScreen));
+    final settings = home.read<AppSettingsRepository>();
+    expect(settings, isA<InMemoryAppSettingsRepository>());
+    expect(home.colors, same(AppColors.paper));
+
+    await settings.setTheme(ReadingTheme.night);
+    await tester.pump();
+
+    expect(
+      tester.element(find.byType(HomeScreen)).colors,
+      same(AppColors.night),
+    );
+    await tester.runAsync(home.read<UserDatabase>().close);
+    expect(file.readAsBytesSync(), bytes);
   });
 
   testWidgets('main starts the app on the home tab', (tester) async {
