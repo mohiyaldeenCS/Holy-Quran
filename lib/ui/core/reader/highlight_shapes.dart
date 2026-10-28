@@ -5,6 +5,7 @@ import 'package:holyquran/domain/models/quran_address.dart';
 import 'block_layout.dart';
 import 'reader_highlights.dart';
 import 'reader_style.dart';
+import 'surah_layout.dart';
 
 /// Which highlight a [HighlightShape] belongs to, in the order they are
 /// painted: the word over the ayah it is in.
@@ -27,7 +28,7 @@ List<HighlightShape> highlightShapes(
 ) {
   if (highlights.isEmpty) return const [];
   final text = layout.plan.text;
-  final (:top, :height) = _fontBox(layout.plan.style, layout.plan.lineHeight);
+  final (:top, :height) = _fontBoxOf(layout.plan);
 
   Rect fontBox(Rect band, {double inset = 0}) => Rect.fromLTRB(
     band.left - inset,
@@ -62,6 +63,13 @@ List<HighlightShape> highlightShapes(
         (kind: HighlightKind.spokenWord, rect: fontBox(box)),
   ];
 }
+
+// The font's box depends on the plan alone, and a plan's blocks rebuild
+// often: measure it once per plan.
+final Expando<({double top, double height})> _fontBoxes = Expando();
+
+({double top, double height}) _fontBoxOf(SurahLayout plan) =>
+    _fontBoxes[plan] ??= _fontBox(plan.style, plan.lineHeight);
 
 /// The font's own box inside a line of [lineHeight]: its top below the line's
 /// top and its height. `quran-page` spreads its leading evenly, so the box
