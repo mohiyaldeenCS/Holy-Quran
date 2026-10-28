@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/data/services/clipboard_service.dart';
 import 'package:holyquran/data/services/share_service.dart';
@@ -26,6 +27,7 @@ import 'package:holyquran/ui/core/widgets/share_card.dart';
 import 'package:holyquran/utils/result.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../testing/fakes/fake_app_settings_repository.dart';
 import '../../../integrity/pack_integrity_suite.dart';
 import 'share_test_pack.dart';
 
@@ -66,6 +68,9 @@ void main() {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
+          ChangeNotifierProvider<AppSettingsRepository>.value(
+            value: FakeAppSettingsRepository(),
+          ),
           Provider<QuranTextRepository>.value(value: pack.openRepository()),
           Provider<ClipboardService>.value(value: clipboard),
           Provider<ShareService>.value(value: _Share()),

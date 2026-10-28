@@ -5,7 +5,6 @@ import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/router.dart';
 import 'package:holyquran/routing/routes.dart';
-import 'package:holyquran/ui/core/app.dart';
 import 'package:holyquran/ui/core/gallery/gallery_screen.dart';
 import 'package:holyquran/ui/core/gallery/sections/audio_gallery.dart';
 import 'package:holyquran/ui/core/gallery/sections/controls_gallery.dart';
@@ -18,6 +17,7 @@ import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/level_switch.dart';
 import 'package:holyquran/ui/core/widgets/switch.dart';
 import 'package:holyquran/ui/core/widgets/tab_bar.dart';
+import '../../../../testing/test_app.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
 
@@ -272,7 +272,7 @@ void main() {
 
   testWidgets('the gallery route exists in debug builds', (tester) async {
     final router = createRouter();
-    await tester.pumpWidget(QuranApp(router: router));
+    await tester.pumpWidget(testApp(router));
     await tester.pumpAndSettle();
 
     router.go(Routes.gallery);
@@ -284,7 +284,7 @@ void main() {
 
   testWidgets('the More tab opens the gallery in debug builds', (tester) async {
     final router = createRouter();
-    await tester.pumpWidget(QuranApp(router: router));
+    await tester.pumpWidget(testApp(router));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text(_l10n.tabMore));
