@@ -10,7 +10,7 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-28 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **27 merged**: P1-01 to P1-22, P1-25, P1-27, P1-28, P1-38, P1-39 (P1-12, P1-14, P1-15, P1-17, P1-22, P1-25, P1-27 and P1-28 partial). **In progress**: P1-23, P1-30, P1-40 (#65). **10 not started**. The lead merges after an independent review and CI (D-136) |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **28 merged**: P1-01 to P1-22, P1-25, P1-27, P1-28, P1-38 to P1-40 (P1-12, P1-14, P1-15, P1-17, P1-22, P1-25, P1-27, P1-28 and P1-40 partial). **In progress**: P1-23, P1-30 (#66). **10 not started**. The lead merges after an independent review and CI (D-136) |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/p1-*`); worktrees under the session's scratchpad for parallel agents (D-132) |
 | Last session | 2026-10-28, local session on the owner's Windows machine, stopped for the account switch. **Read `HANDOFF.md` first**: it says exactly what was in flight (#53, P1-14, P1-22) and what each needs |
@@ -290,7 +290,12 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   bar does not open go-to yet (P1-23); the context text's line height 2.3 against the board's
   2.2 (D-143 (5)). Pending human checks: the index, go-to and context sheet on a device.
   Reviewed by `code-reviewer` (opus; then a sonnet verification) and `identity-auditor`.
-- In progress: P1-23, P1-30, P1-40 (#65).
+- **P1-40 merged (#65), partial.** The sources and licences screen under More: the base
+  pack's and installed packs' sources as their manifests give them, the three fonts' OFL texts,
+  and the link service (D-144). Partial: the installed packs are not provided yet, so only the
+  base pack and the fonts show. Pending human checks: opening a link and reading the licence
+  texts on a device.
+- In progress: P1-23, P1-30 (#66).
   Not started: P1-24, P1-26, P1-29 (wave 3), P1-31 to P1-34 (wave 4),
   P1-35 to P1-37 (wave 5).
 - The local branches of 2026-10-13 (`fix/bookmark-restore-nullable`,
