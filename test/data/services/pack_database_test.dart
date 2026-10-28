@@ -115,6 +115,10 @@ void main() {
       expect(db.basmala(4), isNull);
     });
 
+    test('the surahs that store a basmala, by number', () {
+      expect(db.surahsWithBasmala(), [1, 3]);
+    });
+
     test('word spans as stored, in UTF-16 code units', () {
       final stored = raw(pack);
       for (final (s, surah) in pack.surahs.indexed) {

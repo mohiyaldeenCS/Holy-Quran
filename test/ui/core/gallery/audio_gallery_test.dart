@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/gallery/gallery_section.dart';
@@ -8,8 +7,10 @@ import 'package:holyquran/ui/core/gallery/sections/audio_gallery.dart';
 import 'package:holyquran/ui/core/widgets/continue_card.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
 import 'package:holyquran/ui/core/widgets/mini_player.dart';
+import 'package:holyquran/ui/core/widgets/player_panel.dart';
 import 'package:holyquran/ui/core/widgets/progress_bar.dart';
 import 'package:holyquran/ui/core/widgets/reader_player_bar.dart';
+import 'package:holyquran/ui/core/widgets/recitation_card.dart';
 import 'package:holyquran/ui/core/widgets/resource_row.dart';
 
 import '../../../../testing/golden.dart';
@@ -72,6 +73,8 @@ void main() {
     expect(find.byType(MiniPlayer), findsOneWidget);
     expect(find.byType(ContinueCard), findsOneWidget);
     expect(find.byType(ReaderPlayerBar), findsOneWidget);
+    expect(find.byType(PlayerPanel), findsOneWidget);
+    expect(find.byType(RecitationCard), findsOneWidget);
     expect(
       tester
           .widgetList<ResourceRow>(find.byType(ResourceRow))
@@ -80,14 +83,15 @@ void main() {
     );
     // Two samples of its own, and one inside each player widget, card and
     // downloading row.
-    expect(find.byType(ProgressBar), findsNWidgets(5));
+    expect(find.byType(ProgressBar), findsNWidgets(6));
   });
 
-  testWidgets('play and pause toggle both players', (tester) async {
+  testWidgets('play and pause toggle the playing samples', (tester) async {
     await _pump(tester);
-    expect(_main(IconName.pause), findsNWidgets(2));
+    // The mini player, the panel and the reader's bar.
+    expect(_main(IconName.pause), findsNWidgets(3));
     await tester.tap(_main(IconName.pause).first);
     await tester.pump();
-    expect(_main(IconName.play), findsNWidgets(2));
+    expect(_main(IconName.play), findsNWidgets(3));
   });
 }

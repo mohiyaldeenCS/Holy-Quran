@@ -10,10 +10,10 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-28 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **22 merged**: P1-01 to P1-13, P1-15, P1-16, P1-18 to P1-21, P1-28, P1-38, P1-39 (P1-12, P1-15 and P1-28 partial). **Open**: #52 (P1-25), #53 (P1-27). **16 not started**. The lead merges after an independent review and CI (D-136) |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **24 merged**: P1-01 to P1-13, P1-15, P1-16, P1-18 to P1-21, P1-25, P1-27, P1-28, P1-38, P1-39 (P1-12, P1-15, P1-25, P1-27 and P1-28 partial). **In progress**: P1-14, P1-22. **14 not started**. The lead merges after an independent review and CI (D-136) |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/p1-*`); worktrees under the session's scratchpad for parallel agents (D-132) |
-| Last session | 2026-10-28, local session on the owner's Windows machine: state recovered from Git, the owner's pending decisions taken (D-128), resumption settled (D-129) |
+| Last session | 2026-10-28, local session on the owner's Windows machine, stopped for the account switch. **Read `HANDOFF.md` first**: it says exactly what was in flight (#53, P1-14, P1-22) and what each needs |
 
 ## What is in the repository
 
@@ -237,7 +237,25 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   empty states. Not worded: source credits (D-128 (6)), copying several ayat, gallery
   titles, the sources screen's headings. For the owner's optional look: the lead's
   wording (owner's linguist, when he wishes).
-- Open pull requests: #53 (P1-27). Merged since: #56 (the gallery test sized to the gallery; D-136), #57 (P1-39, the eight project icons in the generator), #58 (P1-38), #52 (P1-25). Their old CI runs wait
+- **Player sheets reachable (#59).** `PlaybackPlanBuilder` provided by the Quran area with the
+  index; `SheetNeeds` closes a sheet whose base-pack objects are absent; a graph test opens every
+  sheet through the real providers (D-138). D-135's preconditions for P1-27 are met.
+- Merged since: #56 (the gallery test sized to the gallery; D-136), #57 (P1-39, the eight
+  project icons in the generator), #58 (P1-38), #52 (P1-25), #59 (player sheets reachable),
+  #60 (`HANDOFF.md`), #53 (P1-27). A CI run after the bot's golden commit waits for approval
+  (`action_required`); a push by the lead starts a normal run.
+- **P1-27 merged (#53), partial.** Full player at `/listen` (the Screens2 emerald card:
+  reciter card, surah and ayah, page, gold track, five buttons, range, repeat, speed and
+  silence chips), the mini player above the tab bar through a `MiniPlayerSource` from the
+  router, and the recitation picker at `/listen/recitations` (D-139). AU-06 met. AU-01
+  partial (rows cannot be chosen yet; the riwaya is hidden until the catalogue names it,
+  P1-33). AU-05 partial (no seeking until the plan carries timings, D-135; stop and
+  next/previous surah wait for their buttons). LV-03 partly met (hidden for whole-surah
+  plans without timing). Nothing can play in the app yet: the recitation locator in
+  `lib/config/providers/audio_providers.dart` returns null until P1-33 wires it. Follow-ups
+  in D-139: the player's ayah block (P1-32), elapsed time on the position line, the
+  catalogue's riwaya name, wording for `fileMissing` and `playbackFailed`, buffering.
+  Reviewed by `code-reviewer` (twice, the second opus) and `identity-auditor` (twice).
 - **P1-28 merged (#50), partial.**
   Range, play-options, repeat, silence and queue sheets (D-135). AU-11 met; AU-02
   partial (ayah to ayah, several pages, a set of surahs and to the end of the mushaf
@@ -248,10 +266,10 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   a route test before any screen opens the sheets; timings in the plan; the sleep timer,
   stop-after, unlimited repeat and add-to-queue task. Reviewed by `code-reviewer` and
   `identity-auditor`.
-  (`action_required`); a push by the lead starts a normal run.
-- Not started: P1-14, P1-17, P1-22 (wave 2; P1-22's condition, D-097, is met),
-  P1-23, P1-24, P1-26, P1-29, P1-30, P1-40 (wave 3), P1-31 to P1-34 (wave 4), P1-35 to
-  P1-37 (wave 5), P1-38 and P1-39 (unblocked by D-128).
+- In progress: P1-14 (`agent/p1-14-reader-surah-screen`, from the architect's plan
+  `docs/plans/handoff/P1-14-architect-plan.md`), P1-22 (`agent/p1-22-reader-targets`, built,
+  under review). Not started: P1-17 (wave 2), P1-23, P1-24, P1-26, P1-29, P1-30, P1-40
+  (wave 3), P1-31 to P1-34 (wave 4), P1-35 to P1-37 (wave 5).
 - The local branches of 2026-10-13 (`fix/bookmark-restore-nullable`,
   `chore/analysis-exclude-platform-dirs`) are not needed on the pinned SDK (analyze is
   clean without them) and are not pushed (D-129). On the owner's machine
@@ -354,6 +372,8 @@ Open decisions that come later (full list in `docs/DECISIONS.md`):
 | O-08 | «أين تُستضاف حزم المحتوى للتجربة ثم للإطلاق؟ يكفي أي استضافة ملفات ثابتة عبر HTTPS.» | Answered 2026-10-12: GitHub Releases of this repository host the packs for testing (recommended); the launch host is chosen before the end of Phase 1 (D-119). |
 | O-11 | «هل لديك حساب مطوّر في Google Play وفي App Store؟ ومن يحتفظ بمفتاح توقيع التطبيق؟» | M1.11 |
 | O-09 | «أي خدمة خادم نعتمد للحسابات والمزامنة في المرحلة 2؟» | Phase 2 |
+| P1-14-1 | «أين توضع علامات الربع والحزب والجزء و«سجدة» في وضع السورة، والهامش ٢٨ فقط؟» Options: «تُرسم فوق حافة الهامش دون تضييق النص (موصى به)» or «يُضيَّق عمود النص لإفساح الهامش». Not asked yet | P1-14's margin marks, after P1-22 |
+| P1-27-1 | The mini player is black on black in the contrast theme and barely stands apart in night, from the identity's own tokens; ask whether a border or token may be added, or it stays as drawn. Not asked yet | Before release (P1-35) |
 
 Permission conditions to confirm with him when each is first needed are listed in
 `docs/SOURCES.md` and recorded in `docs/content/RIGHTS_REGISTER.md`.
@@ -376,6 +396,8 @@ Permission conditions to confirm with him when each is first needed are listed i
 | P1-15 | An APK builds with the backup attributes: locally `flutter build apk --debug` failed in Kotlin incremental caches of other plugins (project on D:, pub cache on C:); the merged manifest and resources compiled | CI `apk` task | Run the `apk` task on `main` after the merge |
 | P1-28 | The owner's look where the identity draws nothing: queue rows straight on `surface` with a hairline (the word sheet sets its rows in a sunk card); the sheet title at `sectionTitle` 20/600 (the context sheet's title is 700); an empty queue showing only its title (no sentence yet) | Owner | The `test/ui/features/listen/controls/goldens/*` images on `main` |
 | P1-28 | TalkBack and VoiceOver on the five sheets (the range title and its chip group both read «محدد النطاق»); keyboard focus order; the queue reorder with the system's reduce-motion setting on | Owner, on his phone | An APK built from `main`, once a screen opens the sheets |
+| P1-27 | The mini player against the page in night (1.13:1) and contrast (1.00:1), and the `RecitationCard` badge on its surface (1.00 and 1.21): the identity's own tokens make them so and no board draws them in those themes; a non-text contrast case O-12 does not cover (question for the owner, below) | Owner | `test/ui/core/goldens/tab_shell_mini_player_{night,contrast}.png` and `test/ui/features/listen/goldens/player_screen_{night,contrast}.png` on `main` |
+| P1-27 | TalkBack and VoiceOver on the player, the mini player and the picker (the track moves in 5-second steps); 200% text on a device | Owner, on his phone | An APK built from `main`, once a recitation can play (P1-33) |
 
 ## Environment
 
@@ -451,6 +473,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-10-28 | Local session, continued (team lead with agents) | Merged #56, #57 (P1-39), #58 (P1-38), #52 (P1-25), #59 (player sheets reachable, D-138). #53 (P1-27) fixed after two code reviews and an identity audit, its last should-fix items in progress. P1-14 (three of six plan steps pushed) and P1-22 started in worktrees. Stopped for the owner's account switch; `HANDOFF.md` and `docs/plans/handoff/P1-14-architect-plan.md` written | `docs/handoff-2026-10-28`, #53, `agent/p1-14-reader-surah-screen`, `agent/p1-22-reader-targets` |
 | 2026-10-28 | Local session (owner's Windows machine) | Recovered the state from Git after the Actions runs stopped on 2026-10-12 for lack of API credit; corrected this file; ran analyze and the non-golden tests locally (48 Windows-only failures); took the owner's decisions (D-128) and settled resumption (D-129). | `docs/resume-2026-10-28` |
 | 2026-10-11 | Implementing session (second account), continued | On the owner's instruction, set up implementation by agents in GitHub Actions on his two API accounts: `agent.yml` and `agent.mjs` (Claude Agent SDK 0.3.296, option names read from its type definitions), the `check` task in CI, D-092, the workflow section. Linted with actionlint and shellcheck; the script was smoke-tested locally with an invalid key. After the merge: M0.4 part 2 planned as agent waves (D-093 to D-095) and step 0 done; the trial runs and every other Actions run since 17:13 UTC end in `startup_failure`, a setting the owner must check (M0.4-6). | Pull request #13; `claude/great-hamilton-9n23mt` |
 | 2026-10-11 | Implementing session (second account) | Found the first account's session still at work on the M0.5 branch; the owner chose this session to continue and the other handed over cleanly. Adopted its work (0a, A, B, D) and dropped a duplicate 0a; finished batch C; showed the five sections in the gallery (E); tested that the widgets draw a pack's bytes unchanged and kept the ramp allow-list current (F); code review and identity audit of every batch until both passed, findings applied; D-091; golden images by CI runs 103 and 110; merged; the owner confirmed D-089 and D-091. | Pull requests #10 and #12 |

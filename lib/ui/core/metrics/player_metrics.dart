@@ -1,0 +1,104 @@
+import 'package:flutter/widgets.dart';
+
+import 'package:holyquran/ui/core/metrics/settings_metrics.dart';
+import 'package:holyquran/ui/core/theme/tokens.g.dart';
+
+/// The layout of the listen screen, measured from the player of
+/// `design/identity-boards/Screens2.dc.html` («المشغّل · النطاق والتكرار في
+/// متناول اليد»). The recitation picker, which the identity does not draw,
+/// follows it.
+abstract final class PlayerMetrics {
+  // The content block and the header are SettingsMetrics', which holds the
+  // Screens2 player values for the screens built after it (D-134).
+  static const EdgeInsets bodyPadding = SettingsMetrics.content;
+  static const EdgeInsets headerPadding = SettingsMetrics.header;
+
+  // Screens2: the emerald card's side padding, as the content block's.
+  static const double _bodySide = 20;
+
+  // Screens2: the reciter card, `padding:12px 14px;border-radius:20px`.
+  static const EdgeInsets reciterCardPadding = EdgeInsets.symmetric(
+    vertical: AppSpacing.space3,
+    horizontal: 14,
+  );
+  static const BorderRadius reciterCardRadius = BorderRadius.all(
+    Radius.circular(20),
+  );
+
+  // Screens2: «تغيير» is a bare span, so the focus outline around it is
+  // square.
+  static const BorderRadius changeFocusRadius = BorderRadius.zero;
+
+  // Screens2: the reciter card's badge, a 48 circle holding the star
+  // `width="34"`; its `stroke-width="5"` is StarOutline's own.
+  static const double reciterStarSize = 34;
+
+  // Screens2: the reciter's line, the page and the position line,
+  // `font-size:13px`; the body's IBM Plex Sans Arabic at weight 400 with its
+  // `normal` line height, as in MiniPlayer.
+  static const TextStyle smallText = TextStyle(
+    inherit: false,
+    fontFamily: AppFonts.sans,
+    fontSize: 13,
+    fontWeight: FontWeight.w400,
+    letterSpacing: 0,
+    leadingDistribution: TextLeadingDistribution.even,
+  );
+
+  // Screens2: «تغيير», `font-size:15px;font-weight:600`.
+  static final TextStyle changeText = smallText.copyWith(
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
+  );
+
+  // Screens2: the emerald card, `border-radius:32px 32px 0 0;
+  // padding:18px 20px 22px;gap:14px`.
+  static const BorderRadius panelRadius = BorderRadius.vertical(
+    top: Radius.circular(32),
+  );
+  static const EdgeInsets panelPadding = EdgeInsets.fromLTRB(
+    _bodySide,
+    18,
+    _bodySide,
+    22,
+  );
+  static const double panelGap = 14;
+
+  // Screens2: the track over the position line, `gap:6px`.
+  static const double trackGap = 6;
+
+  // Screens2: the main button, `width:72px;height:72px`, its glyph
+  // `width="32"`.
+  static const double mainButtonSize = 72;
+  static const double mainIconSize = 32;
+
+  // Screens2: the chips under the buttons and the repeat button's ground,
+  // `rgba(248,242,228,0.14)`: on-player at 14%.
+  static const double tintOpacity = 0.14;
+
+  // Screens2: a chip, `height:36px;padding:0 14px;border-radius:18px`
+  // (half its height), `font-size:14px;font-weight:600`.
+  static const double chipHeight = 36;
+  static const EdgeInsets chipPadding = EdgeInsets.symmetric(horizontal: 14);
+  // Half the height at any text scale: radius-full.
+  static const BorderRadius chipRadius = BorderRadius.all(
+    Radius.circular(AppRadius.radiusFull),
+  );
+  static final TextStyle chipText = smallText.copyWith(
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+  );
+
+  // Not from the board, which draws no mini player over the tab bar: its gaps
+  // are the spacing scale's.
+  static const EdgeInsets miniPlayerPadding = EdgeInsets.fromLTRB(
+    AppSpacing.space4,
+    AppSpacing.space2,
+    AppSpacing.space4,
+    AppSpacing.space2,
+  );
+
+  // Not from the board: how far one screen-reader increase or decrease
+  // moves the position, as the board draws a track and no step.
+  static const Duration seekStep = Duration(seconds: 5);
+}
