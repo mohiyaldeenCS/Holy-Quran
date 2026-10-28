@@ -14,7 +14,8 @@ import '../../../integrity/pack_integrity_suite.dart';
 // words and a sajda sign, so that lines break in right-to-left text the way
 // the real text breaks. Read through the production repository.
 
-const _words = [
+/// The synthetic words the surahs are made of.
+const readerWords = [
   '\u{646}\u{635}',
   '\u{62A}\u{62C}\u{631}\u{64A}\u{628}\u{64A}',
   '\u{643}\u{644}\u{645}',
@@ -28,7 +29,7 @@ const _pauseMarks = ['\u{6D6}', '\u{6D7}', '\u{6DA}'];
 const sajdaSign = '\u{6E9}';
 
 /// A word longer than any line at four times the text size.
-final overwideWord = _words[1] * 6;
+final overwideWord = readerWords[1] * 6;
 
 /// The long surah's number, its ayat, and the ayah that carries a sajda.
 const longSurah = 2;
@@ -43,7 +44,7 @@ const overwideSurah = 3;
 String _ayah(int seed, int count, {bool sajda = false}) {
   final tokens = <String>[];
   for (var k = 0; k < count; k++) {
-    tokens.add(_words[(seed * 5 + k * 3) % _words.length]);
+    tokens.add(readerWords[(seed * 5 + k * 3) % readerWords.length]);
     if ((seed + k) % 4 == 1 && k < count - 1) {
       tokens.add(_pauseMarks[(seed + k) % _pauseMarks.length]);
     }
@@ -78,7 +79,7 @@ final List<SyntheticSurah> readerSurahs = [
     basmala: _basmala,
     ayat: [
       SyntheticAyah(
-        '${_words[0]} $overwideWord ${_pauseMarks[0]} ${_words[2]}',
+        '${readerWords[0]} $overwideWord ${_pauseMarks[0]} ${readerWords[2]}',
       ),
       SyntheticAyah(_ayah(3, 6)),
     ],

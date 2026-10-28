@@ -44,6 +44,7 @@ void main() {
               ayahNumber: 61,
               ayahText: _long,
               clamp: true,
+              onExpand: () {},
               onContext: () {},
               onOpen: () {},
             ),

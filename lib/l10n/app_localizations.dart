@@ -1132,6 +1132,12 @@ abstract class AppLocalizations {
   /// **'السورة'**
   String get contextSurah;
 
+  /// Reference aria-label, index.jsx ContextSheet
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل من هذه الآية'**
+  String get contextPlayFromAyah;
+
   /// The selected ayah's toolbar: bookmark it. Source: docs/prd/PRD.ar.md (§7.4).
   ///
   /// In ar, this message translates to:
@@ -1803,6 +1809,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لا توجد سورة بهذا الاسم'**
   String get surahNotFound;
+
+  /// Lead, 2026-10-28, D-128 (5)
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد سورة {surah}'**
+  String surahNumberNotFound(String surah);
 
   /// Lead, 2026-10-28, D-128 (5)
   ///

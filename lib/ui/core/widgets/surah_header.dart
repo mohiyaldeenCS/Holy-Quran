@@ -1,8 +1,10 @@
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/domain/models/pack_text.dart';
+import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/pressable.dart';
 import 'package:holyquran/ui/core/widgets/star_outline.dart';
 import 'package:holyquran/ui/core/widgets/surah_name.dart';
 
@@ -17,17 +19,24 @@ enum SurahHeaderSize { md, lg }
 ///
 /// The reference heights are minimum heights, so the name can grow with the
 /// system text scale.
+///
+/// With [onInfoPressed], the whole header is one button that opens «مقدمة
+/// السورة» (`RD-17`); it needs an [info] line to open it from. The header is
+/// taller than the 48 hit area at every size, so the tap target adds nothing
+/// to what is drawn.
 final class SurahHeader extends StatelessWidget {
   const SurahHeader({
     required this.name,
     this.size = SurahHeaderSize.md,
     this.info,
+    this.onInfoPressed,
     super.key,
-  });
+  }) : assert(onInfoPressed == null || info != null);
 
   final PackText name;
   final SurahHeaderSize size;
   final String? info;
+  final VoidCallback? onInfoPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -35,11 +44,12 @@ final class SurahHeader extends StatelessWidget {
     final large = size == SurahHeaderSize.lg;
     final star = StarOutline(size: large ? _largeStarSize : _starSize);
     final info = this.info;
-    return Container(
+    final onInfoPressed = this.onInfoPressed;
+    final header = Container(
       padding: const EdgeInsets.all(AppSpacing.space1),
       decoration: BoxDecoration(
         border: Border.all(color: colors.ornament, width: _outerBorderWidth),
-        borderRadius: BorderRadius.circular(_outerRadius),
+        borderRadius: _outerBorderRadius,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -90,6 +100,16 @@ final class SurahHeader extends StatelessWidget {
         ],
       ),
     );
+    if (onInfoPressed == null) return header;
+    return Semantics(
+      container: true,
+      hint: AppLocalizations.of(context).surahIntroTitle,
+      child: Pressable(
+        onPressed: onInfoPressed,
+        focusRadius: _outerBorderRadius,
+        child: header,
+      ),
+    );
   }
 }
 
@@ -97,6 +117,7 @@ final class SurahHeader extends StatelessWidget {
 // 14px; padding: 4px`; the padding is space-1.
 const double _outerBorderWidth = 1.5;
 const double _outerRadius = 14;
+final BorderRadius _outerBorderRadius = BorderRadius.circular(_outerRadius);
 
 // .qk-surah-header-inner: `border: 1px solid var(--ornament-soft);
 // border-radius: 10px; height: 56px`; .qk-surah-header-lg: `height: 64px`.

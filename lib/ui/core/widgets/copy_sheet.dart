@@ -48,16 +48,7 @@ class CopySheet extends StatelessWidget {
     final ayah = this.ayah;
     return CopySheetFrame(
       children: [
-        Padding(
-          padding: _titlePadding,
-          child: Semantics(
-            header: true,
-            child: Text(
-              l10n.copySheetTitle,
-              style: _titleStyle.copyWith(color: colors.ink),
-            ),
-          ),
-        ),
+        CopySheetTitle(l10n.copySheetTitle),
         Semantics(
           container: true,
           explicitChildNodes: true,
@@ -133,6 +124,23 @@ class _Preview extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The title of a sheet on [CopySheetFrame], as Share.dc.html draws it: 19
+/// semibold on `ink`, with the board's padding, announced as a heading.
+class CopySheetTitle extends StatelessWidget {
+  const CopySheetTitle(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: _titlePadding,
+    child: Semantics(
+      header: true,
+      child: Text(text, style: _titleStyle.copyWith(color: context.colors.ink)),
+    ),
+  );
 }
 
 /// The copy sheet's frame (Share.dc.html): `surface` with the sheet shadow,

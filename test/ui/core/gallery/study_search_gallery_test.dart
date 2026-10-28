@@ -7,7 +7,9 @@ import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/gallery/gallery_screen.dart';
 import 'package:holyquran/ui/core/gallery/gallery_section.dart';
 import 'package:holyquran/ui/core/gallery/sections/study_search_gallery.dart';
+import 'package:holyquran/ui/core/widgets/context_sheet.dart';
 import 'package:holyquran/ui/core/widgets/icon_button.dart';
+import 'package:holyquran/ui/core/widgets/level_switch.dart';
 import 'package:holyquran/ui/core/widgets/mode_chips.dart';
 import 'package:holyquran/ui/core/widgets/quran_text.dart';
 import 'package:holyquran/ui/core/widgets/search_field.dart';
@@ -106,7 +108,9 @@ void main() {
     }
   }
 
-  testWidgets('titles its six sections and shows each widget', (tester) async {
+  testWidgets('titles its seven sections and shows each widget', (
+    tester,
+  ) async {
     await _pump(tester);
     expect(
       tester
@@ -119,8 +123,10 @@ void main() {
         _l10n.gallerySectionSearchSummary,
         _l10n.gallerySectionSearchResult,
         _l10n.tafsirReaderTitle,
+        _l10n.searchResultContext,
       ],
     );
+    expect(find.byType(ContextSheet), findsOneWidget);
     expect(find.byType(TafsirText), findsOneWidget);
     expect(find.byType(SourceBadge), findsOneWidget);
     expect(find.byType(WordSheet), findsOneWidget);
@@ -141,6 +147,15 @@ void main() {
 
   testWidgets('shows only synthetic samples', (tester) async {
     await _pump(tester);
+    final context = tester.widget<ContextSheet>(find.byType(ContextSheet));
+    expect(context.surahName, PackText.fromPack(_l10n.sampleSurahName));
+    final ayat = context.passage!.text.ayat;
+    expect(ayat, hasLength(3));
+    for (final ayah in ayat) {
+      expect(ayah.text, PackText.fromPack(_l10n.sampleText));
+    }
+    expect(context.passage!.firstAyah, 152);
+    expect(context.passage!.selectedAyah, 153);
     final sheet = tester.widget<WordSheet>(find.byType(WordSheet));
     expect(sheet.word, PackText.fromPack(_l10n.sampleWord));
     expect(sheet.tabs, WordSheetTab.values.toSet());
@@ -216,5 +231,33 @@ void main() {
       shownRect(ayah, _lastResult(tester)).height,
       closeTo(ayah.size.height, 0.01),
     );
+  });
+
+  testWidgets('the context amount can be chosen', (tester) async {
+    await _pump(tester);
+    expect(tester.widget<ContextSheet>(find.byType(ContextSheet)).amount, 0);
+    final surah = find.descendant(
+      of: find.byType(LevelSwitch),
+      matching: find.text(_l10n.contextSurah),
+    );
+    await tester.ensureVisible(surah);
+    await tester.tap(surah);
+    await tester.pump();
+    expect(tester.widget<ContextSheet>(find.byType(ContextSheet)).amount, 3);
+  });
+
+  testWidgets('keeps the context passage across rebuilds, so its text is '
+      'planned once', (tester) async {
+    await _pump(tester);
+    final before = tester.widget<ContextSheet>(find.byType(ContextSheet));
+    final surah = find.descendant(
+      of: find.byType(LevelSwitch),
+      matching: find.text(_l10n.contextSurah),
+    );
+    await tester.ensureVisible(surah);
+    await tester.tap(surah);
+    await tester.pump();
+    final after = tester.widget<ContextSheet>(find.byType(ContextSheet));
+    expect(identical(after.passage, before.passage), isTrue);
   });
 }
