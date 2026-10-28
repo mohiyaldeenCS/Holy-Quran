@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -97,6 +98,20 @@ void main() {
     const failure = FormatException('synthetic');
     await model.share.execute(() async => throw failure);
     expect((model.share.result! as Failure<void>).error, failure);
+    expect(shared, isEmpty);
+  });
+
+  test('closing while the card is painted shares nothing', () async {
+    final shared = <_Shared>[];
+    final model = viewModel((riwaya) => QuranAddress(riwaya, 1, 1), shared);
+    final painting = Completer<Uint8List>();
+    final share = model.share;
+    final run = share.execute(() => painting.future);
+    expect(share.running, isTrue);
+    model.dispose();
+    painting.complete(Uint8List.fromList([1, 2, 3]));
+    await run;
+    expect(share.running, isFalse);
     expect(shared, isEmpty);
   });
 
