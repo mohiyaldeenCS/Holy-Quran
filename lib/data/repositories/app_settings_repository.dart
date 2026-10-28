@@ -44,16 +44,10 @@ final class LocalAppSettingsRepository extends AppSettingsRepository {
   final SettingsStore _store;
 
   /// Reads every setting once, so that the values are there before the first
-  /// frame (D-105).
-  static Future<Result<LocalAppSettingsRepository>> load(
-    SettingsDao dao,
-  ) async {
-    try {
-      return Ok(LocalAppSettingsRepository._(await SettingsStore.load(dao)));
-    } on Exception catch (error) {
-      return Failure(error);
-    }
-  }
+  /// frame (D-105). Throws what the database throws, with its stack trace,
+  /// for the start to decide what follows.
+  static Future<LocalAppSettingsRepository> load(SettingsDao dao) async =>
+      LocalAppSettingsRepository._(await SettingsStore.load(dao));
 
   static const _theme = 'app.theme';
   static const _followSystemDark = 'app.followSystemDark';

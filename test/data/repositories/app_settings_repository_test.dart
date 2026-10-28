@@ -30,11 +30,8 @@ final class _FailingReadDao extends SettingsDao {
       throw const FormatException('synthetic failure');
 }
 
-Future<LocalAppSettingsRepository> _repository(SettingsDao dao) async =>
-    switch (await LocalAppSettingsRepository.load(dao)) {
-      Ok(:final value) => value,
-      Failure(:final error) => throw error,
-    };
+Future<LocalAppSettingsRepository> _repository(SettingsDao dao) =>
+    LocalAppSettingsRepository.load(dao);
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -100,10 +97,10 @@ void main() {
     expect(settings.level, UiLevel.simple);
   });
 
-  test('a failed read returns a Failure', () async {
-    expect(
-      await LocalAppSettingsRepository.load(_FailingReadDao(db)),
-      isA<Failure<LocalAppSettingsRepository>>(),
+  test('a failed read throws the error of the database', () async {
+    await expectLater(
+      LocalAppSettingsRepository.load(_FailingReadDao(db)),
+      throwsFormatException,
     );
   });
 
