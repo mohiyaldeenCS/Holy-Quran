@@ -3,7 +3,10 @@ import 'package:flutter/widgets.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/gallery/gallery_samples.dart';
 import 'package:holyquran/ui/core/gallery/gallery_section.dart';
+import 'package:holyquran/ui/core/l10n/ayah_count.dart';
+import 'package:holyquran/ui/core/reader/surah_text.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/context_sheet.dart';
 import 'package:holyquran/ui/core/widgets/mode_chips.dart';
 import 'package:holyquran/ui/core/widgets/search_field.dart';
 import 'package:holyquran/ui/core/widgets/search_result.dart';
@@ -27,6 +30,17 @@ const List<({int ayah, bool clamp})> _results = [
 ];
 // SearchResult/preview.html: the results column has `gap: 10`.
 const double _resultGap = 10;
+// ContextSheet/preview.html: «البقرة · ١٥٣», surah 2 of the Hafs text; the
+// ayat 152 to 154, the middle one asked for;
+// `defaultValue: 0`, the first amount.
+const String _contextRiwaya = 'hafs';
+const int _contextSurah = 2;
+const int _contextFirst = 152;
+const int _contextCount = 3;
+const int _contextSelected = 153;
+const int _contextAmount = 0;
+// ContextSheet in index.jsx: `options`, with 3 ayat and 5 ayat.
+const List<int> _contextAyat = [3, 5];
 
 /// The gallery's study and search section: `WordSheet`, `SearchField`,
 /// `ModeChips`, `SearchSummary` and `SearchResult`, as their previews show
@@ -43,6 +57,11 @@ class _StudySearchGalleryState extends State<StudySearchGallery> {
   final TextEditingController _empty = TextEditingController();
   WordSheetTab _tab = _initialTab;
   int _mode = _initialMode;
+  int _contextChoice = _contextAmount;
+  // The results whose long ayah is shown whole: the cards keep no state of
+  // their own, so this is the caller's, as a list's is.
+  final Set<int> _whole = {};
+  ContextPassage? _passage;
 
   @override
   void didChangeDependencies() {
@@ -52,6 +71,21 @@ class _StudySearchGalleryState extends State<StudySearchGallery> {
     if (_filled.text.isEmpty) {
       _filled.text = AppLocalizations.of(context).sampleWord;
     }
+    // One passage for good: the sheet plans its text again when it is a new
+    // one. The ayat are the synthetic sample, with no word spans.
+    _passage ??= ContextPassage(
+      riwaya: _contextRiwaya,
+      surah: _contextSurah,
+      firstAyah: _contextFirst,
+      ayat: [
+        for (var k = 0; k < _contextCount; k++)
+          AyahText(
+            text: GallerySamples.text(AppLocalizations.of(context)),
+            words: const [],
+          ),
+      ],
+      selectedAyah: _contextSelected,
+    );
   }
 
   @override
@@ -143,10 +177,29 @@ class _StudySearchGalleryState extends State<StudySearchGallery> {
                       ? GallerySamples.longText(l10n)
                       : GallerySamples.text(l10n),
                   clamp: result.clamp,
+                  expanded: _whole.contains(result.ayah),
+                  onExpand: () => setState(() => _whole.add(result.ayah)),
                   onContext: _none,
                   onOpen: _none,
                 ),
             ],
+          ),
+        ),
+        GallerySection(
+          title: l10n.searchResultContext,
+          child: ContextSheet(
+            surahName: GallerySamples.surahName(l10n),
+            ayahNumber: _contextSelected,
+            amounts: [
+              l10n.contextOneAyah,
+              for (final count in _contextAyat) ayahCount(l10n, count),
+              l10n.contextSurah,
+            ],
+            amount: _contextChoice,
+            onAmountSelected: (index) => setState(() => _contextChoice = index),
+            passage: _passage,
+            onOpen: _none,
+            onPlay: _none,
           ),
         ),
       ],

@@ -85,20 +85,42 @@ Future<void> _pump(
   );
 }
 
-SearchResult _result({
+/// A result whose caller keeps the expanded state, as a screen's list does.
+Widget _result({
   PackText text = _short,
   bool clamp = false,
   int ayah = 45,
   VoidCallback? onContext,
   VoidCallback? onOpen,
-}) => SearchResult(
-  surahName: _name,
-  ayahNumber: ayah,
-  ayahText: text,
-  clamp: clamp,
-  onContext: onContext ?? () {},
-  onOpen: onOpen ?? () {},
+}) => _Owner(
+  builder: (expanded, expand) => SearchResult(
+    surahName: _name,
+    ayahNumber: ayah,
+    ayahText: text,
+    clamp: clamp,
+    expanded: expanded,
+    onExpand: expand,
+    onContext: onContext ?? () {},
+    onOpen: onOpen ?? () {},
+  ),
 );
+
+class _Owner extends StatefulWidget {
+  const _Owner({required this.builder});
+
+  final Widget Function(bool expanded, VoidCallback expand) builder;
+
+  @override
+  State<_Owner> createState() => _OwnerState();
+}
+
+class _OwnerState extends State<_Owner> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) =>
+      widget.builder(_expanded, () => setState(() => _expanded = true));
+}
 
 Finder _card() => find
     .descendant(of: find.byType(SearchResult), matching: find.byType(Container))
@@ -433,32 +455,83 @@ void main() {
     expect(_more(), findsNothing);
   });
 
-  testWidgets('a new ayah in the same place starts clamped again', (
-    tester,
-  ) async {
-    await _pump(tester, _result(text: _long, clamp: true));
+  testWidgets('keeps no expanded state of its own', (tester) async {
+    var expanded = 0;
+    Widget card({required bool whole}) => SearchResult(
+      surahName: _name,
+      ayahNumber: 45,
+      ayahText: _long,
+      clamp: true,
+      expanded: whole,
+      onExpand: () => expanded++,
+      onContext: () {},
+      onOpen: () {},
+    );
+    await _pump(tester, card(whole: false));
     await tester.tap(_more());
     await tester.pump();
+    // The link asks; the caller decides.
+    expect(expanded, 1);
+    expect(_more(), findsOneWidget);
+    expect(_fade(), findsOneWidget);
+
+    await _pump(tester, card(whole: true));
     expect(_more(), findsNothing);
-    await _pump(
-      tester,
-      _result(
-        text: const PackText.fromPack('$_longValue $_shortValue'),
-        clamp: true,
-      ),
+    expect(_fade(), findsNothing);
+    expect(
+      shownRect(_ayah(tester), _resultBox(tester)).height,
+      closeTo(_ayah(tester).size.height, 0.01),
     );
+
+    // A caller that clears the state gets the cut again, whatever the ayah.
+    await _pump(tester, card(whole: false));
     expect(_more(), findsOneWidget);
     expect(
       shownRect(_ayah(tester), _resultBox(tester)).height,
       closeTo(_clampHeight, 0.01),
     );
+  });
 
-    await _pump(tester, _result(clamp: true));
+  testWidgets('an expanded card whose caller keeps it expanded survives '
+      'being built again', (tester) async {
+    Widget list({required bool withCard}) => Column(
+      children: [
+        if (withCard)
+          SearchResult(
+            surahName: _name,
+            ayahNumber: 45,
+            ayahText: _long,
+            clamp: true,
+            expanded: true,
+            onContext: () {},
+            onOpen: () {},
+          ),
+      ],
+    );
+    await _pump(tester, list(withCard: true));
+    expect(_more(), findsNothing);
+    await _pump(tester, list(withCard: false));
+    await _pump(tester, list(withCard: true));
     expect(_more(), findsNothing);
     expect(_fade(), findsNothing);
-    await _pump(tester, _result(text: _long, clamp: true));
+  });
+
+  testWidgets('a clamped card with no onExpand shows a link that does '
+      'nothing', (tester) async {
+    await _pump(
+      tester,
+      SearchResult(
+        surahName: _name,
+        ayahNumber: 45,
+        ayahText: _long,
+        clamp: true,
+        onContext: () {},
+        onOpen: () {},
+      ),
+    );
+    await tester.tap(_more());
+    await tester.pump();
     expect(_more(), findsOneWidget);
-    expect(_fade(), findsOneWidget);
   });
 
   testWidgets('reads the reference, two labelled buttons and the ayah', (
@@ -570,7 +643,7 @@ void main() {
     final handle = tester.ensureSemantics();
     // Room under the card, so that the hidden link lies inside the scroll
     // view and only the clamp keeps it from being drawn or read.
-    Widget withRoomBelow(SearchResult result) => Column(
+    Widget withRoomBelow(Widget result) => Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [result, const SizedBox(height: 200)],
     );

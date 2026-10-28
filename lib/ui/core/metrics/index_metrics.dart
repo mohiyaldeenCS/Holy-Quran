@@ -147,4 +147,8 @@ abstract final class IndexMetrics {
   // A sheet over the keyboard keeps its content above it.
   static EdgeInsets keyboardInset(BuildContext context) =>
       EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom);
+
+  // How much the context sheet can show (NV-05, `ContextSheet` in index.jsx):
+  // the ayah, 3 ayat, 5 ayat, or the whole surah, which is null.
+  static const List<int?> contextAmounts = [1, 3, 5, null];
 }
