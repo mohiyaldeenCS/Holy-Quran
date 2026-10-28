@@ -61,7 +61,6 @@ class _GoToSheetState extends State<GoToSheet> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final colors = context.colors;
     final labels = {
       GoToChoice.surah: l10n.goToSurah,
       GoToChoice.ayah: l10n.goToAyah,
@@ -79,13 +78,7 @@ class _GoToSheetState extends State<GoToSheet> {
           final error = _viewModel.error;
           return CopySheetFrame(
             children: [
-              Semantics(
-                header: true,
-                child: Text(
-                  l10n.goToTitle,
-                  style: AppTextStyles.sectionTitle.copyWith(color: colors.ink),
-                ),
-              ),
+              CopySheetTitle(l10n.goToTitle),
               ModeChips(
                 label: l10n.goToTitle,
                 options: [

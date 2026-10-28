@@ -43,21 +43,11 @@ class CopySheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     assert(forms.contains(selected), 'The selected form is not shown.');
-    final colors = context.colors;
     final l10n = AppLocalizations.of(context);
     final ayah = this.ayah;
     return CopySheetFrame(
       children: [
-        Padding(
-          padding: _titlePadding,
-          child: Semantics(
-            header: true,
-            child: Text(
-              l10n.copySheetTitle,
-              style: _titleStyle.copyWith(color: colors.ink),
-            ),
-          ),
-        ),
+        CopySheetTitle(l10n.copySheetTitle),
         Semantics(
           container: true,
           explicitChildNodes: true,
@@ -135,6 +125,23 @@ class _Preview extends StatelessWidget {
 /// rounded top corners, the handle, and [children] a fixed gap apart. The
 /// share sheet, which the identity does not draw, takes it too. It scrolls
 /// when the screen is shorter than its content.
+/// The title of a sheet on [CopySheetFrame], as Share.dc.html draws it: 19
+/// semibold on `ink`, with the board's padding, announced as a heading.
+class CopySheetTitle extends StatelessWidget {
+  const CopySheetTitle(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: _titlePadding,
+    child: Semantics(
+      header: true,
+      child: Text(text, style: _titleStyle.copyWith(color: context.colors.ink)),
+    ),
+  );
+}
+
 class CopySheetFrame extends StatelessWidget {
   const CopySheetFrame({required this.children, super.key});
 

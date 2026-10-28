@@ -32,7 +32,9 @@ abstract final class IndexMetrics {
   // Screens2.dc.html l.30, the list: `padding:0 20px`.
   static const EdgeInsets list = EdgeInsets.symmetric(horizontal: 20);
 
-  // The end of the list, clear of the tab bar's shadow.
+  // The end of the list. Screens2.dc.html draws the list without an end, so
+  // this spacing token is chosen to keep the last row clear of the tab bar's
+  // shadow.
   static const double listEnd = AppSpacing.space5;
 
   // Screens2.dc.html l.31, the row: `gap:14px;padding:12px 0`, the vertical
@@ -113,15 +115,10 @@ abstract final class IndexMetrics {
   static EdgeInsetsDirectional rowInset({required bool rub}) =>
       EdgeInsetsDirectional.only(start: rub ? AppSpacing.space5 : 0);
 
-  // The go-to sheet's number field takes the search field's box (`.qk-search`):
-  // `height:56px` as a minimum, radius `radius-button`, a `line-strong` ring of
-  // 1.5px that turns into a 2px `primary` ring while it has focus, and the
-  // text `font-size:18px;font-weight:600` (`.qk-search-input`), no line
-  // height. The identity has no other field, so the sheet, which it does not
-  // draw, borrows this one.
-  static const double fieldMinHeight = 56;
-  static const double fieldRing = 1.5;
-  static const double fieldFocusedRing = 2;
+  // The go-to sheet's number field takes the search field's box
+  // (`SearchFieldBox`, `.qk-search`): its height, rings and text, and the
+  // radius `radius-button`. The identity has no other field, so the sheet,
+  // which it does not draw, borrows this one.
   static final BorderRadius fieldRadius = BorderRadius.circular(
     AppRadius.radiusButton,
   );
@@ -133,15 +130,6 @@ abstract final class IndexMetrics {
   static const InputDecoration fieldDecoration = InputDecoration(
     border: InputBorder.none,
     contentPadding: EdgeInsets.zero,
-  );
-  static const TextStyle fieldStyle = TextStyle(
-    inherit: false,
-    fontFamily: AppFonts.sans,
-    fontSize: 18,
-    fontWeight: FontWeight.w600,
-    letterSpacing: 0,
-    leadingDistribution: TextLeadingDistribution.even,
-    textBaseline: TextBaseline.alphabetic,
   );
 
   // A sheet over the keyboard keeps its content above it.

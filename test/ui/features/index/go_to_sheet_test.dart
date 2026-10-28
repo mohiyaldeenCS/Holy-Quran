@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart' hide Icon, IconButton;
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
@@ -291,6 +292,29 @@ void main() {
     }
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    handle.dispose();
+  });
+
+  testWidgets('each field is one text-field node, carrying its label', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await openSheet(tester);
+    await choose(tester, _l10n.goToAyah);
+    final nodes = <SemanticsNode>[];
+    void visit(SemanticsNode node) {
+      if (node.flagsCollection.isTextField) nodes.add(node);
+      node.visitChildren((child) {
+        visit(child);
+        return true;
+      });
+    }
+
+    visit(tester.getSemantics(find.byType(GoToSheet)));
+    expect(nodes, hasLength(2));
+    expect([
+      for (final node in nodes) node.label,
+    ], unorderedEquals([_l10n.goToSurah, _l10n.goToAyah]));
     handle.dispose();
   });
 

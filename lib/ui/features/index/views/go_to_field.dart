@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' hide Icon, IconButton;
 
 import 'package:holyquran/ui/core/metrics/index_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
+import 'package:holyquran/ui/core/widgets/search_field.dart';
 
 /// A field for a number in the go-to sheet, built like the search field
 /// (`.qk-search`): `surface` with a `line-strong` ring, a `primary` ring while
@@ -50,34 +51,33 @@ class _GoToFieldState extends State<GoToField> {
           border: Border.all(
             color: _focused ? colors.primary : colors.lineStrong,
             width: _focused
-                ? IndexMetrics.fieldFocusedRing
-                : IndexMetrics.fieldRing,
+                ? SearchFieldBox.focusedRingWidth
+                : SearchFieldBox.ringWidth,
           ),
         ),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            minHeight: IndexMetrics.fieldMinHeight,
-          ),
+          constraints: const BoxConstraints(minHeight: SearchFieldBox.height),
           child: Padding(
             padding: IndexMetrics.fieldPadding,
-            child: Semantics(
-              label: widget.label,
-              textField: true,
-              child: Material(
-                type: MaterialType.transparency,
-                child: TextField(
-                  controller: widget.controller,
-                  autofocus: widget.autofocus,
-                  keyboardType: TextInputType.number,
-                  textInputAction: widget.last
-                      ? TextInputAction.done
-                      : TextInputAction.next,
-                  textDirection: TextDirection.rtl,
-                  onChanged: (_) => widget.onChanged(),
-                  onSubmitted: (_) => widget.onSubmitted(),
-                  style: IndexMetrics.fieldStyle.copyWith(color: colors.ink),
-                  cursorColor: colors.ink,
-                  decoration: IndexMetrics.fieldDecoration,
+            // The label is the hint, as the search field's is: the field's own
+            // node carries it.
+            child: Material(
+              type: MaterialType.transparency,
+              child: TextField(
+                controller: widget.controller,
+                autofocus: widget.autofocus,
+                keyboardType: TextInputType.number,
+                textInputAction: widget.last
+                    ? TextInputAction.done
+                    : TextInputAction.next,
+                textDirection: TextDirection.rtl,
+                onChanged: (_) => widget.onChanged(),
+                onSubmitted: (_) => widget.onSubmitted(),
+                style: SearchFieldBox.inputStyle.copyWith(color: colors.ink),
+                cursorColor: colors.ink,
+                decoration: IndexMetrics.fieldDecoration.copyWith(
+                  hintText: widget.label,
+                  hintStyle: SearchFieldBox.hintStyle(colors.inkMuted),
                 ),
               ),
             ),
