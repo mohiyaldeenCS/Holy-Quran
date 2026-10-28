@@ -217,6 +217,16 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   saying when the database is in memory (D-133); `userDataProviders` wiring
   (bookmarks, notes, keep-awake). Reviewed by `code-reviewer` (once, then fixes) and
   `identity-auditor`.
+- **P1-25 merged (#52), partial.** Resource manager at `/more/resources` with tafsir
+  and riwaya sections, download, delete, re-download and update states, storage bars,
+  the integrity alert, and the first-use tafsir sheet (D-137). OF-01 partial
+  (recitations go to P1-33; page-mushaf, tajweed and linguistic packs have no kind
+  yet); OF-02 partial (no stop or pause; the size, source and version line is met);
+  OF-03 partial (bars met; the free and used figures need the new strings); OF-06
+  partial (the change summary shows; no update word or action; no rollback); TF-06 as
+  far as the installer allows. Not reachable in the app until the installer is wired
+  into `lib/config`. Follow-ups in D-137. Reviewed by `code-reviewer` and
+  `identity-auditor` (twice).
 - Open pull requests: #52 (P1-25), #53 (P1-27). #56 (the gallery tap-target test sized to the gallery; D-136) merged. Their old CI runs wait for approval
 - **P1-28 merged (#50), partial.**
   Range, play-options, repeat, silence and queue sheets (D-135). AU-11 met; AU-02
