@@ -1,7 +1,11 @@
 import 'package:flutter/widgets.dart';
 
+import 'package:holyquran/data/repositories/player_repository.dart';
+import 'package:holyquran/data/repositories/quran_index_repository.dart';
+import 'package:holyquran/domain/models/playback_plan_builder.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/routing/routes/feature_routes.dart';
+import 'package:holyquran/routing/routes/sheet_needs.dart';
 import 'package:holyquran/ui/features/listen/view_models/controls/play_options_view_model.dart';
 import 'package:holyquran/ui/features/listen/view_models/controls/queue_sheet_view_model.dart';
 import 'package:holyquran/ui/features/listen/view_models/controls/range_sheet_view_model.dart';
@@ -21,63 +25,85 @@ final listenControlsRoutes = FeatureRoutes(
     SheetRoute(
       path: RoutePaths.rangeSheet,
       owner: _player,
-      builder: (context, state) => _Scoped(
-        create: (context) => RangeSheetViewModel(
-          player: context.read(),
-          builder: context.read(),
-          index: context.read(),
+      builder: (context, state) => SheetNeeds(
+        available: _hasPlayer,
+        child: _Scoped(
+          create: (context) => RangeSheetViewModel(
+            player: context.read(),
+            builder: context.read(),
+            index: context.read(),
+          ),
+          builder: (viewModel) => RangeSheet(viewModel: viewModel),
         ),
-        builder: (viewModel) => RangeSheet(viewModel: viewModel),
       ),
     ),
     SheetRoute(
       path: RoutePaths.playOptionsSheet,
       owner: (state) => Routes.mushafRead(Routes.addressOf(state)!),
-      builder: (context, state) => _Scoped(
-        create: (context) => PlayOptionsViewModel(
-          address: Routes.addressOf(state)!,
-          player: context.read(),
-          builder: context.read(),
-          index: context.read(),
+      builder: (context, state) => SheetNeeds(
+        available: _hasPlayer,
+        child: _Scoped(
+          create: (context) => PlayOptionsViewModel(
+            address: Routes.addressOf(state)!,
+            player: context.read(),
+            builder: context.read(),
+            index: context.read(),
+          ),
+          builder: (viewModel) => PlayOptionsSheet(viewModel: viewModel),
         ),
-        builder: (viewModel) => PlayOptionsSheet(viewModel: viewModel),
       ),
     ),
     SheetRoute(
       path: RoutePaths.repeatSheet,
       owner: _player,
-      builder: (context, state) => _Scoped(
-        create: (context) => RepeatSheetViewModel(
-          player: context.read(),
-          builder: context.read(),
+      builder: (context, state) => SheetNeeds(
+        available: _hasPlayer,
+        child: _Scoped(
+          create: (context) => RepeatSheetViewModel(
+            player: context.read(),
+            builder: context.read(),
+          ),
+          builder: (viewModel) => RepeatSheet(viewModel: viewModel),
         ),
-        builder: (viewModel) => RepeatSheet(viewModel: viewModel),
       ),
     ),
     SheetRoute(
       path: RoutePaths.silenceSheet,
       owner: _player,
-      builder: (context, state) => _Scoped(
-        create: (context) => SilenceSheetViewModel(
-          player: context.read(),
-          builder: context.read(),
+      builder: (context, state) => SheetNeeds(
+        available: _hasPlayer,
+        child: _Scoped(
+          create: (context) => SilenceSheetViewModel(
+            player: context.read(),
+            builder: context.read(),
+          ),
+          builder: (viewModel) => SilenceSheet(viewModel: viewModel),
         ),
-        builder: (viewModel) => SilenceSheet(viewModel: viewModel),
       ),
     ),
     SheetRoute(
       path: RoutePaths.queueSheet,
       owner: _player,
-      builder: (context, state) => _Scoped(
-        create: (context) =>
-            QueueSheetViewModel(player: context.read(), index: context.read()),
-        builder: (viewModel) => QueueSheet(viewModel: viewModel),
+      builder: (context, state) => SheetNeeds(
+        available: _hasPlayer,
+        child: _Scoped(
+          create: (context) => QueueSheetViewModel(
+            player: context.read(),
+            index: context.read(),
+          ),
+          builder: (viewModel) => QueueSheet(viewModel: viewModel),
+        ),
       ),
     ),
   ],
 );
 
 String _player(Object _) => Routes.listen;
+
+bool _hasPlayer(BuildContext context) =>
+    context.read<PlayerRepository?>() != null &&
+    context.read<PlaybackPlanBuilder?>() != null &&
+    context.read<QuranIndexRepository?>() != null;
 
 /// Creates a sheet's view model once, so that the route rebuilding its page
 /// keeps what the user has set, and disposes of it with the sheet.

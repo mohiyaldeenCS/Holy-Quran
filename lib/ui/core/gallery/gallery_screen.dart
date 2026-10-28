@@ -8,6 +8,7 @@ import 'package:holyquran/ui/core/gallery/sections/audio_gallery.dart';
 import 'package:holyquran/ui/core/gallery/sections/controls_gallery.dart';
 import 'package:holyquran/ui/core/gallery/sections/home_share_gallery.dart';
 import 'package:holyquran/ui/core/gallery/sections/mushaf_gallery.dart';
+import 'package:holyquran/ui/core/gallery/sections/resources_gallery.dart';
 import 'package:holyquran/ui/core/gallery/sections/study_search_gallery.dart';
 import 'package:holyquran/ui/core/theme/app_theme.dart';
 import 'package:holyquran/ui/core/theme/ramps.g.dart';
@@ -53,6 +54,7 @@ const List<Widget> _galleries = [
   AudioGallery(),
   StudySearchGallery(),
   HomeShareGallery(),
+  ResourcesGallery(),
 ];
 
 /// Debug-only review page: every design-system widget, once in each reading

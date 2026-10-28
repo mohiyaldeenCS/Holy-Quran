@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../lib/generator.dart';
 import '../lib/icons_reader.dart';
+import '../lib/project_icons_reader.dart';
 import '../lib/tokens_writer.dart';
 import 'synthetic_sources.dart';
 
@@ -26,6 +27,11 @@ Directory _sourceRoot({
     File('${root.path}/$path')
       ..createSync(recursive: true)
       ..writeAsStringSync(content);
+  }
+  for (final name in projectIconNames) {
+    File('${root.path}/$projectIconsDirectory/$name.svg')
+      ..createSync(recursive: true)
+      ..writeAsStringSync(syntheticProjectIcon());
   }
   return root;
 }

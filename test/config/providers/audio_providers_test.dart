@@ -4,10 +4,12 @@ import 'package:holyquran/config/dependencies.dart';
 import 'package:holyquran/config/providers/audio_providers.dart';
 import 'package:holyquran/data/repositories/player_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
+import 'package:holyquran/domain/models/playback_plan_builder.dart';
 import 'package:holyquran/domain/models/player_state.dart';
 import 'package:provider/provider.dart';
 
 import '../../../testing/fakes/fake_quran_index_repository.dart';
+import '../../ui/features/listen/controls/controls_harness.dart';
 
 Future<BuildContext> _contextBelow(
   WidgetTester tester,
@@ -30,18 +32,32 @@ Future<BuildContext> _contextBelow(
 }
 
 void main() {
-  testWidgets('provides the player without touching a plugin once the base '
-      'pack serves, and none before', (tester) async {
+  testWidgets('provides the player and the plan builder without touching a '
+      'plugin once the base pack serves, and neither before', (tester) async {
     expect(await buildDependencies(areas: [audioProviders]), isEmpty);
 
+    final index = FakeQuranIndexRepository.synthetic();
     final withPack = await _contextBelow(tester, [
-      (dependencies) async => dependencies.provide<QuranIndexRepository>(
-        FakeQuranIndexRepository.synthetic(),
-      ),
+      (dependencies) async => dependencies
+        ..provide<QuranIndexRepository>(index)
+        ..provide<PlaybackPlanBuilder>(syntheticBuilder(index)),
       audioProviders,
     ]);
     final player = withPack.read<PlayerRepository>();
     expect(player.state.speed, PlaybackSpeed.normal);
     expect(player, isA<EnginePlayerRepository>());
+    expect(withPack.read<PlaybackPlanBuilder?>(), isNotNull);
+  });
+
+  test('provides no player without the plan builder', () async {
+    final providers = await buildDependencies(
+      areas: [
+        (dependencies) async => dependencies.provide<QuranIndexRepository>(
+          FakeQuranIndexRepository.synthetic(),
+        ),
+        audioProviders,
+      ],
+    );
+    expect(providers, hasLength(1));
   });
 }

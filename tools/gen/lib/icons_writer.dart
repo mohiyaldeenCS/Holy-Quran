@@ -2,6 +2,7 @@ import 'generated_header.dart';
 import 'generator_error.dart';
 import 'icons_reader.dart';
 import 'names.dart';
+import 'project_icons_reader.dart';
 import 'svg_shapes.dart';
 
 /// Members every Dart enum has, which an enum value cannot be named.
@@ -30,10 +31,18 @@ String writeIcons(IconSet icons) {
   if (filled.isEmpty) throw GeneratorError('No icon is filled.');
 
   final out =
-      StringBuffer(generatedHeader([componentsSourcePath, typesSourcePath]))
+      StringBuffer(
+          generatedHeader([
+            componentsSourcePath,
+            typesSourcePath,
+            '$projectIconsDirectory/*.svg',
+          ]),
+        )
         ..writeln("import 'package:flutter/painting.dart';")
         ..writeln()
-        ..writeln('/// The icons of the identity, in the order of ICONS.')
+        ..writeln(
+          '/// The identity icons in the order of ICONS, then the project icons.',
+        )
         ..writeln('enum IconName { ${values.join(', ')} }')
         ..writeln()
         ..writeln(

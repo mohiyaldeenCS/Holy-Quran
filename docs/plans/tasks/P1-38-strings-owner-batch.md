@@ -95,3 +95,78 @@ Wait for every background task before writing the report, and make your last mes
 ---
 
 Owner-approved wording (pasted by the lead when starting the run):
+
+Pasted by the lead on 2026-10-28.
+
+**Appendix B, approved by the owner as worded (D-128 (4)).** Copy every phrase from
+`docs/plans/PHASE1.md` §8, Appendix B, character for character (never retype); the
+ornate brackets of the two copy forms are copied from `copyFormatFull`. Skip a phrase
+that already has a key (`rangeSelectorTitle`, `playerSilenceBetweenAyat`). Proposed
+keys, in Appendix B's order: `openAtLastPosition`, `keepScreenAwake`, `textSizeLabel`,
+`distractionFreeMode`, `playerSpeed`, `playerEndOfAyah`, `playerEndOfSurah`,
+`stopAfterAyah`, `stopAfterPage`, `stopAfterSurah`, `playerStop`, `nextSurah`,
+`previousSurah`, `qualityLabel`, `wifiOnly`, `sortNewest`, `noteLabel`, `tagsLabel`,
+`searchHistoryTitle`, `resourceUpdate`, `resourceInProgress` («جارٍ · {percent}»),
+`repeatUnlimited`, `tafsirReaderTitle`, `recitationPickerTitle`, `defaultTafsirLabel`,
+`resourcesDownloaded`, `resourcesAvailable`, `sourceAuthor`, `sourceEditionOrEditor`,
+`sourceDigitisation`, `versionLabel`, `copyFormatAyahOnly`, `copyFormatWithSurah`,
+`reportError`, `setupStepDisplayMode`, `setupStepLevel`, `setupStepRecitation`. Add
+`copyReferenceSurah` = « [{surah}]» (leading space, as `copyReferenceFull`), the
+reference part of `copyFormatWithSurah` for the copy preview (D-130).
+
+**Appendix C, worded by the lead on the owner's delegation (D-128 (5)).** Description
+of each: "Lead, 2026-10-28, D-128 (5)". Exactly these characters:
+
+| Key | Wording |
+| --- | --- |
+| `setupDisplayModePrompt` | اختر طريقة عرض المصحف |
+| `setupLevelPrompt` | اختر مستوى الواجهة، ويمكنك تغييره متى شئت من الإعدادات |
+| `setupRecitationPrompt` | اختر التلاوة التي تستمع إليها |
+| `setupContinue` | متابعة |
+| `setupFinish` | ابدأ القراءة |
+| `reportSend` | أرسل البلاغ |
+| `reportNote` | يفتح البلاغ تطبيق البريد برسالة فيها الموضع والمصدر وإصداره، وتراها قبل أن ترسلها. |
+| `integrityBaseTitle` | نص المصحف لم يجتز التحقق |
+| `integrityBaseBody` | لن يُعرض نص لم يجتز التحقق. حدّث التطبيق أو أعد تثبيته. |
+| `integrityPackTitle` | هذه الحزمة لم تجتز التحقق |
+| `integrityPackBody` | لن يُعرض محتواها حتى تُنزَّل من جديد. |
+| `integrityIconLabel` | تنبيه |
+| `pageNotFound` | لا توجد صفحة {page} |
+| `juzNotFound` | لا يوجد جزء {juz} |
+| `hizbNotFound` | لا يوجد حزب {hizb} |
+| `rubNotFound` | لا يوجد ربع {rub} |
+| `surahNotFound` | لا توجد سورة بهذا الاسم |
+| `addressUnreadable` | لم نتعرّف على الموضع المكتوب |
+| `levelAlwaysShow` | أظهر هذه الأداة دائمًا |
+| `lowSpace` | المساحة المتاحة في الجهاز لا تكفي |
+| `storageSummary` | المستخدم {used} · المتاح {free} |
+| `downloadSize` | الحجم {size} |
+| `waitingForWifi` | بانتظار شبكة Wi-Fi |
+| `updateAvailable` | يتوفر إصدار جديد |
+| `deletePackTitle` | حذف الحزمة |
+| `deletePackBody` | يمكنك تنزيلها من جديد متى شئت. |
+| `downloadNotSaved` | تعذّر حفظ الملف |
+| `noNotesYet` | لا توجد ملاحظات بعد |
+| `noSearchResults` | لم نجد نتائج |
+| `noTafsirsYet` | لا توجد تفاسير منزَّلة بعد |
+| `noRecitationsYet` | لا توجد تلاوات منزَّلة بعد |
+| `queueEmpty` | قائمة التشغيل فارغة |
+| `noteHint` | اكتب ملاحظتك |
+| `noteSave` | احفظ |
+| `noteDelete` | احذف الملاحظة |
+| `shareSheetTitle` | مشاركة الآية |
+| `addToQueue` | أضف إلى قائمة التشغيل |
+| `repeatCounter` | التكرار {current} من {total} |
+| `rangeFrom` | من |
+| `rangeTo` | إلى |
+| `repeatUnitAyah` | الآية |
+| `repeatUnitRange` | النطاق |
+| `userDataNotSaved` | تعذّر فتح بيانات التطبيق، فلن تُحفظ تغييراتك في هذه الجلسة. |
+
+Plurals, ICU, following the existing plural keys' style (e.g. the ayah and times
+counts): `searchPlaces` — zero «لا مواضع», one «موضع واحد», two «موضعان», few «{count}
+مواضع», many «{count} موضعًا», other «{count} موضع»; `minutesCount` — one «دقيقة
+واحدة», two «دقيقتان», few «{count} دقائق», many «{count} دقيقة», other «{count} دقيقة».
+
+Not given here, left to their tasks: source credits (D-128 (6): as each source
+publishes them), copying several ayat, gallery titles, the sources screen's headings.
