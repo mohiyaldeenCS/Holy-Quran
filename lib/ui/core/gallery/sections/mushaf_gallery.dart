@@ -2,7 +2,6 @@ import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/surah_info.dart';
-import 'package:holyquran/domain/models/word_span.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/gallery/gallery_samples.dart';
 import 'package:holyquran/ui/core/gallery/gallery_section.dart';
@@ -136,7 +135,7 @@ final class _Highlights extends StatelessWidget {
   Widget build(BuildContext context) {
     final address = QuranAddress(_riwaya, _surah, _ayah);
     final word = QuranAddress(_riwaya, _surah, _ayah, _word);
-    final text = _sampleSurah(l10n);
+    final text = GallerySamples.surah(l10n, riwaya: _riwaya, number: _surah);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: AppSpacing.space3,
@@ -172,24 +171,5 @@ double _heightOf(BuildContext context, SurahText text, double width) =>
       ReaderStyle(ReaderTextScaler(MediaQuery.textScalerOf(context), 1)),
       width,
     ).height;
-
-// The sample is an ARB string, not pack text: its words are cut at its
-// spaces to give the engine the spans a pack would.
-SurahText _sampleSurah(AppLocalizations l10n) {
-  final raw = l10n.sampleText;
-  final words = <WordSpan>[];
-  var start = 0;
-  while (start < raw.length) {
-    final space = raw.indexOf(' ', start);
-    final end = space < 0 ? raw.length : space;
-    words.add(WordSpan(number: words.length + 1, start: start, end: end));
-    start = end + 1;
-  }
-  return SurahText(
-    riwaya: _riwaya,
-    surah: _surah,
-    ayat: [AyahText(text: GallerySamples.text(l10n), words: words)],
-  );
-}
 
 void _none() {}
