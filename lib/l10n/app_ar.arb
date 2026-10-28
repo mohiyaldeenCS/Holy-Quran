@@ -1130,5 +1130,417 @@
   "playUntilStopped": "حتى أوقفه",
   "@playUntilStopped": {
     "description": "Play from the ayah tools: until the user stops it. Source: docs/prd/PRD.ar.md (AU-03)."
+  },
+  "openAtLastPosition": "فتح التطبيق على آخر موضع",
+  "@openAtLastPosition": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "keepScreenAwake": "منع إطفاء الشاشة أثناء القراءة أو التلاوة",
+  "@keepScreenAwake": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "textSizeLabel": "حجم النص",
+  "@textSizeLabel": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "distractionFreeMode": "وضع بلا تشتيت",
+  "@distractionFreeMode": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "playerSpeed": "السرعة",
+  "@playerSpeed": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "playerEndOfAyah": "نهاية الآية",
+  "@playerEndOfAyah": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "playerEndOfSurah": "نهاية السورة",
+  "@playerEndOfSurah": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "stopAfterAyah": "التوقف بعد الآية",
+  "@stopAfterAyah": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "stopAfterPage": "التوقف بعد الصفحة",
+  "@stopAfterPage": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "stopAfterSurah": "التوقف بعد السورة",
+  "@stopAfterSurah": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "playerStop": "إيقاف",
+  "@playerStop": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "nextSurah": "السورة التالية",
+  "@nextSurah": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "previousSurah": "السورة السابقة",
+  "@previousSurah": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "qualityLabel": "الجودة",
+  "@qualityLabel": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "wifiOnly": "Wi-Fi فقط",
+  "@wifiOnly": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "sortNewest": "الأحدث",
+  "@sortNewest": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "noteLabel": "ملاحظة",
+  "@noteLabel": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "tagsLabel": "وسوم",
+  "@tagsLabel": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "searchHistoryTitle": "سجل البحث",
+  "@searchHistoryTitle": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "resourceUpdate": "تحديث",
+  "@resourceUpdate": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "resourceInProgress": "جارٍ · {percent}",
+  "@resourceInProgress": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).",
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "repeatUnlimited": "بلا نهاية",
+  "@repeatUnlimited": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "tafsirReaderTitle": "قارئ التفسير",
+  "@tafsirReaderTitle": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "recitationPickerTitle": "اختيار التلاوة",
+  "@recitationPickerTitle": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "defaultTafsirLabel": "التفسير الافتراضي",
+  "@defaultTafsirLabel": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "resourcesDownloaded": "المنزَّل",
+  "@resourcesDownloaded": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "resourcesAvailable": "المتاح",
+  "@resourcesAvailable": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "sourceAuthor": "المؤلف",
+  "@sourceAuthor": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "sourceEditionOrEditor": "الطبعة أو المحقق",
+  "@sourceEditionOrEditor": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "sourceDigitisation": "مصدر الرقمنة",
+  "@sourceDigitisation": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "versionLabel": "الإصدار",
+  "@versionLabel": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "copyFormatAyahOnly": "﴿{ayah}﴾",
+  "@copyFormatAyahOnly": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).",
+    "placeholders": {
+      "ayah": {
+        "type": "String"
+      }
+    }
+  },
+  "copyFormatWithSurah": "﴿{ayah}﴾ [{surah}]",
+  "@copyFormatWithSurah": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).",
+    "placeholders": {
+      "ayah": {
+        "type": "String"
+      },
+      "surah": {
+        "type": "String"
+      }
+    }
+  },
+  "reportError": "أبلغ عن خطأ",
+  "@reportError": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "setupStepDisplayMode": "وضع العرض",
+  "@setupStepDisplayMode": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "setupStepLevel": "المستوى",
+  "@setupStepLevel": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "setupStepRecitation": "التلاوة",
+  "@setupStepRecitation": {
+    "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
+  },
+  "copyReferenceSurah": " [{surah}]",
+  "@copyReferenceSurah": {
+    "description": "Owner, 2026-10-28 (D-130). The copy preview's reference part of copyFormatWithSurah: the space after the closing bracket, then the surah's name from the pack, unchanged, in square brackets.",
+    "placeholders": {
+      "surah": {
+        "type": "String"
+      }
+    }
+  },
+  "setupDisplayModePrompt": "اختر طريقة عرض المصحف",
+  "@setupDisplayModePrompt": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "setupLevelPrompt": "اختر مستوى الواجهة، ويمكنك تغييره متى شئت من الإعدادات",
+  "@setupLevelPrompt": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "setupRecitationPrompt": "اختر التلاوة التي تستمع إليها",
+  "@setupRecitationPrompt": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "setupContinue": "متابعة",
+  "@setupContinue": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "setupFinish": "ابدأ القراءة",
+  "@setupFinish": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "reportSend": "أرسل البلاغ",
+  "@reportSend": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "reportNote": "يفتح البلاغ تطبيق البريد برسالة فيها الموضع والمصدر وإصداره، وتراها قبل أن ترسلها.",
+  "@reportNote": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "integrityBaseTitle": "نص المصحف لم يجتز التحقق",
+  "@integrityBaseTitle": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "integrityBaseBody": "لن يُعرض نص لم يجتز التحقق. حدّث التطبيق أو أعد تثبيته.",
+  "@integrityBaseBody": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "integrityPackTitle": "هذه الحزمة لم تجتز التحقق",
+  "@integrityPackTitle": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "integrityPackBody": "لن يُعرض محتواها حتى تُنزَّل من جديد.",
+  "@integrityPackBody": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "integrityIconLabel": "تنبيه",
+  "@integrityIconLabel": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "pageNotFound": "لا توجد صفحة {page}",
+  "@pageNotFound": {
+    "description": "Lead, 2026-10-28, D-128 (5)",
+    "placeholders": {
+      "page": {
+        "type": "String"
+      }
+    }
+  },
+  "juzNotFound": "لا يوجد جزء {juz}",
+  "@juzNotFound": {
+    "description": "Lead, 2026-10-28, D-128 (5)",
+    "placeholders": {
+      "juz": {
+        "type": "String"
+      }
+    }
+  },
+  "hizbNotFound": "لا يوجد حزب {hizb}",
+  "@hizbNotFound": {
+    "description": "Lead, 2026-10-28, D-128 (5)",
+    "placeholders": {
+      "hizb": {
+        "type": "String"
+      }
+    }
+  },
+  "rubNotFound": "لا يوجد ربع {rub}",
+  "@rubNotFound": {
+    "description": "Lead, 2026-10-28, D-128 (5)",
+    "placeholders": {
+      "rub": {
+        "type": "String"
+      }
+    }
+  },
+  "surahNotFound": "لا توجد سورة بهذا الاسم",
+  "@surahNotFound": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "addressUnreadable": "لم نتعرّف على الموضع المكتوب",
+  "@addressUnreadable": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "levelAlwaysShow": "أظهر هذه الأداة دائمًا",
+  "@levelAlwaysShow": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "lowSpace": "المساحة المتاحة في الجهاز لا تكفي",
+  "@lowSpace": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "storageSummary": "المستخدم {used} · المتاح {free}",
+  "@storageSummary": {
+    "description": "Lead, 2026-10-28, D-128 (5)",
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "free": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadSize": "الحجم {size}",
+  "@downloadSize": {
+    "description": "Lead, 2026-10-28, D-128 (5)",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "waitingForWifi": "بانتظار شبكة Wi-Fi",
+  "@waitingForWifi": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "updateAvailable": "يتوفر إصدار جديد",
+  "@updateAvailable": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "deletePackTitle": "حذف الحزمة",
+  "@deletePackTitle": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "deletePackBody": "يمكنك تنزيلها من جديد متى شئت.",
+  "@deletePackBody": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "downloadNotSaved": "تعذّر حفظ الملف",
+  "@downloadNotSaved": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "noNotesYet": "لا توجد ملاحظات بعد",
+  "@noNotesYet": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "noSearchResults": "لم نجد نتائج",
+  "@noSearchResults": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "noTafsirsYet": "لا توجد تفاسير منزَّلة بعد",
+  "@noTafsirsYet": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "noRecitationsYet": "لا توجد تلاوات منزَّلة بعد",
+  "@noRecitationsYet": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "queueEmpty": "قائمة التشغيل فارغة",
+  "@queueEmpty": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "noteHint": "اكتب ملاحظتك",
+  "@noteHint": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "noteSave": "احفظ",
+  "@noteSave": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "noteDelete": "احذف الملاحظة",
+  "@noteDelete": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "shareSheetTitle": "مشاركة الآية",
+  "@shareSheetTitle": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "addToQueue": "أضف إلى قائمة التشغيل",
+  "@addToQueue": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "repeatCounter": "التكرار {current} من {total}",
+  "@repeatCounter": {
+    "description": "Lead, 2026-10-28, D-128 (5)",
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "rangeFrom": "من",
+  "@rangeFrom": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "rangeTo": "إلى",
+  "@rangeTo": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "repeatUnitAyah": "الآية",
+  "@repeatUnitAyah": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "repeatUnitRange": "النطاق",
+  "@repeatUnitRange": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "userDataNotSaved": "تعذّر فتح بيانات التطبيق، فلن تُحفظ تغييراتك في هذه الجلسة.",
+  "@userDataNotSaved": {
+    "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "searchPlaces": "{count, plural, zero{لا مواضع} one{موضع واحد} two{موضعان} few{{digits} مواضع} many{{digits} موضعًا} other{{digits} موضع}}",
+  "@searchPlaces": {
+    "description": "Lead, 2026-10-28, D-128 (5). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "digits": {
+        "type": "String"
+      }
+    }
+  },
+  "minutesCount": "{count, plural, one{دقيقة واحدة} two{دقيقتان} few{{digits} دقائق} many{{digits} دقيقة} other{{digits} دقيقة}}",
+  "@minutesCount": {
+    "description": "Lead, 2026-10-28, D-128 (5). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "digits": {
+        "type": "String"
+      }
+    }
   }
 }

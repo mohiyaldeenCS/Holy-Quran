@@ -10,7 +10,7 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-28 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **20 merged**: P1-01 to P1-13, P1-15, P1-16, P1-18 to P1-21, P1-28 (P1-12, P1-15 and P1-28 partial). **Open**: #52 (P1-25), #53 (P1-27), P1-39 (local); #56 (gallery test, D-136) merged. **17 not started**. The lead merges after an independent review and CI (D-136) |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **22 merged**: P1-01 to P1-13, P1-15, P1-16, P1-18 to P1-21, P1-28, P1-38, P1-39 (P1-12, P1-15 and P1-28 partial). **Open**: #52 (P1-25), #53 (P1-27). **16 not started**. The lead merges after an independent review and CI (D-136) |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/p1-*`); worktrees under the session's scratchpad for parallel agents (D-132) |
 | Last session | 2026-10-28, local session on the owner's Windows machine: state recovered from Git, the owner's pending decisions taken (D-128), resumption settled (D-129) |
@@ -227,7 +227,17 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   far as the installer allows. Not reachable in the app until the installer is wired
   into `lib/config`. Follow-ups in D-137. Reviewed by `code-reviewer` and
   `identity-auditor` (twice).
-- Open pull requests: #52 (P1-25), #53 (P1-27). #56 (the gallery tap-target test sized to the gallery; D-136) merged. Their old CI runs wait for approval
+- **P1-38 merged, the second batch of strings.** 83 keys in `lib/l10n/app_ar.arb`: 38 from
+  Appendix B as the owner approved them (D-128 (4)), 45 worded by the lead (D-128 (5);
+  the table is in `docs/plans/tasks/P1-38-strings-owner-batch.md`). Checked by script
+  against the plan and the task, character for character. They unblock the setup's
+  prompts and continue button, the report sheet's send and note, the integrity alerts,
+  the go-to errors, the player's stop-after, sleep timer, unlimited repeat and
+  add-to-queue, the resource manager's update, Wi-Fi, space and size lines, and the
+  empty states. Not worded: source credits (D-128 (6)), copying several ayat, gallery
+  titles, the sources screen's headings. For the owner's optional look: the lead's
+  wording (owner's linguist, when he wishes).
+- Open pull requests: #53 (P1-27). Merged since: #56 (the gallery test sized to the gallery; D-136), #57 (P1-39, the eight project icons in the generator), #58 (P1-38), #52 (P1-25). Their old CI runs wait
 - **P1-28 merged (#50), partial.**
   Range, play-options, repeat, silence and queue sheets (D-135). AU-11 met; AU-02
   partial (ayah to ayah, several pages, a set of surahs and to the end of the mushaf
