@@ -2,21 +2,44 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'package:holyquran/data/repositories/app_settings_repository.dart';
+import 'package:holyquran/data/repositories/bookmark_repository.dart';
+import 'package:holyquran/data/repositories/category_repository.dart';
+import 'package:holyquran/data/repositories/keep_awake_repository.dart';
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/domain/models/edition_map.dart';
+import 'package:holyquran/domain/models/level_policy.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/quran_position.dart';
+import 'package:holyquran/domain/models/ui_level.dart';
+import 'package:holyquran/ui/core/reader/gesture_target.dart';
 import 'package:holyquran/ui/core/reader/reader_anchors.dart';
+import 'package:holyquran/ui/core/reader/reader_text_scale.dart';
 import 'package:holyquran/ui/core/reader/surah_text.dart';
+import 'package:holyquran/ui/features/mushaf/view_models/reader_bookmarks.dart';
+import 'package:holyquran/ui/features/mushaf/view_models/reader_keep_awake.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/reader_surah.dart';
 import 'package:holyquran/utils/command.dart';
 import 'package:holyquran/utils/result.dart';
 
 enum ReaderStatus { loading, ready, unavailable }
+
+/// Which of the selected ayah's tools can work in this app: each needs
+/// objects that only a verified pack, or the player, provides. A tool that
+/// cannot work is not offered (D-138, 3).
+final class AyahTools {
+  const AyahTools({this.play = false, this.copy = false, this.share = false});
+
+  static const none = AyahTools();
+
+  final bool play;
+  final bool copy;
+  final bool share;
+}
 
 /// The reader cannot show text: the app has no verified base pack, or it
 /// stopped serving.
@@ -36,6 +59,11 @@ final class ReaderUnavailable implements Exception {
 /// it keeps what it has when no other reader saved a position meanwhile, and
 /// else reopens at the saved position (a reader opened over this one moves
 /// the position on).
+///
+/// It also holds what the reader's gestures change: the selected ayah and its
+/// tools (PRD §7.4), the text size step (`RD-07`), the distraction-free state
+/// (`RD-09`), the bookmarks the margin shows (`UD-05`) and the screen kept on
+/// (`RD-16`).
 final class MushafViewModel extends ChangeNotifier {
   MushafViewModel({
     this._text,
@@ -43,10 +71,36 @@ final class MushafViewModel extends ChangeNotifier {
     this._positions,
     this._integrity,
     this._address,
-  }) {
+    AppSettingsRepository? settings,
+    BookmarkRepository? bookmarks,
+    CategoryRepository? categories,
+    KeepAwakeRepository? keepAwake,
+    this.tools = AyahTools.none,
+  }) : _settings = settings,
+       _keepAwake = ReaderKeepAwake(keepAwake),
+       bookmarks = ReaderBookmarks(
+         bookmarks: bookmarks,
+         categories: categories,
+       ),
+       _textStep = _stepOf(settings) {
     _integrity?.addListener(_onIntegrity);
     _positions?.addListener(_onPositions);
+    this.bookmarks.addListener(notifyListeners);
+    unawaited(this.bookmarks.load());
   }
+
+  static int _stepOf(AppSettingsRepository? settings) => settings == null
+      ? defaultReaderTextStep
+      : nearestReaderTextStep(settings.surahTextScale);
+
+  final AppSettingsRepository? _settings;
+  final ReaderKeepAwake _keepAwake;
+
+  /// The selected ayah's tools that can work.
+  final AyahTools tools;
+
+  /// The bookmarks of the ayat the reader shows.
+  final ReaderBookmarks bookmarks;
 
   final QuranTextRepository? _text;
   final QuranIndexRepository? _index;
@@ -76,6 +130,8 @@ final class MushafViewModel extends ChangeNotifier {
   QuranPosition? _position;
   PackText? _positionSurahName;
   bool _distractionFree = false;
+  QuranAddress? _selected;
+  int _textStep;
 
   ReaderStatus get status => _status;
 
@@ -98,6 +154,75 @@ final class MushafViewModel extends ChangeNotifier {
   void setDistractionFree(bool value) {
     if (value == _distractionFree) return;
     _distractionFree = value;
+    notifyListeners();
+  }
+
+  /// The ayah a long press or a tap on its marker chose, or null.
+  QuranAddress? get selectedAyah => _selected;
+
+  /// The index into `readerTextSteps` the text is set at (`RD-07`).
+  int get textStep => _textStep;
+
+  /// Sets the text size step; the new size is kept as the setting.
+  void setTextStep(int step) {
+    if (step == _textStep) return;
+    _textStep = step;
+    notifyListeners();
+    if (_settings != null) {
+      unawaited(_settings.setSurahTextScale(readerTextSteps[step]));
+    }
+  }
+
+  /// A tap on [target] (PRD §7.4). A tap on a marker selects its ayah; any
+  /// other tap first dismisses a selection. Otherwise a word opens its sheet
+  /// where the level shows one and [wordSheet] says it exists, and shows or
+  /// hides everything but the text everywhere else. Returns the word whose
+  /// sheet to open, if any.
+  QuranAddress? tap(GestureTarget target, {required bool wordSheet}) {
+    switch (target) {
+      case MarkerTarget(:final ayah):
+        select(ayah);
+      case _ when _selected != null:
+        clearSelection();
+      case WordTarget(:final word):
+        if (wordSheet && LevelPolicy.shows(LevelTool.wordSheet, _level)) {
+          return word;
+        }
+        setDistractionFree(!_distractionFree);
+      case MarginTarget():
+        setDistractionFree(!_distractionFree);
+      case WaqfMarkTarget():
+        break;
+    }
+    return null;
+  }
+
+  /// A long press on [target] selects the ayah it is in.
+  void longPress(GestureTarget target) {
+    switch (target) {
+      case WordTarget(:final word):
+        select(word);
+      case WaqfMarkTarget(:final ayah) || MarkerTarget(:final ayah):
+        select(ayah);
+      case MarginTarget():
+        break;
+    }
+  }
+
+  UiLevel get _level => _settings?.level ?? UiLevel.initial;
+
+  void select(QuranAddress address) {
+    final ayah = address.ayahAddress;
+    if (ayah == _selected) return;
+    _selected = ayah;
+    bookmarks.leave();
+    notifyListeners();
+  }
+
+  void clearSelection() {
+    if (_selected == null) return;
+    _selected = null;
+    bookmarks.leave();
     notifyListeners();
   }
 
@@ -131,6 +256,7 @@ final class MushafViewModel extends ChangeNotifier {
       return _unavailable();
     }
     _shown = true;
+    _keepAwake.shown(true);
     final elsewhere = _savedElsewhere;
     final target = _target(index, elsewhere);
     final kept =
@@ -189,6 +315,7 @@ final class MushafViewModel extends ChangeNotifier {
   /// was only opened leaves the saved position as it is.
   Future<void> leave() async {
     _shown = false;
+    _keepAwake.shown(false);
     if (!_moved) return;
     _moved = false;
     await _save();
@@ -286,6 +413,7 @@ final class MushafViewModel extends ChangeNotifier {
     _anchor = null;
     _position = null;
     _positionSurahName = null;
+    _selected = null;
     _status = ReaderStatus.unavailable;
     notifyListeners();
     return Failure(error);
@@ -301,6 +429,8 @@ final class MushafViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _keepAwake.shown(false);
+    bookmarks.dispose();
     _integrity?.removeListener(_onIntegrity);
     _positions?.removeListener(_onPositions);
     open.dispose();

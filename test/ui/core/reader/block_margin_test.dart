@@ -126,7 +126,13 @@ void main() {
           .forEach(visit);
     }
 
-    visit(tester.binding.rootPipelineOwner.semanticsOwner!.rootSemanticsNode!);
+    visit(
+      tester
+          .renderObject(find.byType(CustomScrollView))
+          .owner!
+          .semanticsOwner!
+          .rootSemanticsNode!,
+    );
     final ribbon = labels.indexOf(
       '${l10n.ayahRowBookmark}|${l10n.tagMemorise}',
     );

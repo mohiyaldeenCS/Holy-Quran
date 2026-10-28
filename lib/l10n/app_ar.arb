@@ -878,6 +878,10 @@
   "@contextSurah": {
     "description": "Context amount: the whole surah. Source: design/design-system/components/src/index.jsx (ContextSheet)."
   },
+  "toolbarPlay": "تشغيل",
+  "@toolbarPlay": {
+    "description": "The selected ayah's toolbar: play it. Source: docs/prd/PRD.ar.md (§7.4)."
+  },
   "toolbarBookmark": "علامة",
   "@toolbarBookmark": {
     "description": "The selected ayah's toolbar: bookmark it. Source: docs/prd/PRD.ar.md (§7.4)."

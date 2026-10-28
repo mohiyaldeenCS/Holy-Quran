@@ -13,7 +13,10 @@ import 'package:holyquran/ui/core/reader/surah_layout.dart';
 import 'package:holyquran/ui/core/reader/surah_text.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/ayah_row.dart';
+import 'package:holyquran/ui/core/widgets/ayah_toolbar.dart';
+import 'package:holyquran/ui/core/widgets/bookmark_ribbon.dart';
 import 'package:holyquran/ui/core/widgets/surah_list_item.dart';
+import 'package:holyquran/ui/core/widgets/tag.dart';
 
 // SurahListItem/preview.html: the three rows shown, by number, place, ayah
 // count, start page and last read; the fourth row has neither place nor
@@ -159,6 +162,40 @@ final class _Highlights extends StatelessWidget {
               ),
             ),
           ),
+        const Center(
+          child: AyahToolbar(
+            onPlay: _none,
+            onBookmark: _none,
+            onStudy: _none,
+            onCopy: _none,
+            onShare: _none,
+          ),
+        ),
+        const Center(
+          child: AyahToolbar(
+            onPlay: _none,
+            onBookmark: _none,
+            bookmarked: true,
+            onUndo: _none,
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          spacing: AppSpacing.space4,
+          children: [
+            for (final (shape, name) in [
+              (TagShape.circle, l10n.tagMemorise),
+              (TagShape.square, l10n.tagReview),
+              (TagShape.diamond, l10n.tagStudy),
+              (TagShape.ring, l10n.tagImportant),
+            ])
+              BookmarkRibbon(
+                shape: shape,
+                label: l10n.ayahRowBookmark,
+                category: name,
+              ),
+          ],
+        ),
       ],
     );
   }
