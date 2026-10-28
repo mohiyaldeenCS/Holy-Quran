@@ -32,6 +32,9 @@ abstract interface class RecitationDownloadRepository implements Listenable {
   /// device whole.
   Future<Set<String>> present(RecitationContents contents, int qualityKbps);
 
+  /// Whether any audio of the pack [packId] is on the device, at any quality.
+  Future<bool> hasAudio(String packId);
+
   /// Queues [target] and completes when it is on the device or has failed.
   Future<Result<void>> download(
     RecitationTarget target, {
@@ -110,6 +113,9 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
         if (here[index]) file.path,
     };
   }
+
+  @override
+  Future<bool> hasAudio(String packId) => _store.hasAudio(packId);
 
   @override
   Future<Result<void>> download(

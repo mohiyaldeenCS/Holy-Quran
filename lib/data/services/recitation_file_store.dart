@@ -46,6 +46,14 @@ class RecitationFileStore {
   Future<bool> isPresent(String packId, RecitationFile file) async =>
       await _files.sizeOf(await _finalPath(packId, file)) == file.bytes;
 
+  /// Whether any audio of the pack is on the device: a file with its final
+  /// name, not one still in staging.
+  Future<bool> hasAudio(String packId) async {
+    final directory = Directory('${await _audioDirectory()}/$packId');
+    if (!await directory.exists()) return false;
+    return directory.list().any((entity) => entity is File);
+  }
+
   /// Whether what the downloader left of [file] is whole: its size and
   /// SHA-256 match.
   Future<bool> stagedIsWhole(String packId, RecitationFile file) async {

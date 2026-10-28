@@ -1366,6 +1366,24 @@ abstract class AppLocalizations {
   /// **'إعادة التنزيل'**
   String get resourceRedownload;
 
+  /// P1-33. The action that stops a recitation download in progress; what arrived whole stays (AU-13). Wording awaits the lead's approval (D-128 (5)).
+  ///
+  /// In ar, this message translates to:
+  /// **'إيقاف'**
+  String get resourceStop;
+
+  /// P1-33. The row that downloads a whole recitation. Source: docs/prd/PRD.ar.md (AU-13). Wording awaits the lead's approval (D-128 (5)).
+  ///
+  /// In ar, this message translates to:
+  /// **'المصحف كاملًا'**
+  String get recitationDownloadWhole;
+
+  /// P1-33. A recitation's quality, a bit rate in kilobits per second; kbps is the number already written in Arabic-Indic digits (AU-14). Wording awaits the lead's approval (D-128 (5)).
+  ///
+  /// In ar, this message translates to:
+  /// **'{kbps} ك.ب/ث'**
+  String recitationQualityKbps(String kbps);
+
   /// The title of the settings screen. Source: docs/prd/PRD.ar.md (§7.1).
   ///
   /// In ar, this message translates to:

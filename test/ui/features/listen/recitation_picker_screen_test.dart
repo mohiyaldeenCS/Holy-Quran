@@ -9,6 +9,7 @@ import 'package:holyquran/domain/models/installed_pack.dart';
 import 'package:holyquran/domain/models/pack_manifest.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/domain/models/recitation.dart';
+import 'package:holyquran/domain/models/recitation_target.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
@@ -20,6 +21,7 @@ import 'package:holyquran/ui/features/listen/views/recitation_picker_screen.dart
 import '../../../../testing/fakes/fake_catalogue_repository.dart';
 import '../../../../testing/fakes/fake_pack_install_repository.dart';
 import '../../../../testing/fakes/fake_recitation_repository.dart';
+import '../resources/recitation_downloads_fixtures.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
 
@@ -71,6 +73,7 @@ InstalledPack _installed(String id) => InstalledPack(
 RecitationPickerViewModel _viewModel({
   List<CatalogueRecitation>? recitations,
   FakePackInstallRepository? installs,
+  FakeRecitationDownloadRepository? downloads,
   bool withCatalogue = true,
 }) {
   final viewModel = RecitationPickerViewModel(
@@ -79,6 +82,7 @@ RecitationPickerViewModel _viewModel({
     ),
     catalogue: withCatalogue ? FakeCatalogueRepository(_catalogue) : null,
     installs: installs ?? FakePackInstallRepository(),
+    downloads: downloads,
   );
   addTearDown(viewModel.dispose);
   return viewModel;
@@ -173,6 +177,69 @@ void main() {
       find.text(_line([_style, _l10n.resourceDownloaded])),
       findsOneWidget,
     );
+  });
+
+  group('with the audio downloads (AU-13)', () {
+    testWidgets('a recitation is available until some of its audio is here', (
+      tester,
+    ) async {
+      final installs = FakePackInstallRepository(
+        installed: [_installed('synthetic-recitation')],
+      );
+      final downloads = FakeRecitationDownloadRepository();
+      await _pump(tester, _viewModel(installs: installs, downloads: downloads));
+
+      expect(
+        find.text(_line([_style, _l10n.resourceAvailable])),
+        findsOneWidget,
+      );
+
+      downloads.arrive({ayahPath(64, 1, 1)});
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(_line([_style, _l10n.resourceDownloaded])),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('shows the percent of the job that runs', (tester) async {
+      final downloads = FakeRecitationDownloadRepository();
+      await _pump(tester, _viewModel(downloads: downloads));
+
+      downloads.jobs = [
+        jobFor(
+          RecitationTarget(syntheticContents(), 64, const RecitationSurah(1)),
+          downloadingBytes(40, 100),
+        ),
+      ];
+      await tester.pump();
+
+      expect(
+        find.text(_line([_style, _l10n.percentValue(arabicDigits(40))])),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('shows the pack in the state it is in without audio', (
+      tester,
+    ) async {
+      final installs = FakePackInstallRepository(
+        installed: [_installed('synthetic-recitation')],
+      );
+      await _pump(
+        tester,
+        _viewModel(
+          installs: installs,
+          downloads: FakeRecitationDownloadRepository(),
+        ),
+      );
+
+      expect(
+        find.text(_line([_style, _l10n.resourceDownloaded])),
+        findsNothing,
+      );
+    });
   });
 
   testWidgets('says «توقيت كلمات» where the recitation has word timing', (

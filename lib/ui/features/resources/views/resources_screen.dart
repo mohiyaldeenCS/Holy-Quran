@@ -6,18 +6,23 @@ import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/widgets/icon_button.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
 import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
+import 'package:holyquran/ui/features/resources/view_models/recitation_section_view_model.dart';
 import 'package:holyquran/ui/features/resources/view_models/resources_view_model.dart';
 import 'package:holyquran/ui/features/resources/views/sections/pack_category_section.dart';
+import 'package:holyquran/ui/features/resources/views/sections/recitation_section.dart';
 
 /// «مدير الموارد» (`OF-01`), laid out as «خطة الحفظ» of the Search board:
 /// a back button and the title, then a section per category that holds
 /// packs.
 /// A null [viewModel] means the app provides no catalogue or installer
-/// yet; the screen then shows its title alone.
+/// yet; the screen then shows its title alone. [recitations] is the
+/// recitations section (`AU-13`), null while the app provides no downloads
+/// of audio.
 class ResourcesScreen extends StatelessWidget {
-  const ResourcesScreen({required this.viewModel, super.key});
+  const ResourcesScreen({required this.viewModel, this.recitations, super.key});
 
   final ResourcesViewModel? viewModel;
+  final RecitationSectionViewModel? recitations;
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +64,8 @@ class ResourcesScreen extends StatelessWidget {
                   ? const SizedBox.shrink()
                   : ListenableBuilder(
                       listenable: viewModel,
-                      builder: (context, _) => _Body(viewModel: viewModel),
+                      builder: (context, _) =>
+                          _Body(viewModel: viewModel, recitations: recitations),
                     ),
             ),
           ],
@@ -70,9 +76,10 @@ class ResourcesScreen extends StatelessWidget {
 }
 
 class _Body extends StatelessWidget {
-  const _Body({required this.viewModel});
+  const _Body({required this.viewModel, required this.recitations});
 
   final ResourcesViewModel viewModel;
+  final RecitationSectionViewModel? recitations;
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +95,8 @@ class _Body extends StatelessWidget {
               IntegrityAlert(
                 title: AppLocalizations.of(context).connectionFailed,
               ),
+            if (recitations case final recitations?)
+              RecitationSection(viewModel: recitations),
             for (final section in viewModel.sections)
               PackCategorySection(
                 key: ValueKey(section.kind),

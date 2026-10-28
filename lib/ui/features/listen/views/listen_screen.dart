@@ -4,6 +4,7 @@ import 'package:holyquran/data/repositories/catalogue_repository.dart';
 import 'package:holyquran/data/repositories/pack_install_repository.dart';
 import 'package:holyquran/data/repositories/player_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
+import 'package:holyquran/data/repositories/recitation_download_repository.dart';
 import 'package:holyquran/data/repositories/recitation_repository.dart';
 import 'package:holyquran/ui/features/listen/view_models/player_view_model.dart';
 import 'package:holyquran/ui/features/listen/view_models/recitation_picker_view_model.dart';
@@ -54,6 +55,7 @@ RecitationPickerViewModel createRecitationPickerViewModel(
   recitations: _provided<RecitationRepository>(context),
   catalogue: _provided<CatalogueRepository>(context),
   installs: _provided<PackInstallRepository>(context),
+  downloads: _provided<RecitationDownloadRepository>(context),
 );
 
 // Areas provide a repository only once what it stands on is ready.

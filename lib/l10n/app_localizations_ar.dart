@@ -728,6 +728,17 @@ class AppLocalizationsAr extends AppLocalizations {
   String get resourceRedownload => 'إعادة التنزيل';
 
   @override
+  String get resourceStop => 'إيقاف';
+
+  @override
+  String get recitationDownloadWhole => 'المصحف كاملًا';
+
+  @override
+  String recitationQualityKbps(String kbps) {
+    return '$kbps ك.ب/ث';
+  }
+
+  @override
   String get settingsTitle => 'الإعدادات';
 
   @override

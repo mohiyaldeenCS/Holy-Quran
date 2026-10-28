@@ -97,7 +97,14 @@ final class RecitationTarget {
   final RecitationSelection selection;
   final List<RecitationFile> files;
 
-  String get key => '${contents.recitationId}/$qualityKbps/${selection.key}';
+  /// The key of the job for [selection] of [recitationId] at [qualityKbps].
+  static String keyOf(
+    String recitationId,
+    int qualityKbps,
+    RecitationSelection selection,
+  ) => '$recitationId/$qualityKbps/${selection.key}';
+
+  String get key => keyOf(contents.recitationId, qualityKbps, selection);
 
   int get bytes => files.fold(0, (sum, file) => sum + file.bytes);
 }

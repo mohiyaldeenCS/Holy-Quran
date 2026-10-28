@@ -567,6 +567,22 @@ void main() {
       expect(await repository.present(contents, 128), isEmpty);
     });
 
+    test('hasAudio tells final files from staged ones', () async {
+      expect(await repository.hasAudio(_pack), isFalse);
+      final first = fileOf(64, 1, 1);
+      final staged = File('$audio/$_pack/staging/${first.sha256}.mp3');
+      await staged.parent.create(recursive: true);
+      await staged.writeAsBytes([1]);
+      expect(await repository.hasAudio(_pack), isFalse);
+
+      await repository.download(
+        target(const RecitationSurah(1)),
+        wifiOnly: false,
+      );
+
+      expect(await repository.hasAudio(_pack), isTrue);
+    });
+
     test(
       'delete removes the files of a selection and tells the readers',
       () async {

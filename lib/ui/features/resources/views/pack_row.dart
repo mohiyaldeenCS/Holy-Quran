@@ -20,6 +20,7 @@ class PackRow extends StatelessWidget {
     required this.onDownload,
     required this.onDelete,
     required this.onRedownload,
+    this.title,
     this.divider = true,
     super.key,
   });
@@ -28,6 +29,10 @@ class PackRow extends StatelessWidget {
   final VoidCallback onDownload;
   final VoidCallback onDelete;
   final VoidCallback onRedownload;
+
+  /// The row's name when it is not the pack's own: a recitation is named by
+  /// its reciter and style (P1-33).
+  final String? title;
   final bool divider;
 
   @override
@@ -49,7 +54,7 @@ class PackRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ResourceRow(
-            title: entry.title,
+            title: title ?? entry.title,
             status: status,
             size: megabytes(l10n, entry.bytes),
             // CatalogueEntry refuses an empty source or change summary.

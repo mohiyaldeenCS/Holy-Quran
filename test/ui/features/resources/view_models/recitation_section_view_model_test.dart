@@ -1,0 +1,342 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:holyquran/domain/models/recitation_download.dart';
+import 'package:holyquran/domain/models/recitation_target.dart';
+import 'package:holyquran/ui/features/resources/view_models/recitation_block_state.dart';
+import 'package:holyquran/ui/features/resources/view_models/recitation_section_view_model.dart';
+import 'package:holyquran/utils/result.dart';
+
+import '../../../../../testing/fakes/fake_catalogue_repository.dart';
+import '../../../../../testing/fakes/fake_pack_install_repository.dart';
+import '../../../../../testing/fakes/fake_pack_integrity_repository.dart';
+import '../../../../../testing/fakes/fake_quran_index_repository.dart';
+import '../../../../../testing/fakes/fake_recitation_repository.dart';
+import '../recitation_downloads_fixtures.dart';
+
+late FakePackInstallRepository _installs;
+late FakeRecitationDownloadRepository _downloads;
+late FakePackIntegrityRepository _integrity;
+
+Future<RecitationSectionViewModel> _viewModel({
+  bool installed = true,
+  bool withIndex = true,
+}) async {
+  final catalogue = syntheticCatalogue();
+  _installs = FakePackInstallRepository(
+    installed: installed ? [installedRecitationPack()] : const [],
+  );
+  _downloads = FakeRecitationDownloadRepository();
+  _integrity = FakePackIntegrityRepository();
+  final viewModel = RecitationSectionViewModel(
+    recitations: FakeRecitationRepository(catalogue.recitations),
+    catalogue: FakeCatalogueRepository(catalogue),
+    installs: _installs,
+    integrity: _integrity,
+    downloads: _downloads,
+    index: withIndex ? FakeQuranIndexRepository.synthetic() : null,
+    refreshEvery: Duration.zero,
+  );
+  addTearDown(viewModel.dispose);
+  addTearDown(_integrity.dispose);
+  await pumpEventQueue();
+  return viewModel;
+}
+
+RecitationBlockState _block(RecitationSectionViewModel viewModel) =>
+    viewModel.blocks.single;
+
+ScopeRowState _surah(RecitationBlockState block, int number) =>
+    block.surahs.singleWhere((row) => row.number == number);
+
+RecitationTarget _target(int quality, RecitationSelection selection) =>
+    RecitationTarget(syntheticContents(), quality, selection);
+
+/// Lets a count of the files on the device, started by a change, finish.
+Future<void> _settle() async {
+  await pumpEventQueue();
+  await Future<void>.delayed(Duration.zero);
+  await pumpEventQueue();
+}
+
+void main() {
+  group('the listing', () {
+    test('holds the recitations with a complete rights record', () async {
+      final viewModel = await _viewModel();
+
+      expect(viewModel.blocks.map((b) => b.id), [recitationId]);
+    });
+
+    test('shows no scope until the pack is installed (AU-13)', () async {
+      final viewModel = await _viewModel(installed: false);
+
+      expect(_block(viewModel).ready, isFalse);
+      expect(_downloads.calls, isEmpty);
+    });
+
+    test(
+      'offers the whole, each surah and each juz once the pack is read',
+      () async {
+        final block = _block(await _viewModel());
+
+        expect(block.ready, isTrue);
+        expect(block.surahs.map((r) => r.number), [1, 2, 3]);
+        expect(block.juz.map((r) => r.number), [1, 2]);
+      },
+    );
+
+    test('offers the whole alone without an index', () async {
+      final block = _block(await _viewModel(withIndex: false));
+
+      expect(block.whole, isNotNull);
+      expect(block.surahs, isEmpty);
+      expect(block.juz, isEmpty);
+    });
+
+    test(
+      'does not read a pack again for a change that is not its own',
+      () async {
+        final viewModel = await _viewModel();
+        _installs.jobs = const [];
+        _downloads.jobs = const [];
+        await pumpEventQueue();
+
+        expect(_downloads.calls.where((c) => c.$1 == 'contents'), hasLength(1));
+        expect(viewModel.blocks, hasLength(1));
+      },
+    );
+
+    test('reads a pack that does not verify once for each version', () async {
+      final viewModel = await _viewModel(installed: false);
+      _downloads.contentsAnswer = Failure(Exception('does not verify'));
+      _installs.installed = [installedRecitationPack()];
+      await pumpEventQueue();
+      _installs.jobs = const [];
+      _downloads.jobs = const [];
+      await pumpEventQueue();
+
+      expect(_downloads.calls.where((c) => c.$1 == 'contents'), hasLength(1));
+      expect(_block(viewModel).ready, isFalse);
+    });
+  });
+
+  group('the size before starting (AU-13)', () {
+    test('is the bytes of the files of each scope', () async {
+      final block = _block(await _viewModel());
+
+      expect(block.whole!.totalBytes, 8 * fileBytes);
+      expect(_surah(block, 1).totalBytes, 4 * fileBytes);
+      expect(_surah(block, 3).totalBytes, fileBytes);
+      expect(block.juz.map((r) => r.totalBytes), [
+        4 * fileBytes,
+        4 * fileBytes,
+      ]);
+      expect(block.whole!.missingBytes, block.whole!.totalBytes);
+    });
+
+    test('is what is still to fetch when part is on the device', () async {
+      final viewModel = await _viewModel();
+      _downloads.arrive({ayahPath(64, 1, 1), ayahPath(64, 1, 2)});
+      await _settle();
+
+      final block = _block(viewModel);
+      final surah = _surah(block, 1);
+      expect(surah.missingBytes, 2 * fileBytes);
+      expect(surah.partial, isTrue);
+      expect(surah.status, ScopeStatus.available);
+      expect(block.whole!.missingBytes, 6 * fileBytes);
+    });
+
+    test(
+      'is none, and the scope downloaded, once all of it is there',
+      () async {
+        final viewModel = await _viewModel();
+        _downloads.arrive({for (var a = 1; a <= 4; a++) ayahPath(64, 1, a)});
+        await _settle();
+
+        final block = _block(viewModel);
+        expect(_surah(block, 1).status, ScopeStatus.downloaded);
+        expect(block.juz.first.status, ScopeStatus.downloaded);
+        expect(block.juz.last.status, ScopeStatus.available);
+      },
+    );
+  });
+
+  group('jobs queued', () {
+    test('per surah, per juz and for the whole', () async {
+      final viewModel = await _viewModel();
+      final block = _block(viewModel);
+
+      viewModel
+        ..download(recitationId, _surah(block, 2))
+        ..download(recitationId, block.juz.last)
+        ..download(recitationId, block.whole!);
+      await pumpEventQueue();
+
+      expect(
+        _downloads.calls.where((c) => c.$1 == 'download').map((c) => c.$2),
+        [
+          '$recitationId/64/surah-2',
+          '$recitationId/64/span-2:1-3:1',
+          '$recitationId/64/all',
+        ],
+      );
+    });
+
+    test('follow Wi-Fi only, which is on to begin with', () async {
+      final viewModel = await _viewModel();
+      expect(viewModel.wifiOnly, isTrue);
+      viewModel.download(recitationId, _block(viewModel).whole!);
+      viewModel.wifiOnly = false;
+      viewModel.download(recitationId, _block(viewModel).whole!);
+      await pumpEventQueue();
+
+      expect(_downloads.wifiOnlyOf, [true, false]);
+    });
+
+    test('install the pack with the same choice', () async {
+      final viewModel = await _viewModel(installed: false);
+      viewModel.wifiOnly = false;
+
+      viewModel.downloadPack(recitationId);
+
+      expect(_installs.calls, [('install', recitationPackId)]);
+    });
+
+    test('show a refused download as a failure of its row', () async {
+      final viewModel = await _viewModel();
+      _downloads.downloads = (target, _) => Failure(
+        RecitationUrlRefused(target.key, Uri.parse('http://example.invalid/')),
+      );
+
+      viewModel.download(recitationId, _block(viewModel).whole!);
+      await pumpEventQueue();
+
+      expect(_block(viewModel).whole!.failure, isA<RecitationUrlRefused>());
+    });
+  });
+
+  group('progress, stop and delete', () {
+    test('a running job shows its progress and a held one its wait', () async {
+      final viewModel = await _viewModel();
+
+      _downloads.jobs = [
+        jobFor(
+          _target(64, const RecitationSurah(1)),
+          downloadingBytes(1000000, 2000000),
+        ),
+        jobFor(
+          _target(64, const RecitationSurah(2)),
+          const RecitationWaitingForNetwork(wifiOnly: true),
+        ),
+      ];
+
+      final block = _block(viewModel);
+      expect(_surah(block, 1).status, ScopeStatus.downloading);
+      expect(_surah(block, 1).progress, 0.5);
+      expect(_surah(block, 2).status, ScopeStatus.waiting);
+      expect(_surah(block, 2).waitingForWifi, isTrue);
+    });
+
+    test('a failed job shows its failure beside the state it leaves', () async {
+      final viewModel = await _viewModel();
+      _downloads.jobs = [
+        jobFor(
+          _target(64, const RecitationSurah(1)),
+          const RecitationDownloadFailed(
+            RecitationNoSpace('k', neededBytes: 1, freeBytes: 0),
+          ),
+        ),
+      ];
+
+      final row = _surah(_block(viewModel), 1);
+      expect(row.failure, isA<RecitationNoSpace>());
+      expect(row.status, ScopeStatus.available);
+    });
+
+    test('stop cancels the job by its key', () async {
+      final viewModel = await _viewModel();
+
+      viewModel.stop(_surah(_block(viewModel), 1));
+
+      expect(
+        _downloads.calls,
+        contains(('cancel', '$recitationId/64/surah-1')),
+      );
+    });
+
+    test(
+      'delete removes the files of the scope and counts them again',
+      () async {
+        final viewModel = await _viewModel();
+        _downloads.arrive({for (var a = 1; a <= 4; a++) ayahPath(64, 1, a)});
+        await _settle();
+
+        await viewModel.delete(recitationId, _surah(_block(viewModel), 1));
+
+        expect(
+          _downloads.calls,
+          contains(('delete', '$recitationId/64/surah-1')),
+        );
+        expect(_surah(_block(viewModel), 1).status, ScopeStatus.available);
+      },
+    );
+
+    test(
+      'deleting the recitation removes its audio at every quality, then its pack',
+      () async {
+        final viewModel = await _viewModel();
+
+        await viewModel.deleteRecitation(recitationId);
+
+        expect(
+          _downloads.calls.where((c) => c.$1 == 'delete').map((c) => c.$2),
+          ['$recitationId/64/all', '$recitationId/128/all'],
+        );
+        expect(_installs.calls, [('delete', recitationPackId)]);
+      },
+    );
+  });
+
+  group('the quality (AU-14)', () {
+    test(
+      'lists the qualities the catalogue offers, the lowest chosen',
+      () async {
+        final block = _block(await _viewModel());
+
+        expect(block.qualities, [64, 128]);
+        expect(block.quality, 64);
+        expect(block.choosesQuality, isTrue);
+      },
+    );
+
+    test(
+      'choosing another downloads, counts and deletes at that quality',
+      () async {
+        final viewModel = await _viewModel();
+        _downloads.arrive({ayahPath(128, 3, 1)});
+
+        viewModel.selectQuality(recitationId, 128);
+        await pumpEventQueue();
+        final block = _block(viewModel);
+
+        expect(block.quality, 128);
+        expect(_surah(block, 3).status, ScopeStatus.downloaded);
+        expect(_surah(block, 1).status, ScopeStatus.available);
+        viewModel.download(recitationId, _surah(block, 1));
+        await pumpEventQueue();
+        expect(
+          _downloads.calls.where((c) => c.$1 == 'download').single.$2,
+          '$recitationId/128/surah-1',
+        );
+      },
+    );
+
+    test('a quality that the catalogue does not list is not chosen', () async {
+      final viewModel = await _viewModel();
+
+      viewModel.selectQuality(recitationId, 320);
+      await pumpEventQueue();
+
+      expect(_block(viewModel).quality, 64);
+    });
+  });
+}
