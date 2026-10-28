@@ -5,32 +5,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/router.dart';
 import 'package:holyquran/routing/routes.dart';
-import 'package:holyquran/ui/core/app.dart';
+import 'package:holyquran/routing/routes/feature_routes.dart';
 import 'package:holyquran/ui/core/gallery/gallery_screen.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
-import 'package:holyquran/ui/features/home/views/home_screen.dart';
 import 'package:holyquran/ui/features/more/views/more_screen.dart';
 import 'package:holyquran/ui/features/settings/views/settings_screen.dart';
-import 'package:provider/provider.dart';
 
-import '../../../../testing/fakes/fake_app_settings_repository.dart';
+import '../../../../testing/test_app.dart';
 import '../settings/text_fit.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
 
-Future<GoRouter> _pumpMore(WidgetTester tester) async {
-  final router = createRouter();
-  await tester.pumpWidget(
-    ChangeNotifierProvider<AppSettingsRepository>.value(
-      value: FakeAppSettingsRepository(),
-      child: QuranApp(router: router),
-    ),
-  );
+Future<GoRouter> _pumpMore(
+  WidgetTester tester, {
+  List<FeatureRoutes>? features,
+}) async {
+  final router = createRouter(features: features);
+  await tester.pumpWidget(testApp(router));
   router.go(Routes.more);
   await tester.pumpAndSettle();
   return router;
@@ -46,13 +41,7 @@ void main() {
       for (final button in tester.widgetList<Button>(find.byType(Button)))
         button.label,
     ];
-    expect(labels, [
-      _l10n.bookmarksAndNotes,
-      _l10n.resourceManagerTitle,
-      _l10n.settingsTitle,
-      _l10n.sourcesTitle,
-      if (kDebugMode) _l10n.galleryTitle,
-    ]);
+    expect(labels, [_l10n.settingsTitle, if (kDebugMode) _l10n.galleryTitle]);
     expect(find.bySemanticsLabel(_l10n.tabMore), findsAtLeastNWidgets(1));
   });
 
@@ -66,21 +55,26 @@ void main() {
     expect(router.state.uri.path, Routes.settings);
   });
 
-  for (final label in [
-    _l10n.bookmarksAndNotes,
-    _l10n.resourceManagerTitle,
-    _l10n.sourcesTitle,
+  for (final (label, path, location) in [
+    (_l10n.bookmarksAndNotes, RoutePaths.bookmarks, Routes.bookmarks),
+    (_l10n.resourceManagerTitle, RoutePaths.resources, Routes.resources),
+    (_l10n.sourcesTitle, RoutePaths.sources, Routes.sources),
   ]) {
-    testWidgets('«$label», not built yet, lands on the home tab', (
+    testWidgets('shows «$label» once its screen has a route (PRD §7.1)', (
       tester,
     ) async {
-      final router = await _pumpMore(tester);
+      await _pumpMore(tester);
+      expect(_entry(label), findsNothing);
 
+      final router = await _pumpMore(
+        tester,
+        features: [...appFeatures, _syntheticScreenAt(path)],
+      );
       await tester.tap(_entry(label));
       await tester.pumpAndSettle();
 
-      expect(find.byType(HomeScreen), findsOneWidget);
-      expect(router.state.uri.path, Routes.home);
+      expect(find.byKey(_syntheticScreen), findsOneWidget);
+      expect(router.state.uri.path, location);
     });
   }
 
@@ -110,13 +104,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byType(MoreScreen), findsOneWidget);
-    for (final label in [
-      _l10n.tabMore,
-      _l10n.bookmarksAndNotes,
-      _l10n.resourceManagerTitle,
-      _l10n.settingsTitle,
-      _l10n.sourcesTitle,
-    ]) {
+    for (final label in [_l10n.tabMore, _l10n.settingsTitle]) {
       final text = find.descendant(
         of: find.byType(MoreScreen),
         matching: find.text(label),
@@ -139,6 +127,19 @@ void main() {
     expect(overrides.clients, 0);
   });
 }
+
+const _syntheticScreen = Key('synthetic screen');
+
+FeatureRoutes _syntheticScreenAt(String path) => FeatureRoutes(
+  tabChildren: {
+    ShellTab.more: [
+      GoRoute(
+        path: path,
+        builder: (context, state) => const SizedBox(key: _syntheticScreen),
+      ),
+    ],
+  },
+);
 
 final class _CountingHttpOverrides extends HttpOverrides {
   int clients = 0;

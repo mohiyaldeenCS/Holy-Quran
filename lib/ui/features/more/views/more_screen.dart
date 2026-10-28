@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:holyquran/l10n/app_localizations.dart';
+import 'package:holyquran/routing/route_table.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/metrics/settings_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
@@ -11,19 +12,22 @@ import 'package:holyquran/ui/core/widgets/button.dart';
 
 /// The More tab's hub (PRD §7.1), an extension under the index screen's
 /// header, its entries in the settings screen's column. Each entry opens its
-/// screen; one not built yet lands on the home tab, as every unknown
-/// location does.
+/// screen, and is shown only once that screen has a route.
 class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final router = GoRouter.of(context);
     final entries = [
-      (l10n.bookmarksAndNotes, Routes.bookmarks),
-      (l10n.resourceManagerTitle, Routes.resources),
-      (l10n.settingsTitle, Routes.settings),
-      (l10n.sourcesTitle, Routes.sources),
+      for (final (label, location) in [
+        (l10n.bookmarksAndNotes, Routes.bookmarks),
+        (l10n.resourceManagerTitle, Routes.resources),
+        (l10n.settingsTitle, Routes.settings),
+        (l10n.sourcesTitle, Routes.sources),
+      ])
+        if (hasRoute(router, location)) (label, location),
     ];
     return SafeArea(
       bottom: false,
