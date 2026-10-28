@@ -138,7 +138,11 @@ final class _ReaderPinchStepperState extends State<ReaderPinchStepper> {
         Offset(local.dx, y),
         ink: context.colors.quranInk,
       );
-      _pinch = (focal: focal, viewportY: local.dy);
+      // Fingers above the text (on the basmala, the header or the leading
+      // space) keep what is above them where it is, as the top edge does.
+      _pinch = y < layout.basmalaExtent
+          ? null
+          : (focal: focal, viewportY: local.dy);
     }
     widget.onStep(next);
   }

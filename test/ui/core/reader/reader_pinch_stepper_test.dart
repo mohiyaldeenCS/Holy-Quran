@@ -129,17 +129,17 @@ void main() {
 
   /// Two fingers [_spread] apart close or open to [scale] times that, about
   /// [_fingers], then lift.
-  Future<void> pinch(WidgetTester tester, double scale) async {
-    final left = await tester.startGesture(
-      _fingers - const Offset(_spread / 2, 0),
-    );
-    final right = await tester.startGesture(
-      _fingers + const Offset(_spread / 2, 0),
-    );
+  Future<void> pinch(
+    WidgetTester tester,
+    double scale, {
+    Offset at = _fingers,
+  }) async {
+    final left = await tester.startGesture(at - const Offset(_spread / 2, 0));
+    final right = await tester.startGesture(at + const Offset(_spread / 2, 0));
     await tester.pump();
     final half = _spread * scale / 2;
-    await left.moveTo(_fingers - Offset(half, 0));
-    await right.moveTo(_fingers + Offset(half, 0));
+    await left.moveTo(at - Offset(half, 0));
+    await right.moveTo(at + Offset(half, 0));
     await tester.pump();
     await left.up();
     await right.up();
@@ -183,6 +183,18 @@ void main() {
       final after = layoutOf(tester);
       final y = yOfFocalAyah(after, focal) - controller.offset;
       expect((y - _fingers.dy).abs(), lessThanOrEqualTo(after.lineHeight));
+    });
+
+    testWidgets('on the basmala at the top leaves the view at the top', (
+      tester,
+    ) async {
+      final before = await open(tester, step: 2, offset: 0);
+      const onBasmala = Offset(180, 40);
+      expect(before.basmalaExtent, greaterThan(onBasmala.dy));
+      await pinch(tester, 1.3, at: onBasmala);
+      expect(readerTextSteps[steps.single], 1.3);
+      expect(layoutOf(tester).lineHeight, greaterThan(before.lineHeight));
+      expect(controller.offset, 0);
     });
 
     testWidgets('stops at the largest step', (tester) async {
