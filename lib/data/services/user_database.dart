@@ -42,6 +42,9 @@ class UserDatabase extends _$UserDatabase {
     );
   }
 
+  /// A database held in memory only, for a start that has no file to open.
+  static UserDatabase inMemory() => UserDatabase(NativeDatabase.memory());
+
   @override
   int get schemaVersion => 1;
 }

@@ -202,6 +202,12 @@ abstract class AppLocalizations {
   /// **'{revelation} · {count}'**
   String surahListMeta(String revelation, String count);
 
+  /// The middle dot between data items on one line, as the identity's rule writes it (docs/DESIGN_SYSTEM.md, Ground rules, 6: «middle dot « · » between data items»; design/design-system/README.md, line 25: «الفاصل بين البيانات نقطة وسطى « · »»). Used where the items are not a fixed phrase, such as a reported pack's id, version and source.
+  ///
+  /// In ar, this message translates to:
+  /// **' · '**
+  String get dataSeparator;
+
   /// The badge on the last-read surah in SurahListItem, as the identity's reference writes it.
   ///
   /// In ar, this message translates to:
