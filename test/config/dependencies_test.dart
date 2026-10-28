@@ -19,6 +19,7 @@ import 'package:holyquran/config/providers/user_data_providers.dart';
 import 'package:holyquran/config/providers/user_database_providers.dart';
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/data/services/clipboard_service.dart';
+import 'package:holyquran/data/services/link_service.dart';
 import 'package:holyquran/data/services/share_service.dart';
 import 'package:holyquran/data/services/user_database.dart';
 import 'package:provider/provider.dart';
@@ -72,6 +73,7 @@ void main() {
       ListenableProvider<AppSettingsRepository>,
       Provider<ClipboardService>,
       Provider<ShareService>,
+      Provider<LinkService>,
     ]);
     expect(
       provided.read<AppSettingsRepository>(),

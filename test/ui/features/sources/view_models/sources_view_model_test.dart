@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holyquran/data/repositories/sources_repository.dart';
 import 'package:holyquran/ui/features/sources/view_models/sources_view_model.dart';
 
 import '../../../../../testing/fakes/fake_link_service.dart';
@@ -17,7 +18,9 @@ void main() {
     root = Directory.systemTemp.createTempSync('sources_view_model');
     installs = FakePackInstallRepository();
     links = FakeLinkService();
-    viewModel = SourcesViewModel(installs: installs, links: links);
+    viewModel = SourcesViewModel(
+      repository: PackSourcesRepository(installs: installs, links: links),
+    );
   });
   tearDown(() {
     viewModel.dispose();

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart' hide IconButton;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holyquran/data/repositories/sources_repository.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/domain/models/source_credit.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
@@ -141,8 +142,10 @@ void main() {
     final pack = (await tester.runAsync(() => installedWithSource(root)))!;
     final links = FakeLinkService();
     final viewModel = SourcesViewModel(
-      installs: FakePackInstallRepository(installed: [pack]),
-      links: links,
+      repository: PackSourcesRepository(
+        installs: FakePackInstallRepository(installed: [pack]),
+        links: links,
+      ),
     );
     addTearDown(viewModel.dispose);
 
