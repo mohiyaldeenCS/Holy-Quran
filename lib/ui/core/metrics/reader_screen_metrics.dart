@@ -1,0 +1,64 @@
+import 'package:flutter/painting.dart';
+
+import 'package:holyquran/ui/core/metrics/reader_metrics.dart';
+import 'package:holyquran/ui/core/theme/tokens.g.dart';
+
+/// Surah-mode reader screen metrics the boards draw that are not tokens
+/// (docs/DESIGN_SYSTEM.md, "Metrics that are not tokens"). The text column's
+/// sides and gaps are [ReaderMetrics]'.
+abstract final class ReaderScreenMetrics {
+  /// The position bar's row, `padding: 28px 24px 0` (`Screens.dc.html`, the
+  /// surah-mode reader).
+  static const EdgeInsetsDirectional barPadding =
+      EdgeInsetsDirectional.fromSTEB(24, 28, 24, 0);
+
+  /// The text column's top, `padding: 18px 28px 0` (`Screens.dc.html`, the
+  /// surah-mode reader); its sides are [ReaderMetrics.textInset].
+  static const double columnTop = 18;
+
+  /// Below the footer page number: the board's `gap: 10px` between the text
+  /// frame and the page number (`Mushaf.dc.html`, «تشريح الصفحة»), read as
+  /// the same space under it.
+  static const EdgeInsetsDirectional footerPadding = EdgeInsetsDirectional.only(
+    bottom: 10,
+  );
+
+  /// A surah's header and its text, each inset by the column's sides and
+  /// followed by the gap between the column's parts (`Screens.dc.html`,
+  /// `gap: 22px`); the gap after the text, before the next surah's header,
+  /// is a reading, as the board draws one surah.
+  static const EdgeInsetsDirectional blockPadding =
+      EdgeInsetsDirectional.fromSTEB(
+        ReaderMetrics.textInset,
+        0,
+        ReaderMetrics.textInset,
+        ReaderMetrics.sectionGap,
+      );
+
+  /// How many screens of text must lie ahead before the next surah is
+  /// appended: an engineering margin, not a drawn value.
+  static const double preloadViewports = 2;
+
+  /// The message of a reader with no verified pack, inset as a screen's
+  /// body (`Search.dc.html`, «خطة الحفظ» body: `padding: 0 20px`).
+  static const EdgeInsetsDirectional messagePadding =
+      EdgeInsetsDirectional.symmetric(horizontal: 20);
+
+  /// `.qk-sheet`: `padding: var(--space-3) 22px 22px`.
+  static const EdgeInsetsDirectional sheetPadding =
+      EdgeInsetsDirectional.fromSTEB(22, AppSpacing.space3, 22, 22);
+
+  /// `.qk-sheet`: `border-radius: var(--radius-sheet) var(--radius-sheet) 0 0`.
+  static const BorderRadius sheetRadius = BorderRadius.vertical(
+    top: Radius.circular(AppRadius.radiusSheet),
+  );
+
+  /// `.qk-sheet`: `gap: var(--space-4)`.
+  static const double sheetGap = AppSpacing.space4;
+
+  /// `.qk-sheet-handle`: `width: 44px; height: 5px`.
+  static const Size handleSize = Size(44, 5);
+
+  /// `.qk-sheet-handle`: `border-radius: 3px`.
+  static const BorderRadius handleRadius = BorderRadius.all(Radius.circular(3));
+}
