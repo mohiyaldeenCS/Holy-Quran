@@ -485,4 +485,49 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('a null progress hides the track', (tester) async {
+    await _pump(
+      tester,
+      MiniPlayer(
+        surah: _surah,
+        ayah: 5,
+        speed: _l10n.gallerySpeed,
+        playing: true,
+        progress: null,
+      ),
+    );
+
+    expect(find.byType(ProgressBar), findsNothing);
+    expect(_button(IconName.play), findsNothing);
+    expect(_button(IconName.pause), findsOneWidget);
+  });
+
+  testWidgets('without the sleep timer its place stays empty', (tester) async {
+    MiniPlayer build({required bool sleep}) => MiniPlayer(
+      surah: _surah,
+      ayah: 5,
+      speed: _l10n.gallerySpeed,
+      playing: true,
+      showSleepTimer: sleep,
+      onSleepTimer: () {},
+    );
+    Map<IconName, Rect> places() => {
+      for (final icon in [
+        IconName.repeat,
+        IconName.previous,
+        IconName.pause,
+        IconName.next,
+      ])
+        icon: tester.getRect(_button(icon)),
+    };
+
+    await _pump(tester, build(sleep: true));
+    final withSleep = places();
+    expect(_button(IconName.night), findsOneWidget);
+
+    await _pump(tester, build(sleep: false));
+    expect(_button(IconName.night), findsNothing);
+    expect(places(), withSleep);
+  });
 }

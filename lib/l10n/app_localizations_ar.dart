@@ -144,6 +144,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get playerPosition => 'موضع التلاوة';
 
   @override
+  String playerSpeedValue(String whole, String fraction) {
+    return '$whole٫$fraction×';
+  }
+
+  @override
   String get continueReadingLabel => 'أكمل القراءة';
 
   @override
