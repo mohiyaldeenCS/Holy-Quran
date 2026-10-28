@@ -169,6 +169,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get resourceAvailable => 'متاحة';
 
   @override
+  String resourceSizeMegabytes(String digits) {
+    return '$digits م.ب';
+  }
+
+  @override
   String get resourceDelete => 'حذف';
 
   @override

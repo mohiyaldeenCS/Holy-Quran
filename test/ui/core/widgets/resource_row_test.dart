@@ -204,6 +204,48 @@ void main() {
     expect(find.text(_l10n.resourceDownloaded), findsOneWidget);
   });
 
+  testWidgets('writes its details after the state, joined and unchanged', (
+    tester,
+  ) async {
+    const details = [' نص تجريبي  أول', '٢', 'نص تجريبي ثان '];
+    for (final (status, state) in [
+      (ResourceStatus.available, _l10n.resourceAvailableMeta(_size)),
+      (ResourceStatus.downloaded, _l10n.resourceDownloadedMeta(_size)),
+    ]) {
+      await _pump(
+        tester,
+        ResourceRow(
+          title: _title,
+          status: status,
+          size: _size,
+          details: details,
+          onAction: () {},
+        ),
+      );
+      final line = [state, ...details].join(_l10n.dataSeparator);
+      expect(find.text(line), findsOneWidget, reason: status.name);
+      expect(_style(tester, line).fontSize, 14, reason: status.name);
+    }
+  });
+
+  testWidgets('writes details after the bare state when the size is unknown', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      ResourceRow(
+        title: _title,
+        status: ResourceStatus.available,
+        details: const ['٢'],
+        onAction: () {},
+      ),
+    );
+    expect(
+      find.text([_l10n.resourceAvailable, '٢'].join(_l10n.dataSeparator)),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('acts when tapped anywhere in its 48 target or by keyboard', (
     tester,
   ) async {

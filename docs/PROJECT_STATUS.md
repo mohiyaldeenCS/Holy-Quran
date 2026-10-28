@@ -217,6 +217,16 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   saying when the database is in memory (D-133); `userDataProviders` wiring
   (bookmarks, notes, keep-awake). Reviewed by `code-reviewer` (once, then fixes) and
   `identity-auditor`.
+- **P1-25 merged (#52), partial.** Resource manager at `/more/resources` with tafsir
+  and riwaya sections, download, delete, re-download and update states, storage bars,
+  the integrity alert, and the first-use tafsir sheet (D-137). OF-01 partial
+  (recitations go to P1-33; page-mushaf, tajweed and linguistic packs have no kind
+  yet); OF-02 partial (no stop or pause; the size, source and version line is met);
+  OF-03 partial (bars met; the free and used figures need the new strings); OF-06
+  partial (the change summary shows; no update word or action; no rollback); TF-06 as
+  far as the installer allows. Not reachable in the app until the installer is wired
+  into `lib/config`. Follow-ups in D-137. Reviewed by `code-reviewer` and
+  `identity-auditor` (twice).
 - **P1-38 merged, the second batch of strings.** 83 keys in `lib/l10n/app_ar.arb`: 38 from
   Appendix B as the owner approved them (D-128 (4)), 45 worded by the lead (D-128 (5);
   the table is in `docs/plans/tasks/P1-38-strings-owner-batch.md`). Checked by script
@@ -227,7 +237,7 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   empty states. Not worded: source credits (D-128 (6)), copying several ayat, gallery
   titles, the sources screen's headings. For the owner's optional look: the lead's
   wording (owner's linguist, when he wishes).
-- Open pull requests: #52 (P1-25), #53 (P1-27). Merged since: #56 (the gallery test sized to the gallery; D-136), #57 (P1-39, the eight project icons in the generator), #58 (P1-38). Their old CI runs wait
+- Open pull requests: #53 (P1-27). Merged since: #56 (the gallery test sized to the gallery; D-136), #57 (P1-39, the eight project icons in the generator), #58 (P1-38), #52 (P1-25). Their old CI runs wait
 - **P1-28 merged (#50), partial.**
   Range, play-options, repeat, silence and queue sheets (D-135). AU-11 met; AU-02
   partial (ayah to ayah, several pages, a set of surahs and to the end of the mushaf
