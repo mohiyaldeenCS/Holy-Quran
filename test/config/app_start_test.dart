@@ -3,10 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/data/services/user_database.dart';
 import 'package:holyquran/main.dart' as app;
 import 'package:holyquran/ui/core/widgets/splash.dart';
 import 'package:holyquran/ui/features/home/views/home_screen.dart';
+import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
+
+import '../../testing/application_support.dart';
 
 void main() {
   testWidgets('shows the splash until the dependencies are built', (
@@ -53,9 +57,17 @@ void main() {
   });
 
   testWidgets('main starts the app on the home tab', (tester) async {
+    useTemporaryApplicationSupport();
     app.main();
+    await pumpUntil(
+      tester,
+      () => find.byType(HomeScreen).evaluate().isNotEmpty,
+    );
     await tester.pumpAndSettle();
 
     expect(find.byType(HomeScreen), findsOneWidget);
+    await tester.runAsync(
+      tester.element(find.byType(HomeScreen)).read<UserDatabase>().close,
+    );
   });
 }

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -15,9 +17,13 @@ import 'package:holyquran/config/providers/share_providers.dart';
 import 'package:holyquran/config/providers/tafsir_providers.dart';
 import 'package:holyquran/config/providers/user_data_providers.dart';
 import 'package:holyquran/config/providers/user_database_providers.dart';
+import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/data/services/clipboard_service.dart';
 import 'package:holyquran/data/services/share_service.dart';
+import 'package:holyquran/data/services/user_database.dart';
 import 'package:provider/provider.dart';
+
+import '../../testing/application_support.dart';
 
 final class _Database {
   const _Database(this.name);
@@ -32,6 +38,8 @@ final class _Settings extends ChangeNotifier {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('the areas are set up in the order of D-103', () {
     expect(appAreas, [
       userDatabaseProviders,
@@ -50,13 +58,29 @@ void main() {
     ]);
   });
 
-  test('builds without a base pack or a catalogue, providing only the '
-      'services that need neither', () async {
-    final providers = await buildDependencies();
+  test('builds without a base pack or a catalogue, providing the user '
+      'database, the settings and the services that need neither', () async {
+    final support = useTemporaryApplicationSupport();
+    late Dependencies provided;
+    final providers = await buildDependencies(
+      areas: [...appAreas, (dependencies) async => provided = dependencies],
+    );
+    addTearDown(provided.read<UserDatabase>().close);
+
     expect(providers.map((provider) => provider.runtimeType), [
+      Provider<UserDatabase>,
+      ListenableProvider<AppSettingsRepository>,
       Provider<ClipboardService>,
       Provider<ShareService>,
     ]);
+    expect(
+      provided.read<AppSettingsRepository>(),
+      isA<LocalAppSettingsRepository>(),
+    );
+    expect(
+      File('${support.path}/${UserDatabase.fileName}').existsSync(),
+      isTrue,
+    );
   });
 
   test(
