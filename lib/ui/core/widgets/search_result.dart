@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart' hide Icon;
 
 import 'package:holyquran/domain/models/pack_text.dart';
+import 'package:holyquran/domain/models/search_match.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
@@ -70,8 +71,8 @@ const TextStyle _moreStyle = TextStyle(
 /// ayah number, the context and open-in-the-mushaf buttons, and the ayah in
 /// the compact Quran size, on a `surface` card.
 ///
-/// [ayahText] is one whole ayah from the pack, with no inline marker and no
-/// match highlight (D-087, D-088). With [clamp], an ayah laid out taller than
+/// [ayahText] is one whole ayah from the pack, with no inline marker (D-087);
+/// [matches] are painted behind it, not cut into it (D-088). With [clamp], an ayah laid out taller than
 /// 92 px, grown as the ayah's text is, is cut there under a 40 px fade, with
 /// a link that shows it whole; one that fits is shown whole as without
 /// [clamp]. A screen reader always gets the whole ayah, after the reference
@@ -88,6 +89,7 @@ class SearchResult extends StatefulWidget {
     required this.ayahText,
     required this.onContext,
     required this.onOpen,
+    this.matches = const [],
     this.clamp = false,
     this.expanded = false,
     this.onExpand,
@@ -99,6 +101,10 @@ class SearchResult extends StatefulWidget {
   final PackText ayahText;
   final VoidCallback onContext;
   final VoidCallback onOpen;
+
+  /// Where the search matched in [ayahText], offsets into it; painted as
+  /// `Match` does, with the string unchanged.
+  final List<SearchMatch> matches;
   final bool clamp;
 
   /// Whether a clamped ayah is shown whole.
@@ -136,6 +142,7 @@ class _SearchResultState extends State<SearchResult> {
       widget.ayahText,
       size: QuranTextSize.compact,
       align: QuranTextAlign.start,
+      matches: widget.matches,
     );
     return Semantics(
       container: true,
