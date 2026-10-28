@@ -102,16 +102,32 @@ void main() {
     });
   }
 
-  test('a failed write returns a Failure and keeps the position', () async {
-    final positions = await _load(_FailingDao(db));
+  test(
+    'a failed write returns a Failure; the session keeps the position',
+    () async {
+      final positions = await _load(_FailingDao(db));
+      var notified = 0;
+      positions.addListener(() => notified++);
+
+      final result = await positions.save(QuranAddress.parse('hafs:1:1'));
+
+      expect(result, isA<Failure<void>>());
+      expect(positions.last, QuranAddress.parse('hafs:1:1'));
+      expect(notified, 1);
+      expect((await _load(ReadingPositionDao(db))).last, isNull);
+    },
+  );
+
+  test('the position is current and notified before the write ends', () async {
+    final positions = await _load(ReadingPositionDao(db));
     var notified = 0;
     positions.addListener(() => notified++);
 
-    final result = await positions.save(QuranAddress.parse('hafs:1:1'));
+    final saving = positions.save(QuranAddress.parse('hafs:2:3'));
 
-    expect(result, isA<Failure<void>>());
-    expect(positions.last, isNull);
-    expect(notified, 0);
+    expect(positions.last, QuranAddress.parse('hafs:2:3'));
+    expect(notified, 1);
+    expect(await saving, isA<Ok<void>>());
   });
 
   test('a failed read returns a Failure', () async {
