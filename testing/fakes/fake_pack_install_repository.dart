@@ -33,6 +33,21 @@ final class FakePackInstallRepository extends ChangeNotifier
 
   final List<(String, String)> calls = [];
 
+  /// How many listeners are attached now.
+  int listenerCount = 0;
+
+  @override
+  void addListener(VoidCallback listener) {
+    listenerCount++;
+    super.addListener(listener);
+  }
+
+  @override
+  void removeListener(VoidCallback listener) {
+    listenerCount--;
+    super.removeListener(listener);
+  }
+
   @override
   Future<Result<void>> get started async => startedWith;
 

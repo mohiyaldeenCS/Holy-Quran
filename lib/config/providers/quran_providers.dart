@@ -17,6 +17,7 @@ import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/domain/models/playback_plan_builder.dart';
 import 'package:holyquran/domain/models/quran_structure.dart';
 import 'package:holyquran/domain/models/surah_info.dart';
+import 'package:holyquran/domain/models/verified_pack.dart';
 import 'package:holyquran/utils/result.dart';
 
 Future<void> quranProviders(Dependencies dependencies) async {
@@ -31,7 +32,8 @@ Future<void> quranProviders(Dependencies dependencies) async {
 }
 
 /// Provides the [PackIntegrityRepository], then checks the base pack and,
-/// once it is verified, provides its [QuranTextRepository] and its
+/// once it is verified, provides it as the [VerifiedPack], whose manifest
+/// names the sources the app credits, then its [QuranTextRepository] and its
 /// [QuranIndexRepository], also as the [QuranStructure], and the
 /// [PlaybackPlanBuilder] over the same edition. A base pack that is
 /// missing or failed provides only its integrity.
@@ -53,6 +55,7 @@ Future<void> provideQuran(
 
   final verified = await integrity.verifyBasePack();
   if (verified == null) return;
+  dependencies.provide<VerifiedPack>(verified);
   bool serving() => integrity.stateOf(basePack.id) is IntegrityOk;
   void failed(Exception error) {
     if (!serving()) return;
