@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show ChangeNotifier;
 import 'package:holyquran/data/repositories/bookmark_repository.dart';
 import 'package:holyquran/data/repositories/category_repository.dart';
 import 'package:holyquran/data/repositories/note_repository.dart';
+import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/data/repositories/tag_repository.dart';
@@ -57,8 +58,8 @@ final class _Deleted {
 /// the list of the tab chosen, in the order chosen, filtered by category and
 /// tag and by what was typed, each with the ayah's text from the pack. A
 /// deletion can be undone for [undoShown]. The lists are read again whenever
-/// a repository tells of a change, and a read that a newer one has replaced
-/// is dropped.
+/// a repository tells of a change or the pack's integrity changes, and a read
+/// that a newer one has replaced is dropped.
 final class BookmarksViewModel extends ChangeNotifier {
   BookmarksViewModel({
     required BookmarkRepository bookmarks,
@@ -67,6 +68,7 @@ final class BookmarksViewModel extends ChangeNotifier {
     required this._categories,
     this._text,
     this._index,
+    this._integrity,
     this._undoShown = BookmarksMetrics.undoShown,
   }) : _bookmarks = bookmarks,
        _notes = notes,
@@ -74,6 +76,7 @@ final class BookmarksViewModel extends ChangeNotifier {
     for (final source in [bookmarks, notes, tags]) {
       source.addListener(_changed);
     }
+    _integrity?.addListener(_packChanged);
     unawaited(_load());
   }
 
@@ -83,6 +86,7 @@ final class BookmarksViewModel extends ChangeNotifier {
   final CategoryRepository _categories;
   final QuranTextRepository? _text;
   final QuranIndexRepository? _index;
+  final PackIntegrityRepository? _integrity;
   final Duration _undoShown;
 
   AnnotationTab _tab = AnnotationTab.bookmarks;
@@ -249,6 +253,12 @@ final class BookmarksViewModel extends ChangeNotifier {
 
   void _changed() => unawaited(_load());
 
+  // A pack that stops serving, or serves again, changes what the cards show.
+  void _packChanged() {
+    _ayahTexts.clear();
+    unawaited(_load());
+  }
+
   Future<void> _load() async {
     final read = ++_reads;
     final categories = await _categories.categories();
@@ -346,6 +356,7 @@ final class BookmarksViewModel extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _undoTimer?.cancel();
+    _integrity?.removeListener(_packChanged);
     for (final source in [_bookmarks, _notes, _tags]) {
       source.removeListener(_changed);
     }

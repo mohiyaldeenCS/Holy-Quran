@@ -57,6 +57,7 @@ final class NoteSheetViewModel extends ChangeNotifier {
   Set<String> _tagIds = const {};
   bool _loaded = false;
   bool _writeFailed = false;
+  bool _saving = false;
   String? _deletedId;
   Timer? _undoTimer;
   int _reads = 0;
@@ -86,7 +87,7 @@ final class NoteSheetViewModel extends ChangeNotifier {
   /// Whether the last save, deletion or undo could not be stored.
   bool get writeFailed => _writeFailed;
 
-  bool get canSave => _body.isNotEmpty;
+  bool get canSave => _body.isNotEmpty && !_saving;
   bool get canUndo => _deletedId != null;
 
   /// The name of the ayah's surah in the pack, or null without the index.
@@ -143,6 +144,8 @@ final class NoteSheetViewModel extends ChangeNotifier {
   /// it was stored.
   Future<bool> save() async {
     if (!canSave) return false;
+    _saving = true;
+    notifyListeners();
     final tagIds = {
       for (final tag in _tagList)
         if (_tagIds.contains(tag.id)) tag.id,
@@ -168,6 +171,7 @@ final class NoteSheetViewModel extends ChangeNotifier {
       );
     }
     if (_disposed) return false;
+    _saving = false;
     _writeFailed = result is Failure;
     if (result is Ok) _editingId = savedId;
     notifyListeners();
@@ -236,12 +240,15 @@ final class NoteSheetViewModel extends ChangeNotifier {
     // A note that vanished from the list, as when it is deleted elsewhere,
     // leaves the editor holding a new one.
     if (_editingId != null && editing == null) _editingId = null;
-    if (first && _initialNoteId != null) {
+    final initial = _initialNoteId;
+    _initialNoteId = null;
+    if (first && initial != null) {
       for (final note in _noteList) {
-        if (note.id == _initialNoteId) _hold(note);
+        if (note.id == initial) {
+          _hold(note);
+          return;
+        }
       }
-      _initialNoteId = null;
-      return;
     }
     notifyListeners();
   }

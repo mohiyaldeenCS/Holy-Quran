@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:holyquran/data/repositories/bookmark_repository.dart';
 import 'package:holyquran/data/repositories/category_repository.dart';
 import 'package:holyquran/data/repositories/note_repository.dart';
+import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/data/repositories/tag_repository.dart';
@@ -53,6 +54,7 @@ Widget _bookmarks(BuildContext context, GoRouterState state) {
       categories: categories,
       text: context.read<QuranTextRepository?>(),
       index: context.read<QuranIndexRepository?>(),
+      integrity: context.read<PackIntegrityRepository?>(),
     ),
     builder: (context, _) => BookmarksScreen(viewModel: context.read()),
   );

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/domain/models/category.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
+import 'package:holyquran/ui/core/theme/ramps.g.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/category_tag.dart';
 import 'package:holyquran/ui/core/widgets/tag.dart';
@@ -24,10 +25,10 @@ void main() {
     final expected = {
       BuiltinCategory.memorise: (
         TagShape.circle,
-        colors.primary,
+        Ramps.emerald700,
         _l10n.tagMemorise,
       ),
-      BuiltinCategory.review: (TagShape.square, colors.accent, _l10n.tagReview),
+      BuiltinCategory.review: (TagShape.square, Ramps.gold600, _l10n.tagReview),
       BuiltinCategory.study: (TagShape.diamond, colors.info, _l10n.tagStudy),
       BuiltinCategory.important: (
         TagShape.ring,

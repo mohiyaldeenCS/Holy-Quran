@@ -213,4 +213,37 @@ void main() {
     expect(await viewModel.save(), isTrue);
     expect(viewModel.writeFailed, isFalse);
   });
+
+  test(
+    'opens blank, with its pickers filled, on a note that is gone',
+    () async {
+      await world.makeTag('وسم تجريبي');
+      final viewModel = make(initialNoteId: 'absent');
+      await settle();
+
+      expect(viewModel.loaded, isTrue);
+      expect(viewModel.editing, isNull);
+      expect(viewModel.categories, hasLength(4));
+      expect(viewModel.tags, hasLength(1));
+    },
+  );
+
+  test(
+    'a second save before the first is stored makes no second note',
+    () async {
+      final viewModel = make();
+      await settle();
+      viewModel.setBody('نص تجريبي');
+
+      final first = viewModel.save();
+      expect(viewModel.canSave, isFalse);
+      final second = viewModel.save();
+      expect(await second, isFalse);
+      expect(await first, isTrue);
+      await settle();
+
+      expect(await stored(), hasLength(1));
+      expect(viewModel.canSave, isTrue);
+    },
+  );
 }

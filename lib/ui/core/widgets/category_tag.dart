@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/domain/models/category.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
+import 'package:holyquran/ui/core/theme/ramps.g.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/widgets/tag.dart';
 
@@ -16,12 +17,8 @@ String categoryName(BuiltinCategory category, AppLocalizations l10n) =>
 
 /// A built-in category as a [Tag] (D-128, 9): its shape from
 /// `components/Tag/README.md` (`circle` حفظ, `square` مراجعة, `diamond` دراسة,
-/// `ring` آيات مهمة), a colour and its word.
-///
-/// The preview colours of `Tag/preview.html` are `emerald-700`, `gold-600`,
-/// `info` and `error`. The first two are ramp steps, which this widget may
-/// not import, so the roles that carry them in the theme stand in
-/// (`primary`, `accent`), as the gallery's `Tag` section already does.
+/// `ring` آيات مهمة), its fixed colour from `Tag/preview.html` (`emerald-700`,
+/// `gold-600`, `info`, `error`), the same in every theme, and its word.
 class CategoryTag extends StatelessWidget {
   const CategoryTag({
     required this.category,
@@ -38,8 +35,8 @@ class CategoryTag extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final (shape, color) = switch (category) {
-      BuiltinCategory.memorise => (TagShape.circle, colors.primary),
-      BuiltinCategory.review => (TagShape.square, colors.accent),
+      BuiltinCategory.memorise => (TagShape.circle, Ramps.emerald700),
+      BuiltinCategory.review => (TagShape.square, Ramps.gold600),
       BuiltinCategory.study => (TagShape.diamond, colors.info),
       BuiltinCategory.important => (TagShape.ring, colors.error),
     };

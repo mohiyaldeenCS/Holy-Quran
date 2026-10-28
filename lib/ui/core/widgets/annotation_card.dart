@@ -30,6 +30,9 @@ const TextStyle _referenceStyle = TextStyle(
 const double _actionIconSize = 22;
 const double _actionsGap = 2;
 
+// .qk-sheet-rows: border-radius 20px.
+const BorderRadius _noteRadius = BorderRadius.all(Radius.circular(20));
+
 // The screen reader's order (AX-01): the reference, the ayah, the note, the
 // tags, then the actions.
 const double _referenceOrder = 0;
@@ -180,8 +183,8 @@ class AnnotationCard extends StatelessWidget {
   }
 }
 
-/// The note, in the `surface-sunk` of the sheets' rows under the ayah's
-/// card.
+/// The note, in the box of `.qk-sheet-rows` (`surface-sunk`, a `line` border,
+/// radius 20) under the ayah's card.
 class _Note extends StatelessWidget {
   const _Note(this.text);
 
@@ -193,7 +196,8 @@ class _Note extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.surfaceSunk,
-        borderRadius: BorderRadius.circular(AppRadius.radiusButton),
+        border: Border.all(color: colors.line),
+        borderRadius: _noteRadius,
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(

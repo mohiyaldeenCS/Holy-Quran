@@ -4,9 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/domain/models/bookmark.dart';
 import 'package:holyquran/domain/models/category.dart';
+import 'package:holyquran/domain/models/pack_failure.dart';
+import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/ui/features/bookmarks/view_models/bookmarks_view_model.dart';
 
+import '../../../../testing/fakes/fake_pack_integrity_repository.dart';
 import '../index/index_fixture.dart';
 import 'bookmarks_harness.dart';
 
@@ -264,5 +267,34 @@ void main() {
     expect(again, first);
     await settle();
     expect(viewModel.tags, hasLength(1));
+  });
+
+  test('drops the pack names once the pack stops serving', () async {
+    await world.bookmark(world.ayah(1, 3));
+    final integrity = FakePackIntegrityRepository();
+    final viewModel = BookmarksViewModel(
+      bookmarks: world.bookmarks,
+      notes: world.notes,
+      tags: world.tags,
+      categories: world.categories,
+      text: fixture.text,
+      index: fixture.index,
+      integrity: integrity,
+    );
+    addTearDown(viewModel.dispose);
+    addTearDown(() => fixture.serving = true);
+    await settle();
+    expect(viewModel.entries.single.surahName, isNotNull);
+
+    fixture.serving = false;
+    integrity.report('synthetic', const IntegrityFailed(PackDisabled('x')));
+    await settle();
+    expect(viewModel.entries, hasLength(1));
+    expect(viewModel.entries.single.surahName, isNull);
+
+    fixture.serving = true;
+    integrity.report('synthetic', const IntegrityOk());
+    await settle();
+    expect(viewModel.entries.single.surahName, isNotNull);
   });
 }
