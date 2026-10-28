@@ -225,6 +225,15 @@
   "@resourceAvailable": {
     "description": "ResourceRow's status for a resource that can be downloaded and whose size is not known."
   },
+  "resourceSizeMegabytes": "{digits} م.ب",
+  "@resourceSizeMegabytes": {
+    "description": "A resource's size in megabytes, as the resource manager's status line writes it after the state. The unit is the PRD's own (docs/prd/PRD.ar.md §10.7, the catalogue table: «م.ب»). digits is the number, already written in Arabic-Indic digits with its decimal mark.",
+    "placeholders": {
+      "digits": {
+        "type": "String"
+      }
+    }
+  },
   "resourceDelete": "حذف",
   "@resourceDelete": {
     "description": "ResourceRow's button for a downloaded resource, as the identity's reference writes it."

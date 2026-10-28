@@ -2,16 +2,18 @@ import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/domain/models/resource_state.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
+import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
+import 'package:holyquran/ui/core/l10n/megabytes.dart';
 import 'package:holyquran/ui/core/metrics/resources_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
-import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/resource_row.dart';
 import 'package:holyquran/ui/features/resources/view_models/pack_row_state.dart';
 
-/// One pack (`OF-02`): its [ResourceRow], then the catalogue's summary of
-/// its sources, what an update changes (`OF-06`) and its alert. The
-/// hairline under it is the row's, drawn below these lines.
+/// One pack (`OF-02`): its [ResourceRow], whose status line carries the
+/// size, the catalogue's summary of its sources, the version and, for an
+/// update, what it changes (`OF-06`); then its alert. The hairline under it
+/// is the row's, drawn below the alert.
 class PackRow extends StatelessWidget {
   const PackRow({
     required this.row,
@@ -43,53 +45,41 @@ class PackRow extends StatelessWidget {
       decoration: BoxDecoration(
         border: divider ? Border(bottom: BorderSide(color: colors.line)) : null,
       ),
-      child: Padding(
-        padding: resourcesRowFootPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ResourceRow(
-              title: entry.title,
-              status: status,
-              progress: row.progress,
-              onAction: action,
-              divider: false,
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: resourcesRowLineGap,
-              children: [
-                Text(
-                  entry.source,
-                  style: AppTextStyles.secondary.copyWith(
-                    color: colors.inkMuted,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ResourceRow(
+            title: entry.title,
+            status: status,
+            size: megabytes(l10n, entry.bytes),
+            // CatalogueEntry refuses an empty source or change summary.
+            details: [
+              entry.source,
+              arabicDigits(entry.version),
+              if (row.state is ResourceUpdateAvailable) entry.changes,
+            ],
+            progress: row.progress,
+            onAction: action,
+            divider: false,
+          ),
+          if (row.alert case final alert?)
+            Padding(
+              padding: resourcesRowFootPadding,
+              child: switch (alert) {
+                // Its title and body await their wording (PHASE1.md,
+                // Appendix C); the action names what it does.
+                PackRowAlert.integrity => IntegrityAlert(
+                  action: (
+                    label: l10n.resourceRedownload,
+                    onPressed: onRedownload,
                   ),
                 ),
-                if (row.state is ResourceUpdateAvailable)
-                  Text(
-                    entry.changes,
-                    style: AppTextStyles.secondary.copyWith(
-                      color: colors.inkMuted,
-                    ),
-                  ),
-                if (row.alert case final alert?)
-                  switch (alert) {
-                    // Its title and body await their wording (PHASE1.md,
-                    // Appendix C); the action names what it does.
-                    PackRowAlert.integrity => IntegrityAlert(
-                      action: (
-                        label: l10n.resourceRedownload,
-                        onPressed: onRedownload,
-                      ),
-                    ),
-                    PackRowAlert.connection => IntegrityAlert(
-                      title: l10n.connectionFailed,
-                    ),
-                  },
-              ],
+                PackRowAlert.connection => IntegrityAlert(
+                  title: l10n.connectionFailed,
+                ),
+              },
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

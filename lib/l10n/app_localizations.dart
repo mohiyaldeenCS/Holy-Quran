@@ -322,6 +322,12 @@ abstract class AppLocalizations {
   /// **'متاحة'**
   String get resourceAvailable;
 
+  /// A resource's size in megabytes, as the resource manager's status line writes it after the state. The unit is the PRD's own (docs/prd/PRD.ar.md §10.7, the catalogue table: «م.ب»). digits is the number, already written in Arabic-Indic digits with its decimal mark.
+  ///
+  /// In ar, this message translates to:
+  /// **'{digits} م.ب'**
+  String resourceSizeMegabytes(String digits);
+
   /// ResourceRow's button for a downloaded resource, as the identity's reference writes it.
   ///
   /// In ar, this message translates to:

@@ -57,11 +57,7 @@ const BorderRadius resourcesSheetHandleRadius = BorderRadius.all(
   Radius.circular(3),
 );
 
-/// `.qk-resource-main`: `gap: 6px`, between the lines a pack's row adds
-/// below `ResourceRow` (its source, its update, its alert).
-const double resourcesRowLineGap = 6;
-
-/// `.qk-resource`: `padding: 14px 0`, under those lines, as `ResourceRow`
-/// keeps it under its own.
+/// `.qk-resource`: `padding: 14px 0`, under the alert a pack's row adds below
+/// `ResourceRow`, as `ResourceRow` keeps it under its own lines.
 const EdgeInsetsDirectional resourcesRowFootPadding =
     EdgeInsetsDirectional.only(bottom: 14);

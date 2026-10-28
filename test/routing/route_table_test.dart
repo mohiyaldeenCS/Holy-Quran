@@ -12,11 +12,11 @@ void main() {
     expect(hasRoute(router, Routes.home), isTrue);
     expect(hasRoute(router, Routes.more), isTrue);
     expect(hasRoute(router, Routes.settings), isTrue);
+    expect(hasRoute(router, Routes.resources), isTrue);
   });
 
   test('finds no screen that is not built yet', () {
     expect(hasRoute(router, Routes.bookmarks), isFalse);
-    expect(hasRoute(router, Routes.resources), isFalse);
     expect(hasRoute(router, Routes.sources), isFalse);
     expect(hasRoute(router, '/nowhere'), isFalse);
   });

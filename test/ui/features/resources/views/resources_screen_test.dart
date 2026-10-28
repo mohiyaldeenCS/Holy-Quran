@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' hide IconButton;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/data/repositories/catalogue_repository.dart';
 import 'package:holyquran/data/repositories/pack_install_repository.dart';
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
@@ -10,6 +11,7 @@ import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/router.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/app.dart';
+import 'package:holyquran/ui/core/l10n/megabytes.dart';
 import 'package:holyquran/ui/core/widgets/icon_button.dart';
 import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/progress_bar.dart';
@@ -20,6 +22,7 @@ import 'package:holyquran/ui/features/resources/views/pack_row.dart';
 import 'package:holyquran/ui/features/resources/views/resources_screen.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../../testing/fakes/fake_app_settings_repository.dart';
 import '../../../../../testing/fakes/fake_catalogue_repository.dart';
 import '../../../../../testing/fakes/fake_pack_install_repository.dart';
 import '../../../../../testing/fakes/fake_pack_integrity_repository.dart';
@@ -115,15 +118,25 @@ void main() {
     );
   });
 
-  testWidgets('shows each pack in words: name, state, source', (tester) async {
+  testWidgets('shows each pack in words: name, state, size, source, version', (
+    tester,
+  ) async {
     _everyState();
     await _pump(tester);
+    final entry = _catalogue.catalogue!.pack(firstUseId)!;
+    final size = megabytes(_l10n, entry.bytes);
+    String line(String state) =>
+        [state, 'Synthetic source summary', '٢'].join(_l10n.dataSeparator);
 
     final available = tester.widget<ResourceRow>(
       _inRow(firstUseId, find.byType(ResourceRow)),
     );
     expect(available.title, 'Synthetic tafsir title');
     expect(available.status, ResourceStatus.available);
+    expect(
+      _inRow(firstUseId, find.text(line(_l10n.resourceAvailableMeta(size)))),
+      findsOne,
+    );
     expect(_inRow(firstUseId, find.text(_l10n.resourceDownload)), findsOne);
 
     final downloading = tester.widget<ResourceRow>(
@@ -133,25 +146,38 @@ void main() {
     expect(downloading.progress, closeTo(0.6, 1e-9));
     expect(_inRow(downloadingId, find.text('٦٠٪')), findsOneWidget);
 
-    for (final id in [downloadedId, updateId, failedId]) {
+    for (final id in [downloadedId, failedId]) {
       expect(
-        _inRow(id, find.text(_l10n.resourceDownloaded)),
+        _inRow(id, find.text(line(_l10n.resourceDownloadedMeta(size)))),
         findsOneWidget,
         reason: id,
       );
       expect(_inRow(id, find.text(_l10n.resourceDelete)), findsOne);
     }
-    expect(
-      find.text('Synthetic source summary'),
-      findsNWidgets(_catalogue.catalogue!.packs.length - 2),
-    );
   });
 
-  testWidgets('an update shows what it changes', (tester) async {
+  testWidgets('an update shows what it changes, last on the line', (
+    tester,
+  ) async {
     _everyState();
     await _pump(tester);
-    expect(_inRow(updateId, find.text('Synthetic change summary')), findsOne);
-    expect(find.text('Synthetic change summary'), findsOneWidget);
+    final size = megabytes(_l10n, _catalogue.catalogue!.pack(updateId)!.bytes);
+    expect(
+      _inRow(
+        updateId,
+        find.text(
+          [
+            _l10n.resourceDownloadedMeta(size),
+            'Synthetic source summary',
+            '٢',
+            'Synthetic change summary',
+          ].join(_l10n.dataSeparator),
+        ),
+      ),
+      findsOne,
+    );
+    expect(find.textContaining('Synthetic change summary'), findsOneWidget);
+    expect(_inRow(updateId, find.text(_l10n.resourceDelete)), findsOne);
   });
 
   testWidgets('a pack that failed its check shows the alert', (tester) async {
@@ -267,24 +293,22 @@ void main() {
     Future<void> pumpApp(WidgetTester tester, {required bool provided}) async {
       final router = createRouter();
       addTearDown(router.dispose);
-      final app = QuranApp(router: router);
       await tester.pumpWidget(
-        provided
-            ? MultiProvider(
-                providers: [
-                  ListenableProvider<CatalogueRepository>.value(
-                    value: _catalogue,
-                  ),
-                  ListenableProvider<PackInstallRepository>.value(
-                    value: _installs,
-                  ),
-                  ListenableProvider<PackIntegrityRepository>.value(
-                    value: _integrity,
-                  ),
-                ],
-                child: app,
-              )
-            : app,
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<AppSettingsRepository>.value(
+              value: FakeAppSettingsRepository(),
+            ),
+            if (provided) ...[
+              ListenableProvider<CatalogueRepository>.value(value: _catalogue),
+              ListenableProvider<PackInstallRepository>.value(value: _installs),
+              ListenableProvider<PackIntegrityRepository>.value(
+                value: _integrity,
+              ),
+            ],
+          ],
+          child: QuranApp(router: router),
+        ),
       );
       await tester.pumpAndSettle();
       router.go(Routes.resources);

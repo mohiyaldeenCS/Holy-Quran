@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/data/repositories/catalogue_repository.dart';
 import 'package:holyquran/data/repositories/pack_install_repository.dart';
 import 'package:holyquran/domain/models/install_job.dart';
@@ -19,6 +20,7 @@ import 'package:holyquran/ui/features/resources/views/pack_row.dart';
 import 'package:holyquran/utils/result.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../../testing/fakes/fake_app_settings_repository.dart';
 import '../../../../../testing/fakes/fake_catalogue_repository.dart';
 import '../../../../../testing/fakes/fake_pack_install_repository.dart';
 import '../../../../../testing/golden.dart';
@@ -112,7 +114,7 @@ void main() {
       ..jobs = const []
       ..installed = [installedTafsir(firstUseId)];
     await tester.pump();
-    expect(find.text(_l10n.resourceDownloaded), findsOneWidget);
+    expect(find.textContaining(_l10n.resourceDownloaded), findsOneWidget);
     await tester.tap(find.text(_l10n.resourceDelete));
     expect(_installs.calls, [('delete', firstUseId)]);
   });
@@ -143,6 +145,9 @@ void main() {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
+          ChangeNotifierProvider<AppSettingsRepository>.value(
+            value: FakeAppSettingsRepository(),
+          ),
           ListenableProvider<CatalogueRepository>.value(value: _catalogue),
           ListenableProvider<PackInstallRepository>.value(value: _installs),
         ],
