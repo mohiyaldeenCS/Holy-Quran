@@ -35,6 +35,7 @@ final class ReaderPinchStepper extends StatefulWidget {
     required this.onStep,
     required this.child,
     this.leadingExtent = _noLeadingExtent,
+    this.focusAt,
     super.key,
   });
 
@@ -43,6 +44,11 @@ final class ReaderPinchStepper extends StatefulWidget {
   final int step;
   final ValueChanged<int> onStep;
   final ValueGetter<double> leadingExtent;
+
+  /// Called when a pinch ends, with the position of the fingers in the scroll
+  /// content, before the plan is read from [layout]: a scroll view that holds
+  /// several surahs makes [layout] the plan of the surah under the fingers.
+  final ValueChanged<double>? focusAt;
   final Widget child;
 
   @override
@@ -138,12 +144,17 @@ final class _ReaderPinchStepperState extends State<ReaderPinchStepper> {
   void _pinched(double scale, Offset focalPoint) {
     final next = stepAfterPinch(widget.step, scale);
     if (next == widget.step) return;
-    final layout = widget.layout.value;
     final position = _position;
+    final local = (context.findRenderObject()! as RenderBox).globalToLocal(
+      focalPoint,
+    );
+    if (position != null) widget.focusAt?.call(position.pixels + local.dy);
+    final layout = widget.layout.value;
+    // The plan the pinch was made on is what the next plan is compared with,
+    // whether or not an earlier plan was announced for this surah.
+    _known = layout;
+    _recordTop();
     if (layout != null && position != null) {
-      final local = (context.findRenderObject()! as RenderBox).globalToLocal(
-        focalPoint,
-      );
       final y = position.pixels - widget.leadingExtent() + local.dy;
       final focal = focalAyahUnder(
         layout,

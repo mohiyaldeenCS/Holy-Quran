@@ -207,16 +207,19 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
     }
   }
 
-  void _trackFocus(ScrollMetrics metrics) {
-    final middle =
-        metrics.pixels +
-        metrics.viewportDimension * ReaderScreenMetrics.pinchFocus;
+  void _trackFocus(ScrollMetrics metrics) => _focusAt(
+    metrics.pixels + metrics.viewportDimension * ReaderScreenMetrics.pinchFocus,
+  );
+
+  /// Takes the surah whose text, or whose header above it, holds the scroll
+  /// position [y] as the one a pinch anchors in.
+  void _focusAt(double y) {
     for (final surah in _surahs) {
       final number = surah.info.number;
       final sliver = _sliverOf(_textKeys, number);
       if (sliver == null) return;
       final start = sliver.constraints.precedingScrollExtent;
-      if (middle >= start + sliver.geometry!.scrollExtent) continue;
+      if (y >= start + sliver.geometry!.scrollExtent) continue;
       final layout = _layouts[number];
       if (layout != null && identical(layout.text, surah.text)) {
         _focusSurah = number;
@@ -294,6 +297,7 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
       step: _model.textStep,
       onStep: _onStep,
       leadingExtent: _focusLeading,
+      focusAt: _focusAt,
       child: NotificationListener<ScrollMetricsNotification>(
         onNotification: _onMetrics,
         child: NotificationListener<ScrollNotification>(
