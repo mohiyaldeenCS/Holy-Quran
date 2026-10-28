@@ -14,7 +14,9 @@ import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/domain/models/pack_manifest.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
+import 'package:holyquran/domain/models/recitation.dart';
 import 'package:holyquran/domain/models/recitation_file.dart';
+import 'package:holyquran/domain/models/recitation_target.dart';
 import 'package:holyquran/utils/result.dart';
 
 import '../../../testing/fakes/fake_catalogue_repository.dart';
@@ -280,6 +282,49 @@ void main() {
       expect(
         '${(result as Failure).error}',
         'RecitationPackNotInstalled($_listed): $_pack',
+      );
+    });
+  });
+
+  group('the contents', () {
+    test('are every file of the installed pack at every quality', () async {
+      final pack = await install();
+
+      final contents = switch (await repository().contents(_listed)) {
+        Ok(:final value) => value,
+        Failure(:final error) => fail('$error'),
+      };
+
+      expect(contents.packId, _pack);
+      expect(contents.unit, RecitationUnit.ayah);
+      expect(contents.baseUrl, Uri.parse(pack.baseUrl));
+      expect(contents.files.map((f) => f.path).toSet(), {
+        for (final f in pack.files) f.path,
+      });
+      expect(contents.files.map((f) => f.qualityKbps).toSet(), {64, 128});
+    });
+
+    test('need the recitation pack installed', () async {
+      expect(
+        await repository().contents(_listed),
+        isA<Failure<RecitationContents>>().having(
+          (f) => f.error,
+          'error',
+          isA<RecitationPackNotInstalled>(),
+        ),
+      );
+    });
+
+    test('are refused for a recitation without a complete record', () async {
+      await install(id: 'synthetic-unlisted');
+
+      expect(
+        await repository().contents(_pending),
+        isA<Failure<RecitationContents>>().having(
+          (f) => f.error,
+          'error',
+          isA<RecitationNotListed>(),
+        ),
       );
     });
   });
