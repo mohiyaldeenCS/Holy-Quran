@@ -127,7 +127,10 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
       final url = target.contents.urlOf(file);
       if (!_policy.allows(url)) return Failure(RecitationUrlRefused(key, url));
     }
-    if (_jobOf(key) != null) return Failure(RecitationAlreadyQueued(key));
+    // A job that was stopped is on its way out and does not hold the key.
+    if (_jobOf(key) case final queued? when !queued.cancelled) {
+      return Failure(RecitationAlreadyQueued(key));
+    }
     _failed.remove(key);
     final job = _Job(target, wifiOnly: wifiOnly);
     _queue.add(job);
@@ -179,13 +182,21 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
     super.dispose();
   }
 
-  Future<void> _start() => _started ??= () async {
-    await _downloads.start();
-    _networkChanges = _connectivity.changes.listen(
-      _onNetwork,
-      onError: (Object _) {},
-    );
-  }();
+  /// Starts the downloader once; a start that failed is tried again.
+  Future<void> _start() async {
+    try {
+      await (_started ??= () async {
+        await _downloads.start();
+        _networkChanges = _connectivity.changes.listen(
+          _onNetwork,
+          onError: (Object _) {},
+        );
+      }());
+    } on Exception {
+      _started = null;
+      rethrow;
+    }
+  }
 
   _Job? _jobOf(String key) =>
       _queue.where((job) => job.target.key == key).firstOrNull;
@@ -194,7 +205,19 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
     if (_current != null) return;
     while (_queue.isNotEmpty) {
       final job = _current = _queue.first;
-      final result = await _run(job);
+      final Result<void> result;
+      try {
+        result = await _run(job);
+      } on Object catch (e) {
+        // Nothing may leave the queue stuck behind a job that threw.
+        _queue.remove(job);
+        _current = null;
+        job.result.complete(
+          Failure(RecitationStoreFailed(job.target.key, '$e')),
+        );
+        _notify();
+        continue;
+      }
       _queue.remove(job);
       _current = null;
       if (result case Failure(

@@ -51,6 +51,7 @@ final class RecitationPickerViewModel extends ChangeNotifier {
   Set<String> _withAudio = const {};
   int _revisionSeen = 0;
   Set<String> _jobKeys = const {};
+  int _reads = 0;
   bool _disposed = false;
 
   /// In the catalogue's order. A recitation without a complete rights
@@ -112,12 +113,13 @@ final class RecitationPickerViewModel extends ChangeNotifier {
   Future<void> _readAudio() async {
     final downloads = _downloads;
     if (downloads == null) return;
+    final read = ++_reads;
     final found = <String>{};
     for (final listed
         in _recitations?.recitations ?? const <CatalogueRecitation>[]) {
       if (await downloads.hasAudio(listed.packId)) found.add(listed.packId);
     }
-    if (_disposed || setEquals(found, _withAudio)) return;
+    if (_disposed || read != _reads || setEquals(found, _withAudio)) return;
     _withAudio = found;
     notifyListeners();
   }

@@ -114,7 +114,7 @@ const EdgeInsetsDirectional scopeRowPadding = EdgeInsetsDirectional.symmetric(
 );
 
 /// A fraction of a download as the whole percent `ResourceRow` writes.
-int percentOf(double fraction) => (fraction * 100).round();
+int percentOf(double fraction) => (fraction.clamp(0.0, 1.0) * 100).round();
 
 /// How often the files of a recitation on the device are counted again while
 /// a download adds to them: a count looks at every file, so it is not made at

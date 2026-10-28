@@ -58,7 +58,7 @@ class RecitationBlock extends StatelessWidget {
           ),
         if (hasTabs)
           ModeChips(
-            label: l10n.resourceCategoryRecitations,
+            label: l10n.resourceDownload,
             options: [l10n.indexTabSurahs, l10n.indexTabJuz],
             selectedIndex: block.tab.index,
             onChanged: (index) =>

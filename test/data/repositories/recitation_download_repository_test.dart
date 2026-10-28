@@ -66,8 +66,19 @@ final class _Downloads implements DownloadService {
   final StreamController<String> reached = StreamController.broadcast();
   final Map<String, Completer<FileDownloadOutcome>> _ends = {};
 
+  /// The next [start] throws this, once.
+  Exception? startFails;
+
+  /// The next [download] throws this, once.
+  Error? downloadThrows;
+
   @override
-  Future<void> start() async {}
+  Future<void> start() async {
+    if (startFails case final failure?) {
+      startFails = null;
+      throw failure;
+    }
+  }
 
   @override
   Future<FileDownloadOutcome> download(
@@ -75,6 +86,10 @@ final class _Downloads implements DownloadService {
     void Function(FileTaskUpdate update) onUpdate,
   ) async {
     orders.add(order);
+    if (downloadThrows case final error?) {
+      downloadThrows = null;
+      throw error;
+    }
     final path = order.url.path;
     final ended = _ends[path] = Completer();
     if (gates[path] case final gate?) {
@@ -502,6 +517,63 @@ void main() {
         '/synthetic/q64/2_1.mp3',
         '/synthetic/q64/2_2.mp3',
       ]);
+    });
+
+    test('starts again after a stop at once, without being refused', () async {
+      downloads.gates['/synthetic/q64/1_1.mp3'] = Completer();
+      final first = repository.download(
+        target(const RecitationSurah(1)),
+        wifiOnly: false,
+      );
+      await downloads.reached.stream.first;
+      final stopping = repository.cancel(target(const RecitationSurah(1)).key);
+      downloads.gates.remove('/synthetic/q64/1_1.mp3');
+
+      final again = repository.download(
+        target(const RecitationSurah(1)),
+        wifiOnly: false,
+      );
+      await stopping;
+
+      expect(await first, isA<Failure<void>>());
+      expect(await again, isA<Ok<void>>());
+    });
+
+    test('goes on with the next job after one threw', () async {
+      downloads.downloadThrows = StateError('synthetic');
+      final first = repository.download(
+        target(const RecitationSurah(1)),
+        wifiOnly: false,
+      );
+      final second = repository.download(
+        target(const RecitationSurah(2)),
+        wifiOnly: false,
+      );
+
+      expect(
+        await first,
+        isA<Failure<void>>().having(
+          (f) => f.error,
+          'error',
+          isA<RecitationStoreFailed>(),
+        ),
+      );
+      expect(await second, isA<Ok<void>>());
+    });
+
+    test('tries the downloader again after it failed to start', () async {
+      downloads.startFails = Exception('synthetic');
+      final first = await repository.download(
+        target(const RecitationSurah(2)),
+        wifiOnly: false,
+      );
+      final second = await repository.download(
+        target(const RecitationSurah(2)),
+        wifiOnly: false,
+      );
+
+      expect(first, isA<Failure<void>>());
+      expect(second, isA<Ok<void>>());
     });
 
     test('refuses a download already queued', () async {

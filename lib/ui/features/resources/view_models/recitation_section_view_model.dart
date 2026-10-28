@@ -72,6 +72,7 @@ final class RecitationSectionViewModel extends ChangeNotifier {
   final _packs = <String, _Pack>{};
   final _loading = <String>{};
   final _unreadable = <String, int>{};
+  final _reads = <(String, int), int>{};
   final _qualityOf = <String, int>{};
   final _tabOf = <String, ScopeTab>{};
   final _present = <(String, int), Set<String>>{};
@@ -210,6 +211,10 @@ final class RecitationSectionViewModel extends ChangeNotifier {
       final key = RecitationTarget.keyOf(id, quality, scope.selection);
       final count = tally[scope.selection.key];
       if (count == null || count.total == 0) continue;
+      // A surah the base pack names no way is left out, not shown unnamed.
+      if (scope.kind == ScopeKind.surah && surahName(scope.number) == null) {
+        continue;
+      }
       rows
           .putIfAbsent(scope.kind, () => [])
           .add(_row(scope, key, count, jobs[key]));
@@ -346,8 +351,11 @@ final class RecitationSectionViewModel extends ChangeNotifier {
     final pack = _packs[id];
     final quality = _chosenQuality(id);
     if (pack == null || quality == null) return;
+    final read = _reads[(id, quality)] = (_reads[(id, quality)] ?? 0) + 1;
     final present = await _downloads.present(pack.contents, quality);
+    // A count that a later one overtook is dropped.
     if (_disposed || !identical(_packs[id], pack)) return;
+    if (read != _reads[(id, quality)]) return;
     _present[(id, quality)] = present;
     _tallies[(id, quality)] = _tally(pack, quality, present);
     notifyListeners();
