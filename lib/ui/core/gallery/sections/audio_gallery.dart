@@ -1,14 +1,19 @@
 import 'package:flutter/widgets.dart';
 
+import 'package:holyquran/domain/models/player_state.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/gallery/gallery_samples.dart';
 import 'package:holyquran/ui/core/gallery/gallery_section.dart';
+import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
+import 'package:holyquran/ui/core/l10n/speed_label.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/continue_card.dart';
 import 'package:holyquran/ui/core/widgets/mini_player.dart';
+import 'package:holyquran/ui/core/widgets/player_panel.dart';
 import 'package:holyquran/ui/core/widgets/progress_bar.dart';
 import 'package:holyquran/ui/core/widgets/reader_player_bar.dart';
+import 'package:holyquran/ui/core/widgets/recitation_card.dart';
 import 'package:holyquran/ui/core/widgets/resource_row.dart';
 
 // ProgressBar/preview.html: `value: 70, height: 8`, then `value: 46` in the
@@ -25,10 +30,19 @@ const double _continueProgress = 0.07;
 const double _downloadProgress = 0.6;
 // Screens.dc.html, the reader's player bar: ayah 4 in the title.
 const int _barAyah = 4;
+// Screens2.dc.html, the listen screen: the track at 38%, «الآية ١٠ من ١١٠»,
+// a repeat of 3 and a silence of 2 seconds.
+const double _panelProgress = 0.38;
+const int _panelAyah = 10;
+const int _panelTotal = 110;
+const int _panelRepeat = 3;
+const int _panelSilence = 2;
 
 /// The gallery's audio and progress section: `ProgressBar`, `MiniPlayer`,
-/// `ContinueCard`, `ResourceRow` and the reader's player bar, as their
-/// previews and the Screens board show them, on synthetic text.
+/// `ContinueCard`, `ResourceRow`, the reader's player bar, and with the mini
+/// player the listen screen's reciter card and emerald panel, as their
+/// previews and the Screens and Screens2 boards show them, on synthetic
+/// text.
 class AudioGallery extends StatefulWidget {
   const AudioGallery({super.key});
 
@@ -81,19 +95,57 @@ class _AudioGalleryState extends State<AudioGallery> {
         ),
         GallerySection(
           title: l10n.gallerySectionMiniPlayer,
-          child: MiniPlayer(
-            surah: surah,
-            ayah: _playerAyah,
-            reciter: l10n.sampleReciter,
-            speed: l10n.gallerySpeed,
-            playing: _playing,
-            progress: _playerValue,
-            repeat: _playerRepeat,
-            onRepeat: _none,
-            onPrevious: _none,
-            onPlayPause: _togglePlaying,
-            onNext: _none,
-            onSleepTimer: _none,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: AppSpacing.space4,
+            children: [
+              MiniPlayer(
+                surah: surah,
+                ayah: _playerAyah,
+                reciter: l10n.sampleReciter,
+                speed: l10n.gallerySpeed,
+                playing: _playing,
+                progress: _playerValue,
+                repeat: _playerRepeat,
+                onRepeat: _none,
+                onPrevious: _none,
+                onPlayPause: _togglePlaying,
+                onNext: _none,
+                onSleepTimer: _none,
+              ),
+              // The listen screen's reciter card and emerald panel.
+              RecitationCard(
+                reciter: l10n.sampleReciter,
+                details: l10n.wordTimingTag,
+                onChange: _none,
+              ),
+              PlayerPanel(
+                playing: _playing,
+                progress: _panelProgress,
+                onSeek: _seek,
+                onSeekBy: _seekBy,
+                position: l10n.playerAyahOfTotal(
+                  arabicDigits(_panelAyah),
+                  arabicDigits(_panelTotal),
+                ),
+                speed: speedLabel(l10n, PlaybackSpeed.normal),
+                repeat: _panelRepeat,
+                range: l10n.playToSurahEnd,
+                repeatLabel: l10n.playerRepeatTimes(
+                  _panelRepeat,
+                  arabicDigits(_panelRepeat),
+                ),
+                silence: l10n.playerSilenceSeconds(arabicDigits(_panelSilence)),
+                onPlayPause: _togglePlaying,
+                onPrevious: _none,
+                onNext: _none,
+                onSpeed: _none,
+                onSleepTimer: _none,
+                onRepeat: _none,
+                onRange: _none,
+                onSilence: _none,
+              ),
+            ],
           ),
         ),
         GallerySection(
@@ -162,3 +214,7 @@ class _AudioGalleryState extends State<AudioGallery> {
 }
 
 void _none() {}
+
+void _seek(double _) {}
+
+void _seekBy(Duration _) {}

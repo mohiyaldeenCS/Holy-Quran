@@ -57,10 +57,12 @@ final TextStyle _countStyle = _subStyle.copyWith(
 /// previous ayah, play or pause, next ayah and the sleep timer.
 ///
 /// [surah] is the pack's surah name, drawn with [ayah] by [SurahName]. A null
-/// [reciter] is hidden. [progress] runs from 0 to 1. [repeat] above zero shows
-/// its count on the repeat button. A button whose callback is null is
-/// disabled; it keeps its place and look, as the reference draws all five and
-/// defines no disabled look.
+/// [reciter] is hidden. [progress] runs from 0 to 1; null hides the track,
+/// for a position whose length is not known. [repeat] above zero shows its
+/// count on the repeat button. A button whose callback is null is disabled;
+/// it keeps its place and look, as the reference draws all five and defines
+/// no disabled look. Without [showSleepTimer] the sleep timer's place is left
+/// empty, so the other four keep theirs.
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({
     required this.surah,
@@ -70,6 +72,7 @@ class MiniPlayer extends StatelessWidget {
     this.reciter,
     this.progress = 0,
     this.repeat = 0,
+    this.showSleepTimer = true,
     this.onRepeat,
     this.onPrevious,
     this.onPlayPause,
@@ -82,7 +85,7 @@ class MiniPlayer extends StatelessWidget {
   final int ayah;
   final String? reciter;
   final String speed;
-  final double progress;
+  final double? progress;
   final bool playing;
   final int repeat;
   final VoidCallback? onRepeat;
@@ -90,6 +93,7 @@ class MiniPlayer extends StatelessWidget {
   final VoidCallback? onPlayPause;
   final VoidCallback? onNext;
   final VoidCallback? onSleepTimer;
+  final bool showSleepTimer;
 
   @override
   Widget build(BuildContext context) {
@@ -151,11 +155,12 @@ class MiniPlayer extends StatelessWidget {
               ),
             ],
           ),
-          ProgressBar(
-            value: progress,
-            tone: ProgressBarTone.player,
-            label: l10n.playerPosition,
-          ),
+          if (progress case final progress?)
+            ProgressBar(
+              value: progress,
+              tone: ProgressBarTone.player,
+              label: l10n.playerPosition,
+            ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -184,11 +189,14 @@ class MiniPlayer extends StatelessWidget {
                 label: l10n.playerNextAyah,
                 onPressed: onNext,
               ),
-              PlayerButton(
-                icon: IconName.night,
-                label: l10n.playerSleepTimer,
-                onPressed: onSleepTimer,
-              ),
+              if (showSleepTimer)
+                PlayerButton(
+                  icon: IconName.night,
+                  label: l10n.playerSleepTimer,
+                  onPressed: onSleepTimer,
+                )
+              else
+                const SizedBox.square(dimension: AppSizes.targetMin),
             ],
           ),
         ],
@@ -210,6 +218,7 @@ class PlayerButton extends StatelessWidget {
     this.size = AppSizes.targetMin,
     this.iconSize = _iconSize,
     this.count,
+    this.accented = false,
     super.key,
   }) : _main = false;
 
@@ -223,6 +232,7 @@ class PlayerButton extends StatelessWidget {
     super.key,
   }) : icon = playing ? IconName.pause : IconName.play,
        count = null,
+       accented = false,
        _main = true;
 
   final IconName icon;
@@ -234,6 +244,10 @@ class PlayerButton extends StatelessWidget {
   /// A count drawn over the top-left corner (`.qk-player-count`), such as
   /// the repeats; none when null.
   final int? count;
+
+  /// Strokes the icon in `player-accent`, as the Screens2 board draws a repeat
+  /// that is set.
+  final bool accented;
   final bool _main;
 
   static final BorderRadius _radius = BorderRadius.circular(
@@ -256,7 +270,9 @@ class PlayerButton extends StatelessWidget {
       child: Icon(
         icon,
         size: iconSize,
-        color: _main ? Ramps.emerald950 : colors.onPlayer,
+        color: _main
+            ? Ramps.emerald950
+            : (accented ? colors.playerAccent : colors.onPlayer),
       ),
     );
     return Semantics(
