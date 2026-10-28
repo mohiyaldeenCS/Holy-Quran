@@ -1,10 +1,10 @@
 // GENERATED CODE. DO NOT EDIT BY HAND.
-// Generated from design/design-system/components/src/index.jsx, design/design-system/components/index.d.ts
+// Generated from design/design-system/components/src/index.jsx, design/design-system/components/index.d.ts, tools/gen/project_icons/*.svg
 // by `dart run tools/gen/bin/generate.dart` (see tools/gen/README.md).
 
 import 'package:flutter/painting.dart';
 
-/// The icons of the identity, in the order of ICONS.
+/// The identity icons in the order of ICONS, then the project icons.
 enum IconName {
   home,
   mushaf,
@@ -32,6 +32,14 @@ enum IconName {
   minus,
   plus,
   context,
+  copy,
+  delete,
+  info,
+  nextSurah,
+  note,
+  previousSurah,
+  share,
+  stop,
 }
 
 /// Filled icons are painted with a fill; all others with the
@@ -286,6 +294,106 @@ Path buildIconPath(IconName name) => switch (name) {
           Radius.circular(1.5),
         ),
       ),
+  IconName.copy =>
+    Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(9, 9, 11, 11),
+          Radius.circular(1.5),
+        ),
+      )
+      ..moveTo(6, 15)
+      ..lineTo(5.5, 15)
+      ..cubicTo(4.6716, 15, 4, 14.3284, 4, 13.5)
+      ..lineTo(4, 5.5)
+      ..cubicTo(4, 4.6716, 4.6716, 4, 5.5, 4)
+      ..lineTo(13.5, 4)
+      ..cubicTo(14.3284, 4, 15, 4.6716, 15, 5.5)
+      ..lineTo(15, 6),
+  IconName.delete =>
+    Path()
+      ..moveTo(4.5, 7)
+      ..lineTo(19.5, 7)
+      ..moveTo(9.5, 7)
+      ..lineTo(9.5, 5.5)
+      ..cubicTo(9.5, 4.6716, 10.1716, 4, 11, 4)
+      ..lineTo(13, 4)
+      ..cubicTo(13.8284, 4, 14.5, 4.6716, 14.5, 5.5)
+      ..lineTo(14.5, 7)
+      ..moveTo(6.5, 7)
+      ..lineTo(6.5, 18.5)
+      ..cubicTo(6.5, 19.3284, 7.1716, 20, 8, 20)
+      ..lineTo(16, 20)
+      ..cubicTo(16.8284, 20, 17.5, 19.3284, 17.5, 18.5)
+      ..lineTo(17.5, 7)
+      ..moveTo(10, 11)
+      ..lineTo(10, 16)
+      ..moveTo(14, 11)
+      ..lineTo(14, 16),
+  IconName.info =>
+    Path()
+      ..addOval(Rect.fromCircle(center: Offset(12, 12), radius: 8))
+      ..moveTo(12, 11)
+      ..lineTo(12, 16)
+      ..moveTo(12, 8)
+      ..lineTo(12.01, 8),
+  IconName.nextSurah =>
+    Path()
+      ..moveTo(16.5, 6)
+      ..lineTo(10.5, 12)
+      ..lineTo(16.5, 18)
+      ..moveTo(7.5, 6)
+      ..lineTo(7.5, 18),
+  IconName.note =>
+    Path()
+      ..moveTo(9.5, 4)
+      ..lineTo(17.5, 4)
+      ..cubicTo(18.3284, 4, 19, 4.6716, 19, 5.5)
+      ..lineTo(19, 18.5)
+      ..cubicTo(19, 19.3284, 18.3284, 20, 17.5, 20)
+      ..lineTo(6.5, 20)
+      ..cubicTo(5.6716, 20, 5, 19.3284, 5, 18.5)
+      ..lineTo(5, 8.5)
+      ..close()
+      ..moveTo(9.5, 4)
+      ..lineTo(9.5, 7)
+      ..cubicTo(9.5, 7.8284, 8.8284, 8.5, 8, 8.5)
+      ..lineTo(5, 8.5)
+      ..moveTo(8.5, 12.5)
+      ..lineTo(15.5, 12.5)
+      ..moveTo(11, 16)
+      ..lineTo(15.5, 16),
+  IconName.previousSurah =>
+    Path()
+      ..moveTo(7.5, 6)
+      ..lineTo(13.5, 12)
+      ..lineTo(7.5, 18)
+      ..moveTo(16.5, 6)
+      ..lineTo(16.5, 18),
+  IconName.share =>
+    Path()
+      ..moveTo(12, 14)
+      ..lineTo(12, 4)
+      ..moveTo(7.5, 8.5)
+      ..lineTo(12, 4)
+      ..lineTo(16.5, 8.5)
+      ..moveTo(8, 11.5)
+      ..lineTo(6.5, 11.5)
+      ..cubicTo(5.6716, 11.5, 5, 12.1716, 5, 13)
+      ..lineTo(5, 18)
+      ..cubicTo(5, 18.8284, 5.6716, 19.5, 6.5, 19.5)
+      ..lineTo(17.5, 19.5)
+      ..cubicTo(18.3284, 19.5, 19, 18.8284, 19, 18)
+      ..lineTo(19, 13)
+      ..cubicTo(19, 12.1716, 18.3284, 11.5, 17.5, 11.5)
+      ..lineTo(16, 11.5),
+  IconName.stop =>
+    Path()..addRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(6, 6, 12, 12),
+        Radius.circular(1.5),
+      ),
+    ),
 };
 
 /// The open book of the mark on its 120 by 120 grid.
