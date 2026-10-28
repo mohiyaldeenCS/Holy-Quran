@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import 'package:holyquran/ui/core/theme/theme_context.dart';
+
 import 'pinch_step.dart';
 import 'reader_pinch.dart';
 import 'surah_layout.dart';
@@ -131,7 +133,12 @@ final class _ReaderPinchStepperState extends State<ReaderPinchStepper> {
         focalPoint,
       );
       final y = position.pixels - widget.leadingExtent + local.dy;
-      _pinch = (focal: focalAyahOfLine(layout, y), viewportY: local.dy);
+      final focal = focalAyahUnder(
+        layout,
+        Offset(local.dx, y),
+        ink: context.colors.quranInk,
+      );
+      _pinch = (focal: focal, viewportY: local.dy);
     }
     widget.onStep(next);
   }

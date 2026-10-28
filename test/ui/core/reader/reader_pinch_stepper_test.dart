@@ -9,6 +9,7 @@ import 'package:holyquran/ui/core/reader/reader_pinch_stepper.dart';
 import 'package:holyquran/ui/core/reader/reader_text_scale.dart';
 import 'package:holyquran/ui/core/reader/surah_layout.dart';
 import 'package:holyquran/ui/core/reader/surah_text.dart';
+import 'package:holyquran/ui/core/theme/tokens.g.dart';
 
 import '../../../../testing/golden.dart';
 import 'reader_fixture.dart';
@@ -120,6 +121,12 @@ void main() {
     return layoutOf(tester);
   }
 
+  FocalAyah underFingers(SurahLayout layout) => focalAyahUnder(
+    layout,
+    Offset(_fingers.dx, controller.offset + _fingers.dy),
+    ink: AppColors.paper.quranInk,
+  );
+
   /// Two fingers [_spread] apart close or open to [scale] times that, about
   /// [_fingers], then lift.
   Future<void> pinch(WidgetTester tester, double scale) async {
@@ -144,7 +151,7 @@ void main() {
       tester,
     ) async {
       final before = await open(tester, step: 2, offset: 500);
-      final focal = focalAyahOfLine(before, controller.offset + _fingers.dy);
+      final focal = underFingers(before);
       await pinch(tester, 1.3);
       expect(readerTextSteps[steps.single], 1.3);
       final after = layoutOf(tester);
@@ -157,7 +164,7 @@ void main() {
       tester,
     ) async {
       final before = await open(tester, step: 4, offset: 900);
-      final focal = focalAyahOfLine(before, controller.offset + _fingers.dy);
+      final focal = underFingers(before);
       await pinch(tester, 0.75);
       expect(steps.single, lessThan(4));
       final after = layoutOf(tester);
@@ -170,7 +177,7 @@ void main() {
       tester,
     ) async {
       final before = await open(tester, step: 1, offset: 300);
-      final focal = focalAyahOfLine(before, controller.offset + _fingers.dy);
+      final focal = underFingers(before);
       await pinch(tester, 1.8);
       expect(readerTextSteps[steps.single], 1.5);
       final after = layoutOf(tester);

@@ -2,10 +2,13 @@ import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holyquran/ui/core/reader/block_layout.dart';
 import 'package:holyquran/ui/core/reader/pinch_step.dart';
 import 'package:holyquran/ui/core/reader/reader_style.dart';
 import 'package:holyquran/ui/core/reader/reader_text_scale.dart';
 import 'package:holyquran/ui/core/reader/surah_layout.dart';
+import 'package:holyquran/ui/core/reader/target_geometry.dart';
+import 'package:holyquran/ui/core/theme/tokens.g.dart';
 
 import 'reader_fixture.dart';
 
@@ -42,7 +45,10 @@ void main() {
     test('and stops at both ends', () {
       expect(stepAfterPinch(at100, 9), readerTextSteps.length - 1);
       expect(stepAfterPinch(at100, 0.1), 0);
-      expect(stepAfterPinch(readerTextSteps.length - 1, 2), 7);
+      expect(
+        stepAfterPinch(readerTextSteps.length - 1, 2),
+        readerTextSteps.length - 1,
+      );
       expect(stepAfterPinch(0, 0.5), 0);
     });
 
@@ -83,6 +89,43 @@ void main() {
             large.lineOfAyahText(focal.ayah) * large.lineHeight;
         expect(y, greaterThanOrEqualTo(largeTop));
       }
+    });
+
+    test('a finger on a later ayah of a shared line takes that ayah, not the '
+        'one the line starts in', () {
+      var checked = 0;
+      for (final width in [240.0, 300.0, 360.0]) {
+        final plan = _plan(fixture, 1, width);
+        for (var b = 0; b < plan.blocks.length; b++) {
+          final block = BlockLayout(plan, b, ink: AppColors.paper.quranInk);
+          final g = TargetGeometry.of(block);
+          for (final (k, band) in g.lineBands.indexed) {
+            final lineAyah =
+                plan.lines[plan.blocks[b].firstLine + k].start.ayah + 1;
+            bool onLine(Rect r) =>
+                r.center.dy >= band.top && r.center.dy < band.bottom;
+            final later = [
+              for (final MapEntry(:key, :value) in g.words.entries)
+                if (onLine(value) && key.ayah != lineAyah) (key.ayah, value),
+              for (final MapEntry(:key, :value) in g.markers.entries)
+                if (onLine(value) && key.ayah != lineAyah) (key.ayah, value),
+            ];
+            for (final (ayah, rect) in later) {
+              checked++;
+              final focal = focalAyahAt(block, rect.center);
+              expect(focal.ayah, ayah, reason: 'line starts in ayah $lineAyah');
+              final under = focalAyahUnder(
+                plan,
+                Offset(rect.center.dx, plan.blockTop(b) + rect.center.dy),
+                ink: AppColors.paper.quranInk,
+              );
+              expect(under, focal);
+            }
+          }
+          block.dispose();
+        }
+      }
+      expect(checked, greaterThan(0), reason: 'the surah shares lines');
     });
 
     test('above the text the first ayah at its top, past it the last at its '
