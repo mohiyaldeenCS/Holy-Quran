@@ -32,6 +32,7 @@ final Map<String, _Pick> _colours = {
   'on-player-muted': (c) => c.onPlayerMuted,
   'player-accent': (c) => c.playerAccent,
   'highlight-word-line': (c) => c.highlightWordLine,
+  'selection': (c) => c.selection,
   'selection-line': (c) => c.selectionLine,
   'success': (c) => c.success,
   'warning': (c) => c.warning,
