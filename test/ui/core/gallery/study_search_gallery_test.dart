@@ -121,6 +121,10 @@ void main() {
     expect(find.byType(WordSheet), findsOneWidget);
     expect(find.byType(SearchField), findsNWidgets(2));
     expect(find.byType(ModeChips), findsOneWidget);
+    expect(
+      tester.widget<ModeChips>(find.byType(ModeChips)).label,
+      _l10n.searchModesLabel,
+    );
     expect(find.byType(SearchSummary), findsOneWidget);
     expect(
       tester

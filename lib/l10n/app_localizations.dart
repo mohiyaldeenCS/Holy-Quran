@@ -1402,6 +1402,24 @@ abstract class AppLocalizations {
   /// **'صمت {seconds} ث'**
   String playerSilenceSeconds(String seconds);
 
+  /// Label of the Stepper that sets the silence between ayat (AU-11). Source: Appendix B of docs/plans/PHASE1.md, approved by the owner (D-128, 4).
+  ///
+  /// In ar, this message translates to:
+  /// **'الصمت بين الآيات'**
+  String get playerSilenceBetweenAyat;
+
+  /// The seconds unit after a Stepper's value, as the identity's Stepper preview writes it for the silence.
+  ///
+  /// In ar, this message translates to:
+  /// **'ث'**
+  String get playerSecondsUnit;
+
+  /// Title of the range picker sheet and spoken name of its range kinds (PRD §7.7). Source: Appendix B of docs/plans/PHASE1.md, approved by the owner (D-128, 4).
+  ///
+  /// In ar, this message translates to:
+  /// **'محدد النطاق'**
+  String get rangeSelectorTitle;
+
   /// Spoken name of the queue button. Source: design/identity-boards/Screens2.dc.html.
   ///
   /// In ar, this message translates to:

@@ -113,6 +113,7 @@ class _StudySearchGalleryState extends State<StudySearchGallery> {
         GallerySection(
           title: l10n.gallerySectionModeChips,
           child: ModeChips(
+            label: l10n.searchModesLabel,
             options: modes,
             selectedIndex: _mode,
             onChanged: (index) => setState(() => _mode = index),

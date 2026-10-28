@@ -10,7 +10,7 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-28 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **19 merged**: P1-01 to P1-13, P1-15, P1-16, P1-18 to P1-21 (P1-12 and P1-15 partial). **Open**: #50 (P1-28, ready), #52 (P1-25), #53 (P1-27), P1-39 (local). **18 not started**. The lead merges after an independent review and CI (D-136) |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **20 merged**: P1-01 to P1-13, P1-15, P1-16, P1-18 to P1-21, P1-28 (P1-12, P1-15 and P1-28 partial). **Open**: #52 (P1-25), #53 (P1-27), P1-39 (local); #56 (gallery test, D-136) merged. **17 not started**. The lead merges after an independent review and CI (D-136) |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/p1-*`); worktrees under the session's scratchpad for parallel agents (D-132) |
 | Last session | 2026-10-28, local session on the owner's Windows machine: state recovered from Git, the owner's pending decisions taken (D-128), resumption settled (D-129) |
@@ -191,7 +191,7 @@ unbuilt.
 
 **Resumed 2026-10-28 from a local session (D-128).** Merged since: #54 (status and
 D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generator's
-`dart format` through a shell, separators, closed packs), #44 (P1-12, below), #51 (P1-15, below).
+`dart format` through a shell, separators, closed packs), #44 (P1-12, below), #51 (P1-15, below), #50 (P1-28, below).
 
 - **P1-12 merged (#44), partial.** Copy sheet with the board's preview (Share.dc.html
   l.54) drawn from the pack, `QuranText.quoted` and `SurahName.span` (D-130); share
@@ -217,7 +217,17 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   saying when the database is in memory (D-133); `userDataProviders` wiring
   (bookmarks, notes, keep-awake). Reviewed by `code-reviewer` (once, then fixes) and
   `identity-auditor`.
-- Open pull requests: #50 (P1-28; review fixes in progress), #52 (P1-25), #53 (P1-27). Their old CI runs wait for approval
+- Open pull requests: #52 (P1-25), #53 (P1-27). #56 (the gallery tap-target test sized to the gallery; D-136) merged. Their old CI runs wait for approval
+- **P1-28 merged (#50), partial.**
+  Range, play-options, repeat, silence and queue sheets (D-135). AU-11 met; AU-02
+  partial (ayah to ayah, several pages, a set of surahs and to the end of the mushaf
+  need «من»/«إلى»); AU-03 partial (empty until something has played; the recitation
+  chosen in the first-run setup will fill it); AU-09 partial (1 to 99 met; unlimited and
+  the spoken counter not built); AU-17 partial (reorder and remove met; add not built);
+  AU-07 and AU-08 not built. Follow-ups in D-135: the `PlaybackPlanBuilder` provider and
+  a route test before any screen opens the sheets; timings in the plan; the sleep timer,
+  stop-after, unlimited repeat and add-to-queue task. Reviewed by `code-reviewer` and
+  `identity-auditor`.
   (`action_required`); a push by the lead starts a normal run.
 - Not started: P1-14, P1-17, P1-22 (wave 2; P1-22's condition, D-097, is met),
   P1-23, P1-24, P1-26, P1-29, P1-30, P1-40 (wave 3), P1-31 to P1-34 (wave 4), P1-35 to
@@ -344,6 +354,8 @@ Permission conditions to confirm with him when each is first needed are listed i
 | P1-15 | The four themes on screen for More, onboarding and the report sheet (only settings has goldens); TalkBack and VoiceOver (settings headings are read twice); the focus ring with a keyboard; 320 wide at 200% | Owner, on his phone | An APK built from `main` with the CI `apk` task |
 | P1-15 | The owner sees the report sheet before «أبلغ عن خطأ» ships (D-127), including the Latin pack id on the « · » line; the More hub's outlined buttons until a navigation row is drawn | Owner | The report sheet in an APK, once something opens it |
 | P1-15 | An APK builds with the backup attributes: locally `flutter build apk --debug` failed in Kotlin incremental caches of other plugins (project on D:, pub cache on C:); the merged manifest and resources compiled | CI `apk` task | Run the `apk` task on `main` after the merge |
+| P1-28 | The owner's look where the identity draws nothing: queue rows straight on `surface` with a hairline (the word sheet sets its rows in a sunk card); the sheet title at `sectionTitle` 20/600 (the context sheet's title is 700); an empty queue showing only its title (no sentence yet) | Owner | The `test/ui/features/listen/controls/goldens/*` images on `main` |
+| P1-28 | TalkBack and VoiceOver on the five sheets (the range title and its chip group both read «محدد النطاق»); keyboard focus order; the queue reorder with the system's reduce-motion setting on | Owner, on his phone | An APK built from `main`, once a screen opens the sheets |
 
 ## Environment
 

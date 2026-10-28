@@ -30,8 +30,15 @@ final class FakePlayerRepository extends PlayerRepository {
   @override
   Duration? sleepRemaining;
 
+  /// Thrown by the next [play], as the real repository may throw.
+  Exception? playFailure;
+
   @override
   Future<void> play(PlaybackPlan plan, {int startAt = 0}) async {
+    if (playFailure case final failure?) {
+      playFailure = null;
+      throw failure;
+    }
     commands.add('play $startAt');
     state = _state.copyWith(
       plan: plan,
