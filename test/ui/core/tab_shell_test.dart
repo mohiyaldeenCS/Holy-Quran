@@ -25,10 +25,11 @@ import 'package:holyquran/ui/core/widgets/tab_bar.dart';
 import 'package:holyquran/ui/features/home/views/home_screen.dart';
 import 'package:holyquran/ui/features/listen/views/listen_screen.dart';
 import 'package:provider/provider.dart';
-import '../../../testing/test_app.dart';
 
+import '../../../testing/fakes/fake_app_settings_repository.dart';
 import '../../../testing/fakes/fake_player_repository.dart';
 import '../../../testing/fakes/fake_quran_index_repository.dart';
+import '../../../testing/test_app.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
 
@@ -123,9 +124,11 @@ Future<GoRouter> _pumpWithPlayer(
           value: FakeQuranIndexRepository.synthetic(),
         ),
       ],
-      child: QuranApp(
-        router: router,
-        themePreference: ThemePreference(theme: theme),
+      child: testApp(
+        router,
+        settings: FakeAppSettingsRepository(
+          themePreference: ThemePreference(theme: theme),
+        ),
       ),
     ),
   );
@@ -312,7 +315,7 @@ void main() {
 
   group('the mini player', () {
     testWidgets('is absent when the app has no player', (tester) async {
-      await tester.pumpWidget(QuranApp(router: createRouter()));
+      await tester.pumpWidget(testApp(createRouter()));
       await tester.pumpAndSettle();
 
       expect(find.byType(MiniPlayer), findsNothing);
