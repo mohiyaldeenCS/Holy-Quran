@@ -175,10 +175,10 @@ List<String> semanticLabelList(WidgetTester tester) {
   final labels = <String>[];
   void visit(SemanticsNode node) {
     if (node.label.isNotEmpty) labels.add(node.label);
-    node.visitChildren((child) {
-      visit(child);
-      return true;
-    });
+    // The order a screen reader moves in, not the tree's.
+    node
+        .debugListChildrenInOrder(DebugSemanticsDumpOrder.traversalOrder)
+        .forEach(visit);
   }
 
   visit(

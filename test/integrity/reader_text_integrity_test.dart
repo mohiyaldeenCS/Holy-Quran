@@ -71,8 +71,9 @@ void main() {
     );
 
     // Each ayah has a text of its own, so a label names one address. A screen
-    // reader meets one surah's ayat in order, so the labels of each surah on
-    // screen are a run of its stored ayat; the runs together cover them all.
+    // reader meets the ayat on screen in mushaf order: within a surah each
+    // ayah follows the one before it, and a later surah follows an earlier
+    // one. The snapshots together cover every ayah.
     final byBytes = <String, (int, int)>{};
     var total = 0;
     for (final surah in surahs) {
@@ -85,16 +86,18 @@ void main() {
     final problems = <String>[];
     final covered = <(int, int)>{};
     for (final snapshot in snapshots) {
-      final last = <int, int>{};
+      (int, int)? before;
       for (final label in snapshot) {
         final address = byBytes[base64.encode(utf8.encode(label))];
         if (address == null) continue;
         final (surah, ayah) = address;
-        final before = last[surah];
-        if (before != null && ayah != before + 1) {
-          problems.add('$surah:$before is followed by $surah:$ayah');
+        if (before case (
+          final lastSurah,
+          final lastAyah,
+        ) when surah == lastSurah ? ayah != lastAyah + 1 : surah < lastSurah) {
+          problems.add('$lastSurah:$lastAyah is followed by $surah:$ayah');
         }
-        last[surah] = ayah;
+        before = address;
         covered.add(address);
       }
     }
