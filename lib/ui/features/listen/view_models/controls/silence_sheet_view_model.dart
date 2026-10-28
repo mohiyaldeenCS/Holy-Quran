@@ -14,10 +14,6 @@ final class SilenceSheetViewModel extends ChangeNotifier with PlaysOnce {
   SilenceSheetViewModel({required this._player, required this._builder})
     : _seconds = _player.state.plan?.silence.inSeconds ?? 0;
 
-  static final _second =
-      PlaybackPlanBuilder.maxSilence ~/
-      PlaybackPlanBuilder.maxSilence.inSeconds;
-
   final PlayerRepository _player;
   final PlaybackPlanBuilder _builder;
   int _seconds;
@@ -42,7 +38,11 @@ final class SilenceSheetViewModel extends ChangeNotifier with PlaysOnce {
   Future<bool> play() => playOnce(() async {
     final plan = _player.state.plan;
     if (plan == null || !available) return false;
-    final outcome = rebuildPlan(_builder, plan, silence: _second * _seconds);
+    final outcome = rebuildPlan(
+      _builder,
+      plan,
+      silence: PlaybackPlanBuilder.silenceOf(_seconds),
+    );
     if (outcome is! PlanReady) return false;
     await _player.play(outcome.plan, startAt: _player.state.segmentIndex ?? 0);
     return true;
