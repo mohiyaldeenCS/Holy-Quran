@@ -217,6 +217,16 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   saying when the database is in memory (D-133); `userDataProviders` wiring
   (bookmarks, notes, keep-awake). Reviewed by `code-reviewer` (once, then fixes) and
   `identity-auditor`.
+- **P1-38 merged, the second batch of strings.** 83 keys in `lib/l10n/app_ar.arb`: 38 from
+  Appendix B as the owner approved them (D-128 (4)), 45 worded by the lead (D-128 (5);
+  the table is in `docs/plans/tasks/P1-38-strings-owner-batch.md`). Checked by script
+  against the plan and the task, character for character. They unblock the setup's
+  prompts and continue button, the report sheet's send and note, the integrity alerts,
+  the go-to errors, the player's stop-after, sleep timer, unlimited repeat and
+  add-to-queue, the resource manager's update, Wi-Fi, space and size lines, and the
+  empty states. Not worded: source credits (D-128 (6)), copying several ayat, gallery
+  titles, the sources screen's headings. For the owner's optional look: the lead's
+  wording (owner's linguist, when he wishes).
 - Open pull requests: #52 (P1-25), #53 (P1-27), #56 (gallery test, D-136). Their old CI runs wait for approval
 - **P1-28 merged (#50), partial.**
   Range, play-options, repeat, silence and queue sheets (D-135). AU-11 met; AU-02
