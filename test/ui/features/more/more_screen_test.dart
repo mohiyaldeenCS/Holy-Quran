@@ -41,7 +41,11 @@ void main() {
       for (final button in tester.widgetList<Button>(find.byType(Button)))
         button.label,
     ];
-    expect(labels, [_l10n.settingsTitle, if (kDebugMode) _l10n.galleryTitle]);
+    expect(labels, [
+      _l10n.resourceManagerTitle,
+      _l10n.settingsTitle,
+      if (kDebugMode) _l10n.galleryTitle,
+    ]);
     expect(find.bySemanticsLabel(_l10n.tabMore), findsAtLeastNWidgets(1));
   });
 
@@ -57,7 +61,6 @@ void main() {
 
   for (final (label, path, location) in [
     (_l10n.bookmarksAndNotes, RoutePaths.bookmarks, Routes.bookmarks),
-    (_l10n.resourceManagerTitle, RoutePaths.resources, Routes.resources),
     (_l10n.sourcesTitle, RoutePaths.sources, Routes.sources),
   ]) {
     testWidgets('shows «$label» once its screen has a route (PRD §7.1)', (
