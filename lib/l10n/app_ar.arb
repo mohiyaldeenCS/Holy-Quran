@@ -878,6 +878,10 @@
   "@contextSurah": {
     "description": "Context amount: the whole surah. Source: design/design-system/components/src/index.jsx (ContextSheet)."
   },
+  "contextPlayFromAyah": "تشغيل من هذه الآية",
+  "@contextPlayFromAyah": {
+    "description": "Reference aria-label, index.jsx ContextSheet"
+  },
   "toolbarBookmark": "علامة",
   "@toolbarBookmark": {
     "description": "The selected ayah's toolbar: bookmark it. Source: docs/prd/PRD.ar.md (§7.4)."
@@ -1405,6 +1409,15 @@
   "surahNotFound": "لا توجد سورة بهذا الاسم",
   "@surahNotFound": {
     "description": "Lead, 2026-10-28, D-128 (5)"
+  },
+  "surahNumberNotFound": "لا توجد سورة {surah}",
+  "@surahNumberNotFound": {
+    "description": "Lead, 2026-10-28, D-128 (5)",
+    "placeholders": {
+      "surah": {
+        "type": "String"
+      }
+    }
   },
   "addressUnreadable": "لم نتعرّف على الموضع المكتوب",
   "@addressUnreadable": {
