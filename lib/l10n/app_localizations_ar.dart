@@ -1092,4 +1092,57 @@ class AppLocalizationsAr extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get bookmarksSearchHint => 'ابحث في العلامات والملاحظات';
+
+  @override
+  String get bookmarksTabBookmarks => 'العلامات';
+
+  @override
+  String get bookmarksTabNotes => 'الملاحظات';
+
+  @override
+  String bookmarksCount(int count, String digits) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$digits علامة',
+      few: '$digits علامات',
+      two: 'علامتان',
+      one: 'علامة واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String notesCount(int count, String digits) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$digits ملاحظة',
+      few: '$digits ملاحظات',
+      two: 'ملاحظتان',
+      one: 'ملاحظة واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get categoryLabel => 'التصنيف';
+
+  @override
+  String get bookmarkDelete => 'احذف العلامة';
+
+  @override
+  String get itemDeleted => 'تم الحذف';
+
+  @override
+  String get noteAdd => 'ملاحظة جديدة';
+
+  @override
+  String get tagNewHint => 'وسم جديد';
+
+  @override
+  String get tagAdd => 'أضف';
 }
