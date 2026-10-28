@@ -50,13 +50,15 @@ final class LocalReadingPositionRepository extends ReadingPositionRepository {
       throw ArgumentError.value(ayah, 'ayah', 'is a word address');
     }
     if (ayah == _last) return const Ok(null);
+    // Current before the write, so a reader shown again meanwhile reads it;
+    // a failed write keeps it for the session and loses it only on restart.
+    _last = ayah;
+    notifyListeners();
     try {
       await _dao.writeAddress(ayah.toString(), updatedAt: _now());
     } on Exception catch (error) {
       return Failure(error);
     }
-    _last = ayah;
-    notifyListeners();
     return const Ok(null);
   }
 }
