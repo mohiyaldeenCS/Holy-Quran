@@ -8,6 +8,7 @@ import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/routing/routes/feature_routes.dart';
+import 'package:holyquran/routing/routes/sheet_needs.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/mushaf_view_model.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/surah_info_view_model.dart';
 import 'package:holyquran/ui/features/mushaf/views/mushaf_screen.dart';
@@ -31,15 +32,21 @@ final mushafRoutes = FeatureRoutes(
   sheets: [
     SheetRoute(
       path: RoutePaths.surahInfoSheet,
-      builder: (context, state) => ChangeNotifierProvider(
-        create: (context) => SurahInfoViewModel(
-          surah: Routes.surahOf(state)!,
-          index: context.read<QuranIndexRepository?>(),
-          integrity: context.read<PackIntegrityRepository?>(),
-        ),
-        child: Builder(
-          builder: (context) => SurahInfoSheet(
-            viewModel: Provider.of<SurahInfoViewModel>(context, listen: false),
+      builder: (context, state) => SheetNeeds(
+        available: (context) => context.read<QuranIndexRepository?>() != null,
+        child: ChangeNotifierProvider(
+          create: (context) => SurahInfoViewModel(
+            surah: Routes.surahOf(state)!,
+            index: context.read<QuranIndexRepository?>(),
+            integrity: context.read<PackIntegrityRepository?>(),
+          ),
+          child: Builder(
+            builder: (context) => SurahInfoSheet(
+              viewModel: Provider.of<SurahInfoViewModel>(
+                context,
+                listen: false,
+              ),
+            ),
           ),
         ),
       ),
