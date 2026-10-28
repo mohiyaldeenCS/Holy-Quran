@@ -10,10 +10,10 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-28 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **22 merged**: P1-01 to P1-13, P1-15, P1-16, P1-18 to P1-21, P1-28, P1-38, P1-39 (P1-12, P1-15 and P1-28 partial). **Open**: #52 (P1-25), #53 (P1-27). **16 not started**. The lead merges after an independent review and CI (D-136) |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **23 merged**: P1-01 to P1-13, P1-15, P1-16, P1-18 to P1-21, P1-25, P1-28, P1-38, P1-39 (P1-12, P1-15, P1-25 and P1-28 partial). **Open**: #53 (P1-27). **In progress, no PR**: P1-14, P1-22. **14 not started**. The lead merges after an independent review and CI (D-136) |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/p1-*`); worktrees under the session's scratchpad for parallel agents (D-132) |
-| Last session | 2026-10-28, local session on the owner's Windows machine: state recovered from Git, the owner's pending decisions taken (D-128), resumption settled (D-129) |
+| Last session | 2026-10-28, local session on the owner's Windows machine, stopped for the account switch. **Read `HANDOFF.md` first**: it says exactly what was in flight (#53, P1-14, P1-22) and what each needs |
 
 ## What is in the repository
 
@@ -457,6 +457,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-10-28 | Local session, continued (team lead with agents) | Merged #56, #57 (P1-39), #58 (P1-38), #52 (P1-25), #59 (player sheets reachable, D-138). #53 (P1-27) fixed after two code reviews and an identity audit, its last should-fix items in progress. P1-14 (three of six plan steps pushed) and P1-22 started in worktrees. Stopped for the owner's account switch; `HANDOFF.md` and `docs/plans/handoff/P1-14-architect-plan.md` written | `docs/handoff-2026-10-28`, #53, `agent/p1-14-reader-surah-screen`, `agent/p1-22-reader-targets` |
 | 2026-10-28 | Local session (owner's Windows machine) | Recovered the state from Git after the Actions runs stopped on 2026-10-12 for lack of API credit; corrected this file; ran analyze and the non-golden tests locally (48 Windows-only failures); took the owner's decisions (D-128) and settled resumption (D-129). | `docs/resume-2026-10-28` |
 | 2026-10-11 | Implementing session (second account), continued | On the owner's instruction, set up implementation by agents in GitHub Actions on his two API accounts: `agent.yml` and `agent.mjs` (Claude Agent SDK 0.3.296, option names read from its type definitions), the `check` task in CI, D-092, the workflow section. Linted with actionlint and shellcheck; the script was smoke-tested locally with an invalid key. After the merge: M0.4 part 2 planned as agent waves (D-093 to D-095) and step 0 done; the trial runs and every other Actions run since 17:13 UTC end in `startup_failure`, a setting the owner must check (M0.4-6). | Pull request #13; `claude/great-hamilton-9n23mt` |
 | 2026-10-11 | Implementing session (second account) | Found the first account's session still at work on the M0.5 branch; the owner chose this session to continue and the other handed over cleanly. Adopted its work (0a, A, B, D) and dropped a duplicate 0a; finished batch C; showed the five sections in the gallery (E); tested that the widgets draw a pack's bytes unchanged and kept the ramp allow-list current (F); code review and identity audit of every batch until both passed, findings applied; D-091; golden images by CI runs 103 and 110; merged; the owner confirmed D-089 and D-091. | Pull requests #10 and #12 |
