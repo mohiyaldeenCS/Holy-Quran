@@ -218,6 +218,7 @@ class PlayerButton extends StatelessWidget {
     this.size = AppSizes.targetMin,
     this.iconSize = _iconSize,
     this.count,
+    this.accented = false,
     super.key,
   }) : _main = false;
 
@@ -231,6 +232,7 @@ class PlayerButton extends StatelessWidget {
     super.key,
   }) : icon = playing ? IconName.pause : IconName.play,
        count = null,
+       accented = false,
        _main = true;
 
   final IconName icon;
@@ -242,6 +244,10 @@ class PlayerButton extends StatelessWidget {
   /// A count drawn over the top-left corner (`.qk-player-count`), such as
   /// the repeats; none when null.
   final int? count;
+
+  /// Strokes the icon in `player-accent`, as the Screens2 board draws a repeat
+  /// that is set.
+  final bool accented;
   final bool _main;
 
   static final BorderRadius _radius = BorderRadius.circular(
@@ -264,7 +270,9 @@ class PlayerButton extends StatelessWidget {
       child: Icon(
         icon,
         size: iconSize,
-        color: _main ? Ramps.emerald950 : colors.onPlayer,
+        color: _main
+            ? Ramps.emerald950
+            : (accented ? colors.playerAccent : colors.onPlayer),
       ),
     );
     return Semantics(

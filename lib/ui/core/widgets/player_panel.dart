@@ -149,6 +149,7 @@ class PlayerPanel extends StatelessWidget {
                       : l10n.playerRepeatTimes(repeat, arabicDigits(repeat)),
                   onPressed: onRepeat,
                   count: repeat,
+                  accented: repeat != null,
                 ),
               ),
             ],

@@ -252,12 +252,21 @@ void main() {
       3,
       reason: 'the repeat count is drawn on the repeat button',
     );
+    expect(
+      tester.widget<PlayerButton>(_button(IconName.repeat)).accented,
+      isTrue,
+      reason: 'Screens2 strokes a set repeat in player-accent',
+    );
   });
 
   testWidgets('hides what the plan does not have', (tester) async {
     await _pump(tester, _player(_playing()).viewModel);
 
     expect(find.text(_l10n.playerRepeat), findsNothing);
+    expect(
+      tester.widget<PlayerButton>(_button(IconName.repeat)).accented,
+      isFalse,
+    );
     // An ayah file's length is not known, so there is no track to seek.
     expect(find.byType(ProgressBar), findsNothing);
   });
