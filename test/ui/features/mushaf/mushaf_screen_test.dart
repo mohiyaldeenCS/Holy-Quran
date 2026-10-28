@@ -73,6 +73,21 @@ void main() {
     expect(first.ayah, inInclusiveRange(20, 30));
   });
 
+  testWidgets(
+    'an address near the end of its surah is reached once the next surah is '
+    'shown',
+    (tester) async {
+      final viewModel = await pumpReader(tester, address: at(2, 40));
+      expect(viewModel.surahs.length, greaterThan(1));
+
+      controllerOf(tester).jumpTo(controllerOf(tester).offset + 1);
+      await tester.pumpAndSettle();
+
+      expect(viewModel.position!.address.surah, 2);
+      expect(viewModel.position!.address.ayah, inInclusiveRange(39, 40));
+    },
+  );
+
   testWidgets('a word address opens its ayah', (tester) async {
     final viewModel = await pumpReader(
       tester,

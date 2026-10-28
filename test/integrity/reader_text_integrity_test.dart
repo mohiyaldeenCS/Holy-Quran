@@ -26,13 +26,19 @@ import 'pack_integrity_suite.dart';
 void main() {
   late Directory root;
   late MushafRig rig;
+  late MushafRig distinct;
 
   setUpAll(() async {
     root = await Directory.systemTemp.createTemp('reader_text_integrity');
     rig = await MushafRig.load(Directory('${root.path}/rig'));
+    distinct = await MushafRig.load(
+      Directory('${root.path}/distinct'),
+      distinctAyat: true,
+    );
   });
   tearDownAll(() async {
     rig.close();
+    distinct.close();
     await root.delete(recursive: true);
   });
 
@@ -47,33 +53,60 @@ void main() {
     }
   }
 
-  testWidgets('every ayah of the pack is read as its stored bytes', (
+  testWidgets('each ayah is read as the bytes stored at its own address', (
     tester,
   ) async {
     setReaderView(tester);
     final semantics = tester.ensureSemantics();
-    final viewModel = rig.viewModel();
+    final viewModel = distinct.viewModel();
     addTearDown(viewModel.dispose);
     await tester.pumpWidget(readerApp(viewModel));
     await tester.pumpAndSettle();
 
-    final surahs = rig.pack.raw.surahs();
-    final labels = await labelsFromScrollingToEnd(
+    final surahs = distinct.pack.raw.surahs();
+    final snapshots = await labelSnapshotsScrollingToEnd(
       tester,
       viewModel,
       lastSurah: surahs.last.number,
     );
 
-    final problems = <String>[];
-    final shown = {
-      for (final label in labels) base64.encode(utf8.encode(label)),
-    };
-    for (final (address, stored) in storedAyat()) {
-      if (!shown.contains(base64.encode(stored))) {
-        problems.add('$address: no semantics label holds its stored bytes');
+    // Each ayah has a text of its own, so a label names one address. A screen
+    // reader meets one surah's ayat in order, so the labels of each surah on
+    // screen are a run of its stored ayat; the runs together cover them all.
+    final byBytes = <String, (int, int)>{};
+    var total = 0;
+    for (final surah in surahs) {
+      for (final (number, bytes) in distinct.pack.raw.ayat(surah.number)) {
+        expect(byBytes[base64.encode(bytes)], isNull, reason: 'distinct');
+        byBytes[base64.encode(bytes)] = (surah.number, number);
+        total++;
       }
     }
-    expect(storedAyat(), hasLength(rig.pack.manifest.counts.ayat));
+    final problems = <String>[];
+    final covered = <(int, int)>{};
+    for (final snapshot in snapshots) {
+      final last = <int, int>{};
+      for (final label in snapshot) {
+        final address = byBytes[base64.encode(utf8.encode(label))];
+        if (address == null) continue;
+        final (surah, ayah) = address;
+        final before = last[surah];
+        if (before != null && ayah != before + 1) {
+          problems.add('$surah:$before is followed by $surah:$ayah');
+        }
+        last[surah] = ayah;
+        covered.add(address);
+      }
+    }
+    for (final address in byBytes.values) {
+      if (!covered.contains(address)) {
+        problems.add(
+          '${address.$1}:${address.$2}: no semantics label holds its bytes',
+        );
+      }
+    }
+    expect(covered, hasLength(total));
+    expect(total, distinct.pack.manifest.counts.ayat);
     expectNoProblems(problems);
     semantics.dispose();
   });
