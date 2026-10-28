@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/config/dependencies.dart';
 import 'package:holyquran/config/providers/quran_providers.dart';
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
+import 'package:holyquran/data/repositories/pack_quran_text_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/data/services/base_pack_service.dart';
@@ -94,10 +95,17 @@ void main() {
     return (context, basePack!);
   }
 
+  /// The area keeps the text pack open for the app's life. A test closes it
+  /// before its folder is deleted, which Windows refuses for an open file.
+  void closeTextAfterTest(BuildContext context) => addTearDown(
+    (context.read<QuranTextRepository>() as PackQuranTextRepository).close,
+  );
+
   testWidgets('a verified base pack provides its text and index', (
     tester,
   ) async {
     final (context, _) = await setUpArea(tester);
+    closeTextAfterTest(context);
 
     expect(
       context.read<PackIntegrityRepository>().stateOf(_id),
@@ -120,6 +128,7 @@ void main() {
       tester,
       fault: SyntheticFault.wrongSurahHash,
     );
+    closeTextAfterTest(context);
     final integrity = context.read<PackIntegrityRepository>();
     final text = context.read<QuranTextRepository>();
     final index = context.read<QuranIndexRepository>();
