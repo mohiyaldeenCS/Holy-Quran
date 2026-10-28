@@ -67,6 +67,9 @@ void main() {
     );
     expect(find.byType(Icon), findsOneWidget);
     expect(tester.widget<Icon>(find.byType(Icon)).name, IconName.info);
+    // Its colour is the token for «مصدر البيانات», not the caption's gold.
+    final colors = tester.element(find.byType(SourceBadge)).colors;
+    expect(tester.widget<Icon>(find.byType(Icon)).color, colors.info);
   });
 
   testWidgets('draws in caption and accent', (tester) async {

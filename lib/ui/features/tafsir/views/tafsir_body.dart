@@ -32,8 +32,9 @@ class TafsirBody extends StatelessWidget {
 
   final TafsirViewModel viewModel;
 
-  /// Opens the offer of the first download (`TF-06`).
-  final VoidCallback onOfferDownload;
+  /// Opens the offer of the first download (`TF-06`); null when there is
+  /// nothing to open, and the offer is then not shown.
+  final VoidCallback? onOfferDownload;
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +59,7 @@ class TafsirBody extends StatelessWidget {
           AyahRow(number: viewModel.address.ayah, text: ayahText),
         if (!viewModel.hasTafsirs) ...[
           Text(l10n.noTafsirsYet, style: muted),
-          if (viewModel.available.isNotEmpty)
+          if (viewModel.available.isNotEmpty && onOfferDownload != null)
             Button(
               label: l10n.resourceDownload,
               variant: ButtonVariant.tonal,

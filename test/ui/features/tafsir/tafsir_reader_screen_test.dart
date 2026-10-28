@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart' hide Icon, IconButton;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holyquran/data/repositories/tafsir_repository.dart';
+import 'package:holyquran/domain/models/installed_pack.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/domain/models/tafsir_book.dart';
+import 'package:holyquran/domain/models/tafsir_position.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/ayah_row.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
-import 'package:holyquran/ui/core/widgets/icon.dart';
 import 'package:holyquran/ui/core/widgets/icon_button.dart';
-import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
 import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/quran_text.dart';
+import 'package:holyquran/ui/core/widgets/radio_row.dart';
 import 'package:holyquran/ui/core/widgets/source_badge.dart';
 import 'package:holyquran/ui/core/widgets/tafsir_text.dart';
 import 'package:holyquran/ui/features/tafsir/views/source_details_sheet.dart';
@@ -21,6 +23,7 @@ import 'package:holyquran/utils/result.dart';
 
 import '../../../../testing/fakes/fake_catalogue_repository.dart';
 import '../../../../testing/fakes/fake_tafsir_repository.dart';
+import '../../../../testing/golden.dart';
 import '../../../../testing/packs/synthetic_tafsir_pack.dart';
 import '../resources/resources_fixtures.dart';
 import 'tafsir_fixture.dart';
@@ -183,10 +186,14 @@ void main() {
       PackText.fromPack(defaultSyntheticBook.title),
       PackText.fromPack(defaultSyntheticBook.author),
       PackText.fromPack(defaultSyntheticBook.editor!),
+      PackText.fromPack(defaultSyntheticBook.publisher!),
     ]);
-    // The publisher has no label yet, and the edition this book lacks is
-    // left out, not filled.
-    expect(find.text(defaultSyntheticBook.publisher!), findsNothing);
+    expect(
+      find.text(tafsirL10n.sourcePublisher(defaultSyntheticBook.publisher!)),
+      findsOneWidget,
+    );
+    // The edition this book lacks is left out, not filled.
+    expect(find.text(tafsirL10n.sourceEditionOrEditor), findsOneWidget);
 
     await tester.tapAt(const Offset(180, 20));
     await tester.pumpAndSettle();
@@ -286,6 +293,7 @@ void main() {
       tester,
       fixture,
     ) async {
+      final handle = tester.ensureSemantics();
       await tester.runAsync(
         () => fixture.install(
           id: 'synthetic-tafsir-b',
@@ -320,14 +328,25 @@ void main() {
           greaterThan(tester.getTopLeft(available).dy),
         );
       }
-      // The first book is the one shown, marked by a check as well as a
-      // colour.
+      // The first book is the one shown, chosen in a single-choice list.
       expect(
-        find.byWidgetPredicate(
-          (widget) => widget is Icon && widget.name == IconName.check,
-        ),
-        findsOneWidget,
+        tester
+            .widgetList<RadioRow>(find.byType(RadioRow))
+            .map((r) => r.selected),
+        [true, false],
       );
+      // The sub-labels are headers for a screen reader.
+      for (final label in [
+        tafsirL10n.resourcesDownloaded,
+        tafsirL10n.resourcesAvailable,
+      ]) {
+        expect(
+          tester.getSemantics(find.text(label)).flagsCollection.isHeader,
+          isTrue,
+          reason: label,
+        );
+      }
+      handle.dispose();
     });
 
     tafsirTest('choosing a downloaded book makes it the default and shows '
@@ -470,4 +489,118 @@ void main() {
     expect(find.bySemanticsLabel(tafsirL10n.toolbarCopy), findsOneWidget);
     handle.dispose();
   });
+
+  tafsirTest('a downloaded book that fails its checks shows the integrity '
+      'alert in the list, and the others stay chosen', (tester, fixture) async {
+    await tester.runAsync(
+      () => fixture.install(id: 'synthetic-tafsir-b', corrupt: true),
+    );
+    final model = await openModel(tester, fixture, at(fixture, 2, 1));
+    await pumpScreen(tester, reader(model));
+    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(IntegrityAlert), findsOneWidget);
+    expect(find.text(tafsirL10n.integrityPackTitle), findsOneWidget);
+    expect(find.byType(RadioRow), findsOneWidget);
+    expect(passageOf(defaultSyntheticPassages[1].text), findsOneWidget);
+  });
+
+  tafsirTest('a default that cannot be saved says so', (tester, fixture) async {
+    await tester.runAsync(() => fixture.install(id: 'synthetic-tafsir-b'));
+    final tafsirs = FakeTafsirRepository(
+      installed: fixture.installs.installed,
+      books: {
+        for (final pack in fixture.installs.installed)
+          pack.id: TafsirBook(
+            title: PackText.fromPack('Synthetic ${pack.id}'),
+            author: const PackText.fromPack('Synthetic'),
+            publisher: null,
+            edition: null,
+            editor: null,
+          ),
+      },
+    )..positions = (packId, ayah) => Failure(FileHashMismatch(packId, 'f'));
+    addTearDown(tafsirs.dispose);
+    final model = await openModel(
+      tester,
+      fixture,
+      at(fixture, 2, 1),
+      tafsirs: _Unsaved(tafsirs),
+    );
+    await pumpScreen(tester, reader(model));
+    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(RadioRow).last);
+    await settle(tester);
+
+    expect(find.text(tafsirL10n.userDataNotSaved), findsOneWidget);
+    expect(
+      tester.widgetList<RadioRow>(find.byType(RadioRow)).map((r) => r.selected),
+      [true, false],
+    );
+  });
+
+  tafsirTest('the steps stay inside a short landscape screen at 200%', (
+    tester,
+    fixture,
+  ) async {
+    final model = await openModel(tester, fixture, at(fixture, 1, 2));
+    tester.view
+      ..physicalSize = const Size(640, 320)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      goldenApp(
+        ReadingTheme.paper,
+        Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(2)),
+            child: SizedBox.expand(child: reader(model)),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    final steps = tester.getRect(buttonLabelled(tafsirL10n.playerNextAyah));
+    expect(steps.bottom, lessThanOrEqualTo(320));
+    expect(steps.top, greaterThanOrEqualTo(0));
+  });
+}
+
+/// A tafsir repository that cannot save the default.
+final class _Unsaved extends ChangeNotifier implements TafsirRepository {
+  _Unsaved(this._inner) {
+    _inner.addListener(notifyListeners);
+  }
+
+  final TafsirRepository _inner;
+
+  @override
+  List<InstalledPack> get installed => _inner.installed;
+
+  @override
+  String? get defaultTafsir => _inner.defaultTafsir;
+
+  @override
+  Future<Result<void>> setDefaultTafsir(String packId) async =>
+      const Failure(FormatException('synthetic failure'));
+
+  @override
+  Future<Result<TafsirBook>> book(String packId) => _inner.book(packId);
+
+  @override
+  Future<Result<TafsirPosition>> positionAt(String packId, QuranAddress ayah) =>
+      _inner.positionAt(packId, ayah);
+
+  @override
+  void dispose() {
+    _inner.removeListener(notifyListeners);
+    super.dispose();
+  }
 }

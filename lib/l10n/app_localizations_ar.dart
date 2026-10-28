@@ -1091,6 +1091,11 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String sourcePublisher(String publisher) {
+    return 'الناشر: $publisher';
+  }
+
+  @override
   String tafsirRange(String from, String to) {
     return 'من الآية $from إلى الآية $to';
   }
@@ -1110,6 +1115,6 @@ class AppLocalizationsAr extends AppLocalizations {
     String source,
     String version,
   ) {
-    return '$passage\n\n$title · $author\n[$surah: $ayahs]\n$source · الإصدار $version';
+    return '$passage\n\n$title · $author\n[$surah: $ayahs]\n$source · $version';
   }
 }

@@ -1,10 +1,16 @@
+import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/data/repositories/catalogue_repository.dart';
+import 'package:holyquran/data/repositories/tafsir_repository.dart';
+import 'package:holyquran/domain/models/installed_pack.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
+import 'package:holyquran/domain/models/tafsir_book.dart';
+import 'package:holyquran/domain/models/tafsir_position.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/features/tafsir/tafsir_copy_text.dart';
 import 'package:holyquran/ui/features/tafsir/view_models/tafsir_view_model.dart';
@@ -35,11 +41,13 @@ void main() {
     QuranAddress address, {
     CatalogueRepository? catalogue,
     bool withTafsirs = true,
+    bool withPicker = false,
+    TafsirRepository? tafsirs,
   }) async {
     final model = TafsirViewModel(
       address: address,
       quran: fixture.quran,
-      tafsirs: withTafsirs ? fixture.tafsirs : null,
+      tafsirs: withTafsirs ? (tafsirs ?? fixture.tafsirs) : null,
       catalogue: catalogue,
       copyText: withTafsirs
           ? TafsirCopyText(
@@ -52,6 +60,7 @@ void main() {
         copied.add(text);
         return const Ok(null);
       },
+      withPicker: withPicker,
     );
     addTearDown(model.dispose);
     await _until(() => model.loaded);
@@ -180,7 +189,8 @@ void main() {
       id: 'synthetic-tafsir-b',
       book: const SyntheticBook(title: 'Synthetic second title', author: 'B'),
     );
-    final model = await open(at(1, 1));
+    final model = await open(at(1, 1), withPicker: true);
+    await _until(() => model.downloaded.length == 2);
 
     expect(model.page!.packId, TafsirFixture.bookId);
     expect(model.downloaded.map((choice) => choice.packId), [
@@ -194,14 +204,92 @@ void main() {
 
     expect(fixture.tafsirs.defaultTafsir, 'synthetic-tafsir-b');
     expect(model.page!.packId, 'synthetic-tafsir-b');
-    expect(model.downloaded.map((choice) => choice.chosen), [false, true]);
+    await _until(
+      () =>
+          model.downloaded.map((choice) => choice.chosen).toList().toString() ==
+          [false, true].toString(),
+    );
+  });
+
+  test('removing the chosen book, which is not the first, shows the first '
+      'again', () async {
+    final second = await fixture.install(
+      id: 'synthetic-tafsir-b',
+      book: const SyntheticBook(title: 'Synthetic second title', author: 'B'),
+    );
+    await fixture.tafsirs.setDefaultTafsir(second.id);
+    final model = await open(at(1, 1), withPicker: true);
+    expect(model.page!.packId, second.id);
+
+    fixture.installs.installed = [fixture.installs.installed.first];
+    await _until(() => model.page?.packId == TafsirFixture.bookId);
+    await _until(() => model.downloaded.length == 1);
+
+    expect(fixture.tafsirs.defaultTafsir, isNull);
+    expect(model.downloaded.single.chosen, isTrue);
+  });
+
+  test('shows the chosen book before the others are checked', () async {
+    await fixture.install(
+      id: 'synthetic-tafsir-b',
+      book: const SyntheticBook(title: 'Synthetic second title', author: 'B'),
+    );
+    final gate = Completer<void>();
+    final gated = _GatedTafsirs(fixture.tafsirs, 'synthetic-tafsir-b', gate);
+
+    final model = await open(at(1, 1), withPicker: true, tafsirs: gated);
+
+    expect(model.page!.packId, TafsirFixture.bookId);
+    expect(model.downloaded, isEmpty);
+
+    gate.complete();
+    await _until(() => model.downloaded.length == 2);
+    expect(model.page!.packId, TafsirFixture.bookId);
+  });
+
+  test('a book that is not shown and fails its checks is listed without a '
+      'title', () async {
+    await fixture.install(id: 'synthetic-tafsir-b', corrupt: true);
+    final model = await open(at(1, 1), withPicker: true);
+    await _until(() => model.downloaded.length == 2);
+
+    expect(model.page!.packId, TafsirFixture.bookId);
+    expect(model.downloaded.map((choice) => choice.title == null), [
+      false,
+      true,
+    ]);
+  });
+
+  test('a default that cannot be saved keeps the choice and says so', () async {
+    await fixture.install(
+      id: 'synthetic-tafsir-b',
+      book: const SyntheticBook(title: 'Synthetic second title', author: 'B'),
+    );
+    final model = await open(
+      at(1, 1),
+      withPicker: true,
+      tafsirs: _GatedTafsirs(
+        fixture.tafsirs,
+        'none',
+        Completer<void>()..complete(),
+        saves: false,
+      ),
+    );
+
+    await model.choose('synthetic-tafsir-b');
+
+    expect(model.choiceNotSaved, isTrue);
+    expect(model.page!.packId, TafsirFixture.bookId);
+    await model.choose('synthetic-tafsir-b');
+    expect(model.choiceNotSaved, isTrue);
   });
 
   test('lists the tafsirs the catalogue offers that are not downloaded, '
       'apart from the downloaded', () async {
     final catalogue = FakeCatalogueRepository(catalogueWith());
     addTearDown(catalogue.dispose);
-    final model = await open(at(1, 1), catalogue: catalogue);
+    final model = await open(at(1, 1), catalogue: catalogue, withPicker: true);
+    await _until(() => model.downloaded.isNotEmpty);
 
     // Not the downloaded 'synthetic-tafsir', and no recitation or text pack.
     expect(model.available, [for (final id in extraTafsirs) titleOf(id)]);
@@ -265,4 +353,43 @@ Future<void> _until(bool Function() condition) async {
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
   expect(condition(), isTrue, reason: 'the model did not settle');
+}
+
+/// The fixture's repository with the check of one book held back until
+/// [gate] completes, and, when [saves] is false, a default that cannot be
+/// saved.
+final class _GatedTafsirs implements TafsirRepository {
+  _GatedTafsirs(this._inner, this._gatedPack, this._gate, {this.saves = true});
+
+  final TafsirRepository _inner;
+  final String _gatedPack;
+  final Completer<void> _gate;
+  final bool saves;
+
+  @override
+  void addListener(VoidCallback listener) => _inner.addListener(listener);
+
+  @override
+  void removeListener(VoidCallback listener) => _inner.removeListener(listener);
+
+  @override
+  List<InstalledPack> get installed => _inner.installed;
+
+  @override
+  String? get defaultTafsir => _inner.defaultTafsir;
+
+  @override
+  Future<Result<void>> setDefaultTafsir(String packId) async => saves
+      ? _inner.setDefaultTafsir(packId)
+      : const Failure(FormatException('synthetic failure'));
+
+  @override
+  Future<Result<TafsirBook>> book(String packId) async {
+    if (packId == _gatedPack) await _gate.future;
+    return _inner.book(packId);
+  }
+
+  @override
+  Future<Result<TafsirPosition>> positionAt(String packId, QuranAddress ayah) =>
+      _inner.positionAt(packId, ayah);
 }

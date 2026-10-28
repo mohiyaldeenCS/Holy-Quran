@@ -32,7 +32,7 @@ String _expected({
     .replaceAll('{surah}', surah)
     .replaceAll('{ayahs}', ayahs)
     .replaceAll('{source}', 'Synthetic tafsir source')
-    .replaceAll('{version}', arabicDigits(1));
+    .replaceAll('{version}', _l10n.sourceVersion(arabicDigits(1)));
 
 void main() {
   late TafsirFixture fixture;

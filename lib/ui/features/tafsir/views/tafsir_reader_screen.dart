@@ -30,8 +30,9 @@ class TafsirReaderScreen extends StatelessWidget {
 
   final TafsirViewModel? viewModel;
 
-  /// Opens the offer of the first download (`TF-06`).
-  final VoidCallback onOfferDownload;
+  /// Opens the offer of the first download (`TF-06`); null when there is
+  /// nothing to open.
+  final VoidCallback? onOfferDownload;
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +91,7 @@ class _Content extends StatelessWidget {
   const _Content({required this.viewModel, required this.onOfferDownload});
 
   final TafsirViewModel viewModel;
-  final VoidCallback onOfferDownload;
+  final VoidCallback? onOfferDownload;
 
   @override
   Widget build(BuildContext context) {
@@ -118,6 +119,7 @@ class _Content extends StatelessWidget {
                     DefaultTafsirPicker(
                       downloaded: viewModel.downloaded,
                       available: viewModel.available,
+                      choiceNotSaved: viewModel.choiceNotSaved,
                       onChoose: (packId) => unawaited(viewModel.choose(packId)),
                     ),
                 ],

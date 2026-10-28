@@ -1,29 +1,32 @@
-import 'package:flutter/widgets.dart' hide Icon;
+import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/l10n/app_localizations.dart';
-import 'package:holyquran/ui/core/metrics/tafsir_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
-import 'package:holyquran/ui/core/widgets/icon.dart';
-import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
-import 'package:holyquran/ui/core/widgets/pressable.dart';
+import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
+import 'package:holyquran/ui/core/widgets/radio_row.dart';
 import 'package:holyquran/ui/core/widgets/tafsir_text.dart';
 import 'package:holyquran/ui/features/tafsir/view_models/tafsir_page.dart';
 
 /// The list the default tafsir is chosen from (`TF-01`): the downloaded
-/// books, one of them marked, apart from the tafsirs that are only
-/// available. An available tafsir is named, not chosen; it is downloaded
-/// from the resource manager first.
+/// books as a single-choice list, one of them chosen, apart from the tafsirs
+/// that are only available. An available tafsir is named, not chosen; it is
+/// downloaded from the resource manager first. A downloaded book that failed
+/// its checks has no title and shows the integrity alert in its place.
 class DefaultTafsirPicker extends StatelessWidget {
   const DefaultTafsirPicker({
     required this.downloaded,
     required this.available,
+    required this.choiceNotSaved,
     required this.onChoose,
     super.key,
   });
 
   final List<TafsirChoice> downloaded;
   final List<String> available;
+
+  /// Whether the last choice could not be saved.
+  final bool choiceNotSaved;
   final ValueChanged<String> onChoose;
 
   @override
@@ -33,6 +36,7 @@ class DefaultTafsirPicker extends StatelessWidget {
     final heading = AppTextStyles.bodyStrong.copyWith(color: colors.inkMuted);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: AppSpacing.space2,
       children: [
         Semantics(
           header: true,
@@ -41,8 +45,12 @@ class DefaultTafsirPicker extends StatelessWidget {
             style: AppTextStyles.sectionTitle.copyWith(color: colors.ink),
           ),
         ),
+        if (choiceNotSaved) IntegrityAlert(title: l10n.userDataNotSaved),
         if (downloaded.isNotEmpty) ...[
-          Text(l10n.resourcesDownloaded, style: heading),
+          Semantics(
+            header: true,
+            child: Text(l10n.resourcesDownloaded, style: heading),
+          ),
           Semantics(
             container: true,
             explicitChildNodes: true,
@@ -50,17 +58,28 @@ class DefaultTafsirPicker extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 for (final choice in downloaded)
-                  _ChoiceRow(
-                    key: ValueKey(choice.packId),
-                    choice: choice,
-                    onPressed: () => onChoose(choice.packId),
-                  ),
+                  switch (choice.title) {
+                    final title? => RadioRow(
+                      key: ValueKey(choice.packId),
+                      selected: choice.chosen,
+                      onTap: () => onChoose(choice.packId),
+                      child: TafsirText(title, style: RadioRow.labelStyle),
+                    ),
+                    null => IntegrityAlert(
+                      key: ValueKey(choice.packId),
+                      title: l10n.integrityPackTitle,
+                      body: l10n.integrityPackBody,
+                    ),
+                  },
               ],
             ),
           ),
         ],
         if (available.isNotEmpty) ...[
-          Text(l10n.resourcesAvailable, style: heading),
+          Semantics(
+            header: true,
+            child: Text(l10n.resourcesAvailable, style: heading),
+          ),
           for (final title in available)
             ConstrainedBox(
               constraints: const BoxConstraints(minHeight: AppSizes.targetMin),
@@ -74,39 +93,6 @@ class DefaultTafsirPicker extends StatelessWidget {
             ),
         ],
       ],
-    );
-  }
-}
-
-class _ChoiceRow extends StatelessWidget {
-  const _ChoiceRow({required this.choice, required this.onPressed, super.key});
-
-  final TafsirChoice choice;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    // The mark is a shape as well as a colour: the check beside the title.
-    return Semantics(
-      container: true,
-      selected: choice.chosen,
-      child: Pressable(
-        onPressed: onPressed,
-        focusRadius: tafsirChoiceFocusRadius,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: AppSizes.targetMin),
-          child: Row(
-            spacing: AppSpacing.space3,
-            children: [
-              Expanded(
-                child: TafsirText(choice.title, style: AppTextStyles.body),
-              ),
-              if (choice.chosen) Icon(IconName.check, color: colors.primary),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

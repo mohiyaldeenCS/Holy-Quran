@@ -34,6 +34,7 @@ final class TafsirViewModel extends ChangeNotifier {
     required this._catalogue,
     required this._copyText,
     required this._copyToClipboard,
+    this._withPicker = false,
   }) : _address = address.ayahAddress,
        _shown = address.ayahAddress {
     _tafsirs?.addListener(_onChanged);
@@ -48,6 +49,9 @@ final class TafsirViewModel extends ChangeNotifier {
   final TafsirCopyText? _copyText;
   final CopyToClipboard? _copyToClipboard;
 
+  /// Whether [downloaded] is read: only the reader lists the books.
+  final bool _withPicker;
+
   late final Command0<void> copy;
 
   // The ayah asked for, and the one the state below describes.
@@ -56,6 +60,7 @@ final class TafsirViewModel extends ChangeNotifier {
   int _loads = 0;
   bool _loaded = false;
   bool _disposed = false;
+  bool _choiceNotSaved = false;
   PackText? _ayahText;
   PackText? _surahName;
   TafsirPage? _page;
@@ -96,7 +101,11 @@ final class TafsirViewModel extends ChangeNotifier {
   /// provided.
   bool get canCopy => _copyText != null && _copyToClipboard != null;
 
-  /// The downloaded books, in the installer's order (`TF-01`).
+  /// Whether the last choice of a default tafsir could not be saved.
+  bool get choiceNotSaved => _choiceNotSaved;
+
+  /// The downloaded books, in the installer's order (`TF-01`); read after the
+  /// chosen book is shown, and only when the model was made with a picker.
   List<TafsirChoice> get downloaded => _downloaded;
 
   /// The titles of the tafsirs the catalogue offers that are not downloaded.
@@ -107,9 +116,14 @@ final class TafsirViewModel extends ChangeNotifier {
     return _load();
   }
 
-  /// Makes [packId] the default tafsir; the reader then shows it.
+  /// Makes [packId] the default tafsir; the reader then shows it. When it
+  /// cannot be saved the previous choice stays and [choiceNotSaved] is set,
+  /// until the next choice.
   Future<void> choose(String packId) async {
-    await _tafsirs?.setDefaultTafsir(packId);
+    final result = await _tafsirs?.setDefaultTafsir(packId);
+    if (_disposed) return;
+    _choiceNotSaved = result is Failure;
+    if (_choiceNotSaved) notifyListeners();
   }
 
   void _onChanged() => unawaited(_load());
@@ -132,25 +146,11 @@ final class TafsirViewModel extends ChangeNotifier {
     TafsirPage? page;
     Object? failure;
     if (tafsirs != null && packId != null) {
-      switch (await _read(tafsirs, installed, packId, ayah)) {
+      switch (await _read(tafsirs, packId, ayah)) {
         case Ok(:final value):
           page = value;
         case Failure(:final error):
           failure = error;
-      }
-    }
-    final downloaded = <TafsirChoice>[];
-    if (tafsirs != null) {
-      for (final pack in installed) {
-        if (await tafsirs.book(pack.id) case Ok(:final value)) {
-          downloaded.add(
-            TafsirChoice(
-              packId: pack.id,
-              title: value.title,
-              chosen: pack.id == packId,
-            ),
-          );
-        }
       }
     }
     // A newer read started, or the screen closed, meanwhile.
@@ -170,15 +170,37 @@ final class TafsirViewModel extends ChangeNotifier {
     };
     _page = page;
     _failure = failure;
-    _downloaded = downloaded;
     _available = _availableTitles(installed);
     _loaded = true;
+    notifyListeners();
+    if (!_withPicker || tafsirs == null) return;
+
+    // The other books are checked after the chosen one is shown: the first
+    // read of each runs its pack's full verification.
+    final downloaded = <TafsirChoice>[];
+    for (final pack in installed) {
+      final chosen = pack.id == packId;
+      final book = chosen && page != null
+          ? Ok(page.book)
+          : await tafsirs.book(pack.id);
+      if (load != _loads || _disposed) return;
+      downloaded.add(
+        TafsirChoice(
+          packId: pack.id,
+          title: switch (book) {
+            Ok(:final value) => value.title,
+            Failure() => null,
+          },
+          chosen: chosen,
+        ),
+      );
+    }
+    _downloaded = downloaded;
     notifyListeners();
   }
 
   Future<Result<TafsirPage>> _read(
     TafsirRepository tafsirs,
-    List<InstalledPack> installed,
     String packId,
     QuranAddress ayah,
   ) async {
@@ -196,14 +218,14 @@ final class TafsirViewModel extends ChangeNotifier {
       case Failure(:final error):
         return Failure(error);
     }
-    final pack = installed.where((pack) => pack.id == packId).firstOrNull;
+    final pack = installedTafsirOf(tafsirs, packId);
     if (pack == null) return Failure(TafsirNotInstalled(packId));
     return Ok(
       TafsirPage(
         packId: packId,
         position: position,
         book: book,
-        source: digitisationSourceOf(pack)?.name,
+        source: digitisationSourceOf(pack).name,
         version: pack.version,
       ),
     );

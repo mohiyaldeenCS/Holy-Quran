@@ -30,6 +30,8 @@ final class TafsirCopyText {
   /// The passage of book [packId] over [ayah], with the book's attribution.
   /// Fails with [NoPassageToCopy] when the book has none for the ayah.
   Future<Result<String>> compose(String packId, QuranAddress ayah) async {
+    final pack = installedTafsirOf(tafsirs, packId);
+    if (pack == null) return Failure(TafsirNotInstalled(packId));
     final TafsirPassage passage;
     switch (await tafsirs.positionAt(packId, ayah.ayahAddress)) {
       case Ok(value: final position):
@@ -47,16 +49,12 @@ final class TafsirCopyText {
         return Failure(error);
     }
     final PackText surahName;
-    switch (await _surahName(passage.range.start.surah)) {
+    switch (await _surahName(packId, passage.range.start.surah)) {
       case Ok(:final value):
         surahName = value;
       case Failure(:final error):
         return Failure(error);
     }
-    final pack = tafsirs.installed
-        .where((pack) => pack.id == packId)
-        .firstOrNull;
-    if (pack == null) return Failure(TafsirNotInstalled(packId));
     final first = passage.range.start.ayah;
     final last = passage.range.end.ayah;
     return Ok(
@@ -68,20 +66,20 @@ final class TafsirCopyText {
         first == last
             ? arabicDigits(first)
             : l10n.ayahsRangeShort(arabicDigits(first), arabicDigits(last)),
-        digitisationSourceOf(pack)?.name ?? '',
-        arabicDigits(pack.version),
+        digitisationSourceOf(pack).name,
+        l10n.sourceVersion(arabicDigits(pack.version)),
       ),
     );
   }
 
-  Future<Result<PackText>> _surahName(int surah) async {
+  Future<Result<PackText>> _surahName(String packId, int surah) async {
     switch (await quran.surahs()) {
       case Ok(value: final surahs):
         for (final info in surahs) {
           if (info.number == surah) return Ok(info.name);
         }
         return Failure(
-          AddressNotInPack(quran.riwaya, QuranAddress(quran.riwaya, surah, 1)),
+          AddressNotInPack(packId, QuranAddress(quran.riwaya, surah, 1)),
         );
       case Failure(:final error):
         return Failure(error);

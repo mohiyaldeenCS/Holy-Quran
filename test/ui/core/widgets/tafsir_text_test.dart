@@ -72,6 +72,11 @@ void main() {
     expect(style.color, AppColors.paper.inkMuted);
   });
 
+  testWidgets('puts the text whole into a template', (tester) async {
+    await _pump(tester, TafsirText(_text, format: (text) => '[$text]'));
+    expect(tester.widget<Text>(find.byType(Text)).data, '[$_value]');
+  });
+
   testWidgets('wraps at 200% text scale without overflow', (tester) async {
     tester.view
       ..physicalSize = const Size(360, 640)

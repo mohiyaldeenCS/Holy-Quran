@@ -36,29 +36,37 @@ Future<TafsirViewModel> openModel(
   List<String>? copied,
   TafsirRepository? tafsirs,
   CatalogueRepository? catalogue,
+  bool withPicker = true,
 }) async {
   final repository = tafsirs ?? fixture.tafsirs;
-  final model = TafsirViewModel(
-    address: address,
-    quran: fixture.quran,
-    tafsirs: repository,
-    catalogue: catalogue,
-    copyText: TafsirCopyText(
-      tafsirs: repository,
+  // Made and waited for in real time: the packs' checks run on other
+  // isolates, and their answers must not wait for a pump.
+  final model = (await tester.runAsync(() async {
+    final model = TafsirViewModel(
+      address: address,
       quran: fixture.quran,
-      l10n: tafsirL10n,
-    ),
-    copyToClipboard: (text) async {
-      copied?.add(text);
-      return const Ok(null);
-    },
-  );
-  addTearDown(model.dispose);
-  await tester.runAsync(() async {
-    for (var i = 0; i < 500 && !model.loaded; i++) {
+      tafsirs: repository,
+      catalogue: catalogue,
+      copyText: TafsirCopyText(
+        tafsirs: repository,
+        quran: fixture.quran,
+        l10n: tafsirL10n,
+      ),
+      copyToClipboard: (text) async {
+        copied?.add(text);
+        return const Ok(null);
+      },
+      withPicker: withPicker,
+    );
+    bool ready() =>
+        model.loaded &&
+        (!withPicker || model.downloaded.length == repository.installed.length);
+    for (var i = 0; i < 500 && !ready(); i++) {
       await Future<void>.delayed(const Duration(milliseconds: 10));
     }
-  });
+    return model;
+  }))!;
+  addTearDown(model.dispose);
   expect(model.loaded, isTrue);
   return model;
 }

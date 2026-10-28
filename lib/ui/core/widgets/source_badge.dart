@@ -12,7 +12,8 @@ import 'package:holyquran/ui/core/widgets/tafsir_text.dart';
 
 /// The source badge of PRD §7.7: the name of the source and its version
 /// under non-Quran material (`LX-11`, `TF-05`), in `caption` and `accent`
-/// beside the `info` icon. Pressing it opens the source's details through
+/// beside the `info` icon, which takes the `info` colour (tokens.md: «معلومة:
+/// مصدر البيانات»). Pressing it opens the source's details through
 /// [onPressed]. It stands at least 48 high, whatever the caption's size.
 ///
 /// [name] is the book's title from its pack; it is drawn by [TafsirText] and
@@ -49,7 +50,7 @@ class SourceBadge extends StatelessWidget {
           child: Row(
             spacing: AppSpacing.space2,
             children: [
-              Icon(IconName.info, color: colors.accent),
+              Icon(IconName.info, color: colors.info),
               Expanded(
                 child: Text.rich(
                   TextSpan(

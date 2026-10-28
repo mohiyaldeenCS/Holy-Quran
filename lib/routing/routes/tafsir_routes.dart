@@ -41,13 +41,14 @@ Widget _reader(BuildContext context, GoRouterState state) {
   // Without a text pack there is nothing to read: the screen shows its title
   // alone. The router has already sent an address that is not canonical home.
   if (quran == null) {
-    return TafsirReaderScreen(viewModel: null, onOfferDownload: () {});
+    return const TafsirReaderScreen(viewModel: null, onOfferDownload: null);
   }
   final address = Routes.addressOf(state)!;
   // Read here: a provider's create callback may not depend on the locale.
   final l10n = AppLocalizations.of(context);
   return ChangeNotifierProvider(
-    create: (context) => _viewModel(context, l10n, quran, address),
+    create: (context) =>
+        _viewModel(context, l10n, quran, address, withPicker: true),
     builder: (context, _) => TafsirReaderScreen(
       viewModel: context.read(),
       onOfferDownload: () => _offerDownload(context),
@@ -85,8 +86,9 @@ TafsirViewModel _viewModel(
   BuildContext context,
   AppLocalizations l10n,
   QuranTextRepository quran,
-  QuranAddress address,
-) {
+  QuranAddress address, {
+  bool withPicker = false,
+}) {
   final tafsirs = context.read<TafsirRepository?>();
   final clipboard = context.read<ClipboardService?>();
   return TafsirViewModel(
@@ -98,6 +100,7 @@ TafsirViewModel _viewModel(
         ? null
         : TafsirCopyText(tafsirs: tafsirs, quran: quran, l10n: l10n),
     copyToClipboard: clipboard?.copyText,
+    withPicker: withPicker,
   );
 }
 

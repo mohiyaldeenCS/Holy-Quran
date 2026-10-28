@@ -18,9 +18,8 @@ final class TafsirPage {
   final TafsirPosition position;
   final TafsirBook book;
 
-  /// The name of the source the book was digitised from; null when the
-  /// manifest lists none.
-  final String? source;
+  /// The name of the source the book was digitised from.
+  final String source;
 
   /// The pack's version.
   final int version;
@@ -47,7 +46,10 @@ final class TafsirChoice {
   });
 
   final String packId;
-  final PackText title;
+
+  /// The book's title; null when the pack failed its checks, so that it has
+  /// none to show.
+  final PackText? title;
 
   /// Whether the reader shows this book.
   final bool chosen;

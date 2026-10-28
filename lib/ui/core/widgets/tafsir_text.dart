@@ -16,6 +16,7 @@ final class TafsirText extends StatelessWidget {
     this.text, {
     this.style = AppTextStyles.tafsir,
     this.color,
+    this.format,
     super.key,
   });
 
@@ -33,9 +34,14 @@ final class TafsirText extends StatelessWidget {
   /// `ink` when null.
   final Color? color;
 
+  /// An ARB template with the text as its one placeholder, such as «الناشر:
+  /// {publisher}»; the text enters it whole and unchanged. Null draws the text
+  /// alone.
+  final String Function(String text)? format;
+
   @override
   Widget build(BuildContext context) => Text(
-    text.verbatim,
+    format?.call(text.verbatim) ?? text.verbatim,
     style: style.copyWith(color: color ?? context.colors.ink),
     textDirection: TextDirection.rtl,
     locale: _arabic,

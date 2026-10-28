@@ -31,7 +31,6 @@ class SourceDetailsSheet extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final colors = context.colors;
     final book = page.book;
-    final source = page.source;
     final value = AppTextStyles.body.copyWith(color: colors.ink);
     return CopySheetFrame(
       children: [
@@ -49,11 +48,16 @@ class SourceDetailsSheet extends StatelessWidget {
               label: l10n.sourceEditionOrEditor,
               value: TafsirText(text, style: AppTextStyles.body),
             ),
-        if (source != null)
-          _Fact(
-            label: l10n.sourceDigitisation,
-            value: Text(source, style: value),
+        if (book.publisher case final publisher?)
+          TafsirText(
+            publisher,
+            format: l10n.sourcePublisher,
+            style: AppTextStyles.body,
           ),
+        _Fact(
+          label: l10n.sourceDigitisation,
+          value: Text(page.source, style: value),
+        ),
         _Fact(
           label: l10n.versionLabel,
           value: Text(arabicDigits(page.version), style: value),
