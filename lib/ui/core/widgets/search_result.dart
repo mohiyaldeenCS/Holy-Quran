@@ -76,6 +76,11 @@ const TextStyle _moreStyle = TextStyle(
 /// a link that shows it whole; one that fits is shown whole as without
 /// [clamp]. A screen reader always gets the whole ayah, after the reference
 /// and before the actions (AX-01).
+///
+/// Whether the cut ayah is shown whole is the caller's: [expanded] says so,
+/// and the link calls [onExpand]. A card in a list that is scrolled away and
+/// built again would otherwise forget it (M0.5 review). A clamped card
+/// therefore needs an [onExpand].
 class SearchResult extends StatefulWidget {
   const SearchResult({
     required this.surahName,
@@ -84,8 +89,10 @@ class SearchResult extends StatefulWidget {
     required this.onContext,
     required this.onOpen,
     this.clamp = false,
+    this.expanded = false,
+    this.onExpand,
     super.key,
-  });
+  }) : assert(!clamp || onExpand != null, 'a clamped card needs onExpand');
 
   final PackText surahName;
   final int ayahNumber;
@@ -94,19 +101,16 @@ class SearchResult extends StatefulWidget {
   final VoidCallback onOpen;
   final bool clamp;
 
+  /// Whether a clamped ayah is shown whole.
+  final bool expanded;
+  final VoidCallback? onExpand;
+
   @override
   State<SearchResult> createState() => _SearchResultState();
 }
 
 class _SearchResultState extends State<SearchResult> {
-  bool _whole = false;
   final _cutFocus = _CutFocusNode();
-
-  @override
-  void didUpdateWidget(SearchResult oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.ayahText != widget.ayahText) _whole = false;
-  }
 
   @override
   void dispose() {
@@ -127,7 +131,7 @@ class _SearchResultState extends State<SearchResult> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final l10n = AppLocalizations.of(context);
-    final clamped = widget.clamp && !_whole;
+    final clamped = widget.clamp && !widget.expanded;
     final ayah = QuranText(
       widget.ayahText,
       size: QuranTextSize.compact,
@@ -203,7 +207,7 @@ class _SearchResultState extends State<SearchResult> {
                       ayah: ayah,
                       cut: _Cut(
                         label: l10n.searchResultShowWhole,
-                        onPressed: () => setState(() => _whole = true),
+                        onPressed: widget.onExpand,
                       ),
                     )
                   : ayah,
@@ -474,7 +478,7 @@ class _Cut extends StatelessWidget {
   const _Cut({required this.label, required this.onPressed});
 
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -517,7 +521,7 @@ class _ShowWhole extends StatelessWidget {
   const _ShowWhole({required this.label, required this.onPressed});
 
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   static const BorderRadius _focusRadius = BorderRadius.zero;
 

@@ -610,6 +610,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get toolbarPlay => 'تشغيل';
 
   @override
+  String get contextPlayFromAyah => 'تشغيل من هذه الآية';
+
+  @override
   String get toolbarBookmark => 'علامة';
 
   @override
@@ -973,6 +976,11 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get surahNotFound => 'لا توجد سورة بهذا الاسم';
+
+  @override
+  String surahNumberNotFound(String surah) {
+    return 'لا توجد سورة $surah';
+  }
 
   @override
   String get addressUnreadable => 'لم نتعرّف على الموضع المكتوب';
