@@ -52,7 +52,7 @@ final class MushafViewModel extends ChangeNotifier {
   final QuranIndexRepository? _index;
   final ReadingPositionRepository? _positions;
   final PackIntegrityRepository? _integrity;
-  QuranAddress? _address;
+  final QuranAddress? _address;
   bool _moved = false;
   EditionMap? _map;
   bool _disposed = false;
