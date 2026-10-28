@@ -48,6 +48,12 @@ final class _DirectoryBundle extends CachingAssetBundle {
 
 final _sheets = [for (final feature in appFeatures) ...feature.sheets];
 
+// The sheets that read nothing a base pack provides, so they stay open.
+const _needNoBasePack = {
+  RoutePaths.reportSheet,
+  RoutePaths.firstUseTafsirSheet,
+};
+
 /// The location of [path] with its parameters filled in, over ayah 1:1.
 String _locationOf(String path) => path
     .replaceAll(':${Routes.addressParameter}', 'hafs:1:1')
@@ -189,7 +195,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull, reason: location);
-      if (sheet.path != RoutePaths.reportSheet) {
+      if (!_needNoBasePack.contains(sheet.path)) {
         expect(router.state.uri.path, Routes.home, reason: location);
       } else {
         router.pop();
