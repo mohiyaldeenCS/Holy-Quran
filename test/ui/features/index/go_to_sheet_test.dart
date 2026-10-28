@@ -107,7 +107,6 @@ void main() {
     await type(tester, 0, arabicDigits(2));
     await submit(tester);
     expect(router.state.uri.path, Routes.mushafRead(at(2, 1)));
-    expect(find.text('reader ${at(2, 1)}'), findsOneWidget);
     expect(find.byType(GoToSheet), findsNothing);
   });
 
@@ -185,7 +184,12 @@ void main() {
       ),
       findsOneWidget,
     );
-    final name = tester.widget<SurahName>(find.byType(SurahName));
+    final name = tester.widget<SurahName>(
+      find.descendant(
+        of: find.byType(GoToSheet),
+        matching: find.byType(SurahName),
+      ),
+    );
     expect(name.name, fixture.surahs[1].name);
   });
 

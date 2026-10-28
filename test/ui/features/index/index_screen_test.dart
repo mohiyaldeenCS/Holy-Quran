@@ -181,7 +181,6 @@ void main() {
     await tester.pumpAndSettle();
     final address = QuranAddress(fixture.index.riwaya, 2, 1);
     expect(router.state.uri.path, Routes.mushafRead(address));
-    expect(find.text('reader $address'), findsOneWidget);
   });
 
   testWidgets('a juz row and a rub row open the reader at their first ayah', (

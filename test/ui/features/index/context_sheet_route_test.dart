@@ -57,16 +57,27 @@ void main() {
     return router;
   }
 
-  /// The numbers the markers on screen show, in drawing order.
+  /// The numbers the sheet's markers show, in drawing order; the reader
+  /// under the sheet draws its own.
   List<int> markers(WidgetTester tester) => [
-    for (final marker in tester.widgetList<AyahMarker>(find.byType(AyahMarker)))
+    for (final marker in tester.widgetList<AyahMarker>(
+      find.descendant(
+        of: find.byType(ContextSheet),
+        matching: find.byType(AyahMarker),
+      ),
+    ))
       marker.number,
   ];
 
   testWidgets('opens on the ayah alone, named in the header', (tester) async {
     await openSheet(tester, at(2, 5));
     expect(find.byType(ContextSheet), findsOneWidget);
-    final name = tester.widget<SurahName>(find.byType(SurahName));
+    final name = tester.widget<SurahName>(
+      find.descendant(
+        of: find.byType(ContextSheet),
+        matching: find.byType(SurahName),
+      ),
+    );
     expect(name.name, fixture.surahs[1].name);
     expect(name.ayah, 5);
     expect(markers(tester), [5]);
@@ -119,7 +130,6 @@ void main() {
     await tester.tap(find.widgetWithText(Button, _l10n.searchResultOpen));
     await tester.pumpAndSettle();
     expect(router.state.uri.path, Routes.mushafRead(at(2, 6)));
-    expect(find.text('reader ${at(2, 6)}'), findsOneWidget);
     expect(find.byType(ContextSheet), findsNothing);
   });
 

@@ -10,28 +10,12 @@ import 'package:holyquran/domain/models/quran_structure.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/routing/router.dart';
 import 'package:holyquran/routing/routes.dart';
-import 'package:holyquran/routing/routes/feature_routes.dart';
 import 'package:holyquran/ui/core/app.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../testing/fakes/fake_app_settings_repository.dart';
 import '../../../../testing/fakes/fake_reading_position_repository.dart';
 import 'index_fixture.dart';
-
-/// Stands in for the reader, which P1-14 builds: it shows its address.
-final readerStandIn = FeatureRoutes(
-  tabChildren: {
-    ShellTab.mushaf: [
-      GoRoute(
-        path: RoutePaths.mushafRead,
-        builder: (context, state) => Text(
-          'reader ${state.pathParameters[Routes.addressParameter]}',
-          textDirection: TextDirection.ltr,
-        ),
-      ),
-    ],
-  },
-);
 
 /// Pumps the app on its mushaf tab, phone sized, over [fixture] and a reading
 /// position at [last], with the index feature's routes. Returns the router.
@@ -51,7 +35,7 @@ Future<GoRouter> pumpIndexApp(
   tester.platformDispatcher.textScaleFactorTestValue = textScale;
   addTearDown(tester.view.reset);
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-  final router = createRouter(features: [...appFeatures, readerStandIn]);
+  final router = createRouter(features: appFeatures);
   addTearDown(router.dispose);
   await tester.pumpWidget(
     MultiProvider(
