@@ -10,7 +10,7 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-28 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **24 merged**: P1-01 to P1-13, P1-15, P1-16, P1-18 to P1-21, P1-25, P1-27, P1-28, P1-38, P1-39 (P1-12, P1-15, P1-25, P1-27 and P1-28 partial). **In progress**: P1-14, P1-22. **14 not started**. The lead merges after an independent review and CI (D-136) |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **25 merged**: P1-01 to P1-13, P1-15, P1-16, P1-18 to P1-22, P1-25, P1-27, P1-28, P1-38, P1-39 (P1-12, P1-15, P1-22, P1-25, P1-27 and P1-28 partial). **In progress**: P1-14 (#63), P1-17. **13 not started**. The lead merges after an independent review and CI (D-136) |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/p1-*`); worktrees under the session's scratchpad for parallel agents (D-132) |
 | Last session | 2026-10-28, local session on the owner's Windows machine, stopped for the account switch. **Read `HANDOFF.md` first**: it says exactly what was in flight (#53, P1-14, P1-22) and what each needs |
@@ -266,10 +266,17 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   a route test before any screen opens the sheets; timings in the plan; the sleep timer,
   stop-after, unlimited repeat and add-to-queue task. Reviewed by `code-reviewer` and
   `identity-auditor`.
-- In progress: P1-14 (`agent/p1-14-reader-surah-screen`, from the architect's plan
-  `docs/plans/handoff/P1-14-architect-plan.md`), P1-22 (`agent/p1-22-reader-targets`, built,
-  under review). Not started: P1-17 (wave 2), P1-23, P1-24, P1-26, P1-29, P1-30, P1-40
-  (wave 3), P1-31 to P1-34 (wave 4), P1-35 to P1-37 (wave 5).
+- **P1-22 merged (#61), partial.** Reader targets and tap resolution by D-097's one rule, hit
+  zones of 48, highlights (selected ayah, recited ayah with its filled marker, spoken word,
+  search match) each with a frame or line besides colour, `InteractiveSurahSliver` and the
+  pinch handler `ReaderPinchStepper` (D-141). AX-02 met for markers and marks (words keep the
+  in-text exception of M0.4-5). Partial: the 6, 12 and 18 px taps on the synthetic pack only;
+  the selected marker state (P1-23, D-140 (5)); no screen-reader route to a marker. Pending
+  human check: how taps and pinch feel on a device. Follow-ups in D-141. Reviewed by
+  `code-reviewer` (opus, twice; then a verification) and `identity-auditor`.
+- In progress: P1-14 (#63), P1-17 (`agent/p1-17-index-and-navigation`, built, to review).
+  Not started: P1-23, P1-24, P1-26, P1-29, P1-30, P1-40 (wave 3), P1-31 to P1-34 (wave 4),
+  P1-35 to P1-37 (wave 5).
 - The local branches of 2026-10-13 (`fix/bookmark-restore-nullable`,
   `chore/analysis-exclude-platform-dirs`) are not needed on the pinned SDK (analyze is
   clean without them) and are not pushed (D-129). On the owner's machine
