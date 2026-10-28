@@ -228,7 +228,11 @@ void main() {
     await _pump(tester, viewModel);
 
     expect(find.text('Synthetic reciter'), findsOneWidget);
-    expect(find.text('Synthetic style'), findsOneWidget);
+    // The riwaya as the catalogue gives it, then the style.
+    expect(
+      find.text(['hafs', 'Synthetic style'].join(_l10n.dataSeparator)),
+      findsOneWidget,
+    );
     expect(
       find.text(_l10n.surahAyahReference('Synthetic surah 1', arabicDigits(2))),
       findsOneWidget,

@@ -86,7 +86,10 @@ class PlayerScreen extends StatelessWidget {
                 children: [
                   RecitationCard(
                     reciter: player?.reciter,
-                    details: player?.style,
+                    details: [
+                      ?player?.riwaya,
+                      ?player?.style,
+                    ].join(l10n.dataSeparator),
                     onChange: () => context.go(Routes.recitations),
                   ),
                   if (surah != null)

@@ -31,13 +31,17 @@ const _listedReciter = 'Synthetic reciter synthetic-listed';
 const _pendingReciter = 'Synthetic reciter synthetic-rights-pending';
 const _style = 'Synthetic style';
 
-String _line(List<String> items) => items.join(' · ');
+String _line(List<String> items) => items.join(_l10n.dataSeparator);
+
+/// What the catalogue gives, shown unchanged.
+const _riwaya = 'hafs';
+const _timedRiwaya = 'synthetic_riwaya';
 
 CatalogueRecitation _timed() => CatalogueRecitation(
   recitation: Recitation(
     id: 'synthetic-timed',
     reciter: 'Synthetic reciter synthetic-timed',
-    riwaya: 'hafs',
+    riwaya: _timedRiwaya,
     style: _style,
     unit: RecitationUnit.surah,
     hasWordTiming: true,
@@ -140,10 +144,15 @@ void main() {
     expect(find.byType(RecitationCard), findsOneWidget);
   });
 
-  testWidgets('shows the style and the download state', (tester) async {
+  testWidgets('shows the riwaya, the style and the download state', (
+    tester,
+  ) async {
     final installs = FakePackInstallRepository();
     await _pump(tester, _viewModel(installs: installs));
-    expect(find.text(_line([_style, _l10n.resourceAvailable])), findsOneWidget);
+    expect(
+      find.text(_line([_riwaya, _style, _l10n.resourceAvailable])),
+      findsOneWidget,
+    );
 
     installs.jobs = [
       InstallJob(
@@ -157,7 +166,7 @@ void main() {
     ];
     await tester.pump();
     expect(
-      find.text(_line([_style, _l10n.percentValue(arabicDigits(40))])),
+      find.text(_line([_riwaya, _style, _l10n.percentValue(arabicDigits(40))])),
       findsOneWidget,
     );
 
@@ -166,7 +175,7 @@ void main() {
       ..installed = [_installed('synthetic-recitation')];
     await tester.pump();
     expect(
-      find.text(_line([_style, _l10n.resourceDownloaded])),
+      find.text(_line([_l10n.recitationDownloadedLine(_riwaya), _style])),
       findsOneWidget,
     );
   });
@@ -179,7 +188,10 @@ void main() {
       _viewModel(recitations: [_timed()], withCatalogue: false),
     );
 
-    expect(find.text(_line([_style, _l10n.wordTimingTag])), findsOneWidget);
+    expect(
+      find.text(_line([_timedRiwaya, _style, _l10n.wordTimingTag])),
+      findsOneWidget,
+    );
   });
 
   testWidgets('with no recitation the list is empty', (tester) async {
