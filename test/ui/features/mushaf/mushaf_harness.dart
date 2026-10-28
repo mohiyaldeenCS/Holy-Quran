@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/data/repositories/pack_quran_text_repository.dart';
@@ -142,4 +143,54 @@ void setReaderView(WidgetTester tester, [Size? size]) {
     ..physicalSize = size ?? const Size(readerWidth, readerHeight)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
+}
+
+ScrollController scrollOf(WidgetTester tester) =>
+    tester.widget<CustomScrollView>(find.byType(CustomScrollView)).controller!;
+
+/// Every semantics label on screen. Needs `tester.ensureSemantics()`.
+Set<String> semanticLabels(WidgetTester tester) {
+  final labels = <String>{};
+  void visit(SemanticsNode node) {
+    if (node.label.isNotEmpty) labels.add(node.label);
+    node.visitChildren((child) {
+      visit(child);
+      return true;
+    });
+  }
+
+  visit(
+    tester
+        .renderObject(find.byType(MushafScreen))
+        .owner!
+        .semanticsOwner!
+        .rootSemanticsNode!,
+  );
+  return labels;
+}
+
+/// Scrolls the reader from where it is to the end of the last surah of the
+/// pack, half a screen at a time, and returns every label it showed on the
+/// way. Needs `tester.ensureSemantics()`.
+Future<Set<String>> labelsFromScrollingToEnd(
+  WidgetTester tester,
+  MushafViewModel viewModel, {
+  required int lastSurah,
+}) async {
+  final labels = <String>{};
+  final controller = scrollOf(tester);
+  for (var step = 0; step < 1000; step++) {
+    labels.addAll(semanticLabels(tester));
+    final position = controller.position;
+    final atEnd = position.pixels >= position.maxScrollExtent;
+    if (atEnd && viewModel.surahs.last.info.number == lastSurah) return labels;
+    controller.jumpTo(
+      (position.pixels + position.viewportDimension / 2).clamp(
+        0,
+        position.maxScrollExtent,
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+  fail('The reader did not reach the end of surah $lastSurah.');
 }
