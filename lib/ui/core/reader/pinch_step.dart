@@ -15,7 +15,7 @@ typedef FocalAyah = ({int ayah, double fraction});
 /// The ayah at [y], a position in [layout]'s sliver: the ayah of the line
 /// there, the one the line continues when it starts inside an ayah. Above the
 /// text it is the first ayah, past it the last.
-FocalAyah focalAyahAt(SurahLayout layout, double y) {
+FocalAyah focalAyahOfLine(SurahLayout layout, double y) {
   final line = ((y - layout.basmalaExtent) / layout.lineHeight).floor().clamp(
     0,
     layout.lines.length - 1,

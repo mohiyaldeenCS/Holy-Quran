@@ -60,7 +60,7 @@ void main() {
           plan.basmalaExtent + plan.lineOfAyahText(20) * plan.lineHeight;
       final bottom =
           plan.basmalaExtent + (plan.lineOfAyahEnd(20) + 1) * plan.lineHeight;
-      final focal = focalAyahAt(plan, (top + bottom) / 2);
+      final focal = focalAyahOfLine(plan, (top + bottom) / 2);
       expect(focal.ayah, 20);
       expect(focal.fraction, closeTo(0.5, 1e-9));
       expect(yOfFocalAyah(plan, focal), closeTo((top + bottom) / 2, 1e-9));
@@ -73,9 +73,9 @@ void main() {
       for (final ayah in [3, 12, 20, longSurahAyat]) {
         final top =
             small.basmalaExtent + small.lineOfAyahText(ayah) * small.lineHeight;
-        final focal = focalAyahAt(small, top + small.lineHeight / 2);
+        final focal = focalAyahOfLine(small, top + small.lineHeight / 2);
         final y = yOfFocalAyah(large, focal);
-        final back = focalAyahAt(large, y);
+        final back = focalAyahOfLine(large, y);
         expect(back.ayah, focal.ayah, reason: 'ayah $ayah');
         expect(back.fraction, closeTo(focal.fraction, 1e-9));
         final largeTop =
@@ -88,10 +88,10 @@ void main() {
     test('above the text the first ayah at its top, past it the last at its '
         'bottom', () {
       final plan = _plan(fixture, 1);
-      final first = focalAyahAt(plan, 0);
+      final first = focalAyahOfLine(plan, 0);
       expect(first.ayah, 1);
       expect(first.fraction, 0);
-      final last = focalAyahAt(plan, plan.height + 100);
+      final last = focalAyahOfLine(plan, plan.height + 100);
       expect(last.ayah, longSurahAyat);
       expect(last.fraction, 1);
     });
