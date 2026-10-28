@@ -1,4 +1,4 @@
 text: accent on selection
-decision: D-089
+decision: D-140
 exception: paper 4.30
-The selected ayah's marker number; the shortfall joins the declared exceptions of O-12.
+The selected ayah's marker number; the shortfall is declared in D-140 (5).
