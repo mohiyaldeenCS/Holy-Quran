@@ -97,7 +97,11 @@ void main() {
   });
 
   test('saves the ayah heard, not the first of the plan', () {
-    final state = playing(const Duration(seconds: 2), of: wholeSurah, segment: 1);
+    final state = playing(
+      const Duration(seconds: 2),
+      of: wholeSurah,
+      segment: 1,
+    );
     recorder.update(state);
     recorder.update(state.copyWith(playing: false));
 
@@ -116,9 +120,7 @@ void main() {
   });
 
   test('keeps no offset in a silence, whose segment has been heard', () {
-    final state = playing(
-      const Duration(seconds: 7),
-    ).copyWith(inSilence: true);
+    final state = playing(const Duration(seconds: 7)).copyWith(inSilence: true);
     recorder.update(state);
     recorder.update(state.copyWith(playing: false));
 
