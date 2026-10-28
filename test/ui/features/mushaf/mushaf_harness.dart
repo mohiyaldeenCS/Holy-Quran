@@ -37,7 +37,23 @@ final class MushafRig {
   /// The surah that gives no place of revelation.
   static const surahWithoutPlace = 2;
 
-  static Future<MushafRig> load(Directory root) async {
+  /// [distinctAyat] gives every ayah a text of its own, so that a label
+  /// names one address.
+  static Future<MushafRig> load(
+    Directory root, {
+    bool distinctAyat = false,
+  }) async {
+    var count = 0;
+    String distinct(String text) {
+      var n = count++;
+      final suffix = <String>[];
+      do {
+        suffix.add(readerWords[n % readerWords.length]);
+        n ~/= readerWords.length;
+      } while (n > 0);
+      return '$text ${suffix.join(' ')}';
+    }
+
     final built = await buildSyntheticPack(
       root,
       surahs: [
@@ -45,7 +61,12 @@ final class MushafRig {
           SyntheticSurah(
             name: surah.name,
             basmala: surah.basmala,
-            ayat: surah.ayat,
+            ayat: distinctAyat
+                ? [
+                    for (final ayah in surah.ayat)
+                      SyntheticAyah(distinct(ayah.text)),
+                  ]
+                : surah.ayat,
             revelationPlace: switch (index + 1) {
               surahWithoutPlace => null,
               final number when number.isOdd => 'makki',
@@ -148,9 +169,10 @@ void setReaderView(WidgetTester tester, [Size? size]) {
 ScrollController scrollOf(WidgetTester tester) =>
     tester.widget<CustomScrollView>(find.byType(CustomScrollView)).controller!;
 
-/// Every semantics label on screen. Needs `tester.ensureSemantics()`.
-Set<String> semanticLabels(WidgetTester tester) {
-  final labels = <String>{};
+/// Every semantics label on screen, in the order a screen reader meets them.
+/// Needs `tester.ensureSemantics()`.
+List<String> semanticLabelList(WidgetTester tester) {
+  final labels = <String>[];
   void visit(SemanticsNode node) {
     if (node.label.isNotEmpty) labels.add(node.label);
     node.visitChildren((child) {
@@ -169,21 +191,27 @@ Set<String> semanticLabels(WidgetTester tester) {
   return labels;
 }
 
+/// Every semantics label on screen. Needs `tester.ensureSemantics()`.
+Set<String> semanticLabels(WidgetTester tester) =>
+    semanticLabelList(tester).toSet();
+
 /// Scrolls the reader from where it is to the end of the last surah of the
-/// pack, half a screen at a time, and returns every label it showed on the
-/// way. Needs `tester.ensureSemantics()`.
-Future<Set<String>> labelsFromScrollingToEnd(
+/// pack, half a screen at a time, and returns the labels it showed at each
+/// step, in reading order. Needs `tester.ensureSemantics()`.
+Future<List<List<String>>> labelSnapshotsScrollingToEnd(
   WidgetTester tester,
   MushafViewModel viewModel, {
   required int lastSurah,
 }) async {
-  final labels = <String>{};
+  final snapshots = <List<String>>[];
   final controller = scrollOf(tester);
   for (var step = 0; step < 1000; step++) {
-    labels.addAll(semanticLabels(tester));
+    snapshots.add(semanticLabelList(tester));
     final position = controller.position;
     final atEnd = position.pixels >= position.maxScrollExtent;
-    if (atEnd && viewModel.surahs.last.info.number == lastSurah) return labels;
+    if (atEnd && viewModel.surahs.last.info.number == lastSurah) {
+      return snapshots;
+    }
     controller.jumpTo(
       (position.pixels + position.viewportDimension / 2).clamp(
         0,
@@ -194,3 +222,17 @@ Future<Set<String>> labelsFromScrollingToEnd(
   }
   fail('The reader did not reach the end of surah $lastSurah.');
 }
+
+/// Every label [labelSnapshotsScrollingToEnd] showed.
+Future<Set<String>> labelsFromScrollingToEnd(
+  WidgetTester tester,
+  MushafViewModel viewModel, {
+  required int lastSurah,
+}) async => {
+  for (final snapshot in await labelSnapshotsScrollingToEnd(
+    tester,
+    viewModel,
+    lastSurah: lastSurah,
+  ))
+    ...snapshot,
+};
