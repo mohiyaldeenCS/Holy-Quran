@@ -43,7 +43,13 @@ final class _Host extends StatefulWidget {
 
 final class _HostState extends State<_Host> {
   late int step = widget.firstStep;
-  SurahLayout? layout;
+  final layout = ValueNotifier<SurahLayout?>(null);
+
+  @override
+  void dispose() {
+    layout.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => ReaderPinchStepper(
@@ -61,7 +67,7 @@ final class _HostState extends State<_Host> {
           InteractiveSurahSliver(
             text: widget.text,
             step: readerTextSteps[step],
-            onLayout: (next) => setState(() => layout = next),
+            onLayout: (next) => layout.value = next,
           ),
         ],
       ),
@@ -86,7 +92,7 @@ void main() {
   late List<int> steps;
 
   SurahLayout layoutOf(WidgetTester tester) {
-    final layout = tester.state<_HostState>(find.byType(_Host)).layout;
+    final layout = tester.state<_HostState>(find.byType(_Host)).layout.value;
     expect(layout, isNotNull);
     return layout!;
   }
@@ -119,6 +125,21 @@ void main() {
     controller.jumpTo(offset);
     await tester.pumpAndSettle();
     return layoutOf(tester);
+  }
+
+  /// What every frame from now on painted: the host's step and the scroll
+  /// offset when the frame was drawn.
+  List<({int step, double offset})> recordFrames(WidgetTester tester) {
+    final frames = <({int step, double offset})>[];
+    final host = tester.state<_HostState>(find.byType(_Host));
+    var recording = true;
+    addTearDown(() => recording = false);
+    tester.binding.addPersistentFrameCallback((_) {
+      if (recording && controller.hasClients) {
+        frames.add((step: host.step, offset: controller.offset));
+      }
+    });
+    return frames;
   }
 
   FocalAyah underFingers(SurahLayout layout) => focalAyahUnder(
@@ -183,6 +204,19 @@ void main() {
       final after = layoutOf(tester);
       final y = yOfFocalAyah(after, focal) - controller.offset;
       expect((y - _fingers.dy).abs(), lessThanOrEqualTo(after.lineHeight));
+    });
+
+    testWidgets('shows the new size at the old offset for one frame at most', (
+      tester,
+    ) async {
+      await open(tester, step: 2, offset: 500);
+      final frames = recordFrames(tester);
+      await pinch(tester, 1.3);
+      final next = steps.single;
+      final late = frames.where((f) => f.step == next && f.offset == 500);
+      expect(late.length, lessThanOrEqualTo(1));
+      expect(controller.offset, isNot(500));
+      expect(frames.last.step, next);
     });
 
     testWidgets('on the basmala at the top leaves the view at the top', (

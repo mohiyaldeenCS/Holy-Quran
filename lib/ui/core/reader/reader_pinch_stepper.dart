@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/ui/core/theme/theme_context.dart';
@@ -14,10 +15,12 @@ import 'surah_layout.dart';
 /// The screen owns the step ([step], an index into the ladder) and sets the
 /// sliver's size from it: [onStep] is called with the step a pinch leads to,
 /// which is never [step]. The screen also hands back the sliver's latest plan
-/// as [layout], from `onLayout`. When a new plan arrives for the same text,
-/// whatever changed it, the scroll offset is set so that the ayah at the top
-/// of the screen, or the one the pinch kept, is where it was: a turn of the
-/// device keeps the first ayah showing.
+/// through [layout], which its `onLayout` sets. When a new plan arrives for
+/// the same text, whatever changed it, the scroll offset is set at once, in
+/// the callback that reported the plan, so that the ayah at the top of the
+/// screen, or the one the pinch kept, is where it was: the new size shows for
+/// one frame at the old offset and not longer. A turn of the device keeps the
+/// first ayah showing.
 ///
 /// This widget's box is the scroll view's viewport, so [child] fills it. The
 /// sliver is as wide as that box and starts [leadingExtent] below the top of
@@ -34,7 +37,7 @@ final class ReaderPinchStepper extends StatefulWidget {
   });
 
   final ScrollController scrollController;
-  final SurahLayout? layout;
+  final ValueListenable<SurahLayout?> layout;
   final int step;
   final ValueChanged<int> onStep;
   final double leadingExtent;
@@ -51,11 +54,14 @@ typedef _Anchor = ({FocalAyah focal, double viewportY});
 final class _ReaderPinchStepperState extends State<ReaderPinchStepper> {
   _Anchor? _top;
   _Anchor? _pinch;
+  SurahLayout? _known;
 
   @override
   void initState() {
     super.initState();
+    _known = widget.layout.value;
     widget.scrollController.addListener(_scrolled);
+    widget.layout.addListener(_planned);
     WidgetsBinding.instance.addPostFrameCallback((_) => _recordTop());
   }
 
@@ -66,31 +72,17 @@ final class _ReaderPinchStepperState extends State<ReaderPinchStepper> {
       oldWidget.scrollController.removeListener(_scrolled);
       widget.scrollController.addListener(_scrolled);
     }
-    final layout = widget.layout;
-    final before = oldWidget.layout;
-    if (identical(layout, before)) return;
-    final anchor = _pinch ?? _top;
-    _pinch = null;
-    if (layout == null ||
-        before == null ||
-        !identical(layout.text, before.text)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _recordTop());
-      return;
+    if (oldWidget.layout != widget.layout) {
+      oldWidget.layout.removeListener(_planned);
+      widget.layout.addListener(_planned);
+      _known = widget.layout.value;
     }
-    // The new plan has been laid out by now, so the scroll extents are its
-    // own; the jump waits for the end of the frame because a scroll listener
-    // may set state.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && identical(widget.layout, layout) && anchor != null) {
-        _restore(layout, anchor);
-      }
-      _recordTop();
-    });
   }
 
   @override
   void dispose() {
     widget.scrollController.removeListener(_scrolled);
+    widget.layout.removeListener(_planned);
     super.dispose();
   }
 
@@ -98,13 +90,31 @@ final class _ReaderPinchStepperState extends State<ReaderPinchStepper> {
       ? widget.scrollController.position
       : null;
 
+  // Runs in the callback after the frame that laid the plan out, so the scroll
+  // extents are the plan's own and a scroll listener may set state.
+  void _planned() {
+    final layout = widget.layout.value;
+    final before = _known;
+    if (identical(layout, before)) return;
+    _known = layout;
+    final anchor = _pinch ?? _top;
+    _pinch = null;
+    if (layout != null &&
+        before != null &&
+        identical(layout.text, before.text) &&
+        anchor != null) {
+      _restore(layout, anchor);
+    }
+    _recordTop();
+  }
+
   void _scrolled() {
     _pinch = null;
     _recordTop();
   }
 
   void _recordTop() {
-    final layout = widget.layout;
+    final layout = widget.layout.value;
     final position = _position;
     if (!mounted || layout == null || position == null) return;
     final y = position.pixels - widget.leadingExtent;
@@ -126,7 +136,7 @@ final class _ReaderPinchStepperState extends State<ReaderPinchStepper> {
   void _pinched(double scale, Offset focalPoint) {
     final next = stepAfterPinch(widget.step, scale);
     if (next == widget.step) return;
-    final layout = widget.layout;
+    final layout = widget.layout.value;
     final position = _position;
     if (layout != null && position != null) {
       final local = (context.findRenderObject()! as RenderBox).globalToLocal(
