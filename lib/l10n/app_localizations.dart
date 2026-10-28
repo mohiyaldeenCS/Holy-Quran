@@ -1971,6 +1971,38 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{count, plural, one{دقيقة واحدة} two{دقيقتان} few{{digits} دقائق} many{{digits} دقيقة} other{{digits} دقيقة}}'**
   String minutesCount(int count, String digits);
+
+  /// Proposed by P1-30 for the lead's approval (D-128 (5), Appendix C): a source's version, made of the approved label versionLabel (TF-05) and the number. version is the pack's version, already written in Arabic-Indic digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإصدار {version}'**
+  String sourceVersion(String version);
+
+  /// Proposed by P1-30 for the lead's approval (D-128 (5), Appendix C): the ayat a tafsir passage explains together (TF-04), made of the approved words rangeFrom, rangeTo and repeatUnitAyah. from and to are ayah numbers, already written in Arabic-Indic digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'من الآية {from} إلى الآية {to}'**
+  String tafsirRange(String from, String to);
+
+  /// Proposed by P1-30 for the lead's approval (D-128 (5), Appendix C): a run of ayah numbers inside the reference of a copied tafsir passage, with an en dash and no word. from and to are ayah numbers, already written in Arabic-Indic digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'{from}–{to}'**
+  String ayahsRangeShort(String from, String to);
+
+  /// Proposed by P1-30 for the lead's approval (D-128 (5), Appendix C): a copied tafsir passage with its attribution (TF-10). passage, title, author and surah are text from the pack, substituted whole and unchanged; ayahs is the passage's ayah number or ayahsRangeShort; source is the digitisation source's name from the manifest; version is the pack's version. Numbers arrive already written in Arabic-Indic digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'{passage}\n\n{title} · {author}\n[{surah}: {ayahs}]\n{source} · الإصدار {version}'**
+  String tafsirCopyFormat(
+    String passage,
+    String title,
+    String author,
+    String surah,
+    String ayahs,
+    String source,
+    String version,
+  );
 }
 
 class _AppLocalizationsDelegate

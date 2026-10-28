@@ -8,6 +8,8 @@ import 'package:holyquran/ui/core/widgets/mode_chips.dart';
 import 'package:holyquran/ui/core/widgets/search_field.dart';
 import 'package:holyquran/ui/core/widgets/search_result.dart';
 import 'package:holyquran/ui/core/widgets/search_summary.dart';
+import 'package:holyquran/ui/core/widgets/source_badge.dart';
+import 'package:holyquran/ui/core/widgets/tafsir_text.dart';
 import 'package:holyquran/ui/core/widgets/word_sheet.dart';
 
 // WordSheet/preview.html: «الكلمة ٢ من ٢»; WordSheet in index.jsx:
@@ -27,10 +29,12 @@ const List<({int ayah, bool clamp})> _results = [
 ];
 // SearchResult/preview.html: the results column has `gap: 10`.
 const double _resultGap = 10;
+// A synthetic pack version for the source badge.
+const int _badgeVersion = 1;
 
 /// The gallery's study and search section: `WordSheet`, `SearchField`,
 /// `ModeChips`, `SearchSummary` and `SearchResult`, as their previews show
-/// them, on synthetic text.
+/// them, then tafsir text under its source badge, on synthetic text.
 class StudySearchGallery extends StatefulWidget {
   const StudySearchGallery({super.key});
 
@@ -146,6 +150,21 @@ class _StudySearchGalleryState extends State<StudySearchGallery> {
                   onContext: _none,
                   onOpen: _none,
                 ),
+            ],
+          ),
+        ),
+        GallerySection(
+          title: l10n.tafsirReaderTitle,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TafsirText(GallerySamples.longText(l10n)),
+              SourceBadge(
+                name: GallerySamples.text(l10n),
+                version: _badgeVersion,
+                onPressed: _none,
+              ),
             ],
           ),
         ),

@@ -13,6 +13,8 @@ import 'package:holyquran/ui/core/widgets/quran_text.dart';
 import 'package:holyquran/ui/core/widgets/search_field.dart';
 import 'package:holyquran/ui/core/widgets/search_result.dart';
 import 'package:holyquran/ui/core/widgets/search_summary.dart';
+import 'package:holyquran/ui/core/widgets/source_badge.dart';
+import 'package:holyquran/ui/core/widgets/tafsir_text.dart';
 import 'package:holyquran/ui/core/widgets/word_sheet.dart';
 
 import '../../../../testing/clip.dart';
@@ -104,7 +106,7 @@ void main() {
     }
   }
 
-  testWidgets('titles its five sections and shows each widget', (tester) async {
+  testWidgets('titles its six sections and shows each widget', (tester) async {
     await _pump(tester);
     expect(
       tester
@@ -116,8 +118,11 @@ void main() {
         _l10n.gallerySectionModeChips,
         _l10n.gallerySectionSearchSummary,
         _l10n.gallerySectionSearchResult,
+        _l10n.tafsirReaderTitle,
       ],
     );
+    expect(find.byType(TafsirText), findsOneWidget);
+    expect(find.byType(SourceBadge), findsOneWidget);
     expect(find.byType(WordSheet), findsOneWidget);
     expect(find.byType(SearchField), findsNWidgets(2));
     expect(find.byType(ModeChips), findsOneWidget);
@@ -144,6 +149,14 @@ void main() {
       expect(row.value, _l10n.sampleRowValue);
     }
     expect(sheet.note, _l10n.sampleNote);
+    expect(
+      tester.widget<TafsirText>(find.byType(TafsirText)).text,
+      PackText.fromPack(_l10n.sampleLongText),
+    );
+    expect(
+      tester.widget<SourceBadge>(find.byType(SourceBadge)).name,
+      PackText.fromPack(_l10n.sampleText),
+    );
     final summary = tester.widget<SearchSummary>(find.byType(SearchSummary));
     expect(summary.title, _l10n.sampleSearchTitle);
     expect(summary.count, _l10n.sampleSearchCount);

@@ -1084,4 +1084,32 @@ class AppLocalizationsAr extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String sourceVersion(String version) {
+    return 'الإصدار $version';
+  }
+
+  @override
+  String tafsirRange(String from, String to) {
+    return 'من الآية $from إلى الآية $to';
+  }
+
+  @override
+  String ayahsRangeShort(String from, String to) {
+    return '$from–$to';
+  }
+
+  @override
+  String tafsirCopyFormat(
+    String passage,
+    String title,
+    String author,
+    String surah,
+    String ayahs,
+    String source,
+    String version,
+  ) {
+    return '$passage\n\n$title · $author\n[$surah: $ayahs]\n$source · الإصدار $version';
+  }
 }
