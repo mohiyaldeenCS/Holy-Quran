@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/pressable.dart';
 import 'package:holyquran/ui/core/widgets/star_outline.dart';
 import 'package:holyquran/ui/core/widgets/surah_header.dart';
 import 'package:holyquran/ui/core/widgets/surah_name.dart';
@@ -138,5 +141,74 @@ void main() {
         greaterThan(size == SurahHeaderSize.lg ? 77 : 69),
       );
     }
+  });
+
+  group('with an information line to open', () {
+    testWidgets('is not a button without a callback', (tester) async {
+      await _pump(tester, const SurahHeader(name: _packName, info: _info));
+      expect(find.byType(Pressable), findsNothing);
+    });
+
+    testWidgets('is one button, at least 48 high, drawn as without', (
+      tester,
+    ) async {
+      var opened = 0;
+      await _pump(tester, const SurahHeader(name: _packName, info: _info));
+      final drawn = tester.getSize(find.byType(SurahHeader));
+
+      await _pump(
+        tester,
+        SurahHeader(
+          name: _packName,
+          info: _info,
+          onInfoPressed: () => opened++,
+        ),
+      );
+      expect(tester.getSize(find.byType(SurahHeader)), drawn);
+      expect(drawn.height, greaterThanOrEqualTo(AppSizes.targetMin));
+      expect(
+        tester.getSize(find.byType(Pressable)).height,
+        greaterThanOrEqualTo(AppSizes.targetMin),
+      );
+
+      await tester.tap(find.byType(SurahHeader));
+      await tester.tap(find.text(_info));
+      expect(opened, 2);
+    });
+
+    testWidgets('is read as one button with its name, information and hint', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await _pump(
+        tester,
+        SurahHeader(name: _packName, info: _info, onInfoPressed: () {}),
+      );
+
+      final node = tester.getSemantics(find.byType(Pressable));
+      expect(node.label, contains(l10n.surahTitle(_name)));
+      expect(node.label, contains(_info));
+      expect(node.hint, l10n.surahIntroTitle);
+      // ignore: deprecated_member_use
+      expect(node.hasFlag(SemanticsFlag.isButton), isTrue);
+      expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+      handle.dispose();
+    });
+
+    testWidgets('opens from the keyboard', (tester) async {
+      var opened = 0;
+      await _pump(
+        tester,
+        SurahHeader(
+          name: _packName,
+          info: _info,
+          onInfoPressed: () => opened++,
+        ),
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      expect(opened, 1);
+    });
   });
 }
