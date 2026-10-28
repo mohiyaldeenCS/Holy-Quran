@@ -18,6 +18,7 @@ import 'package:holyquran/config/providers/tafsir_providers.dart';
 import 'package:holyquran/config/providers/user_data_providers.dart';
 import 'package:holyquran/config/providers/user_database_providers.dart';
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
+import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/data/services/clipboard_service.dart';
 import 'package:holyquran/data/services/link_service.dart';
 import 'package:holyquran/data/services/share_service.dart';
@@ -71,6 +72,7 @@ void main() {
     expect(providers.map((provider) => provider.runtimeType), [
       Provider<UserDatabase>,
       ListenableProvider<AppSettingsRepository>,
+      ListenableProvider<ReadingPositionRepository>,
       Provider<ClipboardService>,
       Provider<ShareService>,
       Provider<LinkService>,

@@ -1,0 +1,3 @@
+text: quran-ink on selection
+decision: D-088
+The ayah asked for in the context sheet and the selected ayah of the reader.

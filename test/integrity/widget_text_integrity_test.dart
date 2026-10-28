@@ -205,6 +205,7 @@ void main() {
                 onContext: _ignore,
                 onOpen: _ignore,
                 clamp: clamp,
+                onExpand: clamp ? _ignore : null,
               ),
             ),
           ),
