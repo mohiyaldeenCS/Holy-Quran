@@ -503,6 +503,7 @@ void main() {
             ayahText: _long,
             clamp: true,
             expanded: true,
+            onExpand: () {},
             onContext: () {},
             onOpen: () {},
           ),
@@ -516,11 +517,9 @@ void main() {
     expect(_fade(), findsNothing);
   });
 
-  testWidgets('a clamped card with no onExpand shows a link that does '
-      'nothing', (tester) async {
-    await _pump(
-      tester,
-      SearchResult(
+  test('a clamped card without onExpand is refused', () {
+    expect(
+      () => SearchResult(
         surahName: _name,
         ayahNumber: 45,
         ayahText: _long,
@@ -528,10 +527,8 @@ void main() {
         onContext: () {},
         onOpen: () {},
       ),
+      throwsAssertionError,
     );
-    await tester.tap(_more());
-    await tester.pump();
-    expect(_more(), findsOneWidget);
   });
 
   testWidgets('reads the reference, two labelled buttons and the ayah', (

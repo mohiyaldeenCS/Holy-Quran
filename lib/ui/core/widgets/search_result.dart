@@ -79,8 +79,8 @@ const TextStyle _moreStyle = TextStyle(
 ///
 /// Whether the cut ayah is shown whole is the caller's: [expanded] says so,
 /// and the link calls [onExpand]. A card in a list that is scrolled away and
-/// built again would otherwise forget it (M0.5 review). A link without an
-/// [onExpand] does nothing.
+/// built again would otherwise forget it (M0.5 review). A clamped card
+/// therefore needs an [onExpand].
 class SearchResult extends StatefulWidget {
   const SearchResult({
     required this.surahName,
@@ -92,7 +92,7 @@ class SearchResult extends StatefulWidget {
     this.expanded = false,
     this.onExpand,
     super.key,
-  });
+  }) : assert(!clamp || onExpand != null, 'a clamped card needs onExpand');
 
   final PackText surahName;
   final int ayahNumber;
