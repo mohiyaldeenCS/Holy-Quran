@@ -32,6 +32,10 @@ class QueueSheet extends StatelessWidget {
         title: AppLocalizations.of(context).queueLabel,
         children: [
           if (queue.isNotEmpty)
+            // No reduce-motion switch is needed: when the system asks for it
+            // (the flag MediaQuery.disableAnimations reads), the framework
+            // runs the list's 250 ms drag and drop motions at 5 %, under one
+            // frame.
             ReorderableListView(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),

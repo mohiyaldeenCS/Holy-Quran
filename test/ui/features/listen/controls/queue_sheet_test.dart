@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Icon, IconButton, RepeatMode;
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -88,6 +89,51 @@ void main() {
         tester.widget<Text>(rows.first).data,
         l10n.surahTitle('Synthetic surah 2'),
       );
+    });
+
+    /// Drags the first row below the second and lets go; the frames of 16 ms
+    /// after that in which the row still moves into its place.
+    Future<int> framesAfterDrop(WidgetTester tester) async {
+      final player = queued([surah2, juz1]);
+      final app = ControlsApp(player: player, builder: builder, index: index);
+      await app.open(tester, Routes.queueSheet);
+      final first = find.text(l10n.surahTitle('Synthetic surah 2'));
+      final rowHeight = tester
+          .getSize(find.byType(ReorderableDelayedDragStartListener).first)
+          .height;
+      final drag = await tester.startGesture(tester.getCenter(first));
+      await tester.pump(kLongPressTimeout * 2);
+      for (var step = 0; step < 10; step++) {
+        await drag.moveBy(Offset(0, rowHeight * 0.15));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await tester.pump(const Duration(seconds: 1));
+      await drag.up();
+      var frames = 0;
+      await tester.pump();
+      while (tester.hasRunningAnimations) {
+        frames++;
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(player.state.queue, [juz1, surah2]);
+      return frames;
+    }
+
+    testWidgets('moves rows without motion when the system reduces it', (
+      tester,
+    ) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      // The framework runs the list's 250 ms motions at 5 % then: the row
+      // is in its place on the next frame.
+      expect(await framesAfterDrop(tester), lessThanOrEqualTo(1));
+    });
+
+    testWidgets('moves rows with motion otherwise', (tester) async {
+      expect(await framesAfterDrop(tester), greaterThan(1));
     });
 
     testWidgets('offers the move actions to a screen reader', (tester) async {
