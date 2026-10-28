@@ -29,7 +29,7 @@ void main() {
           ),
         ]),
       ),
-      surfaceSize: const Size(390, 160),
+      surfaceSize: const Size(390, 180),
     );
   });
 }
