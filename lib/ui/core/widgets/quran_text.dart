@@ -1,9 +1,11 @@
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/domain/models/pack_text.dart';
+import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/ramps.g.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/surah_name.dart';
 
 /// The sizes of Quran text (`.qk-quran-*`).
 enum QuranTextSize {
@@ -50,7 +52,9 @@ final class QuranText extends StatelessWidget {
     this.align = QuranTextAlign.justify,
     this.colour = QuranTextColour.quranInk,
     super.key,
-  }) : cardFontSize = null;
+  }) : cardFontSize = null,
+       after = null,
+       _quoted = false;
 
   /// The ayah on a share card (D-085, D-089): centred, line height 2.2, at
   /// [fontSize], which the caller fits and which is at least 22. The card is
@@ -63,7 +67,23 @@ final class QuranText extends StatelessWidget {
   }) : assert(fontSize >= _cardMinFontSize),
        cardFontSize = fontSize,
        size = QuranTextSize.focus,
-       align = QuranTextAlign.center;
+       align = QuranTextAlign.center,
+       after = null,
+       _quoted = false;
+
+  /// The ayah in the copy sheet's preview (Share.dc.html, l.54): between the
+  /// copy format's ornate brackets, centred, at 22 with line height 2,
+  /// following the system text scale. [after], when given, follows the
+  /// closing bracket in the same paragraph: a surah name's reference from
+  /// [SurahName.span], in its own style, which takes nothing of the Quran
+  /// style. The brackets and [after] are spans beside the one that holds the
+  /// text, whole.
+  const QuranText.quoted(this.text, {this.after, super.key})
+    : size = QuranTextSize.compact,
+      align = QuranTextAlign.center,
+      colour = QuranTextColour.quranInk,
+      cardFontSize = null,
+      _quoted = true;
 
   /// The font size of [QuranTextSize.compact] before the text scale, for
   /// what is sized to that text.
@@ -77,17 +97,25 @@ final class QuranText extends StatelessWidget {
   /// The card form's font size; null for the sized forms.
   final double? cardFontSize;
 
+  /// What the quoted form sets after the closing bracket.
+  final SurahNameSpan? after;
+
+  final bool _quoted;
+
   @override
   Widget build(BuildContext context) {
     final cardFontSize = this.cardFontSize;
-    final style = cardFontSize == null
-        ? _styleOf(size)
-        : _quranCard.copyWith(fontSize: cardFontSize);
+    final style = switch ((cardFontSize, _quoted)) {
+      (final fontSize?, _) => _quranCard.copyWith(fontSize: fontSize),
+      (null, true) => _quranQuoted,
+      (null, false) => _styleOf(size),
+    };
     return RichText(
       // RichText rather than Text: Text merges the ambient style and the
       // system's bold-text setting into its style, and neither may reach here.
       text: TextSpan(
-        text: text.verbatim,
+        text: _quoted ? null : text.verbatim,
+        children: _quoted ? _quotedSpans(context) : null,
         style: style.copyWith(color: _colourOf(context.colors)),
         locale: _arabic,
       ),
@@ -105,6 +133,16 @@ final class QuranText extends StatelessWidget {
           ? MediaQuery.textScalerOf(context)
           : TextScaler.noScaling,
     );
+  }
+
+  List<InlineSpan> _quotedSpans(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return [
+      TextSpan(text: l10n.ayahQuoteOpen),
+      TextSpan(text: text.verbatim),
+      TextSpan(text: l10n.ayahQuoteClose),
+      ?after,
+    ];
   }
 
   Color _colourOf(AppColors colors) => switch (colour) {
@@ -140,6 +178,18 @@ const TextStyle _quranCompact = TextStyle(
 const TextStyle _quranCard = TextStyle(
   fontFamily: AppFonts.quran,
   height: 2.2,
+  fontWeight: FontWeight.w400,
+  letterSpacing: 0,
+  leadingDistribution: TextLeadingDistribution.even,
+);
+
+// Share.dc.html l.54, the copy sheet's preview: Amiri Quran
+// `font-size:22px;line-height:2`, with .qk-quran's weight 400 and no letter
+// spacing.
+const TextStyle _quranQuoted = TextStyle(
+  fontFamily: AppFonts.quran,
+  fontSize: QuranText.compactFontSize,
+  height: 2,
   fontWeight: FontWeight.w400,
   letterSpacing: 0,
   leadingDistribution: TextLeadingDistribution.even,
