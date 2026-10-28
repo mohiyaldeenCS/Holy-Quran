@@ -24,8 +24,8 @@ final class ContextSheetViewModel extends ChangeNotifier {
   }
 
   /// How many ayat each choice shows, null for the whole surah, in the order
-  /// the choices are offered (`NV-05`): the ayah, 3 ayat, 5 ayat, the surah.
-  static const List<int?> choices = [1, 3, 5, null];
+  /// the choices are offered.
+  static const List<int?> choices = contextAmountChoices;
 
   /// Whether [address] is an ayah of the edition [index] describes and the
   /// pack serves the surah's name, which the sheet shows.

@@ -117,6 +117,11 @@ final class ContextPassage {
   int get _selectedIndex => selectedAyah - firstAyah + 1;
 }
 
+/// How many ayat each choice of `ContextSheet` shows (`NV-05`), null for the
+/// whole surah: the options of index.jsx, the ayah, 3 ayat, 5 ayat, the surah.
+/// The sheet takes their labels as [ContextSheet.amounts].
+const List<int?> contextAmountChoices = [1, 3, 5, null];
+
 /// The ayah-context sheet (`ContextSheet`, `.qk-sheet.qk-ctx`): a handle, the
 /// title «سياق الآية» over its subtitle with the reference to the ayah, the
 /// choice of how much to show, the ayat between their markers with the one
