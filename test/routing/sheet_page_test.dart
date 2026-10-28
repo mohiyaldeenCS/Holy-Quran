@@ -6,9 +6,10 @@ import 'package:go_router/go_router.dart';
 
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/routing/routes/sheet_page.dart';
-import 'package:holyquran/ui/core/app.dart';
 import 'package:holyquran/ui/core/theme/motion.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import '../../testing/fakes/fake_app_settings_repository.dart';
+import '../../testing/test_app.dart';
 
 const _sheetKey = Key('synthetic sheet');
 
@@ -33,9 +34,11 @@ Future<ModalBottomSheetRoute<void>> _open(
   final router = _router();
   addTearDown(router.dispose);
   await tester.pumpWidget(
-    QuranApp(
-      router: router,
-      themePreference: ThemePreference(theme: theme),
+    testApp(
+      router,
+      settings: FakeAppSettingsRepository(
+        themePreference: ThemePreference(theme: theme),
+      ),
     ),
   );
   unawaited(router.push<void>('/sheet'));

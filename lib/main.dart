@@ -60,10 +60,9 @@ class _AppStartState extends State<AppStart> {
         child: const Splash(),
       );
     }
-    final app = QuranApp(router: _router);
-    // MultiProvider refuses an empty list.
-    return providers.isEmpty
-        ? app
-        : MultiProvider(providers: providers, child: app);
+    return MultiProvider(
+      providers: providers,
+      child: QuranApp(router: _router),
+    );
   }
 }

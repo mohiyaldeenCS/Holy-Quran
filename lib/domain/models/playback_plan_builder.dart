@@ -49,6 +49,9 @@ final class PlaybackPlanBuilder {
 
   static const maxSilence = Duration(seconds: 30);
 
+  /// A silence between ayat of whole [seconds], the unit `AU-11` sets it in.
+  static Duration silenceOf(int seconds) => Duration(seconds: seconds);
+
   final EditionMap _edition;
   final List<int> _ayahCounts;
   final Set<int> _basmalaSurahs;

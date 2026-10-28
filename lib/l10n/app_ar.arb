@@ -114,6 +114,10 @@
       }
     }
   },
+  "dataSeparator": " · ",
+  "@dataSeparator": {
+    "description": "The middle dot between data items on one line, as the identity's rule writes it (docs/DESIGN_SYSTEM.md, Ground rules, 6: «middle dot « · » between data items»; design/design-system/README.md, line 25: «الفاصل بين البيانات نقطة وسطى « · »»). Used where the items are not a fixed phrase, such as a reported pack's id, version and source."
+  },
   "surahListLastRead": "آخر قراءة",
   "@surahListLastRead": {
     "description": "The badge on the last-read surah in SurahListItem, as the identity's reference writes it."
@@ -1072,6 +1076,18 @@
         "type": "String"
       }
     }
+  },
+  "playerSilenceBetweenAyat": "الصمت بين الآيات",
+  "@playerSilenceBetweenAyat": {
+    "description": "Label of the Stepper that sets the silence between ayat (AU-11). Source: Appendix B of docs/plans/PHASE1.md, approved by the owner (D-128, 4)."
+  },
+  "playerSecondsUnit": "ث",
+  "@playerSecondsUnit": {
+    "description": "The seconds unit after a Stepper's value, as the identity's Stepper preview writes it for the silence."
+  },
+  "rangeSelectorTitle": "محدد النطاق",
+  "@rangeSelectorTitle": {
+    "description": "Title of the range picker sheet and spoken name of its range kinds (PRD §7.7). Source: Appendix B of docs/plans/PHASE1.md, approved by the owner (D-128, 4)."
   },
   "queueLabel": "قائمة التشغيل",
   "@queueLabel": {
