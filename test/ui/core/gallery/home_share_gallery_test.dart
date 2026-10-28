@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/domain/models/copy_form.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/gallery/gallery_section.dart';
 import 'package:holyquran/ui/core/gallery/sections/home_share_gallery.dart';
 import 'package:holyquran/ui/core/widgets/continue_listening_row.dart';
+import 'package:holyquran/ui/core/widgets/copy_sheet.dart';
 import 'package:holyquran/ui/core/widgets/home_door.dart';
 import 'package:holyquran/ui/core/widgets/home_header.dart';
 import 'package:holyquran/ui/core/widgets/share_card.dart';
@@ -50,7 +52,7 @@ void main() {
     }
   }
 
-  testWidgets('titles its five sections and shows each widget', (tester) async {
+  testWidgets('titles its six sections and shows each widget', (tester) async {
     await _pump(tester);
     expect(
       tester
@@ -61,6 +63,7 @@ void main() {
         _l10n.gallerySectionHomeDoor,
         _l10n.gallerySectionContinueListeningRow,
         _l10n.gallerySectionShareCard,
+        _l10n.copySheetTitle,
         _l10n.gallerySectionSplash,
       ],
     );
@@ -77,6 +80,8 @@ void main() {
           .map((card) => card.design),
       ShareCardDesign.values,
     );
+    final copySheet = tester.widget<CopySheet>(find.byType(CopySheet));
+    expect(copySheet.forms, [CopyForm.withSurahAndNumber]);
     expect(find.byType(Splash), findsOneWidget);
   });
 
@@ -90,6 +95,10 @@ void main() {
       _l10n.sampleSurahName,
     ]);
     expect(rows.map((row) => row.reciter), [_l10n.sampleReciter, null]);
+    final copySheet = tester.widget<CopySheet>(find.byType(CopySheet));
+    expect(copySheet.ayah!.verbatim, _l10n.sampleText);
+    expect(copySheet.surahName!.verbatim, _l10n.sampleSurahName);
+    expect(copySheet.ayahNumber, 5);
     for (final card in tester.widgetList<ShareCard>(find.byType(ShareCard))) {
       expect(card.ayah.verbatim, _l10n.sampleText, reason: card.design.name);
       expect(

@@ -10,7 +10,7 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-28 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **17 merged**: P1-01 to P1-11, P1-13, P1-16, P1-18 to P1-21. **5 in open pull requests**: #44 (P1-12, CI green), #50 (P1-28), #51 (P1-15), #52 (P1-25), #53 (P1-27). **18 not started**. Work resumes from a local session (D-128) |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **18 merged**: P1-01 to P1-13, P1-16, P1-18 to P1-21 (P1-12 partial). **4 in open pull requests**: #50 (P1-28), #51 (P1-15), #52 (P1-25), #53 (P1-27). **18 not started**. Work resumes from a local session (D-128) |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | `docs/resume-2026-10-28`: this status correction and D-128, D-129. Then one branch and pull request per task |
 | Last session | 2026-10-28, local session on the owner's Windows machine: state recovered from Git, the owner's pending decisions taken (D-128), resumption settled (D-129) |
@@ -189,33 +189,31 @@ and S7. The spike code is deleted in the cleanup commit; the last commit holding
 per task in `docs/plans/tasks/`. Requirements whose registry rows are not `Ready` stay
 unbuilt.
 
-**Where it stopped (2026-10-12, 16:28 UTC).** The GitHub Actions agent runs ended with
-"Credit balance is too low" on both keys. At that moment:
+**Resumed 2026-10-28 from a local session (D-128).** Merged since: #54 (status and
+D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generator's
+`dart format` through a shell, separators, closed packs), #44 (P1-12, below).
 
-- #50, #51, #52, #53: the agents' own checks pass (format, analyze, tests without
-  goldens); the check fails only on golden tests whose images the CI `goldens` task
-  has not made yet. Their CI runs wait for approval (`action_required`). The fix runs
-  for them and the first run of P1-29 died for lack of credit.
-- #44 (P1-12): CI green, mergeable, not yet reviewed and merged.
+- **P1-12 merged (#44), partial.** Copy sheet with the board's preview (Share.dc.html
+  l.54) drawn from the pack, `QuranText.quoted` and `SurahName.span` (D-130); share
+  sheet and 4:5 share card with PNG export at 1080 px; clipboard and share services
+  provided in `share_providers.dart`. Partial: one copy form (the other two wait for
+  P1-38 to add their Appendix B formats); 4:5 only, no size choice (D-089 (2): the
+  owner sees 1:1 and 9:16 first); the share sheet's states are not in the gallery;
+  SH-01's clause on copying several consecutive ayat, each with its number, has no
+  task yet. Reviewed by `code-reviewer` (twice) and `identity-auditor` (twice).
+- Open pull requests: #50 (P1-28; `main` merged, local checks pass, `goldens` started),
+  #51 (P1-15), #52 (P1-25), #53 (P1-27). Their old CI runs wait for approval
+  (`action_required`); a push by the lead starts a normal run.
 - Not started: P1-14, P1-17, P1-22 (wave 2; P1-22's condition, D-097, is met),
   P1-23, P1-24, P1-26, P1-29, P1-30, P1-40 (wave 3), P1-31 to P1-34 (wave 4), P1-35 to
-  P1-37 (wave 5), P1-38 (now unblocked by D-128), P1-39 (now unblocked by D-128).
-
-**Local work of 2026-10-13, never pushed.** Two local branches on the owner's machine,
-made with Flutter 3.47.6: `fix/bookmark-restore-nullable` (`bb5597d`, promotes the
-stored row in `LocalBookmarkRepository` restore before reading its address) and
-`chore/analysis-exclude-platform-dirs` (`eebca4f` excludes the platform folders from
-analysis; `5d7e472` refreshes the lock to the newer SDK's pins). D-129 says what is
-kept. A stash on that machine holds the same changes as found in the working tree on
-2026-10-28.
-
-**Local test run, 2026-10-28** (Windows 11, Flutter 3.47.6, not the pinned 3.44.7,
-on `main` plus `bb5597d` and the stashed changes): `flutter analyze` clean;
-`flutter test --exclude-tags golden test tools/gen/test`: 3,079 pass, 48 fail. Every
-failure seen comes from Windows or the newer Dart: CRLF checkouts (icon proposals,
-generator byte checks), `dart format` not found by the generator test, `\` in paths,
-deleting a temporary folder whose SQLite file is still open, and Unicode code points
-assigned after 15.1. CI on `main` (Linux, 3.44.7) is green.
+  P1-37 (wave 5), P1-38 and P1-39 (unblocked by D-128).
+- The local branches of 2026-10-13 (`fix/bookmark-restore-nullable`,
+  `chore/analysis-exclude-platform-dirs`) are not needed on the pinned SDK (analyze is
+  clean without them) and are not pushed (D-129). On the owner's machine
+  `analysis_options.yaml` keeps being rewritten with that branch's platform-folder
+  excludes, most likely by an editor tab with unsaved edits; it is never committed.
+- Local checks use `C:/SDK/flutter-3.44.7` (D-129). With it, on Windows, the full
+  non-golden suite passes (3,228 on the P1-12 branch).
 
 Agent runs so far (estimates from the SDK): about $160 across both keys for M0.4
 part 2 and B0.11, plus the Phase 1 runs until the credit ran out.
@@ -230,19 +228,17 @@ task to the agent its task text names, reviews, commits, pushes, opens the task'
 request and merges it when review and CI pass. Decision numbers: take the number after
 the highest on `main` and every open pull request (D-076).
 
-1. Merge `docs/resume-2026-10-28` (this correction, D-128, D-129).
-2. Check locally with the pinned Flutter 3.44.7 (D-129). Keep `bb5597d` and the
-   analysis exclusion only if the pinned SDK needs them; drop the lock refresh.
-3. Make the Windows-dependent tests platform-neutral (D-129, 3), so that the full
-   non-golden suite passes on this machine as it does in CI.
-4. Finish the open pull requests in PHASE1.md §2's order: #44; then #50 (P1-28, before
-   P1-23), #51, #52, #53. For each: update from `main`, approve its CI run, run the
-   `goldens` task on the branch, pull the image commit, `code-reviewer` (and
-   `identity-auditor` for UI), apply findings, merge.
-5. The rest of wave 2: P1-14, P1-17, P1-22; then P1-29 and P1-38 (Appendix B
-   approved, Appendix C worded by the lead, D-128) and P1-39 (icons approved, D-128).
-6. Waves 3 to 5 in table order, each task when its "Needs" are merged.
-7. Golden images: after a push that adds or changes a golden test, start CI by hand
+1. Finish the open pull requests in PHASE1.md §2's order: #50 (P1-28, before P1-23),
+   #51, #52, #53. For each: update from `main`, check with the pinned SDK, push, run
+   the `goldens` task on the branch, pull the image commit, `code-reviewer` (and
+   `identity-auditor` for UI), apply findings, update this file in the branch, merge.
+2. The rest of wave 2: P1-14, P1-17, P1-22; then P1-29, P1-38 (Appendix B approved,
+   Appendix C worded by the lead, D-128; add the two remaining copy formats) and P1-39
+   (icons approved, D-128).
+3. Give SH-01's several-ayat copy a task (with the ayah selection of P1-23 or the
+   toolbar of P1-31), and the share sheet's gallery states.
+4. Waves 3 to 5 in table order, each task when its "Needs" are merged.
+5. Golden images: after a push that adds or changes a golden test, start CI by hand
    on the branch with the task `goldens`, pull the commit it pushes, and push again
    (D-056, D-059). Off `ubuntu-24.04` run `flutter test --exclude-tags golden test
    tools/gen/test`.
@@ -328,6 +324,8 @@ Permission conditions to confirm with him when each is first needed are listed i
 | M0.4 | S1, S3, S5 device protocols: shaping by eye, hit test, 200%, NF-01 cold start, NF-02 scroll, 60-minute locked playback and controls, downloads with Wi-Fi gating, resume, corrupt file, low space, rollback | Owner, on his phone (model, Android version and memory still to be told) | The three spike pages, "Device protocol"; run S1 before S5 |
 | M0.5 | The gallery images of the five new sections, in the four themes, match the identity. Shadows show as hard bands in these images because the test renderer turns blur off; in the app they are soft | Owner | `test/ui/core/gallery/goldens/gallery_<section>_<theme>.png` on `main`, or the gallery of the next APK |
 | M0.5 | TalkBack reading order and labels (the ayah first in `AyahRow` and `SearchResult`), keyboard focus with the chip and tab strips scrolling to the focused item, the bold-text setting and 200% text, for the M0.5 widgets | Owner, on his phone | The gallery of an APK built from `main` with the CI `apk` task; the spike APK of CI run 68 predates M0.5 |
+| P1-12 | TalkBack and VoiceOver read the copy sheet's radio group and preview; the focus ring shows on its rows with a hardware keyboard; the bottom safe-area inset; the exported share PNG (transparent corners) looks right in other apps; the fit's speed on a slow phone | Owner, on his phone | An APK built from `main` with the CI `apk` task |
+| P1-12 | The owner's look at three choices the lead made where the identity disagrees with itself or gives no token: the unselected radio ring on `line-strong` (the board draws `#8C9794`), the copy sheet docked with `.qk-sheet`'s top border (the board floats it), «مشاركة» on the share button. Where the identity is silent: a long ayah in the copy preview is shown whole and pushes «انسخ» below the fold (the sheet scrolls); the reference may wrap inside its brackets | Owner | The `copy_sheet_*` and `gallery_home_share_*` images on `main` |
 
 ## Environment
 

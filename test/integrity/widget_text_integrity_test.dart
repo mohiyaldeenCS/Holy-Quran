@@ -362,7 +362,9 @@ List<String> _nameProblems(
 }
 
 bool _carriesAyah(SurahNameFormat format) => switch (format) {
-  SurahNameFormat.withAyah || SurahNameFormat.titledWithAyah => true,
+  SurahNameFormat.withAyah ||
+  SurahNameFormat.titledWithAyah ||
+  SurahNameFormat.copyReference => true,
   SurahNameFormat.name || SurahNameFormat.titled => false,
 };
 
@@ -375,6 +377,7 @@ List<int> _filled(SurahNameFormat format, List<int> name, int? ayah) {
     SurahNameFormat.withAyah => _templates['surahAyahReference']! as String,
     SurahNameFormat.titledWithAyah =>
       _templates['surahTitleAyahReference']! as String,
+    SurahNameFormat.copyReference => _templates['copyReferenceFull']! as String,
   };
   final bytes = <int>[];
   var at = 0;
@@ -382,8 +385,9 @@ List<int> _filled(SurahNameFormat format, List<int> name, int? ayah) {
     bytes
       ..addAll(utf8.encode(template.substring(at, placeholder.start)))
       ..addAll(switch (placeholder[1]) {
-        'name' => name,
-        'ayah' => utf8.encode(
+        // The copy reference names them as the copy format does.
+        'name' || 'surah' => name,
+        'ayah' || 'number' => utf8.encode(
           arabicDigits(ayah ?? fail('${format.name} has no ayah')),
         ),
         final other => fail('${format.name} has the placeholder $other'),

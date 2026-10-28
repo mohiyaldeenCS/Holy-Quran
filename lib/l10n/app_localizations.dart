@@ -1174,6 +1174,30 @@ abstract class AppLocalizations {
   /// **'﴿{ayah}﴾ [{surah}: {number}]'**
   String copyFormatFull(String ayah, String surah, String number);
 
+  /// The ornate bracket that opens a quoted ayah, before the ayah from the pack, in the copy sheet's preview. The copy format copyFormatFull opens with the same bracket. Source: design/identity-boards/Share.dc.html (the copy sheet's preview).
+  ///
+  /// In ar, this message translates to:
+  /// **'﴿'**
+  String get ayahQuoteOpen;
+
+  /// The ornate bracket that closes a quoted ayah, after the ayah from the pack, in the copy sheet's preview. The copy format copyFormatFull closes the ayah with the same bracket. Source: design/identity-boards/Share.dc.html (the copy sheet's preview).
+  ///
+  /// In ar, this message translates to:
+  /// **'﴾'**
+  String get ayahQuoteClose;
+
+  /// The copy sheet's preview of the full form: the reference that follows the quoted ayah, from the space after the closing bracket, as copyFormatFull ends; SurahName draws it (D-130). surah is the surah's name from the pack, unchanged; number is the ayah number, already written in Arabic-Indic digits. Source: design/identity-boards/Share.dc.html (the copy sheet's preview).
+  ///
+  /// In ar, this message translates to:
+  /// **' [{surah}: {number}]'**
+  String copyReferenceFull(String surah, String number);
+
+  /// Spoken label of the share sheet's switch between the three card designs. Source: design/identity-boards/Share.dc.html (the title of the share cards).
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقات مشاركة الآية'**
+  String get shareDesignSwitchLabel;
+
   /// Share card design: emerald. Source: design/identity-boards/Share.dc.html.
   ///
   /// In ar, this message translates to:

@@ -18,13 +18,13 @@ import '../../../../testing/golden.dart';
 // image, and a little taller than the section measured at 100%, so the whole
 // section is in the image. A section that outgrows its surface overflows and
 // fails here. Measured: mushaf 1,164, controls 554, audio 1,166, study and
-// search 1,534, home and share 2,489.
+// search 1,534, home and share 2,885.
 const _sections = [
   (name: 'mushaf', gallery: MushafGallery(), height: 1200.0),
   (name: 'controls', gallery: ControlsGallery(), height: 600.0),
   (name: 'audio', gallery: AudioGallery(), height: 1200.0),
   (name: 'study_search', gallery: StudySearchGallery(), height: 1650.0),
-  (name: 'home_share', gallery: HomeShareGallery(), height: 2600.0),
+  (name: 'home_share', gallery: HomeShareGallery(), height: 2950.0),
 ];
 
 void main() {
