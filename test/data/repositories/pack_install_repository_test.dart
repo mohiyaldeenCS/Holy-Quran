@@ -752,11 +752,12 @@ void main() {
           '${support.path}/pack-staging/$_text/9',
         ).create(recursive: true);
 
+        // A file's URI separates its segments with `/` on every platform.
         Future<Map<String, List<int>>> others() async => {
           await for (final entity in support.list(recursive: true))
             if (entity is File &&
-                !entity.path.contains('/packs/$_text/') &&
-                !entity.path.contains('/pack-staging/$_text/'))
+                !entity.uri.path.contains('/packs/$_text/') &&
+                !entity.uri.path.contains('/pack-staging/$_text/'))
               entity.path: await entity.readAsBytes(),
         };
         final before = await others();
