@@ -607,6 +607,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get contextSurah => 'السورة';
 
   @override
+  String get contextPlayFromAyah => 'تشغيل من هذه الآية';
+
+  @override
   String get toolbarBookmark => 'علامة';
 
   @override

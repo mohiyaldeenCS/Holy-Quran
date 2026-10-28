@@ -30,8 +30,10 @@ const double _gap = 14;
 // .qk-sheet-handle: width 44px; height 5px; border-radius 3px.
 const Size _handleSize = Size(44, 5);
 const BorderRadius _handleRadius = BorderRadius.all(Radius.circular(3));
-// The room the sheet leaves above itself: the top of the screen and a strip
-// of what lies under the scrim.
+// The room the sheet leaves above itself. The identity draws the sheet at its
+// content's height and no top room, so the value is a spacing token chosen to
+// keep a strip of what lies under the scrim visible when a long passage fills
+// the sheet.
 const double _topRoom = AppSpacing.space7;
 
 // .qk-ctx-title: font-size 20px; font-weight 700. No line height is set, so it
@@ -245,7 +247,7 @@ class ContextSheet extends StatelessWidget {
                   ),
                   if (onPlay != null)
                     _PlayButton(
-                      label: l10n.ayahRowPlayFromHere,
+                      label: l10n.contextPlayFromAyah,
                       onPressed: onPlay,
                     ),
                 ],

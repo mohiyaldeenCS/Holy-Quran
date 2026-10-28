@@ -878,6 +878,10 @@
   "@contextSurah": {
     "description": "Context amount: the whole surah. Source: design/design-system/components/src/index.jsx (ContextSheet)."
   },
+  "contextPlayFromAyah": "تشغيل من هذه الآية",
+  "@contextPlayFromAyah": {
+    "description": "Reference aria-label, index.jsx ContextSheet"
+  },
   "toolbarBookmark": "علامة",
   "@toolbarBookmark": {
     "description": "The selected ayah's toolbar: bookmark it. Source: docs/prd/PRD.ar.md (§7.4)."

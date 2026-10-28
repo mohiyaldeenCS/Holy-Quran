@@ -139,7 +139,7 @@ void main() {
     tester,
   ) async {
     await openSheet(tester, at(2, 6));
-    expect(find.bySemanticsLabel(_l10n.ayahRowPlayFromHere), findsNothing);
+    expect(find.bySemanticsLabel(_l10n.contextPlayFromAyah), findsNothing);
   });
 
   testWidgets('closes at once for an ayah the edition does not have, and '

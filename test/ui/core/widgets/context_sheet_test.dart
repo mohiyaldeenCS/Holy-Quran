@@ -254,7 +254,7 @@ void main() {
       passage: await passage(2, 5, 1, 5),
       onOpen: () => opened++,
     );
-    expect(find.bySemanticsLabel(_l10n.ayahRowPlayFromHere), findsNothing);
+    expect(find.bySemanticsLabel(_l10n.contextPlayFromAyah), findsNothing);
     await tester.tap(find.widgetWithText(Button, _l10n.searchResultOpen));
     expect(opened, 1);
 
@@ -263,7 +263,7 @@ void main() {
       passage: await passage(2, 5, 1, 5),
       onPlay: () => played++,
     );
-    final play = find.bySemanticsLabel(_l10n.ayahRowPlayFromHere);
+    final play = find.bySemanticsLabel(_l10n.contextPlayFromAyah);
     expect(play, findsOneWidget);
     expect(tester.getSize(play), const Size(52, 52));
     await tester.tap(play);
