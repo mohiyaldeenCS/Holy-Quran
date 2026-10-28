@@ -49,6 +49,16 @@ abstract final class ReaderScreenMetrics {
   /// (`Mushaf.dc.html`, «علامة مرجعية»: «شريط زمردي في الهامش»).
   static const double ribbonOutset = ReaderMetrics.textInset;
 
+  /// Where the ayah toolbar floats over the text: `space-3` from the edges of
+  /// the reading area. The boards draw no toolbar (PRD §7.6 names it
+  /// described, not drawn), so this is a reading from the tokens.
+  static const EdgeInsets toolbarPadding = EdgeInsets.all(AppSpacing.space3);
+
+  /// How far down the screen the surah that a pinch anchors in is taken to
+  /// be: the middle, as the fingers of a pinch usually are. An engineering
+  /// choice, not a drawn value.
+  static const double pinchFocus = 0.5;
+
   /// The message of a reader with no verified pack, inset as a screen's
   /// body (`Search.dc.html`, «خطة الحفظ» body: `padding: 0 20px`).
   static const EdgeInsetsDirectional messagePadding =

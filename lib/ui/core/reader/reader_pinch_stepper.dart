@@ -24,7 +24,9 @@ import 'surah_layout.dart';
 ///
 /// This widget's box is the scroll view's viewport, so [child] fills it. The
 /// sliver is as wide as that box and starts [leadingExtent] below the top of
-/// the scroll content.
+/// the scroll content. A scroll view that holds several surahs hands over the
+/// plan of the one in focus through [layout], and [leadingExtent] is asked
+/// each time it is needed, since the surahs above change height with a step.
 final class ReaderPinchStepper extends StatefulWidget {
   const ReaderPinchStepper({
     required this.scrollController,
@@ -32,7 +34,7 @@ final class ReaderPinchStepper extends StatefulWidget {
     required this.step,
     required this.onStep,
     required this.child,
-    this.leadingExtent = 0,
+    this.leadingExtent = _noLeadingExtent,
     super.key,
   });
 
@@ -40,7 +42,7 @@ final class ReaderPinchStepper extends StatefulWidget {
   final ValueListenable<SurahLayout?> layout;
   final int step;
   final ValueChanged<int> onStep;
-  final double leadingExtent;
+  final ValueGetter<double> leadingExtent;
   final Widget child;
 
   @override
@@ -117,7 +119,7 @@ final class _ReaderPinchStepperState extends State<ReaderPinchStepper> {
     final layout = widget.layout.value;
     final position = _position;
     if (!mounted || layout == null || position == null) return;
-    final y = position.pixels - widget.leadingExtent;
+    final y = position.pixels - widget.leadingExtent();
     _top = y < layout.basmalaExtent
         ? null
         : (focal: focalAyahOfLine(layout, y), viewportY: 0);
@@ -127,7 +129,7 @@ final class _ReaderPinchStepperState extends State<ReaderPinchStepper> {
     final position = _position;
     if (position == null) return;
     final y = yOfFocalAyah(layout, anchor.focal);
-    final target = widget.leadingExtent + y - anchor.viewportY;
+    final target = widget.leadingExtent() + y - anchor.viewportY;
     position.jumpTo(
       target.clamp(position.minScrollExtent, position.maxScrollExtent),
     );
@@ -142,7 +144,7 @@ final class _ReaderPinchStepperState extends State<ReaderPinchStepper> {
       final local = (context.findRenderObject()! as RenderBox).globalToLocal(
         focalPoint,
       );
-      final y = position.pixels - widget.leadingExtent + local.dy;
+      final y = position.pixels - widget.leadingExtent() + local.dy;
       final focal = focalAyahUnder(
         layout,
         Offset(local.dx, y),
@@ -169,3 +171,5 @@ final class _ReaderPinchStepperState extends State<ReaderPinchStepper> {
   Widget build(BuildContext context) =>
       ReaderPinch(onPinchEnd: _pinched, child: widget.child);
 }
+
+double _noLeadingExtent() => 0;
