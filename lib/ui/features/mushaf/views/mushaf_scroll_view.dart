@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
+import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/metrics/reader_screen_metrics.dart';
 import 'package:holyquran/ui/core/reader/surah_layout.dart';
 import 'package:holyquran/ui/core/reader/surah_sliver.dart';
@@ -155,9 +159,22 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
   GlobalKey _keyOf(Map<int, GlobalKey> keys, int surah) =>
       keys.putIfAbsent(surah, GlobalKey.new);
 
+  // The whole header opens «مقدمة السورة» when there are facts to show.
+  Widget _header(BuildContext context, ReaderSurah surah) {
+    final info = surahInfoText(AppLocalizations.of(context), surah.info);
+    return SurahHeader(
+      name: surah.info.name,
+      info: info,
+      onInfoPressed: info == null
+          ? null
+          : () => unawaited(
+              context.push<Object?>(Routes.surahInfoSheet(surah.info.number)),
+            ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     return NotificationListener<ScrollMetricsNotification>(
       onNotification: _onMetrics,
       child: NotificationListener<ScrollNotification>(
@@ -172,12 +189,7 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
               SliverPadding(
                 key: _keyOf(_headerKeys, surah.info.number),
                 padding: ReaderScreenMetrics.blockPadding,
-                sliver: SliverToBoxAdapter(
-                  child: SurahHeader(
-                    name: surah.info.name,
-                    info: surahInfoText(l10n, surah.info),
-                  ),
-                ),
+                sliver: SliverToBoxAdapter(child: _header(context, surah)),
               ),
               SliverPadding(
                 padding: ReaderScreenMetrics.blockPadding,

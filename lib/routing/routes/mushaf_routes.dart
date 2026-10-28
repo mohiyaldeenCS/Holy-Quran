@@ -8,12 +8,15 @@ import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/routing/routes/feature_routes.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/mushaf_view_model.dart';
+import 'package:holyquran/ui/features/mushaf/view_models/surah_info_view_model.dart';
 import 'package:holyquran/ui/features/mushaf/views/mushaf_screen.dart';
+import 'package:holyquran/ui/features/mushaf/views/surah_info_sheet.dart';
 import 'package:provider/provider.dart';
 
 /// The reader in surah mode, at the mushaf tab's root and at an address
-/// (`NV-06`). Its view model reads the pack through repositories the app may
-/// not provide yet; without them the reader shows no text.
+/// (`NV-06`), and the sheet «مقدمة السورة». Their view models read the pack
+/// through repositories the app may not provide yet; without them the reader
+/// shows no text and the sheet is empty.
 final mushafRoutes = FeatureRoutes(
   tabRoot: TabRoot(ShellTab.mushaf, (context, state) => _reader(context, null)),
   tabChildren: {
@@ -24,6 +27,24 @@ final mushafRoutes = FeatureRoutes(
       ),
     ],
   },
+  sheets: [
+    SheetRoute(
+      path: RoutePaths.surahInfoSheet,
+      builder: (context, state) => ChangeNotifierProvider(
+        create: (context) => SurahInfoViewModel(
+          surah: Routes.surahOf(state)!,
+          index: context.read<QuranIndexRepository?>(),
+          integrity: context.read<PackIntegrityRepository?>(),
+        ),
+        child: Builder(
+          builder: (context) => SurahInfoSheet(
+            viewModel: Provider.of<SurahInfoViewModel>(context, listen: false),
+          ),
+        ),
+      ),
+      owner: (state) => Routes.mushaf,
+    ),
+  ],
 );
 
 Widget _reader(BuildContext context, QuranAddress? address) =>
