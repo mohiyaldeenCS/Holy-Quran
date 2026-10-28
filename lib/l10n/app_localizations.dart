@@ -1983,6 +1983,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{count, plural, one{دقيقة واحدة} two{دقيقتان} few{{digits} دقائق} many{{digits} دقيقة} other{{digits} دقيقة}}'**
   String minutesCount(int count, String digits);
+
+  /// P1-29, for the lead's approval under D-128 (5). The name of the group of chips that choose where a search looks (SR-06). Wording from docs/prd/PRD.ar.md (SR-06).
+  ///
+  /// In ar, this message translates to:
+  /// **'نطاق البحث'**
+  String get searchScopeLabel;
+
+  /// P1-29, for the lead's approval under D-128 (5). The count line of the search summary, as the Search board writes it: places is searchPlaces and ayat is ayahCount, each already written. Source: design/identity-boards/Search.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'{places} في {ayat}'**
+  String searchResultCount(String places, String ayat);
+
+  /// P1-29, for the lead's approval under D-128 (5). The button that clears the search history (SR-10).
+  ///
+  /// In ar, this message translates to:
+  /// **'مسح السجل'**
+  String get searchHistoryClear;
 }
 
 class _AppLocalizationsDelegate

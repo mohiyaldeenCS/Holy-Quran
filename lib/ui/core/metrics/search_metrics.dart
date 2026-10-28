@@ -1,0 +1,68 @@
+import 'package:flutter/material.dart' show InputBorder, InputDecoration;
+import 'package:flutter/widgets.dart';
+
+import 'package:holyquran/ui/core/metrics/settings_metrics.dart';
+import 'package:holyquran/ui/core/theme/tokens.g.dart';
+
+/// Screen metrics of the search screen, read from the first phone of
+/// `design/identity-boards/Search.dc.html`, and of the study hub, which takes
+/// the More hub's layout (`SettingsMetrics`). The scope row and the history
+/// are not drawn there; they use only the board's gaps and the tokens.
+abstract final class SearchMetrics {
+  // Search.dc.html, the header: `padding:24px 16px 8px; gap:10px`.
+  static const EdgeInsets header = SettingsMetrics.header;
+  static const double headerGap = 10;
+
+  // Search.dc.html, the header's title: `font-size:22px; font-weight:700` in
+  // the body's family, no line height.
+  static const TextStyle titleStyle = TextStyle(
+    inherit: false,
+    fontFamily: AppFonts.sans,
+    fontSize: 22,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0,
+    leadingDistribution: TextLeadingDistribution.even,
+  );
+
+  // Search.dc.html, the controls: `padding:0 20px; gap:12px`, the gap being
+  // `space-3`.
+  static const EdgeInsets controls = EdgeInsets.symmetric(horizontal: 20);
+  static const double controlsGap = AppSpacing.space3;
+
+  // Search.dc.html, the summary row: `padding-top:2px`.
+  static const EdgeInsets summary = EdgeInsets.only(top: 2);
+
+  // Search.dc.html, the results: `padding:12px 20px 0; gap:10px`. The end is
+  // a spacing token, as the index list's is: the board draws no end.
+  static const EdgeInsets results = EdgeInsets.fromLTRB(
+    20,
+    12,
+    20,
+    AppSpacing.space5,
+  );
+  static const double resultGap = 10;
+
+  // The history rows and the sentence of an empty result use the results'
+  // padding and the controls' gap.
+  static const EdgeInsets history = results;
+  static const double historyGap = AppSpacing.space3;
+
+  // The scope's number field takes the search field's box (`SearchFieldBox`,
+  // `.qk-search`), as the go-to sheet's fields do; the identity has no other
+  // field.
+  static final BorderRadius fieldRadius = BorderRadius.circular(
+    AppRadius.radiusButton,
+  );
+  static const EdgeInsets fieldPadding = EdgeInsets.symmetric(
+    horizontal: AppSpacing.space4,
+  );
+  static const InputDecoration fieldDecoration = InputDecoration(
+    border: InputBorder.none,
+    contentPadding: EdgeInsets.zero,
+  );
+
+  // The tab roots' header, for the study hub.
+  static const EdgeInsets hubHeader = SettingsMetrics.tabRootHeader;
+  static const EdgeInsets hubContent = SettingsMetrics.content;
+  static const double hubGap = SettingsMetrics.contentGap;
+}

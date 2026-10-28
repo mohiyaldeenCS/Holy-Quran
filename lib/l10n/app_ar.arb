@@ -1567,5 +1567,25 @@
         "type": "String"
       }
     }
+  },
+  "searchScopeLabel": "نطاق البحث",
+  "@searchScopeLabel": {
+    "description": "P1-29, for the lead's approval under D-128 (5). The name of the group of chips that choose where a search looks (SR-06). Wording from docs/prd/PRD.ar.md (SR-06)."
+  },
+  "searchResultCount": "{places} في {ayat}",
+  "@searchResultCount": {
+    "description": "P1-29, for the lead's approval under D-128 (5). The count line of the search summary, as the Search board writes it: places is searchPlaces and ayat is ayahCount, each already written. Source: design/identity-boards/Search.dc.html.",
+    "placeholders": {
+      "places": {
+        "type": "String"
+      },
+      "ayat": {
+        "type": "String"
+      }
+    }
+  },
+  "searchHistoryClear": "مسح السجل",
+  "@searchHistoryClear": {
+    "description": "P1-29, for the lead's approval under D-128 (5). The button that clears the search history (SR-10)."
   }
 }

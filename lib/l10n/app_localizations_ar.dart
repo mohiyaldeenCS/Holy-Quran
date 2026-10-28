@@ -1092,4 +1092,15 @@ class AppLocalizationsAr extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get searchScopeLabel => 'نطاق البحث';
+
+  @override
+  String searchResultCount(String places, String ayat) {
+    return '$places في $ayat';
+  }
+
+  @override
+  String get searchHistoryClear => 'مسح السجل';
 }
