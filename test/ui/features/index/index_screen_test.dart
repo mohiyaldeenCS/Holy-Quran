@@ -58,15 +58,6 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  List<DivisionEntryRow> rubsInsideHizb() {
-    final hizb = fixture.index.divisions(Division.hizb);
-    return [
-      for (final rub in fixture.index.divisions(Division.rub))
-        if (!hizb.any((entry) => entry.firstAyah == rub.firstAyah))
-          (number: rub.number, address: rub.firstAyah),
-    ];
-  }
-
   testWidgets('shows the title, the summary and the three tabs', (
     tester,
   ) async {
@@ -158,21 +149,30 @@ void main() {
     ]);
   });
 
-  testWidgets('the hizb tab lists the hizb with the rubs inside them', (
+  testWidgets('the hizb tab lists every hizb and every rub of the pack', (
     tester,
   ) async {
     await openIndex(tester);
+    // Tall enough for the list to build every row.
+    tester.view.physicalSize = const Size(390, 4000);
     await chooseTab(tester, _l10n.indexTabHizb);
     final hizb = fixture.index.divisions(Division.hizb);
+    final rubs = fixture.index.divisions(Division.rub);
     for (final entry in hizb) {
       expect(
         find.text(_l10n.hizbLabel(arabicDigits(entry.number))),
         findsOneWidget,
       );
     }
-    final rubs = rubsInsideHizb();
     expect(find.text(_l10n.rubLabel), findsNWidgets(rubs.length));
     expect(find.byType(DivisionRow), findsNWidgets(hizb.length + rubs.length));
+    // The first rub of a hizb is a row of its own, with its global number.
+    final numbers = tester
+        .widgetList<DivisionRow>(find.byType(DivisionRow))
+        .where((row) => row.row.isRub)
+        .map((row) => row.row.number);
+    expect(numbers, [for (final rub in rubs) rub.number]);
+    expect(numbers, containsAll([1, 5]));
   });
 
   testWidgets('a surah row opens the reader at its first ayah', (tester) async {
@@ -201,7 +201,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       router.state.uri.path,
-      Routes.mushafRead(rubsInsideHizb().first.address),
+      Routes.mushafRead(fixture.index.divisions(Division.rub).first.firstAyah),
     );
   });
 
@@ -270,5 +270,3 @@ void main() {
     handle.dispose();
   });
 }
-
-typedef DivisionEntryRow = ({int number, QuranAddress address});

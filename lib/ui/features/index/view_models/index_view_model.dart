@@ -56,13 +56,13 @@ final class DivisionIndexRow {
 }
 
 /// The index screen's state (PRD §8.2, `NV-01`, `NV-02`): the surahs, the juz
-/// and the hizb with the rubs that fall inside each. Every count and name
+/// and the hizb with its four rubs after each. Every count and name
 /// comes from the pack's index; while the pack does not serve its surahs, the
 /// index shows nothing (PRD §9.5).
 final class IndexViewModel extends ChangeNotifier {
   IndexViewModel({required this._index, this._positions, this._integrity}) {
-    _positions?.addListener(_changed);
-    _integrity?.addListener(_changed);
+    _positions?.addListener(notifyListeners);
+    _integrity?.addListener(_packChanged);
   }
 
   final QuranIndexRepository _index;
@@ -105,8 +105,8 @@ final class IndexViewModel extends ChangeNotifier {
   /// The juz in order.
   List<DivisionIndexRow> get juzRows => _juz ??= _rows(Division.juz);
 
-  /// The hizb in order, each followed by the rubs inside it. A rub that starts
-  /// where its hizb does is the hizb's row already.
+  /// The hizb in order, each followed by its rubs, so that all of the rubs
+  /// are listed. The first rub opens at the ayah its hizb does.
   List<DivisionIndexRow> get hizbRows => _hizb ??= _hizbWithRubs();
 
   int? get _lastReadSurah {
@@ -144,13 +144,12 @@ final class IndexViewModel extends ChangeNotifier {
     return [
       for (final row in hizb) ...[
         row,
-        for (final rub in rubsOf[row.number] ?? const <DivisionIndexRow>[])
-          if (rub.address != row.address) rub,
+        ...rubsOf[row.number] ?? const <DivisionIndexRow>[],
       ],
     ];
   }
 
-  void _changed() {
+  void _packChanged() {
     _juz = null;
     _hizb = null;
     notifyListeners();
@@ -158,8 +157,8 @@ final class IndexViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
-    _positions?.removeListener(_changed);
-    _integrity?.removeListener(_changed);
+    _positions?.removeListener(notifyListeners);
+    _integrity?.removeListener(_packChanged);
     super.dispose();
   }
 }

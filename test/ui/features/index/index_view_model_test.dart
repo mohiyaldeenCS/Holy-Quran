@@ -99,20 +99,26 @@ void main() {
     }
   });
 
-  test('lists every hizb followed by the rubs inside it', () {
+  test('lists every hizb followed by its rubs, all of them', () {
     final rows = model().hizbRows;
     final hizb = fixture.index.divisions(Division.hizb);
     expect(rows.where((row) => !row.isRub).map((row) => row.number), [
       for (final entry in hizb) entry.number,
     ]);
-    // Rubs that start where their hizb does are the hizb's own row.
-    final inner = [
-      for (final rub in fixture.index.divisions(Division.rub))
-        if (!hizb.any((entry) => entry.firstAyah == rub.firstAyah)) rub,
-    ];
+    final rubs = fixture.index.divisions(Division.rub);
     expect(rows.where((row) => row.isRub).map((row) => row.number), [
-      for (final rub in inner) rub.number,
+      for (final rub in rubs) rub.number,
     ]);
+    expect(rows.where((row) => row.isRub), hasLength(rubs.length));
+    // The first rub of a hizb opens where the hizb does and is still a row.
+    for (final first in hizb) {
+      final at = rows.indexWhere(
+        (row) => !row.isRub && row.number == first.number,
+      );
+      final next = rows[at + 1];
+      expect(next.isRub, isTrue);
+      expect(next.address, first.firstAyah);
+    }
     var current = 0;
     for (final row in rows) {
       if (!row.isRub) {
@@ -121,6 +127,16 @@ void main() {
         expect(fixture.index.numberAt(Division.hizb, row.address), current);
       }
     }
+  });
+
+  test('keeps the juz and hizb rows when only the position changes', () async {
+    final positions = FakeReadingPositionRepository();
+    final m = model(positions: positions);
+    final juz = m.juzRows;
+    final hizb = m.hizbRows;
+    await positions.save(QuranAddress(fixture.index.riwaya, 2, 3));
+    expect(identical(m.juzRows, juz), isTrue);
+    expect(identical(m.hizbRows, hizb), isTrue);
   });
 
   test('chooses a tab and tells the screen once', () {
