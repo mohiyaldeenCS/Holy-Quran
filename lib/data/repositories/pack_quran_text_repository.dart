@@ -113,6 +113,12 @@ final class PackQuranTextRepository implements QuranTextRepository {
   }
 
   @override
+  Future<Result<Set<int>>> basmalaSurahs() async => _read(() {
+    _surahList();
+    return _database.surahsWithBasmala().toSet();
+  });
+
+  @override
   Future<Result<List<WordSpan>>> words(QuranAddress address) async => _read(() {
     _expectAyah(address);
     _verifySurah(address.surah);

@@ -380,6 +380,15 @@ final class PackDatabase {
     _ => null,
   };
 
+  /// The numbers of the surahs that store a basmala, in order. It reads the
+  /// field's presence only, never its text.
+  List<int> surahsWithBasmala() => [
+    for (final row in _file.select(
+      'SELECT number FROM surah WHERE basmala IS NOT NULL ORDER BY number',
+    ))
+      row.integer(0),
+  ];
+
   /// The text of ayah [ayah] of [surah], or null when there is none.
   PackText? ayahText(int surah, int ayah) => switch (_file.select(
     'SELECT CAST(text AS BLOB) FROM ayah WHERE surah = ? AND number = ?',
