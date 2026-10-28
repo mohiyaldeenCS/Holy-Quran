@@ -13,7 +13,7 @@ import 'package:holyquran/ui/features/listen/view_models/recitation_picker_view_
 
 /// The recitation picker (`AU-01`), an extension screen that follows the
 /// listen screen of the Screens2 board: each recitation is the board's
-/// reciter card, with its riwaya, style, download state and «توقيت كلمات» where it
+/// reciter card, with its style, download state and «توقيت كلمات» where it
 /// has word timing. With no recitation the list is empty: the empty
 /// state's sentence is not written yet.
 class RecitationPickerScreen extends StatelessWidget {
@@ -69,7 +69,6 @@ class RecitationPickerScreen extends StatelessWidget {
                     return RecitationCard(
                       reciter: details.reciter,
                       details: [
-                        _riwayaLine(l10n, details.riwaya, state),
                         details.style,
                         ?_stateWord(l10n, state),
                         if (details.hasWordTiming) l10n.wordTimingTag,
@@ -86,26 +85,13 @@ class RecitationPickerScreen extends StatelessWidget {
   }
 }
 
-/// The riwaya as the catalogue gives it; a downloaded recitation's line is
-/// the Screens2 board's «{riwaya} · محمّلة».
-String _riwayaLine(
-  AppLocalizations l10n,
-  String riwaya,
-  ResourceState? state,
-) => switch (state) {
-  ResourceDownloaded() ||
-  ResourceUpdateAvailable() => l10n.recitationDownloadedLine(riwaya),
-  _ => riwaya,
-};
-
 String? _stateWord(AppLocalizations l10n, ResourceState? state) =>
     switch (state) {
+      ResourceDownloaded() ||
+      ResourceUpdateAvailable() => l10n.resourceDownloaded,
       ResourceAvailable() => l10n.resourceAvailable,
       ResourceDownloading(:final percent?) => l10n.percentValue(
         arabicDigits(percent),
       ),
-      ResourceDownloaded() ||
-      ResourceUpdateAvailable() ||
-      ResourceDownloading() ||
-      null => null,
+      ResourceDownloading() || null => null,
     };

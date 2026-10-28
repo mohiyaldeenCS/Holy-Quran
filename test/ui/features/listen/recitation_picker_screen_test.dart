@@ -33,7 +33,7 @@ const _style = 'Synthetic style';
 
 String _line(List<String> items) => items.join(_l10n.dataSeparator);
 
-/// What the catalogue gives, shown unchanged.
+/// A riwaya id is internal: the catalogue has no display name for it yet.
 const _riwaya = 'hafs';
 const _timedRiwaya = 'synthetic_riwaya';
 
@@ -144,15 +144,10 @@ void main() {
     expect(find.byType(RecitationCard), findsOneWidget);
   });
 
-  testWidgets('shows the riwaya, the style and the download state', (
-    tester,
-  ) async {
+  testWidgets('shows the style and the download state', (tester) async {
     final installs = FakePackInstallRepository();
     await _pump(tester, _viewModel(installs: installs));
-    expect(
-      find.text(_line([_riwaya, _style, _l10n.resourceAvailable])),
-      findsOneWidget,
-    );
+    expect(find.text(_line([_style, _l10n.resourceAvailable])), findsOneWidget);
 
     installs.jobs = [
       InstallJob(
@@ -166,7 +161,7 @@ void main() {
     ];
     await tester.pump();
     expect(
-      find.text(_line([_riwaya, _style, _l10n.percentValue(arabicDigits(40))])),
+      find.text(_line([_style, _l10n.percentValue(arabicDigits(40))])),
       findsOneWidget,
     );
 
@@ -175,7 +170,7 @@ void main() {
       ..installed = [_installed('synthetic-recitation')];
     await tester.pump();
     expect(
-      find.text(_line([_l10n.recitationDownloadedLine(_riwaya), _style])),
+      find.text(_line([_style, _l10n.resourceDownloaded])),
       findsOneWidget,
     );
   });
@@ -188,10 +183,17 @@ void main() {
       _viewModel(recitations: [_timed()], withCatalogue: false),
     );
 
-    expect(
-      find.text(_line([_timedRiwaya, _style, _l10n.wordTimingTag])),
-      findsOneWidget,
+    expect(find.text(_line([_style, _l10n.wordTimingTag])), findsOneWidget);
+  });
+
+  testWidgets('never shows the riwaya id', (tester) async {
+    await _pump(
+      tester,
+      _viewModel(recitations: [..._catalogue.recitations, _timed()]),
     );
+
+    expect(find.textContaining(_riwaya), findsNothing);
+    expect(find.textContaining(_timedRiwaya), findsNothing);
   });
 
   testWidgets('with no recitation the list is empty', (tester) async {

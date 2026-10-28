@@ -33,9 +33,6 @@ final class PlayerViewModel extends ChangeNotifier {
 
   String? get reciter => _state.plan?.recitation.reciter;
 
-  /// As the catalogue gives it, unchanged.
-  String? get riwaya => _state.plan?.recitation.riwaya;
-
   String? get style => _state.plan?.recitation.style;
 
   // The segment, not PlayerState.ayah: that keeps the last plan's ayah until
