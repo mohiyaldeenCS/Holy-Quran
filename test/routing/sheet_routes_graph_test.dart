@@ -96,7 +96,7 @@ void main() {
           ),
           (dependencies) => provideAudio(
             dependencies,
-            engine: FakeAudioEngineService.new,
+            createEngine: FakeAudioEngineService.new,
             locate: (recitation, source) async =>
                 (uri: Uri.parse('https://audio.test/a.mp3'), streamed: true),
           ),
@@ -137,30 +137,43 @@ void main() {
     );
   });
 
-  testWidgets('every sheet opens over a verified base pack, with a plan '
-      'playing', (tester) async {
-    final router = await pumpApp(tester, basePack: true);
-    final context = tester.element(find.byType(Navigator).first);
-    final builder = context.read<PlaybackPlanBuilder?>();
-    final player = context.read<PlayerRepository?>();
-    expect(builder, isNotNull);
-    expect(player, isNotNull);
-    final plan = (builder!.build(_recitation, WholeSurah(1)) as PlanReady).plan;
-    await tester.runAsync(() => player!.play(plan));
-    await tester.pump();
+  // The app ships with a base pack and nothing playing, since no recitation
+  // can be located yet; a plan playing is the state the sheets are for.
+  for (final playing in [false, true]) {
+    testWidgets('every sheet opens over a verified base pack, '
+        '${playing ? 'with a plan playing' : 'with nothing played'}', (
+      tester,
+    ) async {
+      final router = await pumpApp(tester, basePack: true);
+      final context = tester.element(find.byType(Navigator).first);
+      final builder = context.read<PlaybackPlanBuilder?>();
+      final player = context.read<PlayerRepository?>();
+      expect(builder, isNotNull);
+      expect(player, isNotNull);
+      if (playing) {
+        final plan =
+            (builder!.build(_recitation, WholeSurah(1)) as PlanReady).plan;
+        await tester.runAsync(() => player!.play(plan));
+        await tester.pump();
+      }
 
-    for (final sheet in _sheets) {
-      final location = _locationOf(sheet.path);
-      expect(location, isNot(contains('/:')), reason: sheet.path);
-      unawaited(router.push(location));
-      await tester.pumpAndSettle();
+      for (final sheet in _sheets) {
+        final location = _locationOf(sheet.path);
+        expect(location, isNot(contains('/:')), reason: sheet.path);
+        unawaited(router.push(location));
+        await tester.pumpAndSettle();
 
-      expect(tester.takeException(), isNull, reason: location);
-      expect(router.state.uri.path, Uri.parse(location).path, reason: location);
-      router.pop();
-      await tester.pumpAndSettle();
-    }
-  });
+        expect(tester.takeException(), isNull, reason: location);
+        expect(
+          router.state.uri.path,
+          Uri.parse(location).path,
+          reason: location,
+        );
+        router.pop();
+        await tester.pumpAndSettle();
+      }
+    });
+  }
 
   testWidgets('every sheet opens, or closes at once, with no base pack', (
     tester,

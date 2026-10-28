@@ -137,7 +137,7 @@ Result<_IndexAndBuilder> _indexAndPlanBuilder(
         );
         return Ok((value, builder));
       } on ArgumentError catch (error) {
-        return Failure(PackInconsistent(packId, 'no plans: ${error.message}'));
+        return Failure(PackInconsistent(packId, 'no plans: $error'));
       }
   }
 }

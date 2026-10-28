@@ -31,7 +31,10 @@ class _CloseState extends State<_Close> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && context.canPop()) context.pop();
+      // Only this sheet closes, never a route pushed over it meanwhile.
+      if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
+        context.pop();
+      }
     });
   }
 
