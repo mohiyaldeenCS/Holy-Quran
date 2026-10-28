@@ -1,10 +1,14 @@
+import 'package:flutter/material.dart' show InputBorder, InputDecoration;
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/ui/core/metrics/settings_metrics.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 
 /// Screen metrics of the index and the sheets that go with it, read from the
-/// index screen of `design/identity-boards/Screens2.dc.html` (lines 21 to 37).
+/// index screen of `design/identity-boards/Screens2.dc.html` (lines 21 to 37)
+/// and, for the go-to field, from the reference of `SearchField`
+/// (`.qk-search` in `design/design-system/components/bundle.css`), the one
+/// field the identity has.
 abstract final class IndexMetrics {
   // Screens2.dc.html l.21, the header: `padding:28px 20px 10px`, shared with
   // the other tab roots (D-134).
@@ -108,4 +112,39 @@ abstract final class IndexMetrics {
   // identity draws no such row; the step is a spacing token.
   static EdgeInsetsDirectional rowInset({required bool rub}) =>
       EdgeInsetsDirectional.only(start: rub ? AppSpacing.space5 : 0);
+
+  // The go-to sheet's number field takes the search field's box (`.qk-search`):
+  // `height:56px` as a minimum, radius `radius-button`, a `line-strong` ring of
+  // 1.5px that turns into a 2px `primary` ring while it has focus, and the
+  // text `font-size:18px;font-weight:600` (`.qk-search-input`), no line
+  // height. The identity has no other field, so the sheet, which it does not
+  // draw, borrows this one.
+  static const double fieldMinHeight = 56;
+  static const double fieldRing = 1.5;
+  static const double fieldFocusedRing = 2;
+  static final BorderRadius fieldRadius = BorderRadius.circular(
+    AppRadius.radiusButton,
+  );
+  static const EdgeInsets fieldPadding = EdgeInsets.symmetric(
+    horizontal: AppSpacing.space4,
+  );
+  // Not collapsed, as SearchField's: the decorator keeps the input at least
+  // target-min high.
+  static const InputDecoration fieldDecoration = InputDecoration(
+    border: InputBorder.none,
+    contentPadding: EdgeInsets.zero,
+  );
+  static const TextStyle fieldStyle = TextStyle(
+    inherit: false,
+    fontFamily: AppFonts.sans,
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0,
+    leadingDistribution: TextLeadingDistribution.even,
+    textBaseline: TextBaseline.alphabetic,
+  );
+
+  // A sheet over the keyboard keeps its content above it.
+  static EdgeInsets keyboardInset(BuildContext context) =>
+      EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom);
 }
