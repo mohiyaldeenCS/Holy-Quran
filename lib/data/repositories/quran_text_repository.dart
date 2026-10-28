@@ -24,6 +24,9 @@ abstract interface class QuranTextRepository {
   /// The basmala stored for [surah]; null when the surah has none.
   Future<Result<PackText?>> basmala(int surah);
 
+  /// The surahs that have a separate basmala, by number, without its text.
+  Future<Result<Set<int>>> basmalaSurahs();
+
   /// The word spans of the ayah at [address], an ayah address. The spans of
   /// a surah are checked on its first read, like its digest.
   Future<Result<List<WordSpan>>> words(QuranAddress address);

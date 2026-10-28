@@ -128,6 +128,10 @@ void main() {
       expect(ok(await repository.basmala(3)), isNotNull);
     });
 
+    test('lists the surahs that have a basmala, by number', () async {
+      expect(ok(await repository.basmalaSurahs()), {1, 3});
+    });
+
     test('gives word spans', () async {
       expect(ok(await repository.words(_at('hafs:2:3'))), const [
         WordSpan(number: 1, start: 0, end: 14),
@@ -272,6 +276,7 @@ void main() {
       expect(await repository.ayahText(_at('hafs:1:2')), disabled);
       expect(await repository.ayahText(_at('hafs:2:1')), disabled);
       expect(await repository.basmala(3), disabled);
+      expect(await repository.basmalaSurahs(), disabled);
       expect(await repository.words(_at('hafs:2:1')), disabled);
       expect(await repository.marks(_at('hafs:2:2')), disabled);
       expect(await repository.surahs(), disabled);

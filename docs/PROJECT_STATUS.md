@@ -237,7 +237,13 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   empty states. Not worded: source credits (D-128 (6)), copying several ayat, gallery
   titles, the sources screen's headings. For the owner's optional look: the lead's
   wording (owner's linguist, when he wishes).
-- Open pull requests: #53 (P1-27). Merged since: #56 (the gallery test sized to the gallery; D-136), #57 (P1-39, the eight project icons in the generator), #58 (P1-38), #52 (P1-25). Their old CI runs wait
+- **Player sheets reachable (#59).** `PlaybackPlanBuilder` provided by the Quran area with the
+  index; `SheetNeeds` closes a sheet whose base-pack objects are absent; a graph test opens every
+  sheet through the real providers (D-138). D-135's preconditions for P1-27 are met.
+- Open pull requests: #53 (P1-27, fixing its review). Merged since: #56 (the gallery test sized
+  to the gallery; D-136), #57 (P1-39, the eight project icons in the generator), #58 (P1-38),
+  #52 (P1-25), #59 (player sheets reachable). A CI run after the bot's golden commit waits for
+  approval (`action_required`); a push by the lead starts a normal run.
 - **P1-28 merged (#50), partial.**
   Range, play-options, repeat, silence and queue sheets (D-135). AU-11 met; AU-02
   partial (ayah to ayah, several pages, a set of surahs and to the end of the mushaf
@@ -248,10 +254,10 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   a route test before any screen opens the sheets; timings in the plan; the sleep timer,
   stop-after, unlimited repeat and add-to-queue task. Reviewed by `code-reviewer` and
   `identity-auditor`.
-  (`action_required`); a push by the lead starts a normal run.
-- Not started: P1-14, P1-17, P1-22 (wave 2; P1-22's condition, D-097, is met),
+- In progress: P1-14 (`agent/p1-14-reader-surah-screen`, from the architect's plan). Not
+  started: P1-17, P1-22 (wave 2; P1-22's condition, D-097, is met),
   P1-23, P1-24, P1-26, P1-29, P1-30, P1-40 (wave 3), P1-31 to P1-34 (wave 4), P1-35 to
-  P1-37 (wave 5), P1-38 and P1-39 (unblocked by D-128).
+  P1-37 (wave 5).
 - The local branches of 2026-10-13 (`fix/bookmark-restore-nullable`,
   `chore/analysis-exclude-platform-dirs`) are not needed on the pinned SDK (analyze is
   clean without them) and are not pushed (D-129). On the owner's machine
