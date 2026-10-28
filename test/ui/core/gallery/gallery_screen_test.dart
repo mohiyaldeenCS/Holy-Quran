@@ -252,9 +252,14 @@ void main() {
 
   testWidgets('every tap target is at least 48 and labelled', (tester) async {
     final semantics = tester.ensureSemantics();
-    // Tall enough for every block and section to be on screen, where the
-    // guidelines look.
-    await _pumpGallery(tester, surface: const Size(400, 40000));
+    // The surface is made as tall as the gallery, so that every block and
+    // section is on screen, where the guidelines look, however much it grows.
+    await _pumpGallery(tester);
+    final scrolled = tester
+        .state<ScrollableState>(find.byType(Scrollable).first)
+        .position;
+    final height = scrolled.viewportDimension + scrolled.maxScrollExtent;
+    await _pumpGallery(tester, surface: Size(400, height));
     expect(
       tester
           .state<ScrollableState>(find.byType(Scrollable).first)
