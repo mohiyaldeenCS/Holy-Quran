@@ -9,6 +9,7 @@ import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
+import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/router.dart';
@@ -27,6 +28,7 @@ import 'package:holyquran/ui/features/mushaf/views/surah_info_sheet.dart';
 import 'package:provider/provider.dart';
 
 import '../../testing/fakes/fake_app_settings_repository.dart';
+import '../../testing/fakes/fake_reading_position_repository.dart';
 import '../ui/features/mushaf/mushaf_harness.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
@@ -46,7 +48,11 @@ void main() {
     await root.delete(recursive: true);
   });
 
-  Future<GoRouter> pumpApp(WidgetTester tester, String location) async {
+  Future<GoRouter> pumpApp(
+    WidgetTester tester,
+    String location, {
+    ReadingPositionRepository? positions,
+  }) async {
     setReaderView(tester);
     final router = createRouter(
       features: [
@@ -69,6 +75,10 @@ void main() {
           ListenableProvider<PackIntegrityRepository>.value(
             value: rig.integrity,
           ),
+          if (positions != null)
+            ListenableProvider<ReadingPositionRepository>.value(
+              value: positions,
+            ),
         ],
         child: QuranApp(router: router),
       ),
@@ -88,6 +98,41 @@ void main() {
 
     expect(modelOf(tester).status, ReaderStatus.ready);
     expect(modelOf(tester).anchor, _at(1, 1));
+  });
+
+  testWidgets('the mushaf tab opens at the last reading position', (
+    tester,
+  ) async {
+    await pumpApp(
+      tester,
+      Routes.mushaf,
+      positions: FakeReadingPositionRepository(last: _at(2, 30)),
+    );
+
+    expect(modelOf(tester).anchor, _at(2, 30));
+  });
+
+  testWidgets('an address wins over the last reading position', (tester) async {
+    await pumpApp(
+      tester,
+      Routes.mushafRead(_at(2, 5)),
+      positions: FakeReadingPositionRepository(last: _at(2, 30)),
+    );
+
+    expect(modelOf(tester).anchor, _at(2, 5));
+  });
+
+  testWidgets('a scroll in the reader is saved as the last position', (
+    tester,
+  ) async {
+    final positions = FakeReadingPositionRepository();
+    await pumpApp(tester, Routes.mushafRead(_at(2, 1)), positions: positions);
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+
+    expect(positions.saved, isNotEmpty);
+    expect(positions.last, modelOf(tester).position!.address);
   });
 
   testWidgets('an address opens the reader there', (tester) async {

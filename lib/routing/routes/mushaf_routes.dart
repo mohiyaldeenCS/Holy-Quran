@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
+import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/routing/routes/feature_routes.dart';
@@ -52,6 +53,7 @@ Widget _reader(BuildContext context, QuranAddress? address) =>
       create: (context) => MushafViewModel(
         text: context.read<QuranTextRepository?>(),
         index: context.read<QuranIndexRepository?>(),
+        positions: context.read<ReadingPositionRepository?>(),
         integrity: context.read<PackIntegrityRepository?>(),
         address: address,
       ),
