@@ -136,6 +136,17 @@ void main() {
     expect(_at(100, 30, empty), _margin);
   });
 
+  test('a mark that starts its line resolves, with hand-built geometry', () {
+    final g = TargetGeometry(
+      lineBands: const [Rect.fromLTRB(0, 0, 300, 60)],
+      words: {_w(1): const Rect.fromLTRB(100, 10, 280, 55)},
+      marks: {(_ayah, 1): const Rect.fromLTRB(290, 10, 296, 55)},
+    );
+    expect(_at(293, 30, g), _mark);
+    expect(_at(270, 30, g), _mark, reason: 'in the zone, inside the slop');
+    expect(_at(250, 30, g), _word(1));
+  });
+
   test('a marker ranks before a mark on a tie', () {
     final g = TargetGeometry(
       lineBands: const [Rect.fromLTRB(0, 0, 300, 60)],
@@ -200,9 +211,14 @@ void main() {
           system: size.system,
           step: size.step,
         );
+        var marksTried = 0;
+        var markersTried = 0;
         for (final block in _blocks(plan)) {
           final g = TargetGeometry.of(block);
-          for (final rect in [...g.marks.values, ...g.markers.values]) {
+          for (final (rect, isMark) in [
+            for (final rect in g.marks.values) (rect, true),
+            for (final rect in g.markers.values) (rect, false),
+          ]) {
             final zone = tapZone(rect);
             expect(zone.width, greaterThanOrEqualTo(48));
             expect(zone.height, greaterThanOrEqualTo(48));
@@ -211,6 +227,7 @@ void main() {
               if (g.words.values.any((w) => w.deflate(12).contains(p))) {
                 continue;
               }
+              isMark ? marksTried++ : markersTried++;
               expect(
                 resolveTap(p, g),
                 anyOf(isA<MarkerTarget>(), isA<WaqfMarkTarget>()),
@@ -220,7 +237,60 @@ void main() {
           }
           block.dispose();
         }
+        expect(marksTried, greaterThan(0), reason: 'no mark was tapped');
+        expect(markersTried, greaterThan(0), reason: 'no marker was tapped');
       });
+
+      test('a mark next to the start of its line still resolves, $name', () {
+        var tried = 0;
+        for (final block in _blocks(
+          _plan(
+            fixture,
+            longSurah,
+            width: size.width,
+            system: size.system,
+            step: size.step,
+          ),
+        )) {
+          final g = TargetGeometry.of(block);
+          for (final MapEntry(key: (ayah, mark), :value) in g.marks.entries) {
+            if (_targetsBefore(g, value).length > 1) continue;
+            tried++;
+            expect(resolveTap(value.center, g), WaqfMarkTarget(ayah, mark));
+          }
+          block.dispose();
+        }
+        expect(tried, greaterThan(0), reason: 'no mark is near a line start');
+      });
+
+      test(
+        'a mark that starts its line resolves, $name',
+        () {
+          var starts = 0;
+          for (final block in _blocks(
+            _plan(
+              fixture,
+              longSurah,
+              width: size.width,
+              system: size.system,
+              step: size.step,
+            ),
+          )) {
+            final g = TargetGeometry.of(block);
+            for (final MapEntry(key: (ayah, mark), :value) in g.marks.entries) {
+              if (_targetsBefore(g, value).isNotEmpty) continue;
+              starts++;
+              expect(resolveTap(value.center, g), WaqfMarkTarget(ayah, mark));
+            }
+            block.dispose();
+          }
+          expect(starts, greaterThan(0), reason: 'no mark starts a line');
+        },
+        skip:
+            'the line breaker hangs a mark on the word before it, so no '
+            'synthetic line starts with one (surah_layout_test); the case '
+            'is covered with hand-built geometry above',
+      );
     }
 
     test('taps 6, 12 and 18 px away keep their shares at 1.0x', () {
@@ -297,6 +367,24 @@ void main() {
       block.dispose();
     });
   });
+}
+
+/// The rects on [rect]'s band that stand before it, towards the start of the
+/// line (the right edge).
+List<Rect> _targetsBefore(TargetGeometry g, Rect rect) {
+  final band = g.lineBands[g.bandAt(rect.center.dy)!];
+  return [
+    for (final other in [
+      ...g.words.values,
+      ...g.markers.values,
+      ...g.marks.values,
+    ])
+      if (other != rect &&
+          other.center.dy >= band.top &&
+          other.center.dy < band.bottom &&
+          other.center.dx > rect.center.dx)
+        other,
+  ];
 }
 
 int _markCount(SurahText text, BlockLayout block) =>
