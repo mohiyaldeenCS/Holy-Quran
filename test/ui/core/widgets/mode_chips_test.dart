@@ -50,10 +50,11 @@ Future<void> _pump(
   );
 }
 
-Widget _live({int initial = 1, ValueChanged<int>? onChanged}) {
+Widget _live({int initial = 1, ValueChanged<int>? onChanged, String? label}) {
   var selected = initial;
   return StatefulBuilder(
     builder: (context, setState) => ModeChips(
+      label: label ?? _l10n.searchModesLabel,
       options: _options,
       selectedIndex: selected,
       onChanged: (index) {
@@ -247,6 +248,15 @@ void main() {
     }
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    handle.dispose();
+  });
+
+  testWidgets('the group is named by the label it is given', (tester) async {
+    final handle = tester.ensureSemantics();
+    await _pump(tester, _live(label: _l10n.rangeSelectorTitle), width: 600);
+    final group = tester.getSemantics(find.byType(ModeChips));
+    expect(group.label, _l10n.rangeSelectorTitle);
+    expect(group.role, SemanticsRole.radioGroup);
     handle.dispose();
   });
 

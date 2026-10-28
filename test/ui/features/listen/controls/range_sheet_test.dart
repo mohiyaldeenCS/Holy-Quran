@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/data/repositories/player_repository.dart';
+import 'package:holyquran/domain/models/playback_plan.dart';
 import 'package:holyquran/domain/models/playback_range.dart';
+import 'package:holyquran/domain/models/player_state.dart';
 import 'package:holyquran/domain/models/recitation.dart';
 import 'package:holyquran/domain/models/repeat_mode.dart';
 import 'package:holyquran/routing/routes.dart';
@@ -134,6 +139,15 @@ void main() {
       expect(vm.kind, RangeKind.surah);
     });
 
+    test('a second play while the first runs starts nothing', () async {
+      final player = playerAt(planOf(builder, WholeSurah(1)), ayah: at(1, 1));
+      final vm = viewModel(player);
+      expect(await Future.wait([vm.play(), vm.play()]), [true, false]);
+      expect(player.commands, ['play 0']);
+      expect(await vm.play(), isTrue);
+      expect(player.commands, ['play 0', 'play 0']);
+    });
+
     test('offers nothing before any plan', () async {
       final player = playerAt(null);
       final vm = viewModel(player);
@@ -162,6 +176,54 @@ void main() {
       await tester.tap(find.text(l10n.playerPlay));
       await tester.pumpAndSettle();
       expect((player.state.plan!.range as PageSpan).first, 2);
+      expect(app.sheetOpen, isFalse);
+    });
+
+    testWidgets('is titled with the range selector, which names its chips', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      final app = ControlsApp(
+        player: playerAt(planOf(builder, WholeSurah(1)), ayah: at(1, 1)),
+        builder: builder,
+        index: index,
+      );
+      await app.open(tester, Routes.rangeSheet);
+
+      final title = find.text(l10n.rangeSelectorTitle);
+      expect(title, findsOneWidget);
+      expect(tester.getSemantics(title), isSemantics(isHeader: true));
+      expect(
+        tester.getRect(title).bottom,
+        lessThanOrEqualTo(tester.getRect(find.byType(ModeChips)).top),
+      );
+      final group = tester.getSemantics(find.byType(ModeChips));
+      expect(group.label, l10n.rangeSelectorTitle);
+      expect(group.label, isNot(l10n.searchModesLabel));
+      expect(group.role, SemanticsRole.radioGroup);
+      handle.dispose();
+    });
+
+    testWidgets('a fast double tap on play plays the range once', (
+      tester,
+    ) async {
+      final player = _HeldPlayer(
+        playerAt(planOf(builder, WholeSurah(1)), ayah: at(1, 1)),
+      );
+      final app = ControlsApp(player: player, builder: builder, index: index);
+      await app.open(tester, Routes.rangeSheet);
+
+      await tester.tap(find.text(l10n.playerPlay));
+      await tester.pump();
+      await tester.tap(find.text(l10n.playerPlay));
+      await tester.pump();
+      expect(player.plays, 1);
+      expect(app.sheetOpen, isTrue);
+
+      player.release();
+      await tester.pumpAndSettle();
+      expect(player.plays, 1);
+      expect(player.inner.commands, ['play 0']);
       expect(app.sheetOpen, isFalse);
     });
 
@@ -231,4 +293,29 @@ void main() {
       expect(find.byType(Stepper), findsOneWidget);
     });
   });
+}
+
+/// A player whose every play waits for [release], as one still loading its
+/// first file does; the sheet calls nothing it does not override.
+final class _HeldPlayer extends PlayerRepository {
+  _HeldPlayer(this.inner);
+
+  final FakePlayerRepository inner;
+  final _held = Completer<void>();
+  int plays = 0;
+
+  void release() => _held.complete();
+
+  @override
+  PlayerState get state => inner.state;
+
+  @override
+  Future<void> play(PlaybackPlan plan, {int startAt = 0}) async {
+    plays++;
+    await _held.future;
+    await inner.play(plan, startAt: startAt);
+  }
+
+  @override
+  Object? noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

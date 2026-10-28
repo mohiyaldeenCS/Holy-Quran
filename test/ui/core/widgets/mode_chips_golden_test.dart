@@ -18,6 +18,7 @@ void main() {
       return SizedBox(
         width: 520,
         child: ModeChips(
+          label: l10n.searchModesLabel,
           options: [
             l10n.searchModeWord,
             l10n.searchModeRoot,

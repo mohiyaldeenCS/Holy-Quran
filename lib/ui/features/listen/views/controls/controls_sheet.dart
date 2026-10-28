@@ -6,8 +6,9 @@ import 'package:holyquran/ui/core/theme/tokens.g.dart';
 
 /// The frame of a player control sheet, after the identity's `.qk-sheet`:
 /// `surface`, rounded at the top, with its handle, then the [title], a
-/// `ModeChips` strip in [chips] and [children], a gap apart. Below the
-/// handle it scrolls when it does not fit, as it may at 200% text.
+/// `ModeChips` strip in [chips] and [children], a gap apart, in the order of
+/// the identity's `ContextSheet`. Below the handle it scrolls when it does
+/// not fit, as it may at 200% text.
 class ControlsSheet extends StatelessWidget {
   const ControlsSheet({
     required this.children,
@@ -25,17 +26,31 @@ class ControlsSheet extends StatelessWidget {
     final colors = context.colors;
     final title = this.title;
     final chips = this.chips;
-    final body = [
+    // Each with whether it is the chip strip, whose gaps are narrower.
+    final items = [
       if (title != null)
-        Semantics(
-          header: true,
-          child: Text(
-            title,
-            style: AppTextStyles.sectionTitle.copyWith(color: colors.ink),
+        (
+          Semantics(
+            header: true,
+            child: Text(
+              title,
+              style: AppTextStyles.sectionTitle.copyWith(color: colors.ink),
+            ),
           ),
+          false,
         ),
-      ...children,
+      if (chips != null) (chips, true),
+      for (final child in children) (child, false),
     ];
+    double gapBefore(int index) {
+      final besideChips = items[index].$2 || (index > 0 && items[index - 1].$2);
+      final gap = besideChips
+          ? PlayerControlsMetrics.chipStripGap
+          : AppSpacing.space4;
+      // The scroll padding already gives the first its ring's room.
+      return index == 0 ? gap - PlayerControlsMetrics.focusRingRoom : gap;
+    }
+
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.surface,
@@ -67,24 +82,8 @@ class ControlsSheet extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (chips != null) ...[
-                        const SizedBox(
-                          height:
-                              PlayerControlsMetrics.chipStripGap -
-                              PlayerControlsMetrics.focusRingRoom,
-                        ),
-                        chips,
-                      ],
-                      for (final (index, child) in body.indexed) ...[
-                        SizedBox(
-                          height: switch ((index, chips)) {
-                            (0, null) =>
-                              AppSpacing.space4 -
-                                  PlayerControlsMetrics.focusRingRoom,
-                            (0, _) => PlayerControlsMetrics.chipStripGap,
-                            _ => AppSpacing.space4,
-                          },
-                        ),
+                      for (final (index, (child, _)) in items.indexed) ...[
+                        SizedBox(height: gapBefore(index)),
                         child,
                       ],
                     ],

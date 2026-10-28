@@ -12,9 +12,9 @@ import 'package:holyquran/ui/core/widgets/surah_name.dart';
 import 'package:holyquran/ui/features/listen/view_models/controls/range_sheet_view_model.dart';
 import 'package:holyquran/ui/features/listen/views/controls/controls_sheet.dart';
 
-/// The range picker (PRD §7.7): `ModeChips` for the kind of range, shown
-/// when the recitation can play more than one, and a `Stepper` for its
-/// number, then play. Before any plan it is empty.
+/// The range picker (PRD §7.7), «محدد النطاق»: `ModeChips` for the kind of
+/// range, shown when the recitation can play more than one, and a `Stepper`
+/// for its number, then play. Before any plan it is empty.
 class RangeSheet extends StatelessWidget {
   const RangeSheet({required this.viewModel, super.key});
 
@@ -37,8 +37,10 @@ class RangeSheet extends StatelessWidget {
       };
       final surahName = vm.surahName;
       return ControlsSheet(
+        title: l10n.rangeSelectorTitle,
         chips: kinds.length > 1
             ? ModeChips(
+                label: l10n.rangeSelectorTitle,
                 options: [for (final kind in kinds) label(kind)],
                 selectedIndex: kinds.indexOf(vm.kind),
                 onChanged: (index) => vm.selectKind(kinds[index]),

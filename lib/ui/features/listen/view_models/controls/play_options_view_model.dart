@@ -11,7 +11,7 @@ import 'current_plan.dart';
 /// Play from the ayah tools (`AU-03`): from [address] to the end of the
 /// ayah, page, surah or juz, or until stopped. It plays with the recitation,
 /// repeat and silence of the last plan; before any plan it offers nothing.
-final class PlayOptionsViewModel {
+final class PlayOptionsViewModel with PlaysOnce {
   PlayOptionsViewModel({
     required this.address,
     required this._player,
@@ -39,13 +39,13 @@ final class PlayOptionsViewModel {
   ];
 
   /// Plays from [address] to [until]; false when it cannot.
-  Future<bool> play(AyahToolEnd until) async {
+  Future<bool> play(AyahToolEnd until) => playOnce(() async {
     if (_outcome(until) case PlanReady(:final plan)) {
       await _player.play(plan);
       return true;
     }
     return false;
-  }
+  });
 
   PlanOutcome? _outcome(AyahToolEnd until) => switch (_player.state.plan) {
     final plan? when _inEdition => rebuildPlan(

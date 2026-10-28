@@ -10,7 +10,7 @@ import 'current_plan.dart';
 /// The repeat count (`AU-09`), from 1 to 99, opening at the count of the
 /// plan playing. Its unit stays the plan's. Playing builds the plan playing
 /// then again with the count and goes on from the ayah being heard.
-final class RepeatSheetViewModel extends ChangeNotifier {
+final class RepeatSheetViewModel extends ChangeNotifier with PlaysOnce {
   RepeatSheetViewModel({required this._player, required this._builder})
     : _count = _player.state.plan?.repeat.count ?? RepeatMode.minCount;
 
@@ -42,13 +42,13 @@ final class RepeatSheetViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> play() async {
+  Future<bool> play() => playOnce(() async {
     if (_outcome() case PlanReady(:final plan)) {
       await _player.play(plan, startAt: segmentOf(plan, _player.state.ayah));
       return true;
     }
     return false;
-  }
+  });
 
   PlanOutcome? _outcome() => switch (_player.state.plan) {
     final plan? when available => rebuildPlan(

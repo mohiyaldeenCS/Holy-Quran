@@ -63,6 +63,13 @@ void main() {
       expect(player.commands, ['play 0']);
     });
 
+    test('a second play while the first runs starts nothing', () async {
+      final player = playerAt(planOf(builder, WholeSurah(1)), segment: 3);
+      final vm = viewModel(player)..setSeconds(4);
+      expect(await Future.wait([vm.play(), vm.play()]), [true, false]);
+      expect(player.commands, ['play 3']);
+    });
+
     test('offers nothing for whole surahs without timing', () async {
       final player = playerAt(
         planOf(
@@ -87,19 +94,26 @@ void main() {
   });
 
   group('SilenceSheet', () {
-    testWidgets('names the silence in seconds and plays it', (tester) async {
+    testWidgets('names the silence once, with its seconds as the value', (
+      tester,
+    ) async {
       final player = playerAt(planOf(builder, WholeSurah(1)), segment: 0);
       final app = ControlsApp(player: player, builder: builder, index: index);
       await app.open(tester, Routes.silenceSheet);
 
-      expect(find.text(l10n.playerSilenceSeconds('٠')), findsOneWidget);
+      String seconds(String digits) =>
+          l10n.stepperValueWithUnit(digits, l10n.playerSecondsUnit);
+      expect(find.text(l10n.playerSilenceBetweenAyat), findsOneWidget);
+      expect(find.text(seconds('٠')), findsOneWidget);
+      expect(find.text(l10n.playerSilenceSeconds('٠')), findsNothing);
       await tester.tap(
         find.bySemanticsLabel(
-          l10n.stepperIncrease(l10n.playerSilenceSeconds('٠')),
+          l10n.stepperIncrease(l10n.playerSilenceBetweenAyat),
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text(l10n.playerSilenceSeconds('١')), findsOneWidget);
+      expect(find.text(l10n.playerSilenceBetweenAyat), findsOneWidget);
+      expect(find.text(seconds('١')), findsOneWidget);
       await tester.tap(find.text(l10n.playerPlay));
       await tester.pumpAndSettle();
       expect(player.state.plan!.silence, const Duration(seconds: 1));

@@ -37,3 +37,20 @@ int segmentOf(PlaybackPlan plan, QuranAddress? ayah) {
   }
   return 0;
 }
+
+/// A sheet's play, run once at a time: a tap while an earlier one is still
+/// starting plays nothing and reports false, so that a fast double tap does
+/// not start the plan twice.
+mixin PlaysOnce {
+  bool _playing = false;
+
+  Future<bool> playOnce(Future<bool> Function() play) async {
+    if (_playing) return false;
+    _playing = true;
+    try {
+      return await play();
+    } finally {
+      _playing = false;
+    }
+  }
+}

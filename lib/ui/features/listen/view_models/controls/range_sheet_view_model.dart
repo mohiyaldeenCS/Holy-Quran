@@ -19,7 +19,7 @@ enum RangeKind { ayah, page, juz, hizb, surah }
 /// juz, a hizb or a surah, each starting where playback was when it opened.
 /// It plays the range with the recitation, repeat and silence of the plan
 /// playing then, so it offers nothing before any plan.
-final class RangeSheetViewModel extends ChangeNotifier {
+final class RangeSheetViewModel extends ChangeNotifier with PlaysOnce {
   RangeSheetViewModel({
     required this._player,
     required this._builder,
@@ -99,7 +99,7 @@ final class RangeSheetViewModel extends ChangeNotifier {
 
   /// Plays [range] in place of what is playing, with its recitation; false
   /// when nothing has played or the recitation cannot play the range.
-  Future<bool> play() async {
+  Future<bool> play() => playOnce(() async {
     final plan = _player.state.plan;
     if (plan == null || _kinds.isEmpty) return false;
     if (rebuildPlan(_builder, plan, range: range) case PlanReady(:final plan)) {
@@ -107,7 +107,7 @@ final class RangeSheetViewModel extends ChangeNotifier {
       return true;
     }
     return false;
-  }
+  });
 
   PackText? _nameOf(int surah) =>
       _index.surahs.where((info) => info.number == surah).firstOrNull?.name;

@@ -100,6 +100,14 @@ void main() {
       expect(bySurah.state.plan!.repeat, RepeatMode(RepeatUnit.surah, 2));
     });
 
+    test('a second play while the first runs starts nothing', () async {
+      final player = playerAt(planOf(builder, WholeSurah(1)), ayah: at(1, 1));
+      final vm = viewModel(player);
+      expect(await Future.wait([vm.play(), vm.play()]), [true, false]);
+      expect(player.commands, ['play 0']);
+      expect(await vm.play(), isTrue);
+    });
+
     test('offers nothing before any plan', () async {
       final player = playerAt(null);
       final vm = viewModel(player);

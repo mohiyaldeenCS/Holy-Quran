@@ -51,6 +51,16 @@ void main() {
       expect(builder.ayatOf(range), [at(1, 2), at(1, 3)]);
     });
 
+    test('a second play while the first runs starts nothing', () async {
+      final player = playerAt(planOf(builder, WholeSurah(3)));
+      final vm = viewModel(player, at(1, 2));
+      final plays = [vm.play(AyahToolEnd.page), vm.play(AyahToolEnd.surah)];
+      expect(await Future.wait(plays), [true, false]);
+      expect(player.commands, ['play 0']);
+      final range = player.state.plan!.range as FromAyahTool;
+      expect(range.until, AyahToolEnd.page);
+    });
+
     test('a word address plays from its ayah', () async {
       final player = playerAt(planOf(builder, WholeSurah(3)));
       final vm = viewModel(player, QuranAddress('hafs', 2, 1, 3));
