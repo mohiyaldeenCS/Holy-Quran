@@ -12,6 +12,7 @@ import 'package:holyquran/routing/routes/feature_routes.dart';
 import 'package:holyquran/ui/core/gallery/gallery_screen.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
+import 'package:holyquran/ui/features/bookmarks/views/bookmarks_screen.dart';
 import 'package:holyquran/ui/features/more/views/more_screen.dart';
 import 'package:holyquran/ui/features/settings/views/settings_screen.dart';
 
@@ -42,6 +43,7 @@ void main() {
         button.label,
     ];
     expect(labels, [
+      _l10n.bookmarksAndNotes,
       _l10n.resourceManagerTitle,
       _l10n.settingsTitle,
       if (kDebugMode) _l10n.galleryTitle,
@@ -59,8 +61,17 @@ void main() {
     expect(router.state.uri.path, Routes.settings);
   });
 
+  testWidgets('opens the bookmarks and notes', (tester) async {
+    final router = await _pumpMore(tester);
+
+    await tester.tap(_entry(_l10n.bookmarksAndNotes));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BookmarksScreen), findsOneWidget);
+    expect(router.state.uri.path, Routes.bookmarks);
+  });
+
   for (final (label, path, location) in [
-    (_l10n.bookmarksAndNotes, RoutePaths.bookmarks, Routes.bookmarks),
     (_l10n.sourcesTitle, RoutePaths.sources, Routes.sources),
   ]) {
     testWidgets('shows «$label» once its screen has a route (PRD §7.1)', (

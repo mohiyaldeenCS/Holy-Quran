@@ -7,8 +7,8 @@ import 'package:holyquran/domain/models/category.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/ui/features/bookmarks/view_models/bookmarks_view_model.dart';
 
-import 'bookmarks_harness.dart';
 import '../index/index_fixture.dart';
+import 'bookmarks_harness.dart';
 
 void main() {
   late Directory root;
@@ -91,12 +91,8 @@ void main() {
   test('filters by category and by tag', () async {
     final tag = await world.makeTag('وسم تجريبي');
     await world.bookmark(world.ayah(1, 1), category: 'fake-review');
-    await world.bookmark(
-      world.ayah(1, 2),
-      category: 'fake-memorise',
-      tagIds: {tag.id},
-    );
-    await world.bookmark(world.ayah(1, 3), category: 'fake-memorise');
+    await world.bookmark(world.ayah(1, 2), tagIds: {tag.id});
+    await world.bookmark(world.ayah(1, 3));
     final viewModel = make();
     await settle();
     expect(viewModel.entries, hasLength(3));
