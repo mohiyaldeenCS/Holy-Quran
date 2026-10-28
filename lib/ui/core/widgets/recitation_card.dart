@@ -4,6 +4,7 @@ import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/metrics/player_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/player_surface_border.dart';
 import 'package:holyquran/ui/core/widgets/pressable.dart';
 import 'package:holyquran/ui/core/widgets/star_outline.dart';
 
@@ -41,6 +42,7 @@ class RecitationCard extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: colors.player,
+                border: playerSurfaceBorder(context),
                 shape: BoxShape.circle,
               ),
               child: StarOutline(
