@@ -38,6 +38,17 @@ abstract final class ReaderScreenMetrics {
   /// appended: an engineering margin, not a drawn value.
   static const double preloadViewports = 2;
 
+  /// How far a margin mark's start edge lies beyond the text column's: the
+  /// screen's edge, so the mark stands over the margin and its overhang
+  /// lies on the line beside it (D-140, 1). The boards draw no margin marks
+  /// in the surah-mode reader; the side and the reach are a reading, for the
+  /// owner's device session.
+  static const double marginMarkOutset = ReaderMetrics.textInset;
+
+  /// The same for the bookmark ribbon, on the column's other side
+  /// (`Mushaf.dc.html`, «علامة مرجعية»: «شريط زمردي في الهامش»).
+  static const double ribbonOutset = ReaderMetrics.textInset;
+
   /// The message of a reader with no verified pack, inset as a screen's
   /// body (`Search.dc.html`, «خطة الحفظ» body: `padding: 0 20px`).
   static const EdgeInsetsDirectional messagePadding =
