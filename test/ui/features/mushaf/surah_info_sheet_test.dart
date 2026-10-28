@@ -128,4 +128,12 @@ void main() {
       );
     }
   });
+
+  testWidgets('fits at 200% in landscape', (tester) async {
+    await pumpSheet(tester, textScale: 2);
+    tester.view.physicalSize = const Size(640, 320);
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+  });
 }

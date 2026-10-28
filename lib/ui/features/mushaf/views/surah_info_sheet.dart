@@ -35,39 +35,42 @@ class SurahInfoSheet extends StatelessWidget {
           ),
           child: SafeArea(
             top: false,
-            child: Padding(
-              padding: ReaderScreenMetrics.sheetPadding,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                spacing: ReaderScreenMetrics.sheetGap,
-                children: [
-                  Center(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: colors.lineStrong,
-                        borderRadius: ReaderScreenMetrics.handleRadius,
-                      ),
-                      child: SizedBox.fromSize(
-                        size: ReaderScreenMetrics.handleSize,
-                      ),
-                    ),
-                  ),
-                  Semantics(
-                    header: true,
-                    child: Text(
-                      l10n.surahIntroTitle,
-                      style: AppTextStyles.sectionTitle.copyWith(
-                        color: colors.ink,
+            // Scrolls only when large text outgrows a short screen.
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: ReaderScreenMetrics.sheetPadding,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  spacing: ReaderScreenMetrics.sheetGap,
+                  children: [
+                    Center(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: colors.lineStrong,
+                          borderRadius: ReaderScreenMetrics.handleRadius,
+                        ),
+                        child: SizedBox.fromSize(
+                          size: ReaderScreenMetrics.handleSize,
+                        ),
                       ),
                     ),
-                  ),
-                  SurahHeader(
-                    name: info.name,
-                    size: SurahHeaderSize.lg,
-                    info: surahInfoText(l10n, info),
-                  ),
-                ],
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        l10n.surahIntroTitle,
+                        style: AppTextStyles.sectionTitle.copyWith(
+                          color: colors.ink,
+                        ),
+                      ),
+                    ),
+                    SurahHeader(
+                      name: info.name,
+                      size: SurahHeaderSize.lg,
+                      info: surahInfoText(l10n, info),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

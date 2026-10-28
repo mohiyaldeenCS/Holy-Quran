@@ -16,9 +16,8 @@ abstract final class ReaderScreenMetrics {
   /// surah-mode reader); its sides are [ReaderMetrics.textInset].
   static const double columnTop = 18;
 
-  /// Below the footer page number: the board's `gap: 10px` between the text
-  /// frame and the page number (`Mushaf.dc.html`, «تشريح الصفحة»), read as
-  /// the same space under it.
+  /// Below the footer page number, `padding-bottom: 10px` (`Screens.dc.html`
+  /// l.87, the surah-mode reader).
   static const EdgeInsetsDirectional footerPadding = EdgeInsetsDirectional.only(
     bottom: 10,
   );
