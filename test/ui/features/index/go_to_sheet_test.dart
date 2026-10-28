@@ -110,6 +110,19 @@ void main() {
     expect(find.byType(GoToSheet), findsNothing);
   });
 
+  testWidgets('Back from the reader returns to where go-to was opened', (
+    tester,
+  ) async {
+    final router = await openSheet(tester);
+    await type(tester, 0, '2');
+    await submit(tester);
+    expect(router.state.uri.path, Routes.mushafRead(at(2, 1)));
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(router.state.uri.path, Routes.mushaf);
+    expect(find.byType(GoToSheet), findsNothing);
+  });
+
   testWidgets('the keyboard action key goes too', (tester) async {
     final router = await openSheet(tester);
     await type(tester, 0, '3');

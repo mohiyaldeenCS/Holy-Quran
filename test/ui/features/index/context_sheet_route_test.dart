@@ -123,6 +123,18 @@ void main() {
     expect(find.byType(ContextSheet), findsNothing);
   });
 
+  testWidgets('Back from the reader returns to where the sheet was opened', (
+    tester,
+  ) async {
+    final router = await openSheet(tester, at(2, 6));
+    await tester.tap(find.widgetWithText(Button, _l10n.searchResultOpen));
+    await tester.pumpAndSettle();
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(router.state.uri.path, Routes.mushaf);
+    expect(find.byType(ContextSheet), findsNothing);
+  });
+
   testWidgets('shows no play button before the player is wired to it', (
     tester,
   ) async {

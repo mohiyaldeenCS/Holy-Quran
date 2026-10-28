@@ -15,6 +15,15 @@ class ContextSheetView extends StatelessWidget {
 
   final ContextSheetViewModel viewModel;
 
+  // The sheet closes and the reader is pushed over what lay under it, so that
+  // Back returns there.
+  void _open(BuildContext context) {
+    final router = GoRouter.of(context);
+    router
+      ..pop()
+      ..push(Routes.mushafRead(viewModel.address));
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -40,7 +49,7 @@ class ContextSheetView extends StatelessWidget {
           amount: viewModel.amount,
           onAmountSelected: viewModel.select,
           passage: viewModel.passage,
-          onOpen: () => context.go(Routes.mushafRead(viewModel.address)),
+          onOpen: () => _open(context),
         );
       },
     );

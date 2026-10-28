@@ -49,7 +49,13 @@ class _GoToSheetState extends State<GoToSheet> {
 
   void _submit() {
     final target = _viewModel.submit(_number.text, ayah: _ayah.text);
-    if (target != null) context.go(Routes.mushafRead(target.start));
+    if (target == null) return;
+    // The sheet closes and the reader is pushed over what lay under it, so
+    // that Back returns there.
+    final router = GoRouter.of(context);
+    router
+      ..pop()
+      ..push(Routes.mushafRead(target.start));
   }
 
   @override
