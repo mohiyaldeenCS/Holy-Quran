@@ -56,41 +56,37 @@ commit, so the branch on GitHub holds whatever they finished. Run
 
 ### 3.1 #53: P1-27, the full player, the mini player and the recitation picker (M1.9)
 
-Branch `agent/p1-27-player-screens`. At writing its head was `7463fef`, the CI golden
-images. A `ui-builder` agent may have pushed further commits after that.
+Branch `agent/p1-27-player-screens`, head `676a281`, after the CI golden images at
+`7463fef`.
 
 **Done:**
 
 - The first code review found two blockers and five should-fix items. All are fixed
   in 6dc63ef, 6a2890f, 751d602, eb976a8 and c65052b.
 - The second code review (opus) confirmed all seven fixes hold.
-
-**Being fixed when this was written** (the second review's should-fix items):
-
-1. The range and silence chips must always show while there is a plan. The lead's
-   decision:
-   - unset silence shows `playerSilenceSeconds(٠)`, «صمت ٠ ث»;
-   - an unset range shows `rangeSelectorTitle`, «محدد النطاق».
-
-   Without them the range and silence sheets are unreachable.
-2. `player_metrics.dart` `bodyPadding` and `headerPadding` must reference
-   `SettingsMetrics.content` and `SettingsMetrics.header` (D-134), not copy them.
-3. The file `player_panel_chip.dart` holds the class `PanelChip`; the names must match.
-4. Remove the `?? _state.ayah` fallback in `_ayah` if it is dead code.
+- Its should-fix items are fixed in `676a281`, where the full suite passes (3854
+  passed, 4 skipped):
+  - the range and silence chips always show while there is a plan:
+    - unset silence shows «صمت ٠ ث» (`playerSilenceSeconds`);
+    - an unset range shows «محدد النطاق» (`rangeSelectorTitle`);
+  - `PlayerMetrics` references `SettingsMetrics`;
+  - `PanelChip` was renamed `PlayerPanelChip`;
+  - the dead `?? _state.ayah` was removed.
+- The lead started the CI `goldens` task on `676a281` while writing this. Check that
+  the bot's `test(ds): update golden images (P1-27)` commit landed after `676a281`; if
+  it did not, run it again.
 
 **Remaining before merge:**
 
-1. Check whether those four fixes were pushed. Do any that were not.
-2. Run the full check with the pinned SDK.
-3. Run the CI `goldens` task:
+1. Make sure the golden images are current, as above. To start the task again:
    `gh workflow run CI --ref agent/p1-27-player-screens -f task=goldens -f scope=P1-27`.
    Then pull the bot's commit.
-4. Have `identity-auditor` (sonnet/high) audit the new images:
+2. Have `identity-auditor` (sonnet/high) audit the new images:
    - `player_screen_*`, `recitation_picker_*`, `tab_shell_mini_player_*` and
      `gallery_audio_*`;
    - the first audit's minor items: chips in `Wrap`; an empty 48 spacer instead of a
      back button; no time on the position line.
-5. Write D-139 in `docs/DECISIONS.md`, taking the number after the highest on `main`
+3. Write D-139 in `docs/DECISIONS.md`, taking the number after the highest on `main`
    and the open pull requests. It records:
    - the riwaya is hidden, because `Recitation.riwaya` is an id (`hafs`), not a
      display name. Follow-up: a riwaya display-name field in the catalogue (P1-33);
@@ -109,7 +105,7 @@ images. A `ui-builder` agent may have pushed further commits after that.
      - `fileMissing` and `playbackFailed` have no wording;
      - buffering is not shown;
    - the chip labels above.
-6. Update `docs/PROJECT_STATUS.md` in the branch.
+4. Update `docs/PROJECT_STATUS.md` in the branch.
    - P1-27 is merged, partial:
      - AU-01 partial (no choosing in the picker; riwaya hidden);
      - AU-05 partial;
@@ -120,7 +116,7 @@ images. A `ui-builder` agent may have pushed further commits after that.
      - the `RecitationCard` badge merging with the surface in night and contrast;
      - TalkBack;
      - 200% on a device.
-7. Wait for CI to pass, then merge under D-136.
+5. Wait for CI to pass, then merge under D-136.
 
 ### 3.2 P1-14: the reader screen in surah mode (M1.2)
 
@@ -128,7 +124,8 @@ Branch `agent/p1-14-reader-surah-screen`, from `main` 9802482, no pull request y
 
 - The architect's plan, approved by the lead, is
   `docs/plans/handoff/P1-14-architect-plan.md`. Build from it.
-- Pushed at writing:
+- Pushed when this section was first written (the branch was at `4f76582` by the
+  time it was committed; check what was added):
   - `a167bf6` position bar and tappable surah-header info line;
   - `20e9648` surah-mode reader;
   - `70322c8` surah-info sheet.
@@ -147,8 +144,8 @@ Branch `agent/p1-14-reader-surah-screen`, from `main` 9802482, no pull request y
 
 ### 3.3 P1-22: reader targets, the tap resolver and highlights (M1.2, M1.6)
 
-Branch `agent/p1-22-reader-targets`, from `main` 23fe34b. Nothing was pushed at
-writing; check the branch.
+Branch `agent/p1-22-reader-targets`, from `main` 23fe34b. Its first push was at
+`20da938`; check what it holds and what was added after.
 
 - The task text `docs/plans/tasks/P1-22-reader-targets.md` is complete.
 - The spike code is at commit `25d684c` (`docs/spikes/S7-gestures.md`).
