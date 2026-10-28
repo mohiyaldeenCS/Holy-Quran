@@ -46,6 +46,8 @@ class _CopySheetViewState extends State<CopySheetView> {
       selected: _viewModel.selected,
       onSelected: _viewModel.select,
       onCopy: _viewModel.copy.running ? null : _viewModel.copy.execute,
+      ayah: _viewModel.preview?.ayah,
+      reference: _viewModel.preview?.reference,
     ),
   );
 }

@@ -127,6 +127,59 @@ void main() {
       }
     });
 
+    test('previews every ayah as the pack holds it, and the preview laid out '
+        'is the copied text', () async {
+      final problems = <String>[];
+      for (final ayah in await packAyat(pack, repository)) {
+        for (final form in copyText.forms) {
+          final preview = await copyText.preview(ayah.address, form);
+          final copied = await copyText.compose(ayah.address, form);
+          if ((preview, copied) case (
+            Ok(value: (ayah: final previewed, :final reference)),
+            Ok(value: final text),
+          )) {
+            final shown =
+                '${_l10n.ayahQuoteOpen}${previewed.verbatim}'
+                '${_l10n.ayahQuoteClose} $reference';
+            final mismatch = byteMismatch(
+              utf8.encode(shown),
+              utf8.encode(text),
+            );
+            if (mismatch != null) {
+              problems.add('${ayah.address} ${form.name}: $mismatch');
+            }
+          } else {
+            problems.add('${ayah.address} ${form.name}: not composed');
+          }
+          if (preview case Ok(value: (ayah: final shown, reference: _))) {
+            final mismatch = byteMismatch(
+              utf8.encode(shown.verbatim),
+              ayah.stored,
+            );
+            if (mismatch != null) {
+              problems.add('${ayah.address} ${form.name}: $mismatch');
+            }
+            if (shown != ayah.text) problems.add('${ayah.address}: not read');
+          }
+        }
+      }
+      expectNoProblems(problems);
+    });
+
+    test('previews nothing for a form with no format', () async {
+      final address = QuranAddress(repository.riwaya, 1, 1);
+      for (final form in [CopyForm.ayahOnly, CopyForm.withSurah]) {
+        expect(
+          await copyText.preview(address, form),
+          isA<Failure<CopyPreview>>().having(
+            (failure) => failure.error,
+            'error',
+            isA<CopyFormUnavailable>().having((e) => e.form, 'form', form),
+          ),
+        );
+      }
+    });
+
     test('copies the ayah of a word address', () async {
       final ayah = QuranAddress(repository.riwaya, 2, 1);
       final word = QuranAddress(repository.riwaya, 2, 1, 2);

@@ -626,6 +626,17 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get ayahQuoteOpen => '﴿';
+
+  @override
+  String get ayahQuoteClose => '﴾';
+
+  @override
+  String copyReferenceFull(String surah, String number) {
+    return '[$surah: $number]';
+  }
+
+  @override
   String get shareDesignSwitchLabel => 'بطاقات مشاركة الآية';
 
   @override

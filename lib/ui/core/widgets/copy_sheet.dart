@@ -2,24 +2,30 @@ import 'package:flutter/semantics.dart' show SemanticsRole;
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/domain/models/copy_form.dart';
+import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/core/widgets/focus_ring.dart';
+import 'package:holyquran/ui/core/widgets/quran_text.dart';
 
 /// The copy sheet (Share.dc.html): a handle, «نسخ الآية», the copy forms as
-/// a radio group, and «انسخ».
+/// a radio group, a preview of what the selected form copies, and «انسخ».
 ///
 /// [forms] are the forms that can be copied; the caller leaves out the rest.
-/// The sheet shows no text of the ayah: what is copied is read from the
-/// pack when [onCopy] runs (SH-05). Disabled while [onCopy] is null.
+/// The preview shows [ayah], read from the pack, quoted, with [reference]
+/// after it when the selected form has one; it is hidden while [ayah] is
+/// null. What is copied is read from the pack again when [onCopy] runs,
+/// never from the preview (SH-05). Disabled while [onCopy] is null.
 class CopySheet extends StatelessWidget {
   const CopySheet({
     required this.forms,
     required this.selected,
     required this.onSelected,
     required this.onCopy,
+    this.ayah,
+    this.reference,
     super.key,
   });
 
@@ -27,12 +33,15 @@ class CopySheet extends StatelessWidget {
   final CopyForm selected;
   final ValueChanged<CopyForm> onSelected;
   final VoidCallback? onCopy;
+  final PackText? ayah;
+  final String? reference;
 
   @override
   Widget build(BuildContext context) {
     assert(forms.contains(selected), 'The selected form is not shown.');
     final colors = context.colors;
     final l10n = AppLocalizations.of(context);
+    final ayah = this.ayah;
     return CopySheetFrame(
       children: [
         Padding(
@@ -63,10 +72,48 @@ class CopySheet extends StatelessWidget {
             ],
           ),
         ),
+        if (ayah != null) _Preview(ayah: ayah, reference: reference),
         CopySheetFrame.action(
           Button(label: l10n.copyAction, onPressed: onCopy),
         ),
       ],
+    );
+  }
+}
+
+/// What the selected form copies: the ayah between the format's brackets,
+/// and the reference after it.
+class _Preview extends StatelessWidget {
+  const _Preview({required this.ayah, required this.reference});
+
+  final PackText ayah;
+  final String? reference;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final reference = this.reference;
+    return Padding(
+      padding: const EdgeInsets.only(top: _previewGap),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.ground,
+          border: Border.all(color: colors.line),
+          borderRadius: BorderRadius.circular(AppRadius.radiusButton),
+        ),
+        child: Padding(
+          padding: _previewPadding,
+          child: QuranText.quoted(
+            ayah,
+            after: reference == null
+                ? null
+                : TextSpan(
+                    text: '$_referenceSpace$reference',
+                    style: _referenceStyle.copyWith(color: colors.inkMuted),
+                  ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -258,6 +305,31 @@ const double _dotSize = 10;
 
 // The board's rows have no corners, so neither has their focus ring.
 const BorderRadius _rowFocusRadius = BorderRadius.zero;
+
+// Share.dc.html l.54, the preview: `margin-top:6px` beyond the column's 6px
+// gap; `border-radius:16px` (radius-button) on #F8F2E4 (ground) with
+// `border:1px solid #DDD2B8` (line); `padding:12px 14px`, 12 being space-3.
+// CSS adds the border to the padding; Flutter draws it over the padding, so
+// the padding grows by its width.
+const double _previewGap = 6;
+const double _previewBorder = 1;
+const EdgeInsets _previewPadding = EdgeInsets.symmetric(
+  vertical: AppSpacing.space3 + _previewBorder,
+  horizontal: 14 + _previewBorder,
+);
+
+// Share.dc.html l.54, the reference: `font-size:15px` in #51605D
+// (ink-muted), no weight or line height set, after the space between the
+// two spans.
+const String _referenceSpace = ' ';
+const TextStyle _referenceStyle = TextStyle(
+  inherit: false,
+  fontFamily: AppFonts.sans,
+  fontSize: 15,
+  fontWeight: FontWeight.w400,
+  letterSpacing: 0,
+  leadingDistribution: TextLeadingDistribution.even,
+);
 
 // Share.dc.html, the button: `margin-top:10px` beyond the column's 6px gap.
 const double _buttonGap = 10;

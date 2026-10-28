@@ -12,7 +12,7 @@ import 'package:holyquran/utils/result.dart';
 /// at the moment of copying, never from what a widget shows (SH-05).
 ///
 /// A pack-text sink of D-114: the ayah and its surah's name enter the ARB
-/// format whole and unchanged.
+/// format whole and unchanged, and the surah's name its reference.
 final class AyahCopyText {
   const AyahCopyText(this._repository, this._l10n);
 
@@ -29,6 +29,33 @@ final class AyahCopyText {
   Future<Result<String>> compose(QuranAddress address, CopyForm form) async {
     final format = _formatOf(form);
     if (format == null) return Failure(CopyFormUnavailable(form));
+    return switch (await _read(address)) {
+      Ok(value: (:final ayah, :final surahName, :final number)) => Ok(
+        format(ayah.verbatim, surahName.verbatim, number),
+      ),
+      Failure(:final error) => Failure(error),
+    };
+  }
+
+  /// What the copy sheet shows of the ayah at [address] in [form]: the ayah
+  /// from the pack, which `QuranText.quoted` sets between the format's
+  /// brackets, and the reference the copied text gives after it.
+  Future<Result<CopyPreview>> preview(
+    QuranAddress address,
+    CopyForm form,
+  ) async {
+    final reference = _referenceOf(form);
+    if (reference == null) return Failure(CopyFormUnavailable(form));
+    return switch (await _read(address)) {
+      Ok(value: (:final ayah, :final surahName, :final number)) => Ok((
+        ayah: ayah,
+        reference: reference(surahName.verbatim, number),
+      )),
+      Failure(:final error) => Failure(error),
+    };
+  }
+
+  Future<Result<_Parts>> _read(QuranAddress address) async {
     final ayahAddress = address.ayahAddress;
     final PackText ayah;
     switch (await _repository.ayahText(ayahAddress)) {
@@ -46,13 +73,11 @@ final class AyahCopyText {
     }
     for (final surah in surahs) {
       if (surah.number == ayahAddress.surah) {
-        return Ok(
-          format(
-            ayah.verbatim,
-            surah.name.verbatim,
-            arabicDigits(ayahAddress.ayah),
-          ),
-        );
+        return Ok((
+          ayah: ayah,
+          surahName: surah.name,
+          number: arabicDigits(ayahAddress.ayah),
+        ));
       }
     }
     return Failure(AddressNotInPack(_repository.riwaya, ayahAddress));
@@ -64,7 +89,21 @@ final class AyahCopyText {
     CopyForm.withSurahAndNumber => _l10n.copyFormatFull,
     CopyForm.ayahOnly || CopyForm.withSurah => null,
   };
+
+  // The reference that ends each form's format.
+  _Reference? _referenceOf(CopyForm form) => switch (form) {
+    CopyForm.withSurahAndNumber => _l10n.copyReferenceFull,
+    CopyForm.ayahOnly || CopyForm.withSurah => null,
+  };
 }
+
+/// The copy sheet's preview of a form: the ayah from the pack, whole, and
+/// the reference that follows it in the copied text.
+typedef CopyPreview = ({PackText ayah, String reference});
+
+typedef _Parts = ({PackText ayah, PackText surahName, String number});
+
+typedef _Reference = String Function(String surah, String number);
 
 typedef _CopyFormat = String Function(String ayah, String surah, String number);
 

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
@@ -20,6 +21,7 @@ import 'package:holyquran/ui/core/share/share_card_sheet_view.dart';
 import 'package:holyquran/ui/core/tab_shell.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/core/widgets/copy_sheet.dart';
+import 'package:holyquran/ui/core/widgets/quran_text.dart';
 import 'package:holyquran/ui/core/widgets/share_card.dart';
 import 'package:holyquran/utils/result.dart';
 import 'package:provider/provider.dart';
@@ -83,6 +85,20 @@ void main() {
     unawaited(router.push(Routes.copySheet(address)));
     await tester.pumpAndSettle();
     expect(find.byType(CopySheet), findsOneWidget);
+    final preview = tester.widget<QuranText>(find.byType(QuranText));
+    expect(preview.text, ayat[5].text);
+    final spans =
+        (tester
+                    .renderObject<RenderParagraph>(
+                      find.descendant(
+                        of: find.byType(QuranText),
+                        matching: find.byType(RichText),
+                      ),
+                    )
+                    .text
+                as TextSpan)
+            .children!;
+    expect(utf8.encode((spans[1] as TextSpan).text!), ayat[5].stored);
 
     await tester.tap(find.widgetWithText(Button, _l10n.copyAction));
     await tester.pumpAndSettle();
@@ -119,7 +135,11 @@ void main() {
     expect(find.byType(ShareCardSheet), findsNothing);
     expect(find.byType(CopySheet), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(Button, _l10n.copyAction));
+    // The whole ayah is previewed, so the sheet scrolls to its button.
+    final copy = find.widgetWithText(Button, _l10n.copyAction);
+    await tester.ensureVisible(copy);
+    await tester.pumpAndSettle();
+    await tester.tap(copy);
     await tester.pumpAndSettle();
     final expected = await AyahCopyText(
       pack.openRepository(),

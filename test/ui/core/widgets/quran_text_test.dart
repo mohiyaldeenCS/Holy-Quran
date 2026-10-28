@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
+import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/app_theme.dart';
 import 'package:holyquran/ui/core/theme/ramps.g.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
@@ -15,6 +16,8 @@ import '../../../../testing/golden.dart';
 // would be lost to any trimming or normalising.
 const _sample = ' نص تجريبي  للاختبار ';
 const _packSample = PackText.fromPack(_sample);
+
+final _l10n = lookupAppLocalizations(const Locale('ar'));
 
 Future<void> _pump(WidgetTester tester, Widget child) =>
     tester.pumpWidget(goldenApp(ReadingTheme.paper, child));
@@ -269,6 +272,64 @@ void main() {
     expect(style.fontWeight, FontWeight.w400);
     expect(style.letterSpacing, 0);
     expect(style.fontFamilyFallback, isNull);
+  });
+
+  testWidgets('quoted: the text whole in its own span, between the copy '
+      "format's brackets, with what follows after", (tester) async {
+    final packText = PackText.fromPack(String.fromCharCodes(_sample.codeUnits));
+    const after = TextSpan(text: 'مرجع تجريبي');
+    await _pump(tester, QuranText.quoted(packText, after: after));
+
+    final span = _paragraph(tester).text as TextSpan;
+    expect(span.text, isNull);
+    final children = span.children!;
+    expect(children, hasLength(4));
+    expect((children[0] as TextSpan).text, _l10n.ayahQuoteOpen);
+    expect(
+      identical((children[1] as TextSpan).text, packText.verbatim),
+      isTrue,
+    );
+    expect((children[2] as TextSpan).text, _l10n.ayahQuoteClose);
+    expect(children[3], same(after));
+    expect(
+      span.toPlainText(),
+      '${_l10n.ayahQuoteOpen}$_sample${_l10n.ayahQuoteClose}${after.text}',
+    );
+  });
+
+  testWidgets('quoted: the brackets alone when nothing follows', (
+    tester,
+  ) async {
+    await _pump(tester, const QuranText.quoted(_packSample));
+
+    final children = (_paragraph(tester).text as TextSpan).children!;
+    expect(children.map((child) => (child as TextSpan).text), [
+      _l10n.ayahQuoteOpen,
+      _sample,
+      _l10n.ayahQuoteClose,
+    ]);
+  });
+
+  testWidgets('quoted: centred, at 22 with line height 2, in quran-ink, '
+      'following the system text scale', (tester) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await _pump(tester, const QuranText.quoted(_packSample));
+
+    final paragraph = _paragraph(tester);
+    final style = _style(tester);
+    expect(paragraph.textAlign, TextAlign.center);
+    expect(paragraph.textDirection, TextDirection.rtl);
+    expect(paragraph.locale, const Locale('ar'));
+    expect(paragraph.textScaler.scale(22), 44);
+    expect(style.fontFamily, AppFonts.quran);
+    expect(style.fontFamilyFallback, isNull);
+    expect(style.fontSize, 22);
+    expect(style.height, 2);
+    expect(style.fontWeight, FontWeight.w400);
+    expect(style.letterSpacing, 0);
+    expect(style.leadingDistribution, TextLeadingDistribution.even);
+    expect(style.color, AppColors.paper.quranInk);
   });
 
   test('card: refuses a size below 22', () {

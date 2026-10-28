@@ -1,18 +1,37 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/domain/models/copy_form.dart';
+import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/app_theme.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/core/widgets/copy_sheet.dart';
+import 'package:holyquran/ui/core/widgets/quran_text.dart';
 
 import '../../../../testing/golden.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
+
+// Synthetic, never Quran text. Spaces at both ends and a double space inside
+// would be lost to any trimming or normalising.
+const _ayah = PackText.fromPack(' نص تجريبي  للاختبار ');
+final _longAyah = PackText.fromPack(
+  List.filled(12, 'نص تجريبي للاختبار').join(' '),
+);
+
+// Synthetic references; the ayah-only form has none.
+const _references = {
+  CopyForm.ayahOnly: null,
+  CopyForm.withSurah: '[اسم تجريبي]',
+  CopyForm.withSurahAndNumber: '[اسم تجريبي: ٥]',
+};
 
 final _labels = {
   CopyForm.ayahOnly: _l10n.copyAyahOnly,
@@ -45,12 +64,14 @@ Future<void> _pump(
   );
 }
 
-/// A sheet whose selection follows taps; [copies] counts the copy taps.
+/// A sheet whose selection follows taps, previewing [ayah] with the selected
+/// form's reference; [copies] counts the copy taps.
 Widget _live({
   List<CopyForm> forms = CopyForm.values,
   List<CopyForm>? selections,
   List<int>? copies,
   bool enabled = true,
+  PackText? ayah = _ayah,
 }) {
   var selected = CopyForm.withSurahAndNumber;
   return StatefulBuilder(
@@ -62,9 +83,36 @@ Widget _live({
         setState(() => selected = form);
       },
       onCopy: enabled ? () => copies?.add(1) : null,
+      ayah: ayah,
+      reference: _references[selected],
     ),
   );
 }
+
+List<InlineSpan> _previewSpans(WidgetTester tester) =>
+    (tester
+                .renderObject<RenderParagraph>(
+                  find.descendant(
+                    of: find.byType(QuranText),
+                    matching: find.byType(RichText),
+                  ),
+                )
+                .text
+            as TextSpan)
+        .children!;
+
+// The nearest bordered box around the preview's text; the sheet is the next.
+Finder _previewBox() => find
+    .ancestor(
+      of: find.byType(QuranText),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is DecoratedBox &&
+            widget.decoration is BoxDecoration &&
+            (widget.decoration as BoxDecoration).border != null,
+      ),
+    )
+    .first;
 
 Finder _row(CopyForm form) => find.ancestor(
   of: find.text(_labels[form]!),
@@ -179,12 +227,74 @@ void main() {
     );
   });
 
+  for (final form in CopyForm.values) {
+    testWidgets('the preview of ${form.name} is the ayah unchanged, quoted, '
+        "with that form's reference", (tester) async {
+      await _pump(tester, _live());
+      await tester.tap(find.text(_labels[form]!));
+      await tester.pump();
+      expect(tester.widget<QuranText>(find.byType(QuranText)).text, _ayah);
+      final spans = _previewSpans(tester);
+      final text = (spans[1] as TextSpan).text!;
+      expect(identical(text, _ayah.verbatim), isTrue);
+      expect(utf8.encode(text), utf8.encode(_ayah.verbatim));
+      expect((spans[0] as TextSpan).text, _l10n.ayahQuoteOpen);
+      expect((spans[2] as TextSpan).text, _l10n.ayahQuoteClose);
+      final reference = _references[form];
+      if (reference == null) {
+        expect(spans, hasLength(3));
+      } else {
+        expect(spans, hasLength(4));
+        expect((spans[3] as TextSpan).toPlainText(), ' $reference');
+      }
+    });
+  }
+
+  testWidgets('no preview without an ayah', (tester) async {
+    await _pump(tester, _live(ayah: null));
+    expect(find.byType(QuranText), findsNothing);
+    expect(find.text(_l10n.copyAction), findsOneWidget);
+  });
+
+  testWidgets('the preview sits between the forms and the button, on ground '
+      'with a line border, its reference in ink-muted', (tester) async {
+    await _pump(tester, _live());
+    final colors = buildAppTheme(ReadingTheme.paper).extension<AppColors>()!;
+    final box =
+        tester.widget<DecoratedBox>(_previewBox()).decoration as BoxDecoration;
+    expect(box.color, colors.ground);
+    expect((box.border! as Border).top.color, colors.line);
+    expect(box.borderRadius, BorderRadius.circular(AppRadius.radiusButton));
+    final reference = (_previewSpans(tester)[3] as TextSpan).style!;
+    expect(reference.color, colors.inkMuted);
+    expect(reference.fontSize, 15);
+    expect(reference.fontFamily, AppFonts.sans);
+    final top = tester.getTopLeft(_previewBox()).dy;
+    expect(
+      top,
+      greaterThan(tester.getBottomLeft(_row(CopyForm.values.last).first).dy),
+    );
+    expect(
+      tester.getBottomLeft(_previewBox()).dy,
+      lessThan(tester.getTopLeft(find.byType(Button)).dy),
+    );
+  });
+
   for (final theme in ReadingTheme.values) {
     for (final scale in [1.0, 2.0]) {
       testWidgets('lays out without overflow in ${theme.name} at '
-          '${(scale * 100).round()}% on 360 wide', (tester) async {
-        await _pump(tester, _live(), theme: theme, textScale: scale);
+          '${(scale * 100).round()}% on 360 wide, with a long preview', (
+        tester,
+      ) async {
+        await _pump(
+          tester,
+          _live(ayah: _longAyah),
+          theme: theme,
+          textScale: scale,
+        );
         expect(tester.takeException(), isNull);
+        expect(find.byType(QuranText), findsOneWidget);
+        expect(tester.getSize(_previewBox()).width, lessThanOrEqualTo(360));
       });
     }
   }

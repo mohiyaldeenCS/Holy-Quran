@@ -4,6 +4,7 @@ import 'package:holyquran/domain/models/copy_form.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/gallery/gallery_samples.dart';
 import 'package:holyquran/ui/core/gallery/gallery_section.dart';
+import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/continue_listening_row.dart';
 import 'package:holyquran/ui/core/widgets/copy_sheet.dart';
@@ -28,12 +29,15 @@ const _shareCards = [
   (design: ShareCardDesign.night, fontSize: 23.0, ayah: 28),
 ];
 
+// Share.dc.html l.54, the copy sheet's preview: the reference's ayah.
+const int _copyAyah = 5;
+
 // Share.dc.html, splash: the phone frame is `width:300px;height:650px`.
 const Size _splashFrame = Size(300, 650);
 
 /// The gallery's home and share section: the home board's header, doors and
-/// «أكمل الاستماع» row, the three share cards, the copy sheet and the
-/// splash, on synthetic text.
+/// «أكمل الاستماع» row, the three share cards, the copy sheet with its
+/// preview and the splash, on synthetic text.
 class HomeShareGallery extends StatelessWidget {
   const HomeShareGallery({super.key});
 
@@ -112,11 +116,16 @@ class HomeShareGallery extends StatelessWidget {
         ),
         GallerySection(
           title: l10n.copySheetTitle,
-          child: const CopySheet(
-            forms: [CopyForm.withSurahAndNumber],
+          child: CopySheet(
+            forms: const [CopyForm.withSurahAndNumber],
             selected: CopyForm.withSurahAndNumber,
             onSelected: _ignore,
             onCopy: _none,
+            ayah: GallerySamples.text(l10n),
+            reference: l10n.copyReferenceFull(
+              l10n.sampleSurahName,
+              arabicDigits(_copyAyah),
+            ),
           ),
         ),
         GallerySection(

@@ -14,9 +14,10 @@ import 'package:holyquran/ui/core/widgets/share_card.dart';
 
 import '../../../../testing/golden.dart';
 
-// Synthetic ayah and surah name.
+// Synthetic ayah, surah name and reference.
 const _text = PackText.fromPack('نص تجريبي للاختبار وليس آية');
 const _name = PackText.fromPack('اسم تجريبي');
+const _reference = '[اسم تجريبي: ٥]';
 
 const _width = 360.0;
 
@@ -24,7 +25,7 @@ Widget _sized(Widget sheet) => SizedBox(width: _width, child: sheet);
 
 void main() {
   testWidgets('the copy sheet with the form the app offers and with all '
-      'three, in each theme', (tester) async {
+      'three, each with its preview, in each theme', (tester) async {
     await expectGoldensInThemes(
       tester,
       'copy_sheet',
@@ -39,10 +40,13 @@ void main() {
               selected: CopyForm.withSurahAndNumber,
               onSelected: (_) {},
               onCopy: () {},
+              ayah: _text,
+              reference: _reference,
             ),
           ),
       ]),
-      surfaceSize: const Size(400, 560),
+      // Measured with the app's fonts: 328 and 424 high, 16 apart.
+      surfaceSize: const Size(400, 800),
     );
   });
 

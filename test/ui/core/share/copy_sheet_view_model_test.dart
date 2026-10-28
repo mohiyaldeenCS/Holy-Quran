@@ -58,6 +58,55 @@ void main() {
     expect(notified, 0);
   });
 
+  Future<void> loaded(CopySheetViewModel model) async {
+    while (model.load.running || model.load.result == null) {
+      await Future<void>.delayed(Duration.zero);
+    }
+  }
+
+  test('previews the selected form from the pack', () async {
+    final model = viewModel((riwaya) => QuranAddress(riwaya, 2, 3, 1), []);
+    addTearDown(model.dispose);
+    expect(model.preview, isNull);
+    var notified = 0;
+    model.addListener(() => notified++);
+    await loaded(model);
+    expect(model.load.completed, isTrue);
+    expect(notified, 1);
+    final repository = pack.openRepository();
+    final address = QuranAddress(repository.riwaya, 2, 3);
+    final expected = await AyahCopyText(
+      repository,
+      _l10n,
+    ).preview(address, model.selected);
+    final (:ayah, :reference) = (expected as Ok<CopyPreview>).value;
+    expect(model.preview!.ayah, ayah);
+    expect(
+      utf8.encode(model.preview!.ayah.verbatim),
+      utf8.encode(ayah.verbatim),
+    );
+    expect(model.preview!.reference, reference);
+  });
+
+  test('a failed read leaves no preview', () async {
+    final model = viewModel((riwaya) => QuranAddress(riwaya, 9, 1), []);
+    addTearDown(model.dispose);
+    await loaded(model);
+    expect(model.load.error, isTrue);
+    expect(model.preview, isNull);
+  });
+
+  test('closing before the preview is read throws nothing', () async {
+    final model = viewModel((riwaya) => QuranAddress(riwaya, 1, 1), []);
+    final load = model.load;
+    expect(load.running, isTrue);
+    model.dispose();
+    while (load.running) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(load.completed, isTrue);
+  });
+
   test('copies the text the composer reads from the pack', () async {
     final copied = <String>[];
     final model = viewModel((riwaya) => QuranAddress(riwaya, 2, 2), copied);

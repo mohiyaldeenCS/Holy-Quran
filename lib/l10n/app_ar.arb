@@ -904,6 +904,26 @@
       }
     }
   },
+  "ayahQuoteOpen": "﴿",
+  "@ayahQuoteOpen": {
+    "description": "The ornate bracket that opens a quoted ayah, before the ayah from the pack, in the copy sheet's preview. The copy format copyFormatFull opens with the same bracket. Source: design/identity-boards/Share.dc.html (the copy sheet's preview)."
+  },
+  "ayahQuoteClose": "﴾",
+  "@ayahQuoteClose": {
+    "description": "The ornate bracket that closes a quoted ayah, after the ayah from the pack, in the copy sheet's preview. The copy format copyFormatFull closes the ayah with the same bracket. Source: design/identity-boards/Share.dc.html (the copy sheet's preview)."
+  },
+  "copyReferenceFull": "[{surah}: {number}]",
+  "@copyReferenceFull": {
+    "description": "The copy sheet's preview of the full form: the reference that follows the quoted ayah, as copyFormatFull ends. surah is the surah's name from the pack, unchanged; number is the ayah number, already written in Arabic-Indic digits. Source: design/identity-boards/Share.dc.html (the copy sheet's preview).",
+    "placeholders": {
+      "surah": {
+        "type": "String"
+      },
+      "number": {
+        "type": "String"
+      }
+    }
+  },
   "shareDesignSwitchLabel": "بطاقات مشاركة الآية",
   "@shareDesignSwitchLabel": {
     "description": "Spoken label of the share sheet's switch between the three card designs. Source: design/identity-boards/Share.dc.html (the title of the share cards)."
