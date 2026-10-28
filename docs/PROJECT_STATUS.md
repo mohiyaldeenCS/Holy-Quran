@@ -8,12 +8,12 @@ corrected first.
 
 | | |
 | --- | --- |
-| Updated | 2026-10-11 |
-| Phase | 0 — Foundation. Gate 0 not met |
-| Stream A — app | M0.1, M0.2 and M0.3 merged, with human checks pending (pull requests #2, #3 and #4). **M0.4 part 1** merged as partial (pull request #6): spikes S1, S5 and the S3 playback part are done on Linux and await the owner's device run. **M0.5** merged (pull request #10): the remaining design-system widgets; the owner confirmed D-089 and D-091 on 2026-10-11; human checks pending. Next: M0.4 part 2 (S4, S7) |
+| Updated | 2026-10-28 |
+| Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **18 merged**: P1-01 to P1-13, P1-16, P1-18 to P1-21 (P1-12 partial). **4 in open pull requests**: #50 (P1-28), #51 (P1-15), #52 (P1-25), #53 (P1-27). **18 not started**. Work resumes from a local session (D-128) |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | `claude/great-hamilton-9n23mt`: **M0.4 part 2** (plan `docs/plans/M0.4-part2.md`, D-093). The spike code is restored there; its tasks run as agents (D-092) on `agent/*` branches with this branch as `base`. The owner has delegated all work, merges included, while he is away (D-093) |
-| Last session | Implementing session, 2026-10-11, from two accounts: the first built M0.5 steps 0a, A, B and D; the second took the branch over mid-milestone, finished batch C and steps E to G, and applied two rounds of review (#10). Before it, planning session: books 473 and 440 (#11) |
+| Working branch | `docs/resume-2026-10-28`: this status correction and D-128, D-129. Then one branch and pull request per task |
+| Last session | 2026-10-28, local session on the owner's Windows machine: state recovered from Git, the owner's pending decisions taken (D-128), resumption settled (D-129) |
 
 ## What is in the repository
 
@@ -185,54 +185,63 @@ reported every check done and ready (no measurements sent); D-096 and D-097 clos
 and S7. The spike code is deleted in the cleanup commit; the last commit holding it is
 `25d684c`. The M0.4 part 1 and M0.5 device checks were covered by the same session.
 
-**Phase 1 is open (D-099).** An agent run on key 1 is writing `docs/plans/PHASE1.md`
-and one task file per agent task under `docs/plans/tasks/`; the lead dispatches the
-waves from those files, two or more runs per key, merging each pull request when its
-in-run reviews and CI pass. Requirements whose registry rows are not `Ready` stay
+**Phase 1 is open (D-099)** and planned in `docs/plans/PHASE1.md` with one task text
+per task in `docs/plans/tasks/`. Requirements whose registry rows are not `Ready` stay
 unbuilt.
 
+**Resumed 2026-10-28 from a local session (D-128).** Merged since: #54 (status and
+D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generator's
+`dart format` through a shell, separators, closed packs), #44 (P1-12, below).
+
+- **P1-12 merged (#44), partial.** Copy sheet with the board's preview (Share.dc.html
+  l.54) drawn from the pack, `QuranText.quoted` and `SurahName.span` (D-130); share
+  sheet and 4:5 share card with PNG export at 1080 px; clipboard and share services
+  provided in `share_providers.dart`. Partial: one copy form (the other two wait for
+  P1-38 to add their Appendix B formats); 4:5 only, no size choice (D-089 (2): the
+  owner sees 1:1 and 9:16 first); the share sheet's states are not in the gallery;
+  SH-01's clause on copying several consecutive ayat, each with its number, has no
+  task yet. Reviewed by `code-reviewer` (twice) and `identity-auditor` (twice).
+- Open pull requests: #50 (P1-28; `main` merged, local checks pass, `goldens` started),
+  #51 (P1-15), #52 (P1-25), #53 (P1-27). Their old CI runs wait for approval
+  (`action_required`); a push by the lead starts a normal run.
+- Not started: P1-14, P1-17, P1-22 (wave 2; P1-22's condition, D-097, is met),
+  P1-23, P1-24, P1-26, P1-29, P1-30, P1-40 (wave 3), P1-31 to P1-34 (wave 4), P1-35 to
+  P1-37 (wave 5), P1-38 and P1-39 (unblocked by D-128).
+- The local branches of 2026-10-13 (`fix/bookmark-restore-nullable`,
+  `chore/analysis-exclude-platform-dirs`) are not needed on the pinned SDK (analyze is
+  clean without them) and are not pushed (D-129). On the owner's machine
+  `analysis_options.yaml` keeps being rewritten with that branch's platform-folder
+  excludes, most likely by an editor tab with unsaved edits; it is never committed.
+- Local checks use `C:/SDK/flutter-3.44.7` (D-129). With it, on Windows, the full
+  non-golden suite passes (3,228 on the P1-12 branch).
+
 Agent runs so far (estimates from the SDK): about $160 across both keys for M0.4
-part 2 and B0.11.
+part 2 and B0.11, plus the Phase 1 runs until the credit ran out.
 
 Stream B: the owner is extracting book 466. B0.11 (the pack pipeline) is on `main`
 (D-098).
 
 ## Next actions — stream A (the implementing account)
 
-0. Implementation runs as agent tasks in GitHub Actions (D-092, `docs/WORKFLOW.md`,
-   "Tasks run by agents in GitHub Actions"): the lead session writes self-contained
-   task texts with a key slot each, the owner starts them, the lead reviews the pull
-   requests and records the results here. The lead does not write application code.
-1. Read, in this order: `CLAUDE.md`, this file, `docs/WORKFLOW.md`, the whole of
-   `docs/prd/PRD.ar.md` once, `docs/IMPLEMENTATION_PLAN.md`, `docs/ARCHITECTURE.md`,
-   `docs/DESIGN_SYSTEM.md`, `docs/SOURCES.md`, `docs/DECISIONS.md`,
-   `design/README.md`. Component sources and boards are read per task, not up front.
-2. Check the environment (`flutter --version` should print 3.44.7; the SessionStart
-   hook installs it in cloud sessions). If the machine differs from "Environment"
-   below, record it.
-3. When the owner sends the device results, record them on the three spike pages
-   and settle D-073 to D-075 (`docs/plans/M0.4.md`, "Decisions"), on a short docs
-   branch. If the APK fails on the device, revert the cleanup commit on the session
-   branch, fix, and rebuild with the `spike-apk` task (D-068).
-4. Decision numbers: before taking one, fetch `main` and every open pull request and
-   take the number after the highest found (D-076). Stream A holds D-068 to D-075,
-   D-083 to D-089 and D-091; stream B D-076 to D-082 and D-090.
-5. Then **M0.4 part 2**: S7 (gestures, needs only S1) and S4 (home-screen widget,
-   for Phase 2) with the same spike folder (D-068). S2, S6 and the S3 highlight part
-   wait for B0.3, packs and B0.5. With the spike code restored for part 2, run the S1
-   real-text task once more on the D-079 file (`rub=false`), as the planning session
-   asked, for the code-point and mark-token lists.
-6. Golden images: after a push that adds or changes a golden test, start CI by hand
-   on the branch with the task `goldens` (Actions → CI → Run workflow, or the API),
-   pull the commit it pushes, and push again so the pull request is checked
+Work runs from a local session on the owner's machine (D-128): the lead delegates each
+task to the agent its task text names, reviews, commits, pushes, opens the task's pull
+request and merges it when review and CI pass. Decision numbers: take the number after
+the highest on `main` and every open pull request (D-076).
+
+1. Finish the open pull requests in PHASE1.md §2's order: #50 (P1-28, before P1-23),
+   #51, #52, #53. For each: update from `main`, check with the pinned SDK, push, run
+   the `goldens` task on the branch, pull the image commit, `code-reviewer` (and
+   `identity-auditor` for UI), apply findings, update this file in the branch, merge.
+2. The rest of wave 2: P1-14, P1-17, P1-22; then P1-29, P1-38 (Appendix B approved,
+   Appendix C worded by the lead, D-128; add the two remaining copy formats) and P1-39
+   (icons approved, D-128).
+3. Give SH-01's several-ayat copy a task (with the ayah selection of P1-23 or the
+   toolbar of P1-31), and the share sheet's gallery states.
+4. Waves 3 to 5 in table order, each task when its "Needs" are merged.
+5. Golden images: after a push that adds or changes a golden test, start CI by hand
+   on the branch with the task `goldens`, pull the commit it pushes, and push again
    (D-056, D-059). Off `ubuntu-24.04` run `flutter test --exclude-tags golden test
    tools/gen/test`.
-7. Draw the eight new icons of D-051 on the identity's icon rules and show each to
-   the owner before M1.6 needs them; add them to the generator's input only after he
-   approves.
-8. M0.5 is merged. Phase 1 starts only when Gate 0 is met
-   (`docs/IMPLEMENTATION_PLAN.md`); until then stream A finishes M0.4 and answers
-   what the gate asks of it, and does not start an M1 milestone.
 
 ## Next actions — stream B (planning session and the owner)
 
@@ -266,6 +275,9 @@ Kickoff questions K1–K4 were answered on 2026-10-07 (D-041 to D-044): keep the
 placeholder application id for now (O-01 stays open, below); keep all six platform
 folders; defer iOS builds to near the end of Phase 1; enable CI.
 
+Answered on 2026-10-28 (D-128): resuming locally, Git authority, the status file,
+PHASE1.md questions 1, 2, 13, 14 and 19, the eight icons, O-12, O-14 and O-18.
+
 Open decisions that come later (full list in `docs/DECISIONS.md`):
 
 | ID | Question, as it should be put to him | Needed by |
@@ -295,10 +307,7 @@ Open decisions that come later (full list in `docs/DECISIONS.md`):
 | O-07 | «نحتاج من صاحب المكتبة الزيدية جدول رموز خط الموقع: ما العبارة التي يرسمها كل رمز من الرموز الستة عشر؟ وهي ÷ # ø @ ~ $ ª À ¥ ® & ¤ ¦ ^ ¿ والخط العمودي، وجدولها بأعدادها في ملف المكتبة الزيدية في المستودع.» | Before any Zaydi-library book is shown |
 | O-17 | «في الوثيقة توصيتان لم تعتمدهما بعد ونراهما لازمتين للإصدار الأول: «أبلغ عن خطأ» من أي آية أو مادة، وإعداد أولي من ثلاث خطوات (وضع العرض، المستوى، التلاوة). هل تعتمدهما؟» | Answered 2026-10-12: both adopted (recommended): a three-step first-run setup (display mode, level, recitation; the recitation step activates when recitations are Ready) and «أبلغ عن خطأ» from any ayah or entry (D-119). |
 | O-08 | «أين تُستضاف حزم المحتوى للتجربة ثم للإطلاق؟ يكفي أي استضافة ملفات ثابتة عبر HTTPS.» | Answered 2026-10-12: GitHub Releases of this repository host the packs for testing (recommended); the launch host is chosen before the end of Phase 1 (D-119). |
-| O-14 | «تصنيف «تفسير» في العلامات ليس له شكل ولا لون في الهوية، ولا توجد لوحة ألوان للتصنيفات التي يضيفها المستخدم. ما الشكل واللون، وما الألوان المتاحة؟ وهل تبقى ألوان التصنيفات الأربعة ثابتة في كل السمات كما في الهوية؟» | M1.6 |
 | O-11 | «هل لديك حساب مطوّر في Google Play وفي App Store؟ ومن يحتفظ بمفتاح توقيع التطبيق؟» | M1.11 |
-| O-18 | «هل نضيف تقارير أعطال وتشخيصًا مجهول الهوية بموافقة المستخدم، وعبر أي خدمة؟ بدونها لا يُقاس معدل الأعطال.» | M1.11 |
-| O-12 | «في الهوية مواضع تباينها دون الحد المطلوب: التسمية الذهبية في بطاقة «أكمل القراءة» وسطر المرجع في بطاقة المشاركة الزمردية (3.9 إلى 1)، ورقم الآية داخل الفاصلة الممتلئة في سمة السيبيا (3.1 إلى 1)، وست قيم من ألوان التجويد (بين 3.85 و4.43 إلى 1)، ومسار المفتاح ومقبضه وهو مطفأ (بين 1.3 و1.5 إلى 1، والحد لحدود عناصر التحكم 3 إلى 1). هل نقبلها كما هي، أم يعدّل المصمم قيمها؟» | M1.1 for the switch; M1.2 for the card; M1.10 for the marker; before Phase 2 for tajweed |
 | O-09 | «أي خدمة خادم نعتمد للحسابات والمزامنة في المرحلة 2؟» | Phase 2 |
 
 Permission conditions to confirm with him when each is first needed are listed in
@@ -315,6 +324,8 @@ Permission conditions to confirm with him when each is first needed are listed i
 | M0.4 | S1, S3, S5 device protocols: shaping by eye, hit test, 200%, NF-01 cold start, NF-02 scroll, 60-minute locked playback and controls, downloads with Wi-Fi gating, resume, corrupt file, low space, rollback | Owner, on his phone (model, Android version and memory still to be told) | The three spike pages, "Device protocol"; run S1 before S5 |
 | M0.5 | The gallery images of the five new sections, in the four themes, match the identity. Shadows show as hard bands in these images because the test renderer turns blur off; in the app they are soft | Owner | `test/ui/core/gallery/goldens/gallery_<section>_<theme>.png` on `main`, or the gallery of the next APK |
 | M0.5 | TalkBack reading order and labels (the ayah first in `AyahRow` and `SearchResult`), keyboard focus with the chip and tab strips scrolling to the focused item, the bold-text setting and 200% text, for the M0.5 widgets | Owner, on his phone | The gallery of an APK built from `main` with the CI `apk` task; the spike APK of CI run 68 predates M0.5 |
+| P1-12 | TalkBack and VoiceOver read the copy sheet's radio group and preview; the focus ring shows on its rows with a hardware keyboard; the bottom safe-area inset; the exported share PNG (transparent corners) looks right in other apps; the fit's speed on a slow phone | Owner, on his phone | An APK built from `main` with the CI `apk` task |
+| P1-12 | The owner's look at three choices the lead made where the identity disagrees with itself or gives no token: the unselected radio ring on `line-strong` (the board draws `#8C9794`), the copy sheet docked with `.qk-sheet`'s top border (the board floats it), «مشاركة» on the share button. Where the identity is silent: a long ayah in the copy preview is shown whole and pushes «انسخ» below the fold (the sheet scrolls); the reference may wrap inside its brackets | Owner | The `copy_sheet_*` and `gallery_home_share_*` images on `main` |
 
 ## Environment
 
@@ -322,6 +333,7 @@ Permission conditions to confirm with him when each is first needed are listed i
 | --- | --- |
 | Planning session (cloud) | No Flutter SDK. Network policy blocks `pub.dev`, `storage.googleapis.com`, `dl.google.com` and Maven, so Flutter cannot be installed or run there. Public GitHub repositories are readable with `git`. `gh` works through the REST API only. The artifact asset store is unreachable. Nothing in this repository was compiled or run by that session. |
 | Implementing session, 2026-10-07 (cloud) | Ubuntu 24.04.5 LTS, x86_64, 4 cores, 15 GB. No Flutter preinstalled: Flutter **3.44.7** stable (framework `84fc5cbb22`, engine `69c8c61792`, Dart 3.12.2) installed from `storage.googleapis.com` into `~/sdk/flutter` and linked into `/usr/local/bin`; this is the pinned version (D-040). `pub.dev`, `storage.googleapis.com`, Maven Central and Google Maven are reachable; `dl.google.com` is blocked, so there is **no Android SDK**, no emulator and no device: the app cannot be built or launched for Android here, only analysed and tested (CI builds the APK). `flutter doctor`: Flutter OK; Android toolchain missing; Chrome missing; Linux toolchain lacks GTK. No macOS. Java 21 present. `git` 2.43 works; `gh` 2.89 is installed: `gh auth status` reports the token as invalid, but `gh api` calls work through the session proxy; the session's GitHub tools also work. The Dart MCP server failed to connect at session start (`dart` was not on the PATH); it is not waiting for approval. The SessionStart hook (D-048) puts `dart` on the PATH for later sessions. iOS could not be tried: no macOS, and iOS builds are deferred (D-042). |
+| Local session, 2026-10-28 (owner's machine) | Windows 11 Pro, Git Bash and PowerShell. Flutter 3.47.6 (Dart 3.13.5) in `C:/SDK/flutter`; the pinned 3.44.7 installed beside it in `C:/SDK/flutter-3.44.7` for checks (D-129). Android SDK in `C:/SDK/Android_SDK`. `gh` authenticated. `core.autocrlf=true`. The Dart MCP server timed out at session start. |
 
 ## Risks being watched
 
@@ -389,6 +401,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-10-28 | Local session (owner's Windows machine) | Recovered the state from Git after the Actions runs stopped on 2026-10-12 for lack of API credit; corrected this file; ran analyze and the non-golden tests locally (48 Windows-only failures); took the owner's decisions (D-128) and settled resumption (D-129). | `docs/resume-2026-10-28` |
 | 2026-10-11 | Implementing session (second account), continued | On the owner's instruction, set up implementation by agents in GitHub Actions on his two API accounts: `agent.yml` and `agent.mjs` (Claude Agent SDK 0.3.296, option names read from its type definitions), the `check` task in CI, D-092, the workflow section. Linted with actionlint and shellcheck; the script was smoke-tested locally with an invalid key. After the merge: M0.4 part 2 planned as agent waves (D-093 to D-095) and step 0 done; the trial runs and every other Actions run since 17:13 UTC end in `startup_failure`, a setting the owner must check (M0.4-6). | Pull request #13; `claude/great-hamilton-9n23mt` |
 | 2026-10-11 | Implementing session (second account) | Found the first account's session still at work on the M0.5 branch; the owner chose this session to continue and the other handed over cleanly. Adopted its work (0a, A, B, D) and dropped a duplicate 0a; finished batch C; showed the five sections in the gallery (E); tested that the widgets draw a pack's bytes unchanged and kept the ramp allow-list current (F); code review and identity audit of every batch until both passed, findings applied; D-091; golden images by CI runs 103 and 110; merged; the owner confirmed D-089 and D-091. | Pull requests #10 and #12 |
 | 2026-10-11 | Implementing session (continued) | M0.5: step 0a with code review applied; batches A, B and D (14 widgets, five gallery sections); batch C partial; stopped at the owner's request to continue from the other account. | Draft pull request #10 |
