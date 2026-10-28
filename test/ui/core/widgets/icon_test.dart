@@ -144,6 +144,6 @@ void main() {
       await _pump(tester, Icon(name, key: ValueKey(name)));
       expect(find.byType(Icon), paints..path(), reason: name.name);
     }
-    expect(IconName.values, hasLength(26));
+    expect(IconName.values, hasLength(34));
   });
 }

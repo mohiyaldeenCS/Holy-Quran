@@ -5,6 +5,7 @@ import 'dart_format.dart';
 import 'generator_error.dart';
 import 'icons_reader.dart';
 import 'icons_writer.dart';
+import 'project_icons_reader.dart';
 import 'ramps_writer.dart';
 import 'tokens_reader.dart';
 import 'tokens_writer.dart';
@@ -34,10 +35,14 @@ abstract final class Exit {
 /// a fixed order.
 Future<Map<String, String>> generateAll(String root) async {
   final tokens = readTokens(_readSource(root, tokensSourcePath));
-  final icons = readIcons(
+  final identityIcons = readIcons(
     components: _readSource(root, componentsSourcePath),
     types: _readSource(root, typesSourcePath),
   );
+  final icons = IconSet([
+    ...identityIcons.icons,
+    ...readProjectIcons(root),
+  ], identityIcons.bookOps);
   final unformatted = {
     tokensOutputPath: writeTokens(tokens),
     rampsOutputPath: writeRamps(tokens),

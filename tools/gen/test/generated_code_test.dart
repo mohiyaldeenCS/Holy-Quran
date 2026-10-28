@@ -66,7 +66,7 @@ void main() {
   });
 
   test('icons build on the 24 grid and the book on the 120 grid', () {
-    expect(IconName.values, hasLength(26));
+    expect(IconName.values, hasLength(34));
     for (final name in IconName.values) {
       final bounds = buildIconPath(name).getBounds();
       expect(

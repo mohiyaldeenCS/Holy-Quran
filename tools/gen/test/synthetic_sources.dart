@@ -111,3 +111,10 @@ String syntheticComponents({
 
 String syntheticTypes({String names = "'square' | 'ring' | 'index'"}) =>
     'export type IconName = $names;\n';
+
+/// A project icon file in the frame the Icon component gives a line icon.
+String syntheticProjectIcon({String shapes = '<path d="M4 4h6v6z"/>'}) =>
+    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" '
+    'viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+    'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
+    '$shapes</svg>\n';
