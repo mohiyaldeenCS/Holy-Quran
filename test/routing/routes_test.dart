@@ -10,13 +10,13 @@ import 'package:holyquran/routing/router.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/routing/routes/feature_routes.dart';
 import 'package:holyquran/routing/routes/home_routes.dart';
-import 'package:holyquran/ui/core/app.dart';
 import 'package:holyquran/ui/core/widgets/tab_bar.dart';
 import 'package:holyquran/ui/features/home/views/home_screen.dart';
 import 'package:holyquran/ui/features/listen/views/listen_screen.dart';
 import 'package:holyquran/ui/features/more/views/more_screen.dart';
 import 'package:holyquran/ui/features/mushaf/views/mushaf_screen.dart';
 import 'package:holyquran/ui/features/study/views/study_screen.dart';
+import '../../testing/test_app.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
 
@@ -218,7 +218,7 @@ Future<GoRouter> _pumpApp(
 }) async {
   final router = createRouter(features: features);
   addTearDown(router.dispose);
-  await tester.pumpWidget(QuranApp(router: router));
+  await tester.pumpWidget(testApp(router));
   await tester.pumpAndSettle();
   return router;
 }
@@ -311,7 +311,7 @@ void main() {
     testWidgets('a route not built yet lands on the home tab', (tester) async {
       final router = await _pumpApp(tester);
 
-      router.go(Routes.settings);
+      router.go(Routes.sources);
       await tester.pumpAndSettle();
 
       _expectHome(tester, router);

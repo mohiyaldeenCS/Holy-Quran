@@ -83,6 +83,9 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get dataSeparator => ' · ';
+
+  @override
   String get surahListLastRead => 'آخر قراءة';
 
   @override
@@ -741,6 +744,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String playerSilenceSeconds(String seconds) {
     return 'صمت $seconds ث';
   }
+
+  @override
+  String get playerSilenceBetweenAyat => 'الصمت بين الآيات';
+
+  @override
+  String get playerSecondsUnit => 'ث';
+
+  @override
+  String get rangeSelectorTitle => 'محدد النطاق';
 
   @override
   String get queueLabel => 'قائمة التشغيل';

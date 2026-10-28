@@ -11,6 +11,7 @@ import 'package:holyquran/config/providers/share_providers.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/data/services/clipboard_service.dart';
 import 'package:holyquran/data/services/share_service.dart';
+import 'package:holyquran/data/services/user_database.dart';
 import 'package:holyquran/domain/models/copy_form.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/router.dart';
@@ -97,6 +98,10 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      // The user database opens in [temp], which tearDown deletes.
+      addTearDown(
+        tester.element(find.byType(QuranApp)).read<UserDatabase>().close,
+      );
       return router;
     }
 

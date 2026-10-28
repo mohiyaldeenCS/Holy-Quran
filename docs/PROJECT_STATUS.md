@@ -10,9 +10,9 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-28 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **18 merged**: P1-01 to P1-13, P1-16, P1-18 to P1-21 (P1-12 partial). **4 in open pull requests**: #50 (P1-28), #51 (P1-15), #52 (P1-25), #53 (P1-27). **18 not started**. Work resumes from a local session (D-128) |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **20 merged**: P1-01 to P1-13, P1-15, P1-16, P1-18 to P1-21, P1-28 (P1-12, P1-15 and P1-28 partial). **Open**: #52 (P1-25), #53 (P1-27), P1-39 (local); #56 (gallery test, D-136) merged. **17 not started**. The lead merges after an independent review and CI (D-136) |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | `docs/resume-2026-10-28`: this status correction and D-128, D-129. Then one branch and pull request per task |
+| Working branch | One branch per task (`agent/p1-*`); worktrees under the session's scratchpad for parallel agents (D-132) |
 | Last session | 2026-10-28, local session on the owner's Windows machine: state recovered from Git, the owner's pending decisions taken (D-128), resumption settled (D-129) |
 
 ## What is in the repository
@@ -191,7 +191,7 @@ unbuilt.
 
 **Resumed 2026-10-28 from a local session (D-128).** Merged since: #54 (status and
 D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generator's
-`dart format` through a shell, separators, closed packs), #44 (P1-12, below).
+`dart format` through a shell, separators, closed packs), #44 (P1-12, below), #51 (P1-15, below), #50 (P1-28, below).
 
 - **P1-12 merged (#44), partial.** Copy sheet with the board's preview (Share.dc.html
   l.54) drawn from the pack, `QuranText.quoted` and `SurahName.span` (D-130); share
@@ -201,8 +201,33 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   owner sees 1:1 and 9:16 first); the share sheet's states are not in the gallery;
   SH-01's clause on copying several consecutive ayat, each with its number, has no
   task yet. Reviewed by `code-reviewer` (twice) and `identity-auditor` (twice).
-- Open pull requests: #50 (P1-28; `main` merged, local checks pass, `goldens` started),
-  #51 (P1-15), #52 (P1-25), #53 (P1-27). Their old CI runs wait for approval
+- **P1-15 merged (#51), partial.** Settings screen (level, theme, follow-system),
+  first-run setup frame with its level step, report sheet (address, pack id, version
+  and source on one line), More hub. The user database and the settings repository are
+  provided from `user.sqlite`; if it cannot be read the app starts on in-memory
+  defaults and leaves the file untouched (D-133); Android keeps it out of backup
+  (D-133; before user data is wired, a failed settings read must also put the user database in memory); More shows only entries whose screen has a route (D-134). RD-08 and LV-02
+  are met in the app (visual checks pending); LV-01 partial (the first-run redirect is
+  off until the continue button has wording); LV-04 not met. Follow-ups: LV-04's route
+  flag in `routes.dart`; the setup's strings, continue button and redirect switched on
+  (no task owns `startup_redirect.dart` before P1-26); the display-mode step with one
+  choice (D-127, D-134), the recitation step hidden until a recitation is `Ready` (D-136); the mail send action of «أبلغ عن خطأ» (D-127); a shared
+  sheet-frame widget (word, copy, report and player sheets each copy `.qk-sheet`);
+  `LevelSwitch` and the theme switch at 320 wide and 200% (P1-35); user-data screens
+  saying when the database is in memory (D-133); `userDataProviders` wiring
+  (bookmarks, notes, keep-awake). Reviewed by `code-reviewer` (once, then fixes) and
+  `identity-auditor`.
+- Open pull requests: #52 (P1-25), #53 (P1-27). #56 (the gallery tap-target test sized to the gallery; D-136) merged. Their old CI runs wait for approval
+- **P1-28 merged (#50), partial.**
+  Range, play-options, repeat, silence and queue sheets (D-135). AU-11 met; AU-02
+  partial (ayah to ayah, several pages, a set of surahs and to the end of the mushaf
+  need «من»/«إلى»); AU-03 partial (empty until something has played; the recitation
+  chosen in the first-run setup will fill it); AU-09 partial (1 to 99 met; unlimited and
+  the spoken counter not built); AU-17 partial (reorder and remove met; add not built);
+  AU-07 and AU-08 not built. Follow-ups in D-135: the `PlaybackPlanBuilder` provider and
+  a route test before any screen opens the sheets; timings in the plan; the sleep timer,
+  stop-after, unlimited repeat and add-to-queue task. Reviewed by `code-reviewer` and
+  `identity-auditor`.
   (`action_required`); a push by the lead starts a normal run.
 - Not started: P1-14, P1-17, P1-22 (wave 2; P1-22's condition, D-097, is met),
   P1-23, P1-24, P1-26, P1-29, P1-30, P1-40 (wave 3), P1-31 to P1-34 (wave 4), P1-35 to
@@ -326,6 +351,11 @@ Permission conditions to confirm with him when each is first needed are listed i
 | M0.5 | TalkBack reading order and labels (the ayah first in `AyahRow` and `SearchResult`), keyboard focus with the chip and tab strips scrolling to the focused item, the bold-text setting and 200% text, for the M0.5 widgets | Owner, on his phone | The gallery of an APK built from `main` with the CI `apk` task; the spike APK of CI run 68 predates M0.5 |
 | P1-12 | TalkBack and VoiceOver read the copy sheet's radio group and preview; the focus ring shows on its rows with a hardware keyboard; the bottom safe-area inset; the exported share PNG (transparent corners) looks right in other apps; the fit's speed on a slow phone | Owner, on his phone | An APK built from `main` with the CI `apk` task |
 | P1-12 | The owner's look at three choices the lead made where the identity disagrees with itself or gives no token: the unselected radio ring on `line-strong` (the board draws `#8C9794`), the copy sheet docked with `.qk-sheet`'s top border (the board floats it), «مشاركة» on the share button. Where the identity is silent: a long ayah in the copy preview is shown whole and pushes «انسخ» below the fold (the sheet scrolls); the reference may wrap inside its brackets | Owner | The `copy_sheet_*` and `gallery_home_share_*` images on `main` |
+| P1-15 | The four themes on screen for More, onboarding and the report sheet (only settings has goldens); TalkBack and VoiceOver (settings headings are read twice); the focus ring with a keyboard; 320 wide at 200% | Owner, on his phone | An APK built from `main` with the CI `apk` task |
+| P1-15 | The owner sees the report sheet before «أبلغ عن خطأ» ships (D-127), including the Latin pack id on the « · » line; the More hub's outlined buttons until a navigation row is drawn | Owner | The report sheet in an APK, once something opens it |
+| P1-15 | An APK builds with the backup attributes: locally `flutter build apk --debug` failed in Kotlin incremental caches of other plugins (project on D:, pub cache on C:); the merged manifest and resources compiled | CI `apk` task | Run the `apk` task on `main` after the merge |
+| P1-28 | The owner's look where the identity draws nothing: queue rows straight on `surface` with a hairline (the word sheet sets its rows in a sunk card); the sheet title at `sectionTitle` 20/600 (the context sheet's title is 700); an empty queue showing only its title (no sentence yet) | Owner | The `test/ui/features/listen/controls/goldens/*` images on `main` |
+| P1-28 | TalkBack and VoiceOver on the five sheets (the range title and its chip group both read «محدد النطاق»); keyboard focus order; the queue reorder with the system's reduce-motion setting on | Owner, on his phone | An APK built from `main`, once a screen opens the sheets |
 
 ## Environment
 
