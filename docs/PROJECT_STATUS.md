@@ -201,8 +201,17 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   owner sees 1:1 and 9:16 first); the share sheet's states are not in the gallery;
   SH-01's clause on copying several consecutive ayat, each with its number, has no
   task yet. Reviewed by `code-reviewer` (twice) and `identity-auditor` (twice).
-- Open pull requests: #50 (P1-28; `main` merged, local checks pass, `goldens` started),
-  #51 (P1-15), #52 (P1-25), #53 (P1-27). Their old CI runs wait for approval
+- **P1-28 (#50), ready to merge, awaiting the owner's approval (D-132); partial.**
+  Range, play-options, repeat, silence and queue sheets (D-135). AU-11 met; AU-02
+  partial (ayah to ayah, several pages, a set of surahs and to the end of the mushaf
+  need «من»/«إلى»); AU-03 partial (empty until something has played; the recitation
+  chosen in the first-run setup will fill it); AU-09 partial (1 to 99 met; unlimited and
+  the spoken counter not built); AU-17 partial (reorder and remove met; add not built);
+  AU-07 and AU-08 not built. Follow-ups in D-135: the `PlaybackPlanBuilder` provider and
+  a route test before any screen opens the sheets; timings in the plan; the sleep timer,
+  stop-after, unlimited repeat and add-to-queue task. Reviewed by `code-reviewer` and
+  `identity-auditor`.
+- Open pull requests: #51 (P1-15), #52 (P1-25), #53 (P1-27). Their old CI runs wait for approval
   (`action_required`); a push by the lead starts a normal run.
 - Not started: P1-14, P1-17, P1-22 (wave 2; P1-22's condition, D-097, is met),
   P1-23, P1-24, P1-26, P1-29, P1-30, P1-40 (wave 3), P1-31 to P1-34 (wave 4), P1-35 to
@@ -326,6 +335,7 @@ Permission conditions to confirm with him when each is first needed are listed i
 | M0.5 | TalkBack reading order and labels (the ayah first in `AyahRow` and `SearchResult`), keyboard focus with the chip and tab strips scrolling to the focused item, the bold-text setting and 200% text, for the M0.5 widgets | Owner, on his phone | The gallery of an APK built from `main` with the CI `apk` task; the spike APK of CI run 68 predates M0.5 |
 | P1-12 | TalkBack and VoiceOver read the copy sheet's radio group and preview; the focus ring shows on its rows with a hardware keyboard; the bottom safe-area inset; the exported share PNG (transparent corners) looks right in other apps; the fit's speed on a slow phone | Owner, on his phone | An APK built from `main` with the CI `apk` task |
 | P1-12 | The owner's look at three choices the lead made where the identity disagrees with itself or gives no token: the unselected radio ring on `line-strong` (the board draws `#8C9794`), the copy sheet docked with `.qk-sheet`'s top border (the board floats it), «مشاركة» on the share button. Where the identity is silent: a long ayah in the copy preview is shown whole and pushes «انسخ» below the fold (the sheet scrolls); the reference may wrap inside its brackets | Owner | The `copy_sheet_*` and `gallery_home_share_*` images on `main` |
+| P1-28 | TalkBack and VoiceOver on the five sheets (the range title and its chip group both read «محدد النطاق»); keyboard focus order; the queue reorder with the system's reduce-motion setting on | Owner, on his phone | An APK built from `main`, once a screen opens the sheets |
 
 ## Environment
 
