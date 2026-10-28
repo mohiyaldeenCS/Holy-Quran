@@ -144,15 +144,71 @@ Branch `agent/p1-14-reader-surah-screen`, from `main` 9802482, no pull request y
 
 ### 3.3 P1-22: reader targets, the tap resolver and highlights (M1.2, M1.6)
 
-Branch `agent/p1-22-reader-targets`, from `main` 23fe34b. Its first push was at
-`20da938`; check what it holds and what was added after.
+The build is finished, on branch `agent/p1-22-reader-targets` (from `main` 23fe34b).
+No pull request yet.
 
-- The task text `docs/plans/tasks/P1-22-reader-targets.md` is complete.
-- The spike code is at commit `25d684c` (`docs/spikes/S7-gestures.md`).
-- The tap rule: `priorityZonesWithSlop` (D-097 and the S7 measurements).
-- The agent may only add files under `lib/ui/core/reader/`, because P1-14 builds on
-  P1-09's API.
-- It was asked whether a public hook for margin marks fits, for P1-14's use.
+**Commits:**
+
+- `20da938` (wip) engine files;
+- `cbd26ae` targets and tap resolution (AX-02), with tests;
+- `8edc254` selection, recitation and search highlights.
+
+**Checks on `8edc254`:** format clean, analyze clean, 3837 passed, 4 skipped.
+
+**The tap rule** is S7's `priorityZonesWithSlop` (D-097), one rule with no options:
+
+1. A word wins when the tap is more than 12 px inside both of its edges.
+2. Otherwise markers and marks win within a 48 px zone, nearest centre first, the
+   marker before the mark on a tie.
+3. Otherwise the nearest target on the line, or the margin.
+
+**The agent's acceptance report:**
+
+- Met:
+  - every centre resolves to itself;
+  - 48 px zones;
+  - pinch steps and the focal ayah kept;
+  - painters leave the text bytes untouched;
+  - every highlight has a shape or line as well as colour, in the four themes.
+- Partial:
+  - the 6, 12 and 18 px taps are tested on the synthetic pack only, because the
+    real-text figures are S7's;
+  - the line-start mark case was the old engine's.
+- Pending human check: how taps and pinch feel on a device.
+- Golden test `highlights_golden_test` is written but has no image yet; run
+  `goldens`.
+
+**New public API, added without touching `SurahSliver`:**
+
+- `InteractiveSurahSliver`: `SurahSliver`'s inputs plus `highlights`, `onTap`,
+  `onLongPress` and `blockOverlayBuilder(context, BlockLayout)`. The overlay sits
+  above each block and takes no taps. `BlockLayout.marginMarks` gives each mark with
+  its line band, which is P1-14's hook for `MarginMarkView`.
+- `TargetGestures`, `ReaderPinch`, `stepAfterPinch`, `focalAyahAt` and
+  `yOfFocalAyah`.
+
+**To record**, as D-140 or the next free number:
+
+- the tap rule above;
+- `InteractiveSurahSliver` duplicates about 100 lines of `SurahSliver`. Make
+  `SurahSliver` delegate to it, or replace it, after P1-14;
+- the recited ayah's filled marker is an `AyahMarker(playing: true)` laid over the
+  engine's marker. A `playingAyah` input on `ReaderBlock` would be cleaner;
+- highlights are rounded rects per line, not the board's sliced edges;
+- the reader has no screen-reader route to the marker or the selected state; P1-14
+  or P1-23 needs one.
+
+**Remaining before merge:**
+
+1. Update from `main` and run the pinned checks.
+2. Open the PR.
+3. Run `goldens` and pull the bot's commit.
+4. Get `code-reviewer` (opus/high) and `identity-auditor` (sonnet/high).
+5. Apply their fixes, then write the records and the status update.
+6. Merge.
+
+P1-14 can then use `InteractiveSurahSliver` once the owner answers the margin-mark
+question (§6).
 
 ## 4. The system as it is
 
