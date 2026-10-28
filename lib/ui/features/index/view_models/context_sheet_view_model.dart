@@ -6,7 +6,6 @@ import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
-import 'package:holyquran/ui/core/metrics/index_metrics.dart';
 import 'package:holyquran/ui/core/reader/surah_text.dart';
 import 'package:holyquran/ui/core/widgets/context_sheet.dart';
 import 'package:holyquran/utils/result.dart';
@@ -24,10 +23,16 @@ final class ContextSheetViewModel extends ChangeNotifier {
     unawaited(load());
   }
 
-  /// Whether [address] is an ayah of the edition [index] describes.
+  /// How many ayat each choice shows, null for the whole surah, in the order
+  /// the choices are offered (`NV-05`): the ayah, 3 ayat, 5 ayat, the surah.
+  static const List<int?> choices = [1, 3, 5, null];
+
+  /// Whether [address] is an ayah of the edition [index] describes and the
+  /// pack serves the surah's name, which the sheet shows.
   static bool canShow(QuranIndexRepository index, QuranAddress address) =>
       address.riwaya == index.riwaya &&
       address.surah >= 1 &&
+      address.surah <= index.surahs.length &&
       address.surah <= index.surahCount &&
       address.ayah >= 1 &&
       address.ayah <= index.ayahCount(address.surah);
@@ -44,15 +49,19 @@ final class ContextSheetViewModel extends ChangeNotifier {
   var _reads = 0;
   var _disposed = false;
 
-  /// How many ayat each choice shows, null for the whole surah, in the order
-  /// the choices are offered.
-  List<int?> get amounts => IndexMetrics.contextAmounts;
+  List<int?> get amounts => choices;
 
   /// The index in [amounts] of the choice made; the ayah alone at first.
   int get amount => _amount;
 
-  /// The name of the ayah's surah in the pack.
-  PackText get surahName => _index.surahs[address.surah - 1].name;
+  /// The name of the ayah's surah in the pack, or null once the pack no
+  /// longer serves it.
+  PackText? get surahName {
+    final surahs = _index.surahs;
+    return address.surah <= surahs.length
+        ? surahs[address.surah - 1].name
+        : null;
+  }
 
   /// The ayat of the choice made, or null until they are read, or when the
   /// pack cannot give them.

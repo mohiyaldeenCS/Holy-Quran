@@ -79,14 +79,19 @@ final class IndexFixture {
     );
     final pack = await PackUnderTest.load(built.directory.path);
     final text = pack.openRepository();
+    late final IndexFixture fixture;
     final index = PackQuranIndexRepository.build(
       riwaya: text.riwaya,
       surahs: _ok(await text.surahs()),
       map: _ok<EditionMap>(await text.editionMap()),
-      serving: () => true,
+      serving: () => fixture.serving,
     );
-    return IndexFixture._(pack, text, _ok(index));
+    return fixture = IndexFixture._(pack, text, _ok(index));
   }
+
+  /// Whether the index lists its surahs, as it does while the pack is
+  /// verified; a test turns it off to stop the pack serving.
+  bool serving = true;
 
   final PackUnderTest pack;
   final PackQuranTextRepository text;

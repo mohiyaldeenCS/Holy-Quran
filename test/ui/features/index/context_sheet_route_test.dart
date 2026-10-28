@@ -138,6 +138,27 @@ void main() {
     expect(find.byType(ContextSheet), findsNothing);
   });
 
+  testWidgets('closes, without an error, when the pack stops serving while '
+      'it is open', (tester) async {
+    final router = await openSheet(tester, at(2, 6));
+    expect(find.byType(ContextSheet), findsOneWidget);
+    addTearDown(() => fixture.serving = true);
+    fixture.serving = false;
+    await tester.tap(find.text(_l10n.contextSurah));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ContextSheet), findsNothing);
+    expect(router.state.uri.path, isNot(Routes.contextSheet(at(2, 6))));
+  });
+
+  testWidgets('does not open when the pack is already off', (tester) async {
+    addTearDown(() => fixture.serving = true);
+    fixture.serving = false;
+    await openSheet(tester, at(2, 6));
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ContextSheet), findsNothing);
+  });
+
   for (final theme in ReadingTheme.values) {
     testWidgets('lays out the whole surah in ${theme.name} at 200%', (
       tester,

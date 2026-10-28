@@ -10,7 +10,6 @@ import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/surah_info.dart';
 import 'package:holyquran/domain/models/word_span.dart';
-import 'package:holyquran/ui/core/metrics/index_metrics.dart';
 import 'package:holyquran/ui/features/index/view_models/context_sheet_view_model.dart';
 import 'package:holyquran/utils/result.dart';
 
@@ -100,10 +99,10 @@ void main() {
     ];
   }
 
-  int indexOf(int? size) => IndexMetrics.contextAmounts.indexOf(size);
+  int indexOf(int? size) => ContextSheetViewModel.choices.indexOf(size);
 
   test('offers the ayah, 3 ayat, 5 ayat and the surah, the ayah first', () {
-    expect(IndexMetrics.contextAmounts, [1, 3, 5, null]);
+    expect(ContextSheetViewModel.choices, [1, 3, 5, null]);
   });
 
   test('shows the ayah alone at first, between its markers selected', () async {
@@ -237,6 +236,20 @@ void main() {
       ContextSheetViewModel.canShow(index, QuranAddress('warsh', 2, 1)),
       isFalse,
     );
+  });
+
+  test('shows nothing once the pack stops serving its surahs', () async {
+    final model = await open(at(2, 6));
+    addTearDown(() => fixture.serving = true);
+    fixture.serving = false;
+    expect(model.surahName, isNull);
+    expect(ContextSheetViewModel.canShow(fixture.index, at(2, 6)), isFalse);
+  });
+
+  test('a pack that is already off gives no name and cannot show', () {
+    addTearDown(() => fixture.serving = true);
+    fixture.serving = false;
+    expect(ContextSheetViewModel.canShow(fixture.index, at(2, 6)), isFalse);
   });
 
   test('a word address is the ayah it is in', () async {
