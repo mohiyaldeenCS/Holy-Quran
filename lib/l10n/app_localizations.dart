@@ -1186,10 +1186,10 @@ abstract class AppLocalizations {
   /// **'﴾'**
   String get ayahQuoteClose;
 
-  /// The copy sheet's preview of the full form: the reference that follows the quoted ayah, as copyFormatFull ends. surah is the surah's name from the pack, unchanged; number is the ayah number, already written in Arabic-Indic digits. Source: design/identity-boards/Share.dc.html (the copy sheet's preview).
+  /// The copy sheet's preview of the full form: the reference that follows the quoted ayah, from the space after the closing bracket, as copyFormatFull ends; SurahName draws it (D-130). surah is the surah's name from the pack, unchanged; number is the ayah number, already written in Arabic-Indic digits. Source: design/identity-boards/Share.dc.html (the copy sheet's preview).
   ///
   /// In ar, this message translates to:
-  /// **'[{surah}: {number}]'**
+  /// **' [{surah}: {number}]'**
   String copyReferenceFull(String surah, String number);
 
   /// Spoken label of the share sheet's switch between the three card designs. Source: design/identity-boards/Share.dc.html (the title of the share cards).

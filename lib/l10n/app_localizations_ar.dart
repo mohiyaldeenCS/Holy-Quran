@@ -633,7 +633,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String copyReferenceFull(String surah, String number) {
-    return '[$surah: $number]';
+    return ' [$surah: $number]';
   }
 
   @override

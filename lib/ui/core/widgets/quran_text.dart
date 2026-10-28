@@ -5,6 +5,7 @@ import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/ramps.g.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/surah_name.dart';
 
 /// The sizes of Quran text (`.qk-quran-*`).
 enum QuranTextSize {
@@ -73,8 +74,10 @@ final class QuranText extends StatelessWidget {
   /// The ayah in the copy sheet's preview (Share.dc.html, l.54): between the
   /// copy format's ornate brackets, centred, at 22 with line height 2,
   /// following the system text scale. [after], when given, follows the
-  /// closing bracket in the same paragraph, in its own style. The brackets
-  /// and [after] are spans beside the one that holds the text, whole.
+  /// closing bracket in the same paragraph: a surah name's reference from
+  /// [SurahName.span], in its own style, which takes nothing of the Quran
+  /// style. The brackets and [after] are spans beside the one that holds the
+  /// text, whole.
   const QuranText.quoted(this.text, {this.after, super.key})
     : size = QuranTextSize.compact,
       align = QuranTextAlign.center,
@@ -95,7 +98,7 @@ final class QuranText extends StatelessWidget {
   final double? cardFontSize;
 
   /// What the quoted form sets after the closing bracket.
-  final InlineSpan? after;
+  final SurahNameSpan? after;
 
   final bool _quoted;
 

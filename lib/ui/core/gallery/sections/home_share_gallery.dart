@@ -4,7 +4,6 @@ import 'package:holyquran/domain/models/copy_form.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/gallery/gallery_samples.dart';
 import 'package:holyquran/ui/core/gallery/gallery_section.dart';
-import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/continue_listening_row.dart';
 import 'package:holyquran/ui/core/widgets/copy_sheet.dart';
@@ -122,10 +121,8 @@ class HomeShareGallery extends StatelessWidget {
             onSelected: _ignore,
             onCopy: _none,
             ayah: GallerySamples.text(l10n),
-            reference: l10n.copyReferenceFull(
-              l10n.sampleSurahName,
-              arabicDigits(_copyAyah),
-            ),
+            surahName: GallerySamples.surahName(l10n),
+            ayahNumber: _copyAyah,
           ),
         ),
         GallerySection(

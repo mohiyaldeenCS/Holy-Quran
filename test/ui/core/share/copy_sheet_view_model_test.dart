@@ -79,13 +79,18 @@ void main() {
       repository,
       _l10n,
     ).preview(address, model.selected);
-    final (:ayah, :reference) = (expected as Ok<CopyPreview>).value;
-    expect(model.preview!.ayah, ayah);
+    final (:ayah, :surahName, :ayahNumber) =
+        (expected as Ok<CopyPreview>).value;
+    final preview = model.preview!;
+    expect(preview.ayah, ayah);
+    expect(utf8.encode(preview.ayah.verbatim), utf8.encode(ayah.verbatim));
+    expect(preview.surahName, surahName);
     expect(
-      utf8.encode(model.preview!.ayah.verbatim),
-      utf8.encode(ayah.verbatim),
+      utf8.encode(preview.surahName!.verbatim),
+      utf8.encode(surahName!.verbatim),
     );
-    expect(model.preview!.reference, reference);
+    expect(preview.ayahNumber, ayahNumber);
+    expect(ayahNumber, 3);
   });
 
   test('a failed read leaves no preview', () async {

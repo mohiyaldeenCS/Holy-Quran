@@ -1,24 +1,30 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/data/repositories/pack_quran_text_repository.dart';
 import 'package:holyquran/domain/models/copy_form.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
+import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/share/ayah_copy_text.dart';
+import 'package:holyquran/ui/core/widgets/copy_sheet.dart';
+import 'package:holyquran/ui/core/widgets/quran_text.dart';
 import 'package:holyquran/utils/result.dart';
 
+import '../../../../testing/golden.dart';
 import '../../../integrity/pack_integrity_suite.dart';
 import 'share_test_pack.dart';
 
 // SH-01 and SH-05: the copied text is the pack's bytes in the ARB format,
 // for every ayah of the synthetic pack and of a pack given with
-// HOLYQURAN_PACK_DIR. The format is read from the ARB file, so no template
-// is typed here; nothing of the text is ever printed.
+// HOLYQURAN_PACK_DIR, and the copy sheet's preview, laid out, is that text.
+// The format is read from the ARB file, so no template is typed here;
+// nothing of the text is ever printed.
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
 
@@ -127,39 +133,68 @@ void main() {
       }
     });
 
-    test('previews every ayah as the pack holds it, and the preview laid out '
-        'is the copied text', () async {
+    testWidgets('previews every ayah and its surah name as the pack holds '
+        'them, and the preview laid out is the copied text', (tester) async {
       final problems = <String>[];
       for (final ayah in await packAyat(pack, repository)) {
         for (final form in copyText.forms) {
+          final where = '${ayah.address} ${form.name}';
           final preview = await copyText.preview(ayah.address, form);
           final copied = await copyText.compose(ayah.address, form);
           if ((preview, copied) case (
-            Ok(value: (ayah: final previewed, :final reference)),
+            Ok(value: (ayah: final shown, :final surahName, :final ayahNumber)),
             Ok(value: final text),
           )) {
-            final shown =
-                '${_l10n.ayahQuoteOpen}${previewed.verbatim}'
-                '${_l10n.ayahQuoteClose} $reference';
+            if (shown != ayah.text) problems.add('$where: the ayah not read');
+            final name = surahName ?? fail('$where: no surah name');
+            // The repository reads the surah list once, so the preview holds
+            // the very string it gave.
+            if (!identical(name.verbatim, ayah.surahName.verbatim)) {
+              problems.add('$where: the surah name is not the one read');
+            }
+            for (final (what, value, stored) in [
+              ('ayah', shown, ayah.stored),
+              ('surah name', name, ayah.storedName),
+            ]) {
+              final mismatch = byteMismatch(
+                utf8.encode(value.verbatim),
+                stored,
+              );
+              if (mismatch != null) problems.add('$where $what: $mismatch');
+            }
+            if (ayahNumber != ayah.address.ayah) {
+              problems.add('$where: the ayah number is $ayahNumber');
+            }
+            await tester.pumpWidget(
+              goldenApp(
+                ReadingTheme.paper,
+                CopySheet(
+                  forms: copyText.forms,
+                  selected: form,
+                  onSelected: (_) {},
+                  onCopy: null,
+                  ayah: shown,
+                  surahName: surahName,
+                  ayahNumber: ayahNumber,
+                ),
+              ),
+            );
+            final laidOut = tester
+                .renderObject<RenderParagraph>(
+                  find.descendant(
+                    of: find.byType(QuranText),
+                    matching: find.byType(RichText),
+                  ),
+                )
+                .text
+                .toPlainText();
             final mismatch = byteMismatch(
-              utf8.encode(shown),
+              utf8.encode(laidOut),
               utf8.encode(text),
             );
-            if (mismatch != null) {
-              problems.add('${ayah.address} ${form.name}: $mismatch');
-            }
+            if (mismatch != null) problems.add('$where: $mismatch');
           } else {
-            problems.add('${ayah.address} ${form.name}: not composed');
-          }
-          if (preview case Ok(value: (ayah: final shown, reference: _))) {
-            final mismatch = byteMismatch(
-              utf8.encode(shown.verbatim),
-              ayah.stored,
-            );
-            if (mismatch != null) {
-              problems.add('${ayah.address} ${form.name}: $mismatch');
-            }
-            if (shown != ayah.text) problems.add('${ayah.address}: not read');
+            problems.add('$where: not composed');
           }
         }
       }

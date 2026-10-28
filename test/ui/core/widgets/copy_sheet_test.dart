@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -9,11 +10,13 @@ import 'package:holyquran/domain/models/copy_form.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
+import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/theme/app_theme.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/core/widgets/copy_sheet.dart';
 import 'package:holyquran/ui/core/widgets/quran_text.dart';
+import 'package:holyquran/ui/core/widgets/surah_name.dart';
 
 import '../../../../testing/golden.dart';
 
@@ -26,12 +29,21 @@ final _longAyah = PackText.fromPack(
   List.filled(12, 'نص تجريبي للاختبار').join(' '),
 );
 
-// Synthetic references; the ayah-only form has none.
-const _references = {
-  CopyForm.ayahOnly: null,
-  CopyForm.withSurah: '[اسم تجريبي]',
-  CopyForm.withSurahAndNumber: '[اسم تجريبي: ٥]',
-};
+// A synthetic surah name, as uncommon as the ayah, and an ayah number.
+const _name = PackText.fromPack(' اسم  تجريبي ');
+const _ayahNumber = 5;
+
+/// The forms with a reference; only the full form has a format for one.
+const _withReference = {CopyForm.withSurahAndNumber};
+
+/// The reference of the full form: its ARB template, read from the file so
+/// that no template is typed here, filled with [_name] and [_ayahNumber].
+final _reference =
+    ((jsonDecode(File('lib/l10n/app_ar.arb').readAsStringSync())
+                as Map<String, Object?>)['copyReferenceFull']!
+            as String)
+        .replaceFirst('{surah}', _name.verbatim)
+        .replaceFirst('{number}', arabicDigits(_ayahNumber));
 
 final _labels = {
   CopyForm.ayahOnly: _l10n.copyAyahOnly,
@@ -65,7 +77,7 @@ Future<void> _pump(
 }
 
 /// A sheet whose selection follows taps, previewing [ayah] with the selected
-/// form's reference; [copies] counts the copy taps.
+/// form's reference, if it has one; [copies] counts the copy taps.
 Widget _live({
   List<CopyForm> forms = CopyForm.values,
   List<CopyForm>? selections,
@@ -75,17 +87,21 @@ Widget _live({
 }) {
   var selected = CopyForm.withSurahAndNumber;
   return StatefulBuilder(
-    builder: (context, setState) => CopySheet(
-      forms: forms,
-      selected: selected,
-      onSelected: (form) {
-        selections?.add(form);
-        setState(() => selected = form);
-      },
-      onCopy: enabled ? () => copies?.add(1) : null,
-      ayah: ayah,
-      reference: _references[selected],
-    ),
+    builder: (context, setState) {
+      final referenced = _withReference.contains(selected);
+      return CopySheet(
+        forms: forms,
+        selected: selected,
+        onSelected: (form) {
+          selections?.add(form);
+          setState(() => selected = form);
+        },
+        onCopy: enabled ? () => copies?.add(1) : null,
+        ayah: ayah,
+        surahName: referenced ? _name : null,
+        ayahNumber: referenced ? _ayahNumber : null,
+      );
+    },
   );
 }
 
@@ -240,15 +256,58 @@ void main() {
       expect(utf8.encode(text), utf8.encode(_ayah.verbatim));
       expect((spans[0] as TextSpan).text, _l10n.ayahQuoteOpen);
       expect((spans[2] as TextSpan).text, _l10n.ayahQuoteClose);
-      final reference = _references[form];
-      if (reference == null) {
+      if (!_withReference.contains(form)) {
         expect(spans, hasLength(3));
       } else {
         expect(spans, hasLength(4));
-        expect((spans[3] as TextSpan).toPlainText(), ' $reference');
+        final reference = spans[3] as SurahNameSpan;
+        expect(reference.text, _reference);
+        expect(utf8.encode(reference.text!), utf8.encode(_reference));
+        expect(reference.style!.inherit, isFalse);
       }
     });
   }
+
+  testWidgets("the preview's surah name is the one given, unchanged", (
+    tester,
+  ) async {
+    final name = PackText.fromPack(
+      String.fromCharCodes(_name.verbatim.codeUnits),
+    );
+    await _pump(
+      tester,
+      CopySheet(
+        forms: const [CopyForm.withSurahAndNumber],
+        selected: CopyForm.withSurahAndNumber,
+        onSelected: (_) {},
+        onCopy: null,
+        ayah: _ayah,
+        surahName: name,
+        ayahNumber: _ayahNumber,
+      ),
+    );
+    final sheet = tester.widget<CopySheet>(find.byType(CopySheet));
+    expect(identical(sheet.surahName!.verbatim, name.verbatim), isTrue);
+    final reference = (_previewSpans(tester)[3] as TextSpan).text!;
+    expect(utf8.encode(reference), utf8.encode(_reference));
+    expect(reference, contains(name.verbatim));
+  });
+
+  test('takes the surah name and the ayah number together', () {
+    for (final (surahName, ayahNumber) in [(_name, null), (null, 1)]) {
+      expect(
+        () => CopySheet(
+          forms: const [CopyForm.withSurahAndNumber],
+          selected: CopyForm.withSurahAndNumber,
+          onSelected: (_) {},
+          onCopy: null,
+          surahName: surahName,
+          ayahNumber: ayahNumber,
+        ),
+        throwsAssertionError,
+      );
+    }
+  });
 
   testWidgets('no preview without an ayah', (tester) async {
     await _pump(tester, _live(ayah: null));

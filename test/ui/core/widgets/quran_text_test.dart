@@ -9,6 +9,7 @@ import 'package:holyquran/ui/core/theme/app_theme.dart';
 import 'package:holyquran/ui/core/theme/ramps.g.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/quran_text.dart';
+import 'package:holyquran/ui/core/widgets/surah_name.dart';
 
 import '../../../../testing/golden.dart';
 
@@ -277,7 +278,13 @@ void main() {
   testWidgets('quoted: the text whole in its own span, between the copy '
       "format's brackets, with what follows after", (tester) async {
     final packText = PackText.fromPack(String.fromCharCodes(_sample.codeUnits));
-    const after = TextSpan(text: 'مرجع تجريبي');
+    final after = SurahName.span(
+      const PackText.fromPack('اسم تجريبي'),
+      format: SurahNameFormat.copyReference,
+      ayah: 5,
+      style: const TextStyle(inherit: false, fontSize: 15),
+      l10n: _l10n,
+    );
     await _pump(tester, QuranText.quoted(packText, after: after));
 
     final span = _paragraph(tester).text as TextSpan;

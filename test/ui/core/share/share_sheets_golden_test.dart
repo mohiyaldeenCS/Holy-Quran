@@ -14,10 +14,9 @@ import 'package:holyquran/ui/core/widgets/share_card.dart';
 
 import '../../../../testing/golden.dart';
 
-// Synthetic ayah, surah name and reference.
+// Synthetic ayah and surah name; the reference is the copy format's.
 const _text = PackText.fromPack('نص تجريبي للاختبار وليس آية');
 const _name = PackText.fromPack('اسم تجريبي');
-const _reference = '[اسم تجريبي: ٥]';
 
 const _width = 360.0;
 
@@ -41,7 +40,8 @@ void main() {
               onSelected: (_) {},
               onCopy: () {},
               ayah: _text,
-              reference: _reference,
+              surahName: _name,
+              ayahNumber: 5,
             ),
           ),
       ]),

@@ -9,15 +9,17 @@ import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/core/widgets/focus_ring.dart';
 import 'package:holyquran/ui/core/widgets/quran_text.dart';
+import 'package:holyquran/ui/core/widgets/surah_name.dart';
 
 /// The copy sheet (Share.dc.html): a handle, «نسخ الآية», the copy forms as
 /// a radio group, a preview of what the selected form copies, and «انسخ».
 ///
 /// [forms] are the forms that can be copied; the caller leaves out the rest.
-/// The preview shows [ayah], read from the pack, quoted, with [reference]
-/// after it when the selected form has one; it is hidden while [ayah] is
-/// null. What is copied is read from the pack again when [onCopy] runs,
-/// never from the preview (SH-05). Disabled while [onCopy] is null.
+/// The preview shows [ayah], read from the pack, quoted, followed by the
+/// reference of [surahName] and [ayahNumber] when the selected form has one;
+/// it is hidden while [ayah] is null. What is copied is read from the pack
+/// again when [onCopy] runs, never from the preview (SH-05). Disabled while
+/// [onCopy] is null.
 class CopySheet extends StatelessWidget {
   const CopySheet({
     required this.forms,
@@ -25,16 +27,18 @@ class CopySheet extends StatelessWidget {
     required this.onSelected,
     required this.onCopy,
     this.ayah,
-    this.reference,
+    this.surahName,
+    this.ayahNumber,
     super.key,
-  });
+  }) : assert((surahName == null) == (ayahNumber == null));
 
   final List<CopyForm> forms;
   final CopyForm selected;
   final ValueChanged<CopyForm> onSelected;
   final VoidCallback? onCopy;
   final PackText? ayah;
-  final String? reference;
+  final PackText? surahName;
+  final int? ayahNumber;
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +76,8 @@ class CopySheet extends StatelessWidget {
             ],
           ),
         ),
-        if (ayah != null) _Preview(ayah: ayah, reference: reference),
+        if (ayah != null)
+          _Preview(ayah: ayah, surahName: surahName, ayahNumber: ayahNumber),
         CopySheetFrame.action(
           Button(label: l10n.copyAction, onPressed: onCopy),
         ),
@@ -84,15 +89,20 @@ class CopySheet extends StatelessWidget {
 /// What the selected form copies: the ayah between the format's brackets,
 /// and the reference after it.
 class _Preview extends StatelessWidget {
-  const _Preview({required this.ayah, required this.reference});
+  const _Preview({
+    required this.ayah,
+    required this.surahName,
+    required this.ayahNumber,
+  });
 
   final PackText ayah;
-  final String? reference;
+  final PackText? surahName;
+  final int? ayahNumber;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final reference = this.reference;
+    final surahName = this.surahName;
     return Padding(
       padding: const EdgeInsets.only(top: _previewGap),
       child: DecoratedBox(
@@ -105,11 +115,14 @@ class _Preview extends StatelessWidget {
           padding: _previewPadding,
           child: QuranText.quoted(
             ayah,
-            after: reference == null
+            after: surahName == null
                 ? null
-                : TextSpan(
-                    text: '$_referenceSpace$reference',
+                : SurahName.span(
+                    surahName,
+                    format: SurahNameFormat.copyReference,
+                    ayah: ayahNumber,
                     style: _referenceStyle.copyWith(color: colors.inkMuted),
+                    l10n: AppLocalizations.of(context),
                   ),
           ),
         ),
@@ -319,9 +332,8 @@ const EdgeInsets _previewPadding = EdgeInsets.symmetric(
 );
 
 // Share.dc.html l.54, the reference: `font-size:15px` in #51605D
-// (ink-muted), no weight or line height set, after the space between the
-// two spans.
-const String _referenceSpace = ' ';
+// (ink-muted), no weight or line height set, the space between the two
+// spans included.
 const TextStyle _referenceStyle = TextStyle(
   inherit: false,
   fontFamily: AppFonts.sans,

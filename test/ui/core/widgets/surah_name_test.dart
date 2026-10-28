@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
+import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/surah_name.dart';
@@ -29,20 +30,25 @@ final _templates =
     jsonDecode(File('lib/l10n/app_ar.arb').readAsStringSync())
         as Map<String, Object?>;
 
+// The copy reference names its placeholders as the copy format does.
 String _filled(String key) => (_templates[key]! as String)
-    .replaceAll('{name}', _value)
-    .replaceAll('{ayah}', arabicDigits(_ayah));
+    .replaceAll(RegExp(r'\{(name|surah)\}'), _value)
+    .replaceAll(RegExp(r'\{(ayah|number)\}'), arabicDigits(_ayah));
 
 final _expected = {
   SurahNameFormat.name: _value,
   SurahNameFormat.titled: _filled('surahTitle'),
   SurahNameFormat.withAyah: _filled('surahAyahReference'),
   SurahNameFormat.titledWithAyah: _filled('surahTitleAyahReference'),
+  SurahNameFormat.copyReference: _filled('copyReferenceFull'),
 };
 
-bool _hasAyah(SurahNameFormat format) =>
-    format == SurahNameFormat.withAyah ||
-    format == SurahNameFormat.titledWithAyah;
+bool _hasAyah(SurahNameFormat format) => switch (format) {
+  SurahNameFormat.withAyah ||
+  SurahNameFormat.titledWithAyah ||
+  SurahNameFormat.copyReference => true,
+  SurahNameFormat.name || SurahNameFormat.titled => false,
+};
 
 SurahName _surahName(SurahNameFormat format) => SurahName(
   _name,
@@ -59,18 +65,22 @@ RenderParagraph _paragraph(WidgetTester tester) =>
 
 void main() {
   test('every template holds the name once, the ayah formats the ayah', () {
-    for (final key in [
-      'surahTitle',
-      'surahAyahReference',
-      'surahTitleAyahReference',
+    for (final (key, name, ayah) in [
+      ('surahTitle', '{name}', null),
+      ('surahAyahReference', '{name}', '{ayah}'),
+      ('surahTitleAyahReference', '{name}', '{ayah}'),
+      ('copyReferenceFull', '{surah}', '{number}'),
     ]) {
       final template = _templates[key]! as String;
-      expect('{name}'.allMatches(template), hasLength(1), reason: key);
       expect(
-        '{ayah}'.allMatches(template),
-        hasLength(key == 'surahTitle' ? 0 : 1),
+        RegExp(r'\{\w+\}').allMatches(template),
+        hasLength(ayah == null ? 1 : 2),
         reason: key,
       );
+      expect(name.allMatches(template), hasLength(1), reason: key);
+      if (ayah != null) {
+        expect(ayah.allMatches(template), hasLength(1), reason: key);
+      }
     }
   });
 
@@ -176,5 +186,63 @@ void main() {
         reason: format.name,
       );
     }
+  });
+  group('span', () {
+    final l10n = lookupAppLocalizations(const Locale('ar'));
+    const style = TextStyle(inherit: false, fontSize: 15);
+
+    for (final format in SurahNameFormat.values) {
+      test('${format.name}: the template with the whole name, in the given '
+          'style', () {
+        final span = SurahName.span(
+          _name,
+          format: format,
+          ayah: _hasAyah(format) ? _ayah : null,
+          style: style,
+          l10n: l10n,
+        );
+        expect(span.text, _expected[format]);
+        expect(utf8.encode(span.text!), utf8.encode(_expected[format]!));
+        expect(span.style, same(style));
+        expect(span.children, isNull);
+      });
+    }
+
+    test('substitutes the very string it was given', () {
+      final name = PackText.fromPack(String.fromCharCodes(_value.codeUnits));
+      final span = SurahName.span(
+        name,
+        format: SurahNameFormat.name,
+        style: style,
+        l10n: l10n,
+      );
+      expect(identical(span.text, name.verbatim), isTrue);
+    });
+
+    test('takes an ayah exactly in the formats that carry one, and only a '
+        'style that does not inherit', () {
+      for (final format in SurahNameFormat.values) {
+        expect(
+          () => SurahName.span(
+            _name,
+            format: format,
+            ayah: _hasAyah(format) ? null : 1,
+            style: style,
+            l10n: l10n,
+          ),
+          throwsAssertionError,
+          reason: format.name,
+        );
+      }
+      expect(
+        () => SurahName.span(
+          _name,
+          format: SurahNameFormat.name,
+          style: const TextStyle(fontSize: 15),
+          l10n: l10n,
+        ),
+        throwsAssertionError,
+      );
+    });
   });
 }

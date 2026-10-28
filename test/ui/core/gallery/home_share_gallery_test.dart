@@ -6,7 +6,6 @@ import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/gallery/gallery_section.dart';
 import 'package:holyquran/ui/core/gallery/sections/home_share_gallery.dart';
-import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/widgets/continue_listening_row.dart';
 import 'package:holyquran/ui/core/widgets/copy_sheet.dart';
 import 'package:holyquran/ui/core/widgets/home_door.dart';
@@ -98,10 +97,8 @@ void main() {
     expect(rows.map((row) => row.reciter), [_l10n.sampleReciter, null]);
     final copySheet = tester.widget<CopySheet>(find.byType(CopySheet));
     expect(copySheet.ayah!.verbatim, _l10n.sampleText);
-    expect(
-      copySheet.reference,
-      _l10n.copyReferenceFull(_l10n.sampleSurahName, arabicDigits(5)),
-    );
+    expect(copySheet.surahName!.verbatim, _l10n.sampleSurahName);
+    expect(copySheet.ayahNumber, 5);
     for (final card in tester.widgetList<ShareCard>(find.byType(ShareCard))) {
       expect(card.ayah.verbatim, _l10n.sampleText, reason: card.design.name);
       expect(

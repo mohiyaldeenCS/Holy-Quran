@@ -1,3 +1,3 @@
 lib/ui/core/share/ayah_copy_text.dart
 decision: D-114
-The clipboard composer puts the ayah and its surah name from the pack, whole and unchanged, into the ARB copy format, and the surah name into the reference the copy sheet's preview shows after the quoted ayah.
+The clipboard composer puts the ayah and its surah name from the pack, whole and unchanged, into the ARB copy format.
