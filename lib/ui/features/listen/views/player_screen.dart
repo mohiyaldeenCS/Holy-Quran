@@ -6,6 +6,7 @@ import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/route_table.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
+import 'package:holyquran/ui/core/l10n/speed_label.dart';
 import 'package:holyquran/ui/core/metrics/player_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
@@ -157,7 +158,7 @@ class PlayerScreen extends StatelessWidget {
       position: ayah != null && total != null
           ? l10n.playerAyahOfTotal(arabicDigits(ayah), arabicDigits(total))
           : null,
-      speed: playerSpeedLabel(player.speed),
+      speed: speedLabel(l10n, player.speed),
       repeat: repeat,
       range: rangeEnd == null ? null : _rangeLabel(l10n, rangeEnd),
       repeatLabel: repeat == null

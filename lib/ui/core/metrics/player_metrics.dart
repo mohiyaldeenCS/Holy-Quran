@@ -1,7 +1,5 @@
 import 'package:flutter/widgets.dart';
 
-import 'package:holyquran/domain/models/player_state.dart';
-import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 
 /// The layout of the listen screen, measured from the player of
@@ -112,19 +110,3 @@ abstract final class PlayerMetrics {
   // moves the position, as the board draws a track and no step.
   static const Duration seekStep = Duration(seconds: 5);
 }
-
-/// The speed as the Screens2 chip writes it, «١٫٠×»: Arabic-Indic digits,
-/// the Arabic decimal separator (docs/DESIGN_SYSTEM.md, "Ground rules" 6)
-/// and at least one decimal.
-String playerSpeedLabel(PlaybackSpeed speed) {
-  final hundredths = (speed.factor * 100).round();
-  final fraction = hundredths % 100;
-  final decimals = fraction % 10 == 0
-      ? arabicDigits(fraction ~/ 10)
-      : arabicDigits(fraction);
-  return '${arabicDigits(hundredths ~/ 100)}'
-      '${String.fromCharCode(_arabicDecimalSeparator)}$decimals$_times';
-}
-
-const int _arabicDecimalSeparator = 0x066B;
-const String _times = '×';

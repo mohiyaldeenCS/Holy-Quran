@@ -1,8 +1,10 @@
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/route_table.dart';
 import 'package:holyquran/routing/routes.dart';
+import 'package:holyquran/ui/core/l10n/speed_label.dart';
 import 'package:holyquran/ui/core/metrics/player_metrics.dart';
 import 'package:holyquran/ui/core/mini_player_source.dart';
 import 'package:holyquran/ui/core/widgets/mini_player.dart';
@@ -48,7 +50,7 @@ final class _ListenMiniPlayer implements MiniPlayerSource {
         surah: surah.name,
         ayah: ayah,
         reciter: player.reciter,
-        speed: playerSpeedLabel(player.speed),
+        speed: speedLabel(AppLocalizations.of(context), player.speed),
         playing: player.playing,
         progress: player.progress,
         repeat: player.repeatCount ?? 0,

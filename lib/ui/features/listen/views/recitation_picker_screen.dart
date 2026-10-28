@@ -72,7 +72,7 @@ class RecitationPickerScreen extends StatelessWidget {
                         details.style,
                         ?_stateWord(l10n, state),
                         if (details.hasWordTiming) l10n.wordTimingTag,
-                      ].join(_separator),
+                      ].join(l10n.dataSeparator),
                     );
                   },
                 );
@@ -84,10 +84,6 @@ class RecitationPickerScreen extends StatelessWidget {
     );
   }
 }
-
-/// The identity's middle dot between data items (docs/DESIGN_SYSTEM.md,
-/// "Ground rules" 6).
-const String _separator = ' · ';
 
 String? _stateWord(AppLocalizations l10n, ResourceState? state) =>
     switch (state) {

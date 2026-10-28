@@ -5,7 +5,7 @@ import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/gallery/gallery_samples.dart';
 import 'package:holyquran/ui/core/gallery/gallery_section.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
-import 'package:holyquran/ui/core/metrics/player_metrics.dart';
+import 'package:holyquran/ui/core/l10n/speed_label.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/continue_card.dart';
@@ -128,7 +128,7 @@ class _AudioGalleryState extends State<AudioGallery> {
                   arabicDigits(_panelAyah),
                   arabicDigits(_panelTotal),
                 ),
-                speed: playerSpeedLabel(PlaybackSpeed.normal),
+                speed: speedLabel(l10n, PlaybackSpeed.normal),
                 repeat: _panelRepeat,
                 range: l10n.playToSurahEnd,
                 repeatLabel: l10n.playerRepeatTimes(

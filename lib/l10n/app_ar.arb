@@ -187,6 +187,18 @@
   "@playerPosition": {
     "description": "Spoken name of the player's progress bar, as the identity's reference labels it."
   },
+  "playerSpeedValue": "{whole}٫{fraction}×",
+  "@playerSpeedValue": {
+    "description": "The playback speed on the player's chip, such as ١٫٢٥×: the whole part, the Arabic decimal separator, the fraction and the multiplication sign. Both parts are Arabic-Indic digits. Source: design/identity-boards/Screens2.dc.html.",
+    "placeholders": {
+      "whole": {
+        "type": "String"
+      },
+      "fraction": {
+        "type": "String"
+      }
+    }
+  },
   "continueReadingLabel": "أكمل القراءة",
   "@continueReadingLabel": {
     "description": "The small label at the top of ContinueCard, as the identity's reference writes it."

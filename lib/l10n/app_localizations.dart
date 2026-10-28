@@ -280,6 +280,12 @@ abstract class AppLocalizations {
   /// **'موضع التلاوة'**
   String get playerPosition;
 
+  /// The playback speed on the player's chip, such as ١٫٢٥×: the whole part, the Arabic decimal separator, the fraction and the multiplication sign. Both parts are Arabic-Indic digits. Source: design/identity-boards/Screens2.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'{whole}٫{fraction}×'**
+  String playerSpeedValue(String whole, String fraction);
+
   /// The small label at the top of ContinueCard, as the identity's reference writes it.
   ///
   /// In ar, this message translates to:
