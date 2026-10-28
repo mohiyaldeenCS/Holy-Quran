@@ -253,6 +253,12 @@ void main() {
       }
     });
 
+    test('a silence is set in whole seconds', () {
+      expect(PlaybackPlanBuilder.silenceOf(0), Duration.zero);
+      expect(PlaybackPlanBuilder.silenceOf(7), const Duration(seconds: 7));
+      expect(PlaybackPlanBuilder.silenceOf(30), PlaybackPlanBuilder.maxSilence);
+    });
+
     test('a recitation without a complete rights record has no plan', () {
       expect(
         _refusal(WholeSurah(3), recitation: _recitation(rightsComplete: false)),

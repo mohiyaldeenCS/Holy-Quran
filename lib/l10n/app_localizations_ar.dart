@@ -746,6 +746,15 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get playerSilenceBetweenAyat => 'الصمت بين الآيات';
+
+  @override
+  String get playerSecondsUnit => 'ث';
+
+  @override
+  String get rangeSelectorTitle => 'محدد النطاق';
+
+  @override
   String get queueLabel => 'قائمة التشغيل';
 
   @override
