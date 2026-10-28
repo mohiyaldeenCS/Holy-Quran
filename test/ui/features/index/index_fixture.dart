@@ -66,15 +66,32 @@ const List<SyntheticDivision> indexDivisions = [
   SyntheticDivision('page', 5, 3, 1),
 ];
 
+/// A pack with the counts of the real edition, 114 surahs and 30 juz, of one
+/// short ayah each, for layouts that depend on the numbers' width.
+List<SyntheticSurah> get fullCountSurahs => [
+  for (var n = 1; n <= 114; n++) _surah(n, 1),
+];
+
+List<SyntheticDivision> get fullCountDivisions => [
+  for (var n = 1; n <= 30; n++) SyntheticDivision('juz', n, n, 1),
+  const SyntheticDivision('hizb', 1, 1, 1),
+  const SyntheticDivision('rub', 1, 1, 1),
+  const SyntheticDivision('page', 1, 1, 1),
+];
+
 /// The synthetic pack, open: its text repository and the index over it.
 final class IndexFixture {
   IndexFixture._(this.pack, this.text, this.index);
 
-  static Future<IndexFixture> load(Directory root) async {
+  static Future<IndexFixture> load(
+    Directory root, {
+    List<SyntheticSurah>? surahs,
+    List<SyntheticDivision>? divisions,
+  }) async {
     final built = await buildSyntheticPack(
       root,
-      surahs: indexSurahs,
-      divisions: indexDivisions,
+      surahs: surahs ?? indexSurahs,
+      divisions: divisions ?? indexDivisions,
       sajdas: const [],
     );
     final pack = await PackUnderTest.load(built.directory.path);

@@ -78,6 +78,7 @@ class _Header extends StatelessWidget {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            spacing: AppSpacing.space3,
             children: [
               Semantics(
                 header: true,
@@ -86,11 +87,15 @@ class _Header extends StatelessWidget {
                   style: AppTextStyles.screenTitle.copyWith(color: colors.ink),
                 ),
               ),
+              // The summary wraps rather than push the title out at large text.
               if (summary != null)
-                Text(
-                  summary,
-                  style: IndexMetrics.summaryStyle.copyWith(
-                    color: colors.inkMuted,
+                Flexible(
+                  child: Text(
+                    summary,
+                    textAlign: TextAlign.end,
+                    style: IndexMetrics.summaryStyle.copyWith(
+                      color: colors.inkMuted,
+                    ),
                   ),
                 ),
             ],

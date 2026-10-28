@@ -247,6 +247,43 @@ void main() {
     });
   }
 
+  group('with the counts of the real edition', () {
+    late Directory fullRoot;
+    late IndexFixture full;
+
+    setUpAll(() async {
+      fullRoot = await Directory.systemTemp.createTemp('index_full_counts');
+      full = await IndexFixture.load(
+        fullRoot,
+        surahs: fullCountSurahs,
+        divisions: fullCountDivisions,
+      );
+    });
+    tearDownAll(() async {
+      full.close();
+      await fullRoot.delete(recursive: true);
+    });
+
+    for (final theme in ReadingTheme.values) {
+      testWidgets('the summary of 114 surahs and 30 juz fits in '
+          '${theme.name} at 200%, wrapping if it must', (tester) async {
+        await pumpIndexApp(
+          tester,
+          full,
+          theme: theme,
+          textScale: 2,
+          size: const Size(360, 800),
+          location: Routes.mushafIndex,
+        );
+        expect(
+          find.text(_l10n.indexSummary(arabicDigits(114), arabicDigits(30))),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+      });
+    }
+  });
+
   testWidgets('every row is at least 48 high and a labelled target', (
     tester,
   ) async {
