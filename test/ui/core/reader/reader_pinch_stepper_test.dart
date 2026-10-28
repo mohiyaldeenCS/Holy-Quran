@@ -31,6 +31,7 @@ final class _Host extends StatefulWidget {
     required this.steps,
     required this.firstStep,
     this.takesSteps = true,
+    this.leading = 0,
   });
 
   final SurahText text;
@@ -38,6 +39,7 @@ final class _Host extends StatefulWidget {
   final List<int> steps;
   final int firstStep;
   final bool takesSteps;
+  final double leading;
 
   @override
   State<_Host> createState() => _HostState();
@@ -58,6 +60,7 @@ final class _HostState extends State<_Host> {
     scrollController: widget.controller,
     layout: layout,
     step: step,
+    leadingExtent: widget.leading,
     onStep: (next) {
       widget.steps.add(next);
       if (widget.takesSteps) setState(() => step = next);
@@ -66,6 +69,8 @@ final class _HostState extends State<_Host> {
       child: CustomScrollView(
         controller: widget.controller,
         slivers: [
+          if (widget.leading > 0)
+            SliverToBoxAdapter(child: SizedBox(height: widget.leading)),
           InteractiveSurahSliver(
             text: widget.text,
             step: readerTextSteps[step],
@@ -105,6 +110,7 @@ void main() {
     required double offset,
     Size size = _portrait,
     bool takesSteps = true,
+    double leading = 0,
   }) async {
     tester.view
       ..physicalSize = size
@@ -122,6 +128,7 @@ void main() {
           steps: steps,
           firstStep: step,
           takesSteps: takesSteps,
+          leading: leading,
         ),
       ),
     );
@@ -146,11 +153,12 @@ void main() {
     return frames;
   }
 
-  FocalAyah underFingers(SurahLayout layout) => focalAyahUnder(
-    layout,
-    Offset(_fingers.dx, controller.offset + _fingers.dy),
-    ink: AppColors.paper.quranInk,
-  );
+  FocalAyah underFingers(SurahLayout layout, {double leading = 0}) =>
+      focalAyahUnder(
+        layout,
+        Offset(_fingers.dx, controller.offset - leading + _fingers.dy),
+        ink: AppColors.paper.quranInk,
+      );
 
   /// Two fingers [_spread] apart close or open to [scale] times that, about
   /// [_fingers], then lift.
@@ -235,6 +243,44 @@ void main() {
       expect(controller.offset, 0);
     });
 
+    testWidgets('keeps the ayah in place below a leading extent', (
+      tester,
+    ) async {
+      const leading = 120.0;
+      final before = await open(
+        tester,
+        step: 2,
+        offset: leading + 500,
+        leading: leading,
+      );
+      final focal = underFingers(before, leading: leading);
+      await pinch(tester, 1.3);
+      final after = layoutOf(tester);
+      expect(after.lineHeight, greaterThan(before.lineHeight));
+      final y = leading + yOfFocalAyah(after, focal) - controller.offset;
+      expect((y - _fingers.dy).abs(), lessThanOrEqualTo(after.lineHeight));
+    });
+
+    testWidgets('on the leading extent at the top leaves the view there', (
+      tester,
+    ) async {
+      await open(tester, step: 2, offset: 0, leading: 120);
+      await pinch(tester, 1.3, at: const Offset(180, 40));
+      expect(steps, hasLength(1));
+      expect(controller.offset, 0);
+    });
+
+    testWidgets('in at the end of the surah stays at the end', (tester) async {
+      final before = await open(tester, step: 4, offset: 0);
+      controller.jumpTo(controller.position.maxScrollExtent);
+      await tester.pumpAndSettle();
+      await pinch(tester, 0.75);
+      expect(steps.single, lessThan(4));
+      expect(layoutOf(tester).lineHeight, lessThan(before.lineHeight));
+      expect(controller.offset, controller.position.maxScrollExtent);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('stops at the largest step', (tester) async {
       final last = readerTextSteps.length - 1;
       await open(tester, step: last, offset: 500);
@@ -283,6 +329,42 @@ void main() {
     tester.view.physicalSize = _landscape;
     await tester.pumpAndSettle();
     expect(layoutOf(tester).ayahAt(controller.offset), first);
+  });
+
+  group('leaving the screen', () {
+    testWidgets('mid-pinch reports nothing and throws nothing', (tester) async {
+      await open(tester, step: 2, offset: 500);
+      final left = await tester.startGesture(_fingers - const Offset(100, 0));
+      final right = await tester.startGesture(_fingers + const Offset(100, 0));
+      await tester.pump();
+      await left.moveTo(_fingers - const Offset(130, 0));
+      await right.moveTo(_fingers + const Offset(130, 0));
+      await tester.pumpWidget(const SizedBox());
+      await left.up();
+      await right.up();
+      await tester.pumpAndSettle();
+      expect(steps, isEmpty);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('after a pinch, before the plan, restores nothing', (
+      tester,
+    ) async {
+      await open(tester, step: 2, offset: 500);
+      final left = await tester.startGesture(_fingers - const Offset(100, 0));
+      final right = await tester.startGesture(_fingers + const Offset(100, 0));
+      await tester.pump();
+      await left.moveTo(_fingers - const Offset(130, 0));
+      await right.moveTo(_fingers + const Offset(130, 0));
+      await tester.pump();
+      await left.up();
+      await right.up();
+      expect(steps, hasLength(1));
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+      expect(steps, hasLength(1));
+      expect(tester.takeException(), isNull);
+    });
   });
 
   testWidgets('a reader at the top of the text stays at the top when turned', (
