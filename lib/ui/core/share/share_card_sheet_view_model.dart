@@ -86,6 +86,9 @@ final class ShareCardSheetViewModel extends ChangeNotifier {
     } on Exception catch (error) {
       return Failure(error);
     }
+    // A sheet closed while its card was painted is no longer a request to
+    // share it.
+    if (_disposed) return const Ok(null);
     return _shareImage(
       png,
       fileName: '${address.riwaya}-${address.surah}-${address.ayah}.png',

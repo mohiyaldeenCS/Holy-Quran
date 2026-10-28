@@ -50,7 +50,7 @@ class ShareCardSheet extends StatelessWidget {
           ],
           selectedIndex: design.index,
           onChanged: (index) => onDesignSelected(ShareCardDesign.values[index]),
-          semanticLabel: l10n.gallerySectionShareCard,
+          semanticLabel: l10n.shareDesignSwitchLabel,
         ),
         if (card != null) ...[
           Center(
