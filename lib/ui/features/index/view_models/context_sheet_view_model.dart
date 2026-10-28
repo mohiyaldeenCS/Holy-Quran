@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
@@ -13,19 +14,18 @@ import 'package:holyquran/utils/result.dart';
 /// The ayah-context sheet's state (`NV-05`): how much context is chosen and
 /// the ayat for it, read from the pack with their word and mark spans. The
 /// ayat of one choice are read once; a later choice reads only what it adds.
-/// The ayah alone is read as the model is made.
+/// The ayah alone is read as the model is made. A change in the pack's
+/// integrity is heard, so the sheet closes when the pack stops serving.
 final class ContextSheetViewModel extends ChangeNotifier {
   ContextSheetViewModel({
     required QuranAddress address,
     required this._text,
     required this._index,
+    this._integrity,
   }) : address = address.ayahAddress {
+    _integrity?.addListener(notifyListeners);
     unawaited(load());
   }
-
-  /// How many ayat each choice shows, null for the whole surah, in the order
-  /// the choices are offered.
-  static const List<int?> choices = contextAmountChoices;
 
   /// Whether [address] is an ayah of the edition [index] describes and the
   /// pack serves the surah's name, which the sheet shows.
@@ -39,6 +39,7 @@ final class ContextSheetViewModel extends ChangeNotifier {
 
   final QuranTextRepository _text;
   final QuranIndexRepository _index;
+  final PackIntegrityRepository? _integrity;
 
   /// The ayah the sheet was opened for.
   final QuranAddress address;
@@ -49,7 +50,9 @@ final class ContextSheetViewModel extends ChangeNotifier {
   var _reads = 0;
   var _disposed = false;
 
-  List<int?> get amounts => choices;
+  /// How many ayat each choice shows, null for the whole surah, in the order
+  /// the choices are offered.
+  List<int?> get amounts => contextAmountChoices;
 
   /// The index in [amounts] of the choice made; the ayah alone at first.
   int get amount => _amount;
@@ -128,6 +131,7 @@ final class ContextSheetViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _integrity?.removeListener(notifyListeners);
     super.dispose();
   }
 }

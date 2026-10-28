@@ -73,6 +73,7 @@ Widget _context(BuildContext context, GoRouterState state) {
         address: address,
         text: context.read<QuranTextRepository>(),
         index: context.read<QuranIndexRepository>(),
+        integrity: context.read<PackIntegrityRepository?>(),
       ),
       builder: (context, _) => ContextSheetView(viewModel: context.read()),
     ),

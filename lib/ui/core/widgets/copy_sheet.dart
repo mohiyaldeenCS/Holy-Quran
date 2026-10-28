@@ -121,10 +121,6 @@ class _Preview extends StatelessWidget {
   }
 }
 
-/// The copy sheet's frame (Share.dc.html): `surface` with the sheet shadow,
-/// rounded top corners, the handle, and [children] a fixed gap apart. The
-/// share sheet, which the identity does not draw, takes it too. It scrolls
-/// when the screen is shorter than its content.
 /// The title of a sheet on [CopySheetFrame], as Share.dc.html draws it: 19
 /// semibold on `ink`, with the board's padding, announced as a heading.
 class CopySheetTitle extends StatelessWidget {
@@ -142,6 +138,10 @@ class CopySheetTitle extends StatelessWidget {
   );
 }
 
+/// The copy sheet's frame (Share.dc.html): `surface` with the sheet shadow,
+/// rounded top corners, the handle, and [children] a fixed gap apart. The
+/// share sheet, which the identity does not draw, takes it too. It scrolls
+/// when the screen is shorter than its content.
 class CopySheetFrame extends StatelessWidget {
   const CopySheetFrame({required this.children, super.key});
 

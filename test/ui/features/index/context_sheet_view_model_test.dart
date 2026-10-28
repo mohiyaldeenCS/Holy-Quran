@@ -5,14 +5,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/domain/models/edition_map.dart';
 import 'package:holyquran/domain/models/mark_span.dart';
+import 'package:holyquran/domain/models/pack_failure.dart';
+import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/domain/models/pack_manifest.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/surah_info.dart';
 import 'package:holyquran/domain/models/word_span.dart';
+import 'package:holyquran/ui/core/widgets/context_sheet.dart';
 import 'package:holyquran/ui/features/index/view_models/context_sheet_view_model.dart';
 import 'package:holyquran/utils/result.dart';
 
+import '../../../../testing/fakes/fake_pack_integrity_repository.dart';
 import 'index_fixture.dart';
 
 /// The pack's repository that counts the ayat it is asked for, and can fail.
@@ -99,10 +103,10 @@ void main() {
     ];
   }
 
-  int indexOf(int? size) => ContextSheetViewModel.choices.indexOf(size);
+  int indexOf(int? size) => contextAmountChoices.indexOf(size);
 
   test('offers the ayah, 3 ayat, 5 ayat and the surah, the ayah first', () {
-    expect(ContextSheetViewModel.choices, [1, 3, 5, null]);
+    expect(contextAmountChoices, [1, 3, 5, null]);
   });
 
   test('shows the ayah alone at first, between its markers selected', () async {
@@ -244,6 +248,27 @@ void main() {
     fixture.serving = false;
     expect(model.surahName, isNull);
     expect(ContextSheetViewModel.canShow(fixture.index, at(2, 6)), isFalse);
+  });
+
+  test('hears the pack stop serving, without a choice being made', () async {
+    final integrity = FakePackIntegrityRepository();
+    final model = ContextSheetViewModel(
+      address: at(2, 6),
+      text: _Counting(fixture.text),
+      index: fixture.index,
+      integrity: integrity,
+    );
+    addTearDown(model.dispose);
+    await pumpEventQueue();
+    var heard = 0;
+    model.addListener(() => heard++);
+    addTearDown(() => fixture.serving = true);
+
+    fixture.serving = false;
+    integrity.report('synthetic', const IntegrityFailed(PackDisabled('x')));
+
+    expect(heard, 1);
+    expect(model.surahName, isNull);
   });
 
   test('a pack that is already off gives no name and cannot show', () {
