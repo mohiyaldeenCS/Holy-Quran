@@ -6,6 +6,7 @@ import 'package:holyquran/data/services/share_service.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/routing/routes/feature_routes.dart';
+import 'package:holyquran/routing/routes/sheet_needs.dart';
 import 'package:holyquran/ui/core/share/ayah_copy_text.dart';
 import 'package:holyquran/ui/core/share/copy_sheet_view.dart';
 import 'package:holyquran/ui/core/share/copy_sheet_view_model.dart';
@@ -22,14 +23,19 @@ final shareRoutes = FeatureRoutes(
       owner: _reader,
       builder: (context, state) {
         final address = Routes.addressOf(state)!;
-        return CopySheetView(
-          create: () => CopySheetViewModel(
-            address: address,
-            copyText: AyahCopyText(
-              context.read<QuranTextRepository>(),
-              AppLocalizations.of(context),
+        return SheetNeeds(
+          available: (context) =>
+              context.read<QuranTextRepository?>() != null &&
+              context.read<ClipboardService?>() != null,
+          child: CopySheetView(
+            create: () => CopySheetViewModel(
+              address: address,
+              copyText: AyahCopyText(
+                context.read<QuranTextRepository>(),
+                AppLocalizations.of(context),
+              ),
+              copyToClipboard: context.read<ClipboardService>().copyText,
             ),
-            copyToClipboard: context.read<ClipboardService>().copyText,
           ),
         );
       },
@@ -39,13 +45,18 @@ final shareRoutes = FeatureRoutes(
       owner: _reader,
       builder: (context, state) {
         final address = Routes.addressOf(state)!;
-        return ShareCardSheetView(
-          create: () => ShareCardSheetViewModel(
-            address: address,
-            repository: context.read<QuranTextRepository>(),
-            shareImage: context.read<ShareService>().shareImage,
+        return SheetNeeds(
+          available: (context) =>
+              context.read<QuranTextRepository?>() != null &&
+              context.read<ShareService?>() != null,
+          child: ShareCardSheetView(
+            create: () => ShareCardSheetViewModel(
+              address: address,
+              repository: context.read<QuranTextRepository>(),
+              shareImage: context.read<ShareService>().shareImage,
+            ),
+            onCopy: () => context.pushReplacement(Routes.copySheet(address)),
           ),
-          onCopy: () => context.pushReplacement(Routes.copySheet(address)),
         );
       },
     ),
