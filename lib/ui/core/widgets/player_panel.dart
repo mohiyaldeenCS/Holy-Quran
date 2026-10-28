@@ -8,6 +8,7 @@ import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
 import 'package:holyquran/ui/core/widgets/mini_player.dart';
 import 'package:holyquran/ui/core/widgets/player_panel_chip.dart';
+import 'package:holyquran/ui/core/widgets/player_surface_border.dart';
 import 'package:holyquran/ui/core/widgets/seek_track.dart';
 
 /// The emerald card at the foot of the Screens2 listen screen: the gold
@@ -76,6 +77,7 @@ class PlayerPanel extends StatelessWidget {
       padding: PlayerMetrics.panelPadding,
       decoration: BoxDecoration(
         color: colors.player,
+        border: playerSurfaceBorder(context),
         borderRadius: PlayerMetrics.panelRadius,
       ),
       child: Column(
