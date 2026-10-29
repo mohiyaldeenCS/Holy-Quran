@@ -74,7 +74,11 @@ class _BookmarkTagsSheetState extends State<BookmarkTagsSheet> {
           children: [
             CopySheetTitle(l10n.ayahRowBookmark),
             if (_viewModel.writeFailed)
-              IntegrityAlert(title: l10n.userDataNotSaved),
+              Semantics(
+                container: true,
+                liveRegion: true,
+                child: IntegrityAlert(title: l10n.changeNotSaved),
+              ),
             TagPicker(
               categories: _viewModel.categories,
               selectedCategoryId: _categoryId,

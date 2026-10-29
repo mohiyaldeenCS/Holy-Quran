@@ -77,7 +77,7 @@ AnnotationCard _card({
 );
 
 Finder _button(String label) => find.byWidgetPredicate(
-  (widget) => widget is IconButton && widget.label == label,
+  (widget) => widget is IconButton && widget.label.startsWith(label),
 );
 
 void main() {
@@ -137,7 +137,7 @@ void main() {
     expect(find.byType(Wrap), findsNothing);
     expect(_button(_l10n.searchResultContext), findsNothing);
     expect(_button(_l10n.searchResultOpen), findsNothing);
-    expect(_button(_l10n.noteLabel), findsNothing);
+    expect(_button(_l10n.noteAdd), findsNothing);
     expect(_button(_l10n.bookmarkDelete), findsOneWidget);
   });
 
@@ -175,7 +175,7 @@ void main() {
     for (final label in [
       _l10n.searchResultContext,
       _l10n.searchResultOpen,
-      _l10n.noteLabel,
+      _l10n.noteAdd,
       _l10n.bookmarkDelete,
     ]) {
       await tester.tap(_button(label));

@@ -2070,10 +2070,10 @@ abstract class AppLocalizations {
   /// **'تم الحذف'**
   String get itemDeleted;
 
-  /// The button that starts another note on an ayah that has some (UD-04). P1-24, proposed for the lead to approve under D-128 (5).
+  /// The button that starts another note on an ayah that has some (UD-04). P1-24, wording given by the lead on the review of P1-24 (D-128 (5)).
   ///
   /// In ar, this message translates to:
-  /// **'ملاحظة جديدة'**
+  /// **'أضف ملاحظة'**
   String get noteAdd;
 
   /// Hint and spoken name of the field that makes a free tag (UD-02). P1-24, proposed for the lead to approve under D-128 (5).
@@ -2093,6 +2093,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'غيّر التصنيف والوسوم'**
   String get tagsEditHint;
+
+  /// Lead, 2026-10-29, D-128 (5). One change, a deletion, an undo or a read, that could not be stored or read. Not the in-memory sentence of D-133 (userDataNotSaved). The P1-23 branch adds the same key and value.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر حفظ التغيير.'**
+  String get changeNotSaved;
 }
 
 class _AppLocalizationsDelegate

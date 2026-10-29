@@ -43,7 +43,7 @@ void main() {
   setUp(() => world = BookmarksWorld(fixture));
 
   Finder button(String label) => find.byWidgetPredicate(
-    (widget) => widget is IconButton && widget.label == label,
+    (widget) => widget is IconButton && widget.label.startsWith(label),
   );
 
   List<int> shownAyat(WidgetTester tester) => [
@@ -245,7 +245,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(UndoBar), findsOneWidget);
 
-    await tester.pump(const Duration(seconds: 30));
+    await tester.pump(const Duration(seconds: 31));
     expect(find.byType(UndoBar), findsNothing);
     expect(find.byType(AnnotationCard), findsNothing);
   });
@@ -412,4 +412,130 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  Finder liveRegionOf(Finder inside) => find.ancestor(
+    of: inside,
+    matching: find.byWidgetPredicate(
+      (widget) => widget is Semantics && widget.properties.liveRegion == true,
+    ),
+  );
+
+  testWidgets('the undo stays for the repository window, not a shorter time', (
+    tester,
+  ) async {
+    await world.bookmark(world.ayah(1, 3));
+    await pumpBookmarksApp(tester, world);
+    await tester.tap(button(_l10n.bookmarkDelete));
+    await tester.pumpAndSettle();
+
+    await tester.pump(const Duration(seconds: 20));
+    expect(find.byType(UndoBar), findsOneWidget);
+    await tester.pump(const Duration(seconds: 11));
+    expect(find.byType(UndoBar), findsNothing);
+  });
+
+  testWidgets('with accessible navigation the undo stays, and late says so', (
+    tester,
+  ) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(accessibleNavigation: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    await world.bookmark(world.ayah(1, 3));
+    await pumpBookmarksApp(tester, world);
+    await tester.tap(button(_l10n.bookmarkDelete));
+    await tester.pumpAndSettle();
+
+    await tester.pump(const Duration(seconds: 60));
+    expect(find.byType(UndoBar), findsOneWidget);
+
+    // The ayah is bookmarked again meanwhile, so the old one cannot return.
+    await world.bookmark(world.ayah(1, 3));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(_l10n.undo));
+    await tester.pumpAndSettle();
+    expect(find.byType(UndoBar), findsNothing);
+    expect(find.text(_l10n.changeNotSaved), findsOneWidget);
+    expect(find.text(_l10n.userDataNotSaved), findsNothing);
+  });
+
+  testWidgets('the delete button names its ayah', (tester) async {
+    await world.bookmark(world.ayah(1, 3));
+    await world.bookmark(world.ayah(1, 5));
+    await pumpBookmarksApp(tester, world, size: _tall);
+
+    final labels = [
+      for (final control in tester.widgetList<IconButton>(
+        find.byType(IconButton),
+      ))
+        if (control.label.startsWith(_l10n.bookmarkDelete)) control.label,
+    ];
+    expect(labels, [
+      for (final ayah in ['٥', '٣'])
+        _l10n.bookmarkDelete +
+            _l10n.dataSeparator +
+            _l10n.surahTitleAyahReference('١', ayah),
+    ]);
+  });
+
+  testWidgets('a card tag is never shown selected by the filter', (
+    tester,
+  ) async {
+    await world.bookmark(
+      world.ayah(1, 3),
+      category: BookmarksWorld.category('study'),
+    );
+    await pumpBookmarksApp(tester, world);
+    await tester.tap(find.widgetWithText(Tag, _l10n.tagStudy).first);
+    await tester.pumpAndSettle();
+
+    final strip = tester.widget<Tag>(
+      find.widgetWithText(Tag, _l10n.tagStudy).first,
+    );
+    final onCard = tester.widget<Tag>(
+      find.descendant(
+        of: find.byType(AnnotationCard),
+        matching: find.widgetWithText(Tag, _l10n.tagStudy),
+      ),
+    );
+    expect(strip.selected, isTrue);
+    expect(onCard.selected, isFalse);
+  });
+
+  testWidgets('the filter tags are named by group for a screen reader', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await world.makeTag('وسم تجريبي');
+    await pumpBookmarksApp(tester, world);
+    expect(find.bySemanticsLabel(_l10n.categoryLabel), findsOneWidget);
+    expect(find.bySemanticsLabel(_l10n.tagsLabel), findsOneWidget);
+    handle.dispose();
+  });
+
+  testWidgets('without tags the filter has no tags group', (tester) async {
+    final handle = tester.ensureSemantics();
+    await pumpBookmarksApp(tester, world);
+    expect(find.bySemanticsLabel(_l10n.categoryLabel), findsOneWidget);
+    expect(find.bySemanticsLabel(_l10n.tagsLabel), findsNothing);
+    handle.dispose();
+  });
+
+  testWidgets('the sentence, the count and the failure are announced', (
+    tester,
+  ) async {
+    await pumpBookmarksApp(tester, world);
+    expect(liveRegionOf(find.text(_l10n.noBookmarksYet)), findsWidgets);
+    expect(
+      liveRegionOf(find.text(_l10n.bookmarksCount(0, arabicDigits(0)))),
+      findsWidgets,
+    );
+
+    await world.bookmark(world.ayah(1, 3));
+    await tester.pumpAndSettle();
+    world.bookmarks.failure = Exception('read failed');
+    await tester.enterText(find.byType(TextField), 'ا');
+    await tester.pumpAndSettle();
+    expect(liveRegionOf(find.text(_l10n.changeNotSaved)), findsWidgets);
+    expect(find.text(_l10n.userDataNotSaved), findsNothing);
+  });
 }

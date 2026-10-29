@@ -1171,7 +1171,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get itemDeleted => 'تم الحذف';
 
   @override
-  String get noteAdd => 'ملاحظة جديدة';
+  String get noteAdd => 'أضف ملاحظة';
 
   @override
   String get tagNewHint => 'وسم جديد';
@@ -1181,4 +1181,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get tagsEditHint => 'غيّر التصنيف والوسوم';
+
+  @override
+  String get changeNotSaved => 'تعذّر حفظ التغيير.';
 }

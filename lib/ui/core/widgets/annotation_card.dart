@@ -16,8 +16,12 @@ import 'package:holyquran/ui/core/widgets/search_result.dart';
 // size, cut where it is long. The delete and edit buttons, the note and the
 // tags are added to that card.
 
-// .qk-sheet-rows: border-radius 20px.
+// .qk-sheet-rows: border-radius 20px; padding 4px 18px.
 const BorderRadius _noteRadius = BorderRadius.all(Radius.circular(20));
+const EdgeInsets _notePadding = EdgeInsets.symmetric(
+  horizontal: 18,
+  vertical: 4,
+);
 
 // The screen reader's order (AX-01) in the card drawn without a pack: the
 // reference, the note, the tags, then the buttons.
@@ -88,17 +92,23 @@ class AnnotationCard extends StatelessWidget {
     final onOpen = this.onOpen;
     final onEdit = this.onEdit;
     final note = this.note;
+    // The buttons of a list of cards are told apart by their ayah, written
+    // with the numbers, which are the user's own address.
+    final ayah = l10n.surahTitleAyahReference(
+      arabicDigits(surahNumber),
+      arabicDigits(ayahNumber),
+    );
     final buttons = [
       if (onEdit != null)
         IconButton(
           icon: IconName.note,
-          label: l10n.noteLabel,
+          label: '${l10n.noteAdd}${l10n.dataSeparator}$ayah',
           iconSize: SearchResult.actionIconSize,
           onPressed: onEdit,
         ),
       IconButton(
         icon: IconName.delete,
-        label: deleteLabel,
+        label: '$deleteLabel${l10n.dataSeparator}$ayah',
         iconSize: SearchResult.actionIconSize,
         onPressed: onDelete,
       ),
@@ -149,10 +159,7 @@ class AnnotationCard extends StatelessWidget {
                   container: true,
                   sortKey: const OrdinalSortKey(_referenceOrder),
                   child: Text(
-                    l10n.surahTitleAyahReference(
-                      arabicDigits(surahNumber),
-                      arabicDigits(ayahNumber),
-                    ),
+                    ayah,
                     style: SearchResult.referenceStyle.copyWith(
                       color: context.colors.primary,
                     ),
@@ -193,7 +200,7 @@ class AnnotationCard extends StatelessWidget {
 }
 
 /// The note, in the box of `.qk-sheet-rows` (`surface-sunk`, a `line` border,
-/// radius 20) under the ayah's card.
+/// radius 20, padding 4 and 18) under the ayah's card.
 class _Note extends StatelessWidget {
   const _Note(this.text);
 
@@ -209,10 +216,7 @@ class _Note extends StatelessWidget {
         borderRadius: _noteRadius,
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.space4,
-          vertical: AppSpacing.space3,
-        ),
+        padding: _notePadding,
         child: Text(
           text,
           style: AppTextStyles.body.copyWith(color: colors.ink),

@@ -1685,9 +1685,9 @@
   "@itemDeleted": {
     "description": "The line beside the undo action after a bookmark or a note is deleted (UD-07). P1-24, proposed for the lead to approve under D-128 (5)."
   },
-  "noteAdd": "ملاحظة جديدة",
+  "noteAdd": "أضف ملاحظة",
   "@noteAdd": {
-    "description": "The button that starts another note on an ayah that has some (UD-04). P1-24, proposed for the lead to approve under D-128 (5)."
+    "description": "The button that starts another note on an ayah that has some (UD-04). P1-24, wording given by the lead on the review of P1-24 (D-128 (5))."
   },
   "tagNewHint": "وسم جديد",
   "@tagNewHint": {
@@ -1700,5 +1700,9 @@
   "tagsEditHint": "غيّر التصنيف والوسوم",
   "@tagsEditHint": {
     "description": "The spoken hint of a tag on a bookmark's or note's card, whose press opens the editor of its category and tags. Wording of UD-03 in docs/prd/PRD.ar.md. P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "changeNotSaved": "تعذّر حفظ التغيير.",
+  "@changeNotSaved": {
+    "description": "Lead, 2026-10-29, D-128 (5). One change, a deletion, an undo or a read, that could not be stored or read. Not the in-memory sentence of D-133 (userDataNotSaved). The P1-23 branch adds the same key and value."
   }
 }

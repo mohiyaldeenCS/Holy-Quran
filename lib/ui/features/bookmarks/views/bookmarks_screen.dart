@@ -43,6 +43,12 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
   final _search = TextEditingController();
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    widget.viewModel?.holdUndo = MediaQuery.accessibleNavigationOf(context);
+  }
+
+  @override
   void dispose() {
     _search.dispose();
     super.dispose();
@@ -127,15 +133,25 @@ class _Body extends StatelessWidget {
       if (alerts)
         Padding(
           padding: BookmarksMetrics.item,
-          child: IntegrityAlert(title: l10n.userDataNotSaved),
+          child: Semantics(
+            container: true,
+            liveRegion: true,
+            child: IntegrityAlert(title: l10n.changeNotSaved),
+          ),
         ),
       if (sentence != null)
         Padding(
           padding: BookmarksMetrics.sentence,
-          child: Text(
-            sentence,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.body.copyWith(color: context.colors.inkMuted),
+          child: Semantics(
+            container: true,
+            liveRegion: true,
+            child: Text(
+              sentence,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.body.copyWith(
+                color: context.colors.inkMuted,
+              ),
+            ),
           ),
         ),
     ];
@@ -196,22 +212,31 @@ class _Controls extends StatelessWidget {
           onChanged: viewModel.search,
           onSubmitted: viewModel.search,
         ),
-        Wrap(
-          spacing: AppSpacing.space2,
-          crossAxisAlignment: WrapCrossAlignment.center,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final category in viewModel.categories)
-              CategoryTag(
-                category: category.builtin,
-                selected: viewModel.categoryId == category.id,
-                onPressed: () => viewModel.toggleCategory(category.id),
-              ),
-            for (final tag in viewModel.tags)
-              FreeTag(
-                name: tag.name,
-                selected: viewModel.tagId == tag.id,
-                onPressed: () => viewModel.toggleTag(tag.id),
-              ),
+            _FilterGroup(
+              label: l10n.categoryLabel,
+              children: [
+                for (final category in viewModel.categories)
+                  CategoryTag(
+                    category: category.builtin,
+                    selected: viewModel.categoryId == category.id,
+                    onPressed: () => viewModel.toggleCategory(category.id),
+                  ),
+              ],
+            ),
+            _FilterGroup(
+              label: l10n.tagsLabel,
+              children: [
+                for (final tag in viewModel.tags)
+                  FreeTag(
+                    name: tag.name,
+                    selected: viewModel.tagId == tag.id,
+                    onPressed: () => viewModel.toggleTag(tag.id),
+                  ),
+              ],
+            ),
           ],
         ),
         SearchSummary(
@@ -221,6 +246,7 @@ class _Controls extends StatelessWidget {
           count: bookmarks
               ? l10n.bookmarksCount(count, arabicDigits(count))
               : l10n.notesCount(count, arabicDigits(count)),
+          announceCount: true,
           sortLabel: mushaf ? l10n.searchSortMushafOrder : l10n.sortNewest,
           onSort: () => viewModel.selectOrder(
             mushaf ? ListOrder.newest : ListOrder.mushaf,
@@ -268,7 +294,7 @@ class _Card extends StatelessWidget {
         if (category != null)
           CategoryTag(
             category: category,
-            selected: viewModel.categoryId == entry.categoryId,
+            selected: false,
             onPressed: () => _edit(context),
             hint: l10n.tagsEditHint,
           ),
@@ -276,7 +302,7 @@ class _Card extends StatelessWidget {
           if (viewModel.tagName(id) case final name?)
             FreeTag(
               name: name,
-              selected: viewModel.tagId == id,
+              selected: false,
               onPressed: () => _edit(context),
               hint: l10n.tagsEditHint,
             ),
@@ -294,4 +320,27 @@ class _Card extends StatelessWidget {
           : null,
     );
   }
+}
+
+/// A group of filter tags under a name for a screen reader, which the tags
+/// alone do not give. An empty group is left out.
+class _FilterGroup extends StatelessWidget {
+  const _FilterGroup({required this.label, required this.children});
+
+  final String label;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => children.isEmpty
+      ? const SizedBox.shrink()
+      : Semantics(
+          container: true,
+          explicitChildNodes: true,
+          label: label,
+          child: Wrap(
+            spacing: AppSpacing.space2,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: children,
+          ),
+        );
 }
