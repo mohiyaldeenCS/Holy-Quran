@@ -415,7 +415,7 @@ void main() {
       await it.viewModel.clearHistory();
 
       expect(it.viewModel.history, isEmpty);
-      expect(await it.history.queries(), isA<Ok<List<String>>>());
+      expect((await it.history.queries() as Ok<List<String>>).value, isEmpty);
     });
   });
 }

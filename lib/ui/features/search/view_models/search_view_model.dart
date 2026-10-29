@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:holyquran/data/repositories/address_input_repository.dart';
+import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/data/repositories/search_history_repository.dart';
@@ -20,7 +21,9 @@ import 'package:holyquran/ui/features/search/view_models/search_card.dart';
 import 'package:holyquran/utils/result.dart';
 
 /// The form kinds the search chips stand for, in the chips' order (`SR-01`).
-/// A chip shows only when the pack provides its kind.
+/// A chip shows only when the pack provides its kind. These two names are an
+/// assumption: the real ones are decided with the pack's search forms (B0.2,
+/// B0.4), and this is the one place to change then.
 abstract final class SearchKinds {
   static const word = 'word';
   static const bare = 'bare';
@@ -43,8 +46,10 @@ final class SearchViewModel extends ChangeNotifier {
     required this._words,
     this._addresses,
     this._history,
+    this._integrity,
   }) {
     _history?.addListener(_loadHistory);
+    _integrity?.addListener(_packChanged);
   }
 
   final SearchRepository _search;
@@ -53,6 +58,7 @@ final class SearchViewModel extends ChangeNotifier {
   final DirectJumpWords _words;
   final AddressInputRepository? _addresses;
   final SearchHistoryRepository? _history;
+  final PackIntegrityRepository? _integrity;
 
   List<String> _kinds = const [];
   int _kindIndex = 0;
@@ -68,6 +74,9 @@ final class SearchViewModel extends ChangeNotifier {
   final _cards = <QuranAddress, SearchCard>{};
   final _loading = <QuranAddress>{};
   final _whole = <QuranAddress>{};
+  String? _unrecorded;
+  bool _failed = false;
+  bool _historyClearFailed = false;
   int _generation = 0;
   bool _disposed = false;
 
@@ -83,8 +92,22 @@ final class SearchViewModel extends ChangeNotifier {
     _notify();
   }
 
+  /// Whether the pack serves its text. While it does not, nothing of it is
+  /// shown (PRD §9.5): no results, no cards.
+  bool get hasData => _index.surahs.isNotEmpty;
+
   /// The form kinds that have a chip, in the chips' order.
   List<String> get kinds => _kinds;
+
+  /// Whether the pack has a search form kind this screen knows. Without one,
+  /// nothing can be searched.
+  bool get canSearch => _kinds.isNotEmpty;
+
+  /// Whether the last search failed: the engine could not answer.
+  bool get failed => _failed;
+
+  /// Whether the last clearing of the history failed.
+  bool get historyClearFailed => _historyClearFailed;
 
   int get kindIndex => _kindIndex;
 
@@ -183,8 +206,9 @@ final class SearchViewModel extends ChangeNotifier {
     }
     _refusal = null;
     _query = query;
+    _unrecorded = query;
     _whole.clear();
-    if (await _run()) await _history?.record(query);
+    await _run();
     return null;
   }
 
@@ -257,23 +281,28 @@ final class SearchViewModel extends ChangeNotifier {
   }
 
   Future<void> clearHistory() async {
-    await _history?.clear();
+    final cleared = await _history?.clear();
+    _historyClearFailed = cleared is Failure;
+    _notify();
   }
 
   Future<void> _rerun() async {
     if (_query != null) await _run();
   }
 
-  /// Searches for [_query]; whether it was searched and the engine answered.
-  Future<bool> _run() async {
+  /// Searches for [_query] and, once the engine answers, keeps the query in
+  /// the history, though a change of chip or scope may have made the search
+  /// that asked for it stale.
+  Future<void> _run() async {
     final query = _query;
     final scope = _scope;
     if (query == null || scope == null || _kinds.isEmpty) {
       _results = null;
       _resetCards();
       _notify();
-      return false;
+      return;
     }
+    _failed = false;
     final generation = ++_generation;
     final found = await _search.search(
       SearchQuery(
@@ -283,14 +312,19 @@ final class SearchViewModel extends ChangeNotifier {
         scope: scope,
       ),
     );
-    if (generation != _generation) return false;
+    if (generation != _generation) return;
     _results = switch (found) {
       Ok(:final value) => value,
       Failure() => null,
     };
+    _failed = _results == null;
     _resetCards();
     _notify();
-    return _results != null;
+    if (_results != null && _unrecorded != null) {
+      final kept = _unrecorded!;
+      _unrecorded = null;
+      await _history?.record(kept);
+    }
   }
 
   SearchScope? get _scope {
@@ -309,6 +343,8 @@ final class SearchViewModel extends ChangeNotifier {
 
   /// The results changed, so the cards read for the old ones are dropped.
   void _resetCards() {
+    // A card still being read belongs to the old results.
+    _generation++;
     _arrange();
     _cards.clear();
     _loading.clear();
@@ -318,7 +354,9 @@ final class SearchViewModel extends ChangeNotifier {
   void _forget() {
     _generation++;
     _query = null;
+    _unrecorded = null;
     _results = null;
+    _failed = false;
     _refusal = null;
     _whole.clear();
     _resetCards();
@@ -353,6 +391,11 @@ final class SearchViewModel extends ChangeNotifier {
 
   static Future<Result<int?>> _noNames(String name) async => const Ok(null);
 
+  void _packChanged() {
+    if (!hasData) _forget();
+    _notify();
+  }
+
   void _notify() {
     if (!_disposed) notifyListeners();
   }
@@ -361,6 +404,7 @@ final class SearchViewModel extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _history?.removeListener(_loadHistory);
+    _integrity?.removeListener(_packChanged);
     super.dispose();
   }
 }

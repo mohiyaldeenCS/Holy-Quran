@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:holyquran/data/repositories/address_input_repository.dart';
+import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/data/repositories/search_history_repository.dart';
@@ -46,6 +47,7 @@ Widget _search(BuildContext context, GoRouterState state) {
       ),
       addresses: context.read<AddressInputRepository?>(),
       history: context.read<SearchHistoryRepository?>(),
+      integrity: context.read<PackIntegrityRepository?>(),
     )..load(),
     builder: (context, _) => SearchScreen(viewModel: context.read()),
   );
