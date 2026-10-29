@@ -3,6 +3,8 @@ import 'package:flutter/widgets.dart' hide Icon;
 import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
+import 'package:holyquran/ui/core/tafsir/source_details_sheet.dart';
+import 'package:holyquran/ui/core/tafsir/tafsir_page.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/ayah_row.dart';
@@ -13,9 +15,7 @@ import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/source_badge.dart';
 import 'package:holyquran/ui/core/widgets/surah_name.dart';
 import 'package:holyquran/ui/core/widgets/tafsir_text.dart';
-import 'package:holyquran/ui/features/tafsir/view_models/tafsir_page.dart';
 import 'package:holyquran/ui/features/tafsir/view_models/tafsir_view_model.dart';
-import 'package:holyquran/ui/features/tafsir/views/source_details_sheet.dart';
 
 /// What the tafsir reader and the tafsir sheet show for an ayah (`TF-03`,
 /// `TF-04`): the ayah above, the range the passage explains when it is more

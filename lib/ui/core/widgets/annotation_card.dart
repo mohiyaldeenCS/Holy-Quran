@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart' hide Icon;
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
+import 'package:holyquran/ui/core/metrics/sheet_rows_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/icon_button.dart';
@@ -15,13 +16,6 @@ import 'package:holyquran/ui/core/widgets/search_result.dart';
 // builds: the reference over the round buttons, and the ayah at the compact
 // size, cut where it is long. The delete and edit buttons, the note and the
 // tags are added to that card.
-
-// .qk-sheet-rows: border-radius 20px; padding 4px 18px.
-const BorderRadius _noteRadius = BorderRadius.all(Radius.circular(20));
-const EdgeInsets _notePadding = EdgeInsets.symmetric(
-  horizontal: 18,
-  vertical: 4,
-);
 
 // The screen reader's order (AX-01) in the card drawn without a pack: the
 // reference, the note, the tags, then the buttons.
@@ -213,10 +207,10 @@ class _Note extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surfaceSunk,
         border: Border.all(color: colors.line),
-        borderRadius: _noteRadius,
+        borderRadius: sheetRowsRadius,
       ),
       child: Padding(
-        padding: _notePadding,
+        padding: sheetRowsPadding,
         child: Text(
           text,
           style: AppTextStyles.body.copyWith(color: colors.ink),

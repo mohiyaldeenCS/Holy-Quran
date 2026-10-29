@@ -7,7 +7,7 @@ import 'package:holyquran/domain/models/tafsir_book.dart';
 import 'package:holyquran/domain/models/tafsir_passage.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
-import 'package:holyquran/ui/features/tafsir/tafsir_source.dart';
+import 'package:holyquran/ui/core/tafsir/tafsir_source.dart';
 import 'package:holyquran/utils/result.dart';
 
 /// The text a tafsir passage is copied as (`TF-10`): the passage with its

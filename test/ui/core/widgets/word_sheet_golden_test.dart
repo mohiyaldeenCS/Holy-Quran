@@ -5,7 +5,10 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/domain/models/pack_text.dart';
+import 'package:holyquran/domain/models/word_span.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
+import 'package:holyquran/ui/core/theme/theme_context.dart';
+import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/word_sheet.dart';
 
 import '../../../../testing/golden.dart';
@@ -59,5 +62,29 @@ void main() {
       ),
       surfaceSize: const Size(430, 420),
     );
+  });
+
+  testWidgets('the word cut from its ayah, a body under it', (tester) async {
+    await expectGoldensInThemes(tester, 'word_sheet_body', (context) {
+      final l10n = AppLocalizations.of(context);
+      // Synthetic, never Quran text: the second word of the sample.
+      const ayah = PackText.fromPack(' نص تجريبي  للاختبار ');
+      return SizedBox(
+        width: 390,
+        child: WordSheet(
+          word: ayah,
+          span: const WordSpan(number: 2, start: 4, end: 10),
+          wordNumber: 2,
+          wordCount: 3,
+          tabs: const {WordSheetTab.text, WordSheetTab.tafsir},
+          selectedTab: WordSheetTab.tafsir,
+          onTabSelected: (_) {},
+          body: Text(
+            l10n.sampleLongText,
+            style: AppTextStyles.tafsir.copyWith(color: context.colors.ink),
+          ),
+        ),
+      );
+    }, surfaceSize: const Size(430, 520));
   });
 }

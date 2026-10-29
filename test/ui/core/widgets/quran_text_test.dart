@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
+import 'package:holyquran/domain/models/word_span.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/app_theme.dart';
 import 'package:holyquran/ui/core/theme/ramps.g.dart';
@@ -344,5 +345,56 @@ void main() {
       () => QuranText.card(_packSample, fontSize: 21.5),
       throwsAssertionError,
     );
+  });
+
+  group('word', () {
+    // The ayah's offsets: the word is the second token of the sample, after
+    // its leading space, in UTF-16 code units.
+    final start = _sample.indexOf('تجريبي');
+    final end = start + 'تجريبي'.length;
+    final span = WordSpan(number: 1, start: start, end: end);
+
+    testWidgets('draws the slice between the stored offsets, unchanged', (
+      tester,
+    ) async {
+      await _pump(tester, QuranText.word(_packSample, span));
+
+      final text = _paragraph(tester).text as TextSpan;
+      expect(text.text, 'تجريبي');
+      expect(text.children, isNull);
+      expect(text.text, _sample.substring(span.start, span.end));
+    });
+
+    testWidgets('keeps the Quran style, at the focus size, with no fallback', (
+      tester,
+    ) async {
+      await _pump(tester, QuranText.word(_packSample, span));
+
+      final style = _style(tester);
+      expect(style.fontFamily, AppFonts.quran);
+      expect(style.fontFamilyFallback, isNull);
+      expect(style.fontSize, 44);
+      expect(style.color, AppColors.paper.quranInk);
+      expect(_paragraph(tester).textAlign, TextAlign.start);
+      expect(_paragraph(tester).textDirection, TextDirection.rtl);
+    });
+
+    testWidgets('draws nothing for a span that is not a slice of the text', (
+      tester,
+    ) async {
+      // Past the end, empty, and between the halves of a surrogate pair.
+      final pair = PackText.fromPack(String.fromCharCodes([0x61, 0x1F600]));
+      for (final (text, bad) in [
+        (
+          _packSample,
+          const WordSpan(number: 1, start: 2, end: _sample.length + 1),
+        ),
+        (_packSample, const WordSpan(number: 1, start: 3, end: 3)),
+        (pair, const WordSpan(number: 1, start: 0, end: 2)),
+      ]) {
+        await _pump(tester, QuranText.word(text, bad));
+        expect(find.byType(RichText), findsNothing);
+      }
+    });
   });
 }
