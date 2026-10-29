@@ -24,6 +24,7 @@ import 'package:holyquran/data/repositories/integrity_log_repository.dart';
 import 'package:holyquran/data/repositories/keep_awake_repository.dart';
 import 'package:holyquran/data/repositories/listening_position_repository.dart';
 import 'package:holyquran/data/repositories/note_repository.dart';
+import 'package:holyquran/data/repositories/pack_install_repository.dart';
 import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/data/repositories/search_history_repository.dart';
 import 'package:holyquran/data/repositories/tag_repository.dart';
@@ -78,11 +79,16 @@ void main() {
     );
     addTearDown(provided.read<UserDatabase>().close);
     addTearDown(provided.read<IntegrityLogRepository>().dispose);
+    addTearDown(
+      (provided.read<PackInstallRepository>() as LocalPackInstallRepository)
+          .dispose,
+    );
 
     expect(providers.map((provider) => provider.runtimeType), [
       Provider<UserDatabase>,
       ListenableProvider<AppSettingsRepository>,
       ListenableProvider<ReadingPositionRepository>,
+      ListenableProvider<PackInstallRepository>,
       ListenableProvider<BookmarkRepository>,
       ListenableProvider<NoteRepository>,
       ListenableProvider<TagRepository>,
