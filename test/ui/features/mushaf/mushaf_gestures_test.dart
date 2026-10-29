@@ -9,6 +9,7 @@ import 'package:holyquran/domain/models/category.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/domain/models/ui_level.dart';
+import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/reader/block_layout.dart';
 import 'package:holyquran/ui/core/reader/margin_mark.dart';
@@ -407,6 +408,19 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(BookmarkRibbon), findsOneWidget);
       expect(find.bySemanticsLabel('تراجع'), findsNothing);
+    });
+
+    readerTest('a bookmark the store refuses is said in words', (tester) async {
+      await pumpReader(tester);
+      await tester.tapAt(markerPoint(tester, 2));
+      await tester.pumpAndSettle();
+      bookmarks.failure = Exception('closed');
+      await tapBookmark(tester);
+      expect(
+        find.text(lookupAppLocalizations(const Locale('ar')).userDataNotSaved),
+        findsOneWidget,
+      );
+      expect(find.byType(BookmarkRibbon), findsNothing);
     });
 
     readerTest('an existing bookmark shows its ribbon with its category', (

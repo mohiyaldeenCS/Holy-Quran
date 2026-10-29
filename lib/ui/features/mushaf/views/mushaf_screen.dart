@@ -225,6 +225,9 @@ class _Toolbar extends StatelessWidget {
         onUndo: bookmarks.canUndoAt(ayah)
             ? () => unawaited(bookmarks.undo())
             : null,
+        notice: bookmarks.failed
+            ? AppLocalizations.of(context).userDataNotSaved
+            : null,
       ),
     );
   }

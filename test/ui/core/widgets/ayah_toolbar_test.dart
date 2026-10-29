@@ -97,6 +97,27 @@ void main() {
     handle.dispose();
   });
 
+  testWidgets('says a notice above the toolbar, as a live region', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await _pump(tester, AyahToolbar(onBookmark: () {}, notice: 'نص تجريبي'));
+    expect(find.text('نص تجريبي'), findsOneWidget);
+    expect(
+      tester
+          .getSemantics(find.text('نص تجريبي'))
+          .getSemanticsData()
+          .flagsCollection
+          .isLiveRegion,
+      isTrue,
+    );
+    expect(
+      tester.getTopLeft(find.text('نص تجريبي')).dy,
+      lessThan(tester.getTopLeft(find.bySemanticsLabel('علامة')).dy),
+    );
+    handle.dispose();
+  });
+
   testWidgets('adds the undo word while it is given', (tester) async {
     final handle = tester.ensureSemantics();
     var undone = false;

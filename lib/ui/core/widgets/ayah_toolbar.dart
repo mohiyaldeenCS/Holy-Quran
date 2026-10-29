@@ -17,7 +17,9 @@ const double _frame = 1.5;
 /// callback is null is left out, since its sheet cannot open yet or here. A
 /// [bookmarked] ayah shows the bookmark as the solid button and says so to a
 /// screen reader, so the state is not told by colour alone. [onUndo], while
-/// given, adds the undo word after a bookmark was removed (`UD-07`).
+/// given, adds the undo word after a bookmark was removed (`UD-07`). A
+/// [notice] is said in words above the toolbar, and announced to a screen
+/// reader as it appears.
 final class AyahToolbar extends StatelessWidget {
   const AyahToolbar({
     this.onPlay,
@@ -27,6 +29,7 @@ final class AyahToolbar extends StatelessWidget {
     this.onCopy,
     this.onShare,
     this.onUndo,
+    this.notice,
     super.key,
   });
 
@@ -37,12 +40,13 @@ final class AyahToolbar extends StatelessWidget {
   final VoidCallback? onCopy;
   final VoidCallback? onShare;
   final VoidCallback? onUndo;
+  final String? notice;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final l10n = AppLocalizations.of(context);
-    return DecoratedBox(
+    final toolbar = DecoratedBox(
       decoration: BoxDecoration(
         color: colors.selection,
         border: Border.all(color: colors.selectionLine, width: _frame),
@@ -96,6 +100,36 @@ final class AyahToolbar extends StatelessWidget {
           ],
         ),
       ),
+    );
+    final notice = this.notice;
+    if (notice == null) return toolbar;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      spacing: AppSpacing.space2,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: colors.surface,
+            border: Border.all(color: colors.error),
+            borderRadius: BorderRadius.circular(AppRadius.radiusFull),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.space4,
+              vertical: AppSpacing.space2,
+            ),
+            child: Semantics(
+              liveRegion: true,
+              child: Text(
+                notice,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.caption.copyWith(color: colors.error),
+              ),
+            ),
+          ),
+        ),
+        toolbar,
+      ],
     );
   }
 }
