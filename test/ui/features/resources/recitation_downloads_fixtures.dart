@@ -115,12 +115,11 @@ final class FakeRecitationDownloadRepository extends ChangeNotifier
   List<RecitationDownloadJob> _jobs = const [];
   int _revision = 0;
   Result<RecitationContents>? contentsAnswer;
-  Result<void> Function(RecitationTarget target, bool wifiOnly) downloads =
-      (_, _) => const Ok(null);
+  Result<void> Function(RecitationTarget target) downloads = (_) =>
+      const Ok(null);
   Result<void> Function(RecitationTarget target) deletes = (_) =>
       const Ok(null);
   final List<(String, String)> calls = [];
-  final List<bool> wifiOnlyOf = [];
 
   /// While set, [present] waits for it before it answers.
   Future<void>? presentHeld;
@@ -185,14 +184,13 @@ final class FakeRecitationDownloadRepository extends ChangeNotifier
   }
 
   @override
-  Future<Result<void>> download(
-    RecitationTarget target, {
-    required bool wifiOnly,
-  }) async {
+  Future<Result<void>> download(RecitationTarget target) async {
     calls.add(('download', target.key));
-    wifiOnlyOf.add(wifiOnly);
-    return downloads(target, wifiOnly);
+    return downloads(target);
   }
+
+  @override
+  void setWifiOnly(bool wifiOnly) => calls.add(('setWifiOnly', '$wifiOnly'));
 
   @override
   Future<void> cancel(String key) async => calls.add(('cancel', key));

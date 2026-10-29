@@ -207,20 +207,15 @@ void main() {
     ]);
   });
 
-  testWidgets('downloads over Wi-Fi only until it is turned off', (
-    tester,
-  ) async {
+  testWidgets('keeps Wi-Fi only on until it is turned off', (tester) async {
     await _pump(tester);
     expect(tester.widget<qk.Switch>(find.byType(qk.Switch)).value, isTrue);
 
-    await tester.tap(_in(_scope('64/all'), find.text(_l10n.resourceDownload)));
     await tester.tap(find.text(_l10n.wifiOnly));
     await tester.pump();
-    await tester.tap(
-      _in(_scope('64/surah-1'), find.text(_l10n.resourceDownload)),
-    );
 
-    expect(_downloads.wifiOnlyOf, [true, false]);
+    expect(tester.widget<qk.Switch>(find.byType(qk.Switch)).value, isFalse);
+    expect(_settings.wifiOnly, isFalse);
   });
 
   testWidgets('chooses the quality when the catalogue offers several', (
@@ -416,23 +411,37 @@ void main() {
     expect(_in(row, find.text(_l10n.connectionFailed)), findsNothing);
   });
 
-  testWidgets('says a choice was not saved and shows the stored one', (
-    tester,
-  ) async {
+  testWidgets('says a Wi-Fi only choice was not saved, and shows the stored '
+      'one', (tester) async {
     _settings = FlakyDownloadSettings(qualities: {recitationId: 64});
     await _pump(tester);
-    expect(find.text(_l10n.downloadNotSaved), findsNothing);
+    expect(find.text(_l10n.changeNotSaved), findsNothing);
 
     await tester.tap(find.text(_l10n.wifiOnly));
     await _settle(tester);
 
-    expect(find.text(_l10n.downloadNotSaved), findsOneWidget);
+    expect(find.text(_l10n.changeNotSaved), findsOneWidget);
+    expect(find.text(_l10n.downloadNotSaved), findsNothing);
     expect(tester.widget<qk.Switch>(find.byType(qk.Switch)).value, isTrue);
+  });
+
+  testWidgets('says a quality choice was not saved, and shows the stored '
+      'one', (tester) async {
+    _settings = FlakyDownloadSettings(qualities: {recitationId: 64});
+    await _pump(tester);
+
+    await tester.tap(find.text(_l10n.recitationQualityKbps(arabicDigits(128))));
+    await _settle(tester);
+
+    expect(find.text(_l10n.changeNotSaved), findsOneWidget);
+    expect(find.text(_l10n.downloadNotSaved), findsNothing);
+    expect(_scope('64/surah-3'), findsOneWidget);
+    expect(_scope('128/surah-3'), findsNothing);
   });
 
   testWidgets('a refused start is shown on its row', (tester) async {
     await _pump(tester);
-    _downloads.downloads = (target, _) => Failure(
+    _downloads.downloads = (target) => Failure(
       RecitationUrlRefused(target.key, Uri.parse('http://example.invalid/')),
     );
 

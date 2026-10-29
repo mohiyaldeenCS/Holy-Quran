@@ -56,7 +56,7 @@ class RecitationSection extends StatelessWidget {
               onChanged: (value) => viewModel.wifiOnly = value,
             ),
             if (viewModel.settingNotSaved)
-              IntegrityAlert(title: l10n.downloadNotSaved),
+              IntegrityAlert(title: l10n.changeNotSaved),
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               spacing: resourcesBlockGap,

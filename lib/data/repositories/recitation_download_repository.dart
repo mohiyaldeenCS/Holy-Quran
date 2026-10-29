@@ -11,7 +11,6 @@ import '../services/connectivity_service.dart';
 import '../services/download_service.dart';
 import '../services/free_space_service.dart';
 import '../services/recitation_file_store.dart';
-import 'download_settings_repository.dart';
 
 /// Downloads a recitation's audio by surah, juz or whole, and removes it
 /// (`AU-13`, `AU-14`). What a recitation offers comes from its installed
@@ -36,11 +35,15 @@ abstract interface class RecitationDownloadRepository implements Listenable {
   /// Whether any audio of the pack [packId] is on the device, at any quality.
   Future<bool> hasAudio(String packId);
 
-  /// Queues [target] and completes when it is on the device or has failed.
-  Future<Result<void>> download(
-    RecitationTarget target, {
-    required bool wifiOnly,
-  });
+  /// Queues [target] on the network [setWifiOnly] last allowed, and
+  /// completes when it is on the device or has failed.
+  Future<Result<void>> download(RecitationTarget target);
+
+  /// Changes the network every job, queued now or later, may use. A job
+  /// waiting for Wi-Fi starts when it is turned off; a file ordered for the
+  /// other network is stopped and ordered again whenever the device is not
+  /// on Wi-Fi, now or once it leaves it.
+  void setWifiOnly(bool wifiOnly);
 
   /// Stops the job for [key], or dismisses its failure. What arrived whole
   /// stays.
@@ -62,11 +65,6 @@ abstract interface class RecitationDownloadRepository implements Listenable {
 /// [RecitationDownloadRepository] on the device. Jobs run one at a time, in
 /// order, a file after another. Space for what is left is checked before the
 /// first file, and a job that cannot get it fails without fetching.
-///
-/// It follows the Wi-Fi-only setting itself, so that a change reaches the
-/// queue whichever screen made it. Every job takes the new network: a job
-/// waiting for Wi-Fi starts when it is turned off, and a file ordered for the
-/// other network while on mobile data is stopped and ordered again.
 final class LocalRecitationDownloadRepository extends ChangeNotifier
     implements RecitationDownloadRepository {
   LocalRecitationDownloadRepository({
@@ -77,10 +75,8 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
     required this._freeSpace,
     required this._store,
     required this._policy,
-    required this._settings,
-  }) : _wifiOnlyApplied = _settings.wifiOnly {
-    _settings.addListener(_onSettings);
-  }
+    required this._wifiOnly,
+  });
 
   final Future<Result<RecitationContents>> Function(String recitationId)
   _contents;
@@ -90,7 +86,6 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
   final FreeSpaceService _freeSpace;
   final RecitationFileStore _store;
   final UrlPolicy _policy;
-  final DownloadSettingsRepository _settings;
 
   final _queue = <_Job>[];
   final _failed = <String, RecitationDownloadJob>{};
@@ -99,7 +94,7 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
   StreamSubscription<NetworkKind>? _networkChanges;
   NetworkKind _network = NetworkKind.none;
   _Job? _current;
-  bool _wifiOnlyApplied;
+  bool _wifiOnly;
   int _revision = 0;
   bool _disposed = false;
 
@@ -138,10 +133,7 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
   Future<bool> hasAudio(String packId) => _store.hasAudio(packId);
 
   @override
-  Future<Result<void>> download(
-    RecitationTarget target, {
-    required bool wifiOnly,
-  }) async {
+  Future<Result<void>> download(RecitationTarget target) async {
     final key = target.key;
     for (final file in target.files) {
       final url = target.contents.urlOf(file);
@@ -149,7 +141,7 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
     }
     if (_jobOf(key) != null) return Failure(RecitationAlreadyQueued(key));
     _failed.remove(key);
-    final job = _Job(target, wifiOnly: wifiOnly);
+    final job = _Job(target, wifiOnly: _wifiOnly);
     _queue.add(job);
     _notify();
     unawaited(_drain());
@@ -242,7 +234,6 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
   @override
   void dispose() {
     _disposed = true;
-    _settings.removeListener(_onSettings);
     for (final job in _queue) {
       job
         ..cancelled = true
@@ -259,22 +250,26 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
     super.dispose();
   }
 
-  void _onSettings() {
-    final wifiOnly = _settings.wifiOnly;
-    if (wifiOnly == _wifiOnlyApplied) return;
-    _wifiOnlyApplied = wifiOnly;
-    final onMobileData = _network != NetworkKind.unmetered;
+  @override
+  void setWifiOnly(bool wifiOnly) {
+    if (wifiOnly == _wifiOnly) return;
+    _wifiOnly = wifiOnly;
     for (final job in _queue) {
-      if (job.wifiOnly == wifiOnly) continue;
       job.wifiOnly = wifiOnly;
       job.wake();
-      // An order issued for the other network stays pending on mobile data,
-      // whichever way the choice went.
-      if (job.order case final order?
-          when onMobileData && order.wifiOnly != wifiOnly) {
-        job.restart = true;
-        unawaited(_downloads.cancel(order));
-      }
+      _reissueIfStale(job);
+    }
+  }
+
+  /// An order made for the other network stays on it while the device is
+  /// not on Wi-Fi: pending when it requires Wi-Fi, running on mobile data
+  /// when it does not. It is stopped and made again for the job's network.
+  void _reissueIfStale(_Job job) {
+    if (job.order case final order?
+        when _network != NetworkKind.unmetered &&
+            order.wifiOnly != job.wifiOnly) {
+      job.restart = true;
+      unawaited(_downloads.cancel(order));
     }
   }
 
@@ -423,9 +418,9 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
         ..fileReceived = 0;
       if (job.cancelled) return RecitationDownloadCancelled(key);
       if (job.restart) {
-        // Turned to Wi-Fi only while on mobile data: wait for Wi-Fi.
         job.restart = false;
-        continue;
+        // A file that finished before the order was stopped is kept.
+        if (outcome is! FileDownloaded) continue;
       }
       switch (outcome) {
         case FileDownloaded():
@@ -490,7 +485,9 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
       job.wake();
     }
     final job = _current;
-    if (job != null && job.order != null && !_allows(kind, job.wifiOnly)) {
+    if (job == null) return;
+    _reissueIfStale(job);
+    if (job.order != null && !_allows(kind, job.wifiOnly)) {
       _set(job, RecitationWaitingForNetwork(wifiOnly: job.wifiOnly));
     }
   }

@@ -10,7 +10,9 @@ import 'package:holyquran/data/services/recitation_file_store.dart';
 /// The downloads of recitation audio on the device's services: `https`
 /// only, files under `recitations/` in application support where
 /// [PackRecitationRepository] looks for them. What a recitation offers is
-/// read from its installed pack through [recitations].
+/// read from its installed pack through [recitations]. The downloads start
+/// on the Wi-Fi-only choice in [settings] and follow it for as long as the
+/// app lives, whichever screen changes it.
 ///
 /// [downloads] is the service the pack installer uses: the plugin keeps one
 /// callback for its group, so a second service would take the installer's
@@ -20,16 +22,27 @@ LocalRecitationDownloadRepository recitationDownloadRepository({
   required PackRecitationRepository recitations,
   required DownloadService downloads,
   required DownloadSettingsRepository settings,
-}) => LocalRecitationDownloadRepository(
-  contents: recitations.contents,
-  downloads: downloads,
-  urlCheck: const HttpUrlCheck(),
-  connectivity: PlusConnectivityService(),
-  freeSpace: const DiskFreeSpaceService(),
-  store: RecitationFileStore(
-    audioDirectory: () async =>
-        '${await applicationSupportPath()}/${RecitationFileStore.directoryName}',
-  ),
-  policy: UrlPolicy.httpsOnly,
-  settings: settings,
-);
+}) {
+  final repository = LocalRecitationDownloadRepository(
+    contents: recitations.contents,
+    downloads: downloads,
+    urlCheck: const HttpUrlCheck(),
+    connectivity: PlusConnectivityService(),
+    freeSpace: const DiskFreeSpaceService(),
+    store: RecitationFileStore(
+      audioDirectory: () async =>
+          '${await applicationSupportPath()}/${RecitationFileStore.directoryName}',
+    ),
+    policy: UrlPolicy.httpsOnly,
+    wifiOnly: settings.wifiOnly,
+  );
+  followWifiOnly(repository, settings);
+  return repository;
+}
+
+/// Passes each change of the Wi-Fi-only choice in [settings] to [downloads].
+/// The listener lasts as long as [settings], which the app keeps.
+void followWifiOnly(
+  RecitationDownloadRepository downloads,
+  DownloadSettingsRepository settings,
+) => settings.addListener(() => downloads.setWifiOnly(settings.wifiOnly));

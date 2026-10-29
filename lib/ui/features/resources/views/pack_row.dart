@@ -27,7 +27,9 @@ class PackRow extends StatelessWidget {
   final PackRowState row;
   final VoidCallback onDownload;
 
-  /// Null for a row whose pack cannot be installed already.
+  /// Null where the row offers no delete: a recitation's pack is deleted from
+  /// the recitation's own header once installed, so its pack row never has
+  /// one.
   final VoidCallback? onDelete;
   final VoidCallback onRedownload;
 

@@ -213,7 +213,7 @@ final class RecitationSectionViewModel extends ChangeNotifier {
     final target = RecitationTarget(pack.contents, quality, row.selection);
     _refused.remove(row.key);
     unawaited(
-      _downloads.download(target, wifiOnly: wifiOnly).then((result) {
+      _downloads.download(target).then((result) {
         if (result case Failure(error: final RecitationDownloadFailure failure)
             when failure is! RecitationDownloadCancelled &&
                 _downloads.jobs.every((job) => job.key != row.key)) {

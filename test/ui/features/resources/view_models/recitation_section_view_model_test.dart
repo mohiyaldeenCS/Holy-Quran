@@ -304,15 +304,16 @@ void main() {
       );
     });
 
-    test('follow Wi-Fi only, which is on to begin with', () async {
+    test('start with Wi-Fi only on, and leave it to the downloads', () async {
       final viewModel = await _viewModel();
       expect(viewModel.wifiOnly, isTrue);
-      viewModel.download(recitationId, _block(viewModel).whole!);
+
       viewModel.wifiOnly = false;
       viewModel.download(recitationId, _block(viewModel).whole!);
       await pumpEventQueue();
 
-      expect(_downloads.wifiOnlyOf, [true, false]);
+      expect(viewModel.wifiOnly, isFalse);
+      expect(_downloads.calls.map((c) => c.$1), isNot(contains('setWifiOnly')));
     });
 
     test('keep Wi-Fi only in the settings', () async {
@@ -357,7 +358,7 @@ void main() {
 
     test('show a refused download as a failure of its row', () async {
       final viewModel = await _viewModel();
-      _downloads.downloads = (target, _) => Failure(
+      _downloads.downloads = (target) => Failure(
         RecitationUrlRefused(target.key, Uri.parse('http://example.invalid/')),
       );
 
