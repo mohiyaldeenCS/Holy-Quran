@@ -43,7 +43,6 @@ final class RecitationSectionViewModel extends ChangeNotifier {
     for (final source in _sources) {
       source.addListener(_onChange);
     }
-    _appliedWifiOnly = _settings.wifiOnly;
     _syncPacks();
   }
 
@@ -65,7 +64,6 @@ final class RecitationSectionViewModel extends ChangeNotifier {
     _settings,
   ];
 
-  late bool _appliedWifiOnly;
   bool _disposed = false;
   Timer? _refresh;
   int _revisionSeen = 0;
@@ -84,7 +82,7 @@ final class RecitationSectionViewModel extends ChangeNotifier {
   late final List<RecitationScope> _scopes = scopesOf(_index);
 
   /// Whether downloads wait for Wi-Fi: on until the user turns it off, and
-  /// kept across launches. A change reaches the jobs already queued.
+  /// kept across launches. The downloads follow the setting themselves.
   bool get wifiOnly => _settings.wifiOnly;
 
   set wifiOnly(bool value) => unawaited(_settings.setWifiOnly(value));
@@ -332,10 +330,6 @@ final class RecitationSectionViewModel extends ChangeNotifier {
   }
 
   void _onChange() {
-    if (_settings.wifiOnly != _appliedWifiOnly) {
-      _appliedWifiOnly = _settings.wifiOnly;
-      _downloads.setWifiOnly(_appliedWifiOnly);
-    }
     _syncPacks();
     _watchJobs();
     notifyListeners();

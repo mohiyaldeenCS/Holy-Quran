@@ -295,18 +295,6 @@ void main() {
       expect(viewModel.wifiOnly, isFalse);
     });
 
-    test('reach the jobs already queued when Wi-Fi only changes', () async {
-      final viewModel = await _viewModel();
-
-      viewModel.wifiOnly = false;
-      viewModel.wifiOnly = true;
-
-      expect(
-        _downloads.calls.where((c) => c.$1 == 'setWifiOnly').map((c) => c.$2),
-        ['false', 'true'],
-      );
-    });
-
     test('install the pack with the same choice', () async {
       final viewModel = await _viewModel(installed: false);
       viewModel.wifiOnly = false;

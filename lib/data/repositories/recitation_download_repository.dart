@@ -11,6 +11,7 @@ import '../services/connectivity_service.dart';
 import '../services/download_service.dart';
 import '../services/free_space_service.dart';
 import '../services/recitation_file_store.dart';
+import 'download_settings_repository.dart';
 
 /// Downloads a recitation's audio by surah, juz or whole, and removes it
 /// (`AU-13`, `AU-14`). What a recitation offers comes from its installed
@@ -41,12 +42,6 @@ abstract interface class RecitationDownloadRepository implements Listenable {
     required bool wifiOnly,
   });
 
-  /// Changes the network every job in the queue may use, and that of the
-  /// jobs queued later until they say otherwise. A job waiting for Wi-Fi
-  /// starts when it is turned off; a file fetching over mobile data when it
-  /// is turned on is stopped, and fetched again over Wi-Fi.
-  void setWifiOnly(bool wifiOnly);
-
   /// Stops the job for [key], or dismisses its failure. What arrived whole
   /// stays.
   Future<void> cancel(String key);
@@ -67,6 +62,11 @@ abstract interface class RecitationDownloadRepository implements Listenable {
 /// [RecitationDownloadRepository] on the device. Jobs run one at a time, in
 /// order, a file after another. Space for what is left is checked before the
 /// first file, and a job that cannot get it fails without fetching.
+///
+/// It follows the Wi-Fi-only setting itself, so that a change reaches the
+/// queue whichever screen made it. Every job takes the new network: a job
+/// waiting for Wi-Fi starts when it is turned off, and a file ordered for the
+/// other network while on mobile data is stopped and ordered again.
 final class LocalRecitationDownloadRepository extends ChangeNotifier
     implements RecitationDownloadRepository {
   LocalRecitationDownloadRepository({
@@ -77,7 +77,10 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
     required this._freeSpace,
     required this._store,
     required this._policy,
-  });
+    required this._settings,
+  }) : _wifiOnlyApplied = _settings.wifiOnly {
+    _settings.addListener(_onSettings);
+  }
 
   final Future<Result<RecitationContents>> Function(String recitationId)
   _contents;
@@ -87,13 +90,16 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
   final FreeSpaceService _freeSpace;
   final RecitationFileStore _store;
   final UrlPolicy _policy;
+  final DownloadSettingsRepository _settings;
 
   final _queue = <_Job>[];
   final _failed = <String, RecitationDownloadJob>{};
+  final _removals = <String, Set<Future<void>>>{};
   Future<void>? _started;
   StreamSubscription<NetworkKind>? _networkChanges;
   NetworkKind _network = NetworkKind.none;
   _Job? _current;
+  bool _wifiOnlyApplied;
   int _revision = 0;
   bool _disposed = false;
 
@@ -151,20 +157,6 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
   }
 
   @override
-  void setWifiOnly(bool wifiOnly) {
-    for (final job in _queue) {
-      if (job.wifiOnly == wifiOnly) continue;
-      job.wifiOnly = wifiOnly;
-      job.wake();
-      final onMobileData = _network != NetworkKind.unmetered;
-      if (job.order case final order? when wifiOnly && onMobileData) {
-        job.restart = true;
-        unawaited(_downloads.cancel(order));
-      }
-    }
-  }
-
-  @override
   Future<void> cancel(String key) async {
     if (_failed.remove(key) != null) _notify();
     final job = _jobOf(key);
@@ -188,16 +180,18 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
     if (_queue.any((job) => job.target.contents.packId == packId)) {
       return Failure(RecitationAlreadyQueued(key));
     }
-    try {
-      for (final file in target.deletable) {
-        await _store.delete(packId, file);
+    return _removing(packId, () async {
+      try {
+        for (final file in target.deletable) {
+          await _store.delete(packId, file);
+        }
+        _revision++;
+        _notify();
+        return const Ok(null);
+      } on Exception catch (e) {
+        return Failure(RecitationStoreFailed(key, '$e'));
       }
-      _revision++;
-      _notify();
-      return const Ok(null);
-    } on Exception catch (e) {
-      return Failure(RecitationStoreFailed(key, '$e'));
-    }
+    });
   }
 
   @override
@@ -214,19 +208,41 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
     if (_queue.any((job) => job.target.contents.packId == packId)) {
       return Failure(RecitationAlreadyQueued(packId));
     }
-    try {
-      await _store.deleteAll(packId);
-      _revision++;
-      _notify();
-      return const Ok(null);
-    } on Exception catch (e) {
-      return Failure(RecitationStoreFailed(packId, '$e'));
-    }
+    return _removing(packId, () async {
+      try {
+        await _store.deleteAll(packId);
+        _revision++;
+        _notify();
+        return const Ok(null);
+      } on Exception catch (e) {
+        return Failure(RecitationStoreFailed(packId, '$e'));
+      }
+    });
+  }
+
+  /// Runs [remove] and records it, so that a job queued meanwhile holds its
+  /// first look at the device until the files are gone.
+  Future<Result<void>> _removing(
+    String packId,
+    Future<Result<void>> Function() remove,
+  ) {
+    final running = remove();
+    final ended = _removals.putIfAbsent(packId, () => {});
+    final settled = running.then<void>((_) {}, onError: (Object _) {});
+    ended.add(settled);
+    unawaited(
+      settled.then((_) {
+        ended.remove(settled);
+        if (ended.isEmpty) _removals.remove(packId);
+      }),
+    );
+    return running;
   }
 
   @override
   void dispose() {
     _disposed = true;
+    _settings.removeListener(_onSettings);
     for (final job in _queue) {
       job
         ..cancelled = true
@@ -241,6 +257,25 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
     }
     unawaited(_networkChanges?.cancel());
     super.dispose();
+  }
+
+  void _onSettings() {
+    final wifiOnly = _settings.wifiOnly;
+    if (wifiOnly == _wifiOnlyApplied) return;
+    _wifiOnlyApplied = wifiOnly;
+    final onMobileData = _network != NetworkKind.unmetered;
+    for (final job in _queue) {
+      if (job.wifiOnly == wifiOnly) continue;
+      job.wifiOnly = wifiOnly;
+      job.wake();
+      // An order issued for the other network stays pending on mobile data,
+      // whichever way the choice went.
+      if (job.order case final order?
+          when onMobileData && order.wifiOnly != wifiOnly) {
+        job.restart = true;
+        unawaited(_downloads.cancel(order));
+      }
+    }
   }
 
   /// Starts the downloader once; a start that failed is tried again.
@@ -313,6 +348,7 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
     final target = job.target;
     final packId = target.contents.packId;
     final missing = <RecitationFile>[];
+    await Future.wait(_removals[packId] ?? const <Future<void>>{});
     for (final file in target.files) {
       if (!await _store.isPresent(packId, file)) missing.add(file);
     }

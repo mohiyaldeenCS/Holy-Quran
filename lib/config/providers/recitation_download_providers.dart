@@ -1,3 +1,4 @@
+import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/data/repositories/recitation_download_repository.dart';
 import 'package:holyquran/data/repositories/recitation_repository.dart';
 import 'package:holyquran/data/services/catalogue_service.dart';
@@ -18,6 +19,7 @@ import 'package:holyquran/data/services/recitation_file_store.dart';
 LocalRecitationDownloadRepository recitationDownloadRepository({
   required PackRecitationRepository recitations,
   required DownloadService downloads,
+  required DownloadSettingsRepository settings,
 }) => LocalRecitationDownloadRepository(
   contents: recitations.contents,
   downloads: downloads,
@@ -29,4 +31,5 @@ LocalRecitationDownloadRepository recitationDownloadRepository({
         '${await applicationSupportPath()}/${RecitationFileStore.directoryName}',
   ),
   policy: UrlPolicy.httpsOnly,
+  settings: settings,
 );

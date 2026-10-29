@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/data/repositories/recitation_download_repository.dart';
 import 'package:holyquran/data/services/connectivity_service.dart';
 import 'package:holyquran/data/services/download_service.dart';
@@ -22,6 +23,9 @@ import 'package:holyquran/utils/result.dart';
 
 const _pack = 'synthetic-recitation';
 const _policy = UrlPolicy(scheme: 'https');
+
+/// Time a job that is not held needs to count what is on the device.
+const _longEnoughToRun = Duration(milliseconds: 200);
 
 /// A synthetic audio file and the file row that describes it.
 (RecitationFile, Uint8List) _file(
@@ -50,9 +54,10 @@ const _policy = UrlPolicy(scheme: 'https');
 }
 
 final class _Downloads implements DownloadService {
-  _Downloads(this.root, this.bodies);
+  _Downloads(this.root, this.bodies, this.network);
 
   final String root;
+  final _Network network;
 
   /// What the server holds, by URL path.
   final Map<String, Uint8List> bodies;
@@ -64,6 +69,10 @@ final class _Downloads implements DownloadService {
   /// A download of a URL path that waits for its gate.
   final Map<String, Completer<void>> gates = {};
   final StreamController<String> reached = StreamController.broadcast();
+
+  /// A download of a URL path that waits for Wi-Fi, as an order that
+  /// requires it does off Wi-Fi.
+  final StreamController<String> pending = StreamController.broadcast();
   final Map<String, Completer<FileDownloadOutcome>> _ends = {};
 
   /// The next [start] throws this, once.
@@ -100,6 +109,14 @@ final class _Downloads implements DownloadService {
       ]);
       if (outcome != null) return outcome;
     }
+    while (order.wifiOnly && network.kind != NetworkKind.unmetered) {
+      pending.add(path);
+      final outcome = await Future.any([
+        network.changes.first.then((_) => null),
+        ended.future,
+      ]);
+      if (outcome != null) return outcome;
+    }
     final body = bodies[path];
     if (body == null) return const FileDownloadFailed('gone', statusCode: 404);
     final bytes = Uint8List.fromList(body);
@@ -122,7 +139,26 @@ final class _Downloads implements DownloadService {
 
   @override
   Future<void> cancel(FileOrder order) async {
-    _ends[order.url.path]?.complete(const FileDownloadCanceled());
+    final ended = _ends[order.url.path];
+    if (ended != null && !ended.isCompleted) {
+      ended.complete(const FileDownloadCanceled());
+    }
+  }
+}
+
+/// A store whose deletion of a file waits for [gate], so that a test can
+/// act while files are being removed.
+final class _SlowStore extends RecitationFileStore {
+  _SlowStore({required super.audioDirectory});
+
+  Completer<void>? gate;
+  final StreamController<void> started = StreamController.broadcast();
+
+  @override
+  Future<void> delete(String packId, RecitationFile file) async {
+    started.add(null);
+    await gate?.future;
+    return super.delete(packId, file);
   }
 }
 
@@ -153,10 +189,12 @@ final class _Urls implements UrlCheck {
   /// Answers a check in place of the default, which lets the URL through.
   Result<Uri> Function(Uri url)? answer;
   final List<Uri> checked = [];
+  final StreamController<Uri> asked = StreamController.broadcast();
 
   @override
   Future<Result<Uri>> checkRedirects(Uri url, UrlPolicy policy) async {
     checked.add(url);
+    asked.add(url);
     await gate?.future;
     return answer?.call(url) ?? Ok(url);
   }
@@ -170,6 +208,7 @@ void main() {
   late _Network network;
   late _Space space;
   late _Urls urls;
+  late InMemoryDownloadSettingsRepository settings;
   late LocalRecitationDownloadRepository repository;
   late RecitationFileStore store;
   var runs = 0;
@@ -183,6 +222,38 @@ void main() {
       );
 
   String finalPath(RecitationFile file) => '$audio/$_pack/${file.sha256}.mp3';
+
+  LocalRecitationDownloadRepository newRepository(RecitationFileStore from) =>
+      LocalRecitationDownloadRepository(
+        contents: (id) async => Ok(contents),
+        downloads: downloads,
+        urlCheck: urls,
+        connectivity: network,
+        freeSpace: space,
+        store: from,
+        policy: _policy,
+        settings: settings,
+      );
+
+  /// Waits, without a fixed pause, until the repository's state satisfies
+  /// [condition]; the jobs do real disk work first.
+  Future<void> until(bool Function() condition) async {
+    if (condition()) return;
+    final reached = Completer<void>();
+    void check() {
+      if (condition() && !reached.isCompleted) reached.complete();
+    }
+
+    repository.addListener(check);
+    try {
+      await reached.future.timeout(const Duration(seconds: 10));
+    } finally {
+      repository.removeListener(check);
+    }
+  }
+
+  bool waiting() =>
+      repository.jobs.any((job) => job.state is RecitationWaitingForNetwork);
 
   setUp(() async {
     temp = await Directory.systemTemp.createTemp(
@@ -201,22 +272,15 @@ void main() {
       unit: RecitationUnit.ayah,
       files: [for (final (file, _) in made) file],
     );
+    network = _Network();
     downloads = _Downloads(temp.path, {
       for (final (file, bytes) in made) '/synthetic/${file.path}': bytes,
-    });
-    network = _Network();
+    }, network);
+    settings = InMemoryDownloadSettingsRepository(wifiOnly: false);
     space = _Space();
     urls = _Urls();
     store = RecitationFileStore(audioDirectory: () async => audio);
-    repository = LocalRecitationDownloadRepository(
-      contents: (id) async => Ok(contents),
-      downloads: downloads,
-      urlCheck: urls,
-      connectivity: network,
-      freeSpace: space,
-      store: store,
-      policy: _policy,
-    );
+    repository = newRepository(store);
   });
 
   tearDown(() async {
@@ -438,7 +502,7 @@ void main() {
         target(const RecitationSurah(2)),
         wifiOnly: true,
       );
-      await pumpEventQueue();
+      await until(waiting);
 
       expect(
         repository.jobs.single.state,
@@ -592,14 +656,15 @@ void main() {
       'starts a job waiting for Wi-Fi when Wi-Fi only is turned off',
       () async {
         network.kind = NetworkKind.other;
+        await settings.setWifiOnly(true);
         final done = repository.download(
           target(const RecitationSurah(2)),
           wifiOnly: true,
         );
-        await pumpEventQueue();
+        await until(waiting);
         expect(downloads.orders, isEmpty);
 
-        repository.setWifiOnly(false);
+        await settings.setWifiOnly(false);
 
         expect(await done, isA<Ok<void>>());
         expect(downloads.orders.every((o) => !o.wifiOnly), isTrue);
@@ -617,9 +682,9 @@ void main() {
         );
         await downloads.reached.stream.first;
 
-        repository.setWifiOnly(true);
+        await settings.setWifiOnly(true);
         downloads.gates.remove('/synthetic/q64/2_1.mp3');
-        await pumpEventQueue();
+        await until(waiting);
 
         expect(
           repository.jobs.single.state,
@@ -637,6 +702,31 @@ void main() {
     );
 
     test(
+      'frees an order held for Wi-Fi on mobile data when Wi-Fi only is off',
+      () async {
+        await settings.setWifiOnly(true);
+        downloads.gates['/synthetic/q64/2_1.mp3'] = Completer();
+        final pending = downloads.pending.stream.first;
+        final done = repository.download(
+          target(const RecitationSurah(2)),
+          wifiOnly: true,
+        );
+        await downloads.reached.stream.first;
+        network.set(NetworkKind.other);
+        downloads.gates['/synthetic/q64/2_1.mp3']!.complete();
+        await pending;
+
+        await settings.setWifiOnly(false);
+
+        expect(
+          await done.timeout(const Duration(seconds: 10)),
+          isA<Ok<void>>(),
+        );
+        expect(downloads.orders.last.wifiOnly, isFalse);
+      },
+    );
+
+    test(
       'leaves a file fetching over Wi-Fi alone when Wi-Fi only is turned on',
       () async {
         downloads.gates['/synthetic/q64/2_1.mp3'] = Completer();
@@ -646,7 +736,7 @@ void main() {
         );
         await downloads.reached.stream.first;
 
-        repository.setWifiOnly(true);
+        await settings.setWifiOnly(true);
         downloads.gates['/synthetic/q64/2_1.mp3']!.complete();
 
         expect(await done, isA<Ok<void>>());
@@ -659,11 +749,12 @@ void main() {
 
     test('stops the new job, not the one already stopped', () async {
       urls.gate = Completer();
+      final asked = urls.asked.stream.first;
       final stopped = repository.download(
         target(const RecitationSurah(1)),
         wifiOnly: false,
       );
-      await pumpEventQueue();
+      await asked;
       await repository.cancel(target(const RecitationSurah(1)).key);
 
       final again = repository.download(
@@ -699,7 +790,7 @@ void main() {
         target(const RecitationSurah(2)),
         wifiOnly: true,
       );
-      await pumpEventQueue();
+      await until(waiting);
 
       expect(repository.jobs.single.state, isA<RecitationWaitingForNetwork>());
       network.set(NetworkKind.unmetered);
@@ -716,7 +807,7 @@ void main() {
           target(const RecitationSurah(2)),
           wifiOnly: true,
         );
-        await pumpEventQueue();
+        await until(waiting);
 
         expect(urls.checked, isEmpty);
         network.set(NetworkKind.unmetered);
@@ -855,6 +946,7 @@ void main() {
 
     test('stopping the queue completes what waits in it', () async {
       urls.gate = Completer();
+      final asked = urls.asked.stream.first;
       final first = repository.download(
         target(const RecitationSurah(1)),
         wifiOnly: false,
@@ -863,22 +955,14 @@ void main() {
         target(const RecitationSurah(2)),
         wifiOnly: false,
       );
-      await pumpEventQueue();
+      await asked;
 
       repository.dispose();
       urls.gate!.complete();
 
       expect(await second, isA<Failure<void>>());
       expect(await first, isA<Failure<void>>());
-      repository = LocalRecitationDownloadRepository(
-        contents: (id) async => Ok(contents),
-        downloads: downloads,
-        urlCheck: urls,
-        connectivity: network,
-        freeSpace: space,
-        store: store,
-        policy: _policy,
-      );
+      repository = newRepository(store);
     });
 
     test('the reciter\'s own files stay when a surah goes', () async {
@@ -940,11 +1024,12 @@ void main() {
 
     test('will not remove the audio of a pack with a job', () async {
       urls.gate = Completer();
+      final asked = urls.asked.stream.first;
       final running = repository.download(
         target(const RecitationSurah(1)),
         wifiOnly: false,
       );
-      await pumpEventQueue();
+      await asked;
 
       expect(await repository.deleteAudio(_pack), isA<Failure<void>>());
       expect(
@@ -953,6 +1038,34 @@ void main() {
       );
       urls.gate!.complete();
       await running;
+    });
+
+    test('a job queued while files are removed counts them after', () async {
+      final slow = _SlowStore(audioDirectory: () async => audio);
+      await repository.download(
+        target(const RecitationSurah(1)),
+        wifiOnly: false,
+      );
+      repository.dispose();
+      repository = newRepository(slow);
+      slow.gate = Completer();
+      final started = slow.started.stream.first;
+      final deleting = repository.delete(target(const RecitationSurah(1)));
+      await started;
+      downloads.orders.clear();
+
+      final again = repository.download(
+        target(const RecitationSurah(1)),
+        wifiOnly: false,
+      );
+      await Future.any([again, Future<void>.delayed(_longEnoughToRun)]);
+      expect(repository.jobs, hasLength(1));
+      slow.gate!.complete();
+
+      expect(await deleting, isA<Ok<void>>());
+      expect(await again, isA<Ok<void>>());
+      expect(await repository.present(contents, 64), hasLength(3));
+      expect(downloads.orders, hasLength(3));
     });
 
     test('delete leaves the other quality alone', () async {
