@@ -154,7 +154,7 @@ sits at the mirrored path with `_test.dart`.
 - Only `lib/data/services/pack_database.dart` imports `sqlite3`, and it opens every
   pack read-only and immutable (D-061).
 - Feature folders do not import each other; shared widgets live in `ui/core/widgets`,
-  shared machinery in `ui/core/reader` and `ui/core/share`. A sheet that one feature
+  shared machinery in `ui/core/reader`, `ui/core/share` and `ui/core/tafsir`. A sheet that one feature
   opens in another is reached by its route (D-101).
 - Only `lib/ui/core` imports the generated colour ramps (`ramps.g.dart`).
 
@@ -269,8 +269,8 @@ Allowed, and nothing else:
   markers between them; several ayat copied together, each with its number (`SH-01`).
 - **Wrapping a whole value in a fixed format.** The copy format
   `﴿…﴾ [السورة: الرقم]`, whose brackets and reference are UI strings.
-- **Slicing at offsets stored in the pack.** One span per word, for hit testing and
-  highlights, and one per mark, which is how a pause mark is addressed and looked up.
+- **Slicing at offsets stored in the pack.** One span per word, for hit testing,
+  highlights and drawing one word (`QuranText.word`, D-153), and one per mark, which is how a pause mark is addressed and looked up.
   Word and mark spans and the U+0020 between them make up the ayah exactly; a test
   asserts this for every ayah.
 

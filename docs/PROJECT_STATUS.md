@@ -10,7 +10,7 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-28 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **34 merged**: P1-01 to P1-30, P1-32, P1-38 to P1-40 (P1-12, P1-14, P1-15, P1-17, P1-22, P1-23, P1-24, P1-25, P1-26, P1-27, P1-28, P1-29, P1-30, P1-32 and P1-40 partial). **In progress**: P1-31, P1-33 (#71), P1-34. **3 not started**: P1-35 to P1-37. The composition root is wired (#72, D-151). The lead merges after an independent review and CI (D-136) |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **35 merged**: P1-01 to P1-32, P1-38 to P1-40 (P1-12, P1-14, P1-15, P1-17, P1-22, P1-23, P1-24, P1-25, P1-26, P1-27, P1-28, P1-29, P1-30, P1-31, P1-32 and P1-40 partial). **In progress**: P1-33 (#71), P1-34. **3 not started**: P1-35 to P1-37. The composition root is wired (#72, D-151). The lead merges after an independent review and CI (D-136) |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/p1-*`); worktrees under the session's scratchpad for parallel agents (D-132) |
 | Last session | 2026-10-28, local session on the owner's Windows machine, stopped for the account switch. **Read `HANDOFF.md` first**: it says exactly what was in flight (#53, P1-14, P1-22) and what each needs |
@@ -341,7 +341,15 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   the 250 ms highlight deviation on a device, following and the bar in the four themes and at 200%,
   stand mode keeping the screen on. Reviewed by `code-reviewer` (opus, twice), `identity-auditor`
   and two verifications (sonnet).
-- In progress: P1-31, P1-33 (#71), P1-34.
+- **P1-31 merged, partial.** The word sheet at `/sheet/word/:address` (text tab with the word
+  drawn from the pack at its stored offsets, tafsir tab while a tafsir is installed) and the mini
+  ayah sheet at `/sheet/ayah/:address` (ayah, tafsir with its source, my notes, play from this
+  ayah, report) (D-153). Partial: no word-level fields (no word-level source is `Ready`); the
+  report sheet's send action; the audio section waits for a `Ready` recitation. Pending human
+  checks: the owner's look at the mini ayah sheet and the «مركز الدراسة» label, both sheets on a
+  device in the four themes and at 200%, NF-05's 200 ms on a device. Reviewed by `code-reviewer`
+  (opus) and `identity-auditor` (sonnet).
+- In progress: P1-33 (#71), P1-34.
   Not started: P1-35 to P1-37 (wave 5).
 - The local branches of 2026-10-13 (`fix/bookmark-restore-nullable`,
   `chore/analysis-exclude-platform-dirs`) are not needed on the pinned SDK (analyze is
