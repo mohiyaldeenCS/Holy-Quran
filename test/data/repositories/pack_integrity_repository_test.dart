@@ -326,6 +326,23 @@ void main() {
       expect(integrity.stateOf('synthetic-b'), isA<IntegrityFailed>());
     });
 
+    test('forgets a pack with no event, so that it is checked and reported '
+        'afresh', () async {
+      final (integrity, events) = repository(service());
+      var heard = 0;
+      integrity.addListener(() => heard++);
+      integrity.report('synthetic-b', const IntegrityFailed(PackDisabled('b')));
+
+      integrity.forget('synthetic-b');
+      integrity.forget('synthetic-b');
+      integrity.forget('other');
+      expect(integrity.stateOf('synthetic-b'), isA<IntegrityMissing>());
+      expect(heard, 2);
+
+      integrity.report('synthetic-b', const IntegrityOk());
+      expect(await states(events), ['failed: PackDisabled(b)', 'ok']);
+    });
+
     test('a pack nothing reported is missing', () {
       expect(
         repository(service()).$1.stateOf('other'),

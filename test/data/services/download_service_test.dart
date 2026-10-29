@@ -9,6 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/data/services/download_service.dart';
 import 'package:holyquran/utils/result.dart';
 
+import '../../../testing/fakes/memory_task_storage.dart';
+
 // background_downloader runs here on its desktop path, against a loopback
 // server, as spike S5 found it can under `flutter test`: the target platform
 // is Linux (under flutter test it is Android, whose downloader has no native
@@ -141,70 +143,6 @@ final class _Server {
   }
 }
 
-/// background_downloader's task database in memory.
-final class _MemoryTaskStorage implements PersistentStorage {
-  final Map<String, TaskRecord> _records = {};
-  final Map<String, Task> _paused = {};
-  final Map<String, ResumeData> _resume = {};
-
-  @override
-  (String, int) get currentDatabaseVersion => ('memory', 1);
-
-  @override
-  Future<(String, int)> get storedDatabaseVersion async => ('memory', 1);
-
-  @override
-  Future<void> initialize() async {}
-
-  @override
-  Future<void> storeTaskRecord(TaskRecord record) async =>
-      _records[record.taskId] = record;
-
-  @override
-  Future<TaskRecord?> retrieveTaskRecord(String taskId) async =>
-      _records[taskId];
-
-  @override
-  Future<List<TaskRecord>> retrieveAllTaskRecords() async => [
-    ..._records.values,
-  ];
-
-  @override
-  Future<void> removeTaskRecord(String? taskId) async =>
-      _remove(_records, taskId);
-
-  @override
-  Future<void> storePausedTask(Task task) async => _paused[task.taskId] = task;
-
-  @override
-  Future<Task?> retrievePausedTask(String taskId) async => _paused[taskId];
-
-  @override
-  Future<List<Task>> retrieveAllPausedTasks() async => [..._paused.values];
-
-  @override
-  Future<void> removePausedTask(String? taskId) async =>
-      _remove(_paused, taskId);
-
-  @override
-  Future<void> storeResumeData(ResumeData resumeData) async =>
-      _resume[resumeData.taskId] = resumeData;
-
-  @override
-  Future<ResumeData?> retrieveResumeData(String taskId) async =>
-      _resume[taskId];
-
-  @override
-  Future<List<ResumeData>> retrieveAllResumeData() async => [..._resume.values];
-
-  @override
-  Future<void> removeResumeData(String? taskId) async =>
-      _remove(_resume, taskId);
-
-  static void _remove(Map<String, Object> map, String? key) =>
-      key == null ? map.clear() : map.remove(key);
-}
-
 /// About 3 MiB of synthetic bytes.
 final _large = Uint8List.fromList(
   List.generate(3 << 20, (i) => (i * 31 + 7) & 0xFF),
@@ -222,7 +160,7 @@ void main() {
     HttpOverrides.global = null;
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
     temp = await Directory.systemTemp.createTemp('download_service_test');
-    plugin = FileDownloader(persistentStorage: _MemoryTaskStorage());
+    plugin = FileDownloader(persistentStorage: MemoryTaskStorage());
     await plugin.ready;
     await plugin.configure(
       globalConfig: (Config.tempFilePath, '${temp.path}/partial'),

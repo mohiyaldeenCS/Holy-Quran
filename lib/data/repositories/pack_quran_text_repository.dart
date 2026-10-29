@@ -23,6 +23,8 @@ import 'quran_text_repository.dart';
 /// every later call fails with [PackDisabled], and the failure is passed to
 /// `onDisabled`, so that the pack's integrity can be reported. A count,
 /// numbering, reference or span that is wrong is a [PackInconsistent].
+/// While `serving` says the pack is not in use, because another reader
+/// failed it, every call fails with [PackDisabled] as well.
 ///
 /// The reads are synchronous inside; the interface is asynchronous so that
 /// they can move to an isolate without changing it.
@@ -33,6 +35,7 @@ final class PackQuranTextRepository implements QuranTextRepository {
     required VerifiedPack pack,
     required this._database,
     this._onDisabled,
+    this._serving,
   }) : _manifest = pack.manifest,
        riwaya =
            pack.manifest.riwaya ??
@@ -44,6 +47,7 @@ final class PackQuranTextRepository implements QuranTextRepository {
   static Result<PackQuranTextRepository> open(
     VerifiedPack pack, {
     void Function(PackFailure failure)? onDisabled,
+    bool Function()? serving,
   }) {
     final manifest = pack.manifest;
     if (manifest.kind != PackKind.text || manifest.riwaya == null) {
@@ -61,6 +65,7 @@ final class PackQuranTextRepository implements QuranTextRepository {
           pack: pack,
           database: database,
           onDisabled: onDisabled,
+          serving: serving,
         ),
       );
     } on PackFailure catch (failure) {
@@ -71,6 +76,7 @@ final class PackQuranTextRepository implements QuranTextRepository {
   final PackManifest _manifest;
   final PackDatabase _database;
   final void Function(PackFailure failure)? _onDisabled;
+  final bool Function()? _serving;
 
   @override
   final String riwaya;
@@ -157,7 +163,9 @@ final class PackQuranTextRepository implements QuranTextRepository {
   });
 
   Result<T> _read<T>(T Function() read) {
-    if (_disabled) return Failure(PackDisabled(_id));
+    if (_disabled || !(_serving?.call() ?? true)) {
+      return Failure(PackDisabled(_id));
+    }
     try {
       return Ok(read());
     } on AddressNotInPack catch (failure) {

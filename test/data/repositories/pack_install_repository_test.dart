@@ -335,6 +335,8 @@ void main() {
     ManifestSignatureVerifier signatures = const SignatureNotConfigured(),
     bool acceptUnchecked = true,
     UrlPolicy policy = _http,
+    void Function(String packId)? onPackChanged,
+    Set<String> reservedPackIds = const {},
   }) async {
     final repository = LocalPackInstallRepository(
       openStore: () async => InstalledPacksStore(support),
@@ -349,6 +351,8 @@ void main() {
       ),
       policy: policy,
       acceptUnchecked: acceptUnchecked,
+      onPackChanged: onPackChanged,
+      reservedPackIds: reservedPackIds,
     );
     addTearDown(repository.dispose);
     expect(await repository.start(), isA<Ok<void>>());
@@ -712,6 +716,106 @@ void main() {
       );
     });
 
+    test('tells of a pack installed, rolled back or deleted, and of no '
+        'other', () async {
+      final changed = <String>[];
+      final repository = await started(onPackChanged: changed.add);
+
+      await install(repository, _text, 1);
+      await install(repository, _text, 1);
+      expect(changed, [_text]);
+      await install(repository, _text, 2);
+      await repository.rollback(_text);
+      await repository.rollback(_other);
+      await repository.delete(_text);
+
+      expect(changed, [_text, _text, _text, _text]);
+    });
+
+    test('tells of a deleted or rolled back pack even when the read of the '
+        'packs that follows fails', () async {
+      final changed = <String>[];
+      final repository = await started(onPackChanged: changed.add);
+      await install(repository, _text, 1);
+      await install(repository, _text, 2);
+      await install(repository, _other, 1);
+      changed.clear();
+      // A manifest that is a folder makes reading the installed packs throw.
+      final manifest = File('${support.path}/packs/$_other/1/manifest.json');
+      await manifest.delete();
+      await Directory(manifest.path).create();
+
+      expect(await repository.rollback(_text), failedWith(isA<StoreFailed>()));
+      expect(changed, [_text]);
+      expect(await repository.delete(_text), failedWith(isA<StoreFailed>()));
+      expect(changed, [_text, _text]);
+      expect(exists('packs/$_text'), isFalse);
+    });
+
+    test('tells of an installed pack even when the read of the packs that '
+        'follows fails', () async {
+      final changed = <String>[];
+      final repository = await started(onPackChanged: changed.add);
+      await install(repository, _other, 1);
+      changed.clear();
+      final manifest = File('${support.path}/packs/$_other/1/manifest.json');
+      await manifest.delete();
+      await Directory(manifest.path).create();
+
+      expect(
+        await install(repository, _text, 1),
+        failedWith(isA<StoreFailed>()),
+      );
+
+      expect(changed, [_text]);
+      expect(exists('packs/$_text/1'), isTrue);
+    });
+
+    test('does not tell of a delete that failed', () async {
+      final changed = <String>[];
+      final repository = await started(onPackChanged: changed.add);
+
+      expect(
+        await repository.delete('Not A Pack Id'),
+        failedWith(isA<InvalidPackId>()),
+      );
+
+      expect(changed, isEmpty);
+    });
+
+    test('the id of the bundled base pack is never installed, rolled back or '
+        'deleted, and no file is touched', () async {
+      final first = await started();
+      await install(first, _text, 1);
+      await install(first, _text, 2);
+      final before = File(
+        '${support.path}/packs/$_text/active.json',
+      ).readAsStringSync();
+      final requests = server.requests.length;
+      final changed = <String>[];
+      final guarded = await started(
+        reservedPackIds: {_text},
+        onPackChanged: changed.add,
+      );
+
+      expect(
+        await install(guarded, _text, 3),
+        failedWith(isA<ReservedPackId>()),
+      );
+      expect(await guarded.rollback(_text), failedWith(isA<ReservedPackId>()));
+      expect(await guarded.delete(_text), failedWith(isA<ReservedPackId>()));
+
+      expect(
+        File('${support.path}/packs/$_text/active.json').readAsStringSync(),
+        before,
+      );
+      expect(exists('packs/$_text/2'), isTrue);
+      expect(exists('pack-staging/$_text/3'), isFalse);
+      expect(server.requests, hasLength(requests));
+      expect(changed, isEmpty);
+      expect(await install(guarded, _other, 1), installedAs(_other, 1));
+    });
+
     test('an installed version, active or previous, is refused', () async {
       final repository = await started();
       await install(repository, _text, 1);
@@ -767,7 +871,7 @@ void main() {
 
         expect(await others(), before);
         expect(exists('packs/$_text'), isFalse);
-        expect(exists('pack-staging/$_text'), isFalse);
+        expect(exists('pack-staging/$_text/3'), isFalse);
         expect([for (final p in repository.installed) p.id], [_other]);
         expect(await repository.delete('synthetic-foreign'), isA<Ok<void>>());
         expect(await foreign.readAsBytes(), [1, 2, 3]);
@@ -1136,6 +1240,33 @@ void main() {
         failedWith(isA<FileSystemException>()),
       );
       expect(server.requests, isEmpty);
+    });
+
+    test('an Error in the start is rethrown, and the start still completes '
+        'as a failure', () async {
+      final repository = LocalPackInstallRepository(
+        openStore: () async => throw StateError('synthetic bug'),
+        downloads: downloads,
+        urlCheck: const HttpUrlCheck(),
+        connectivity: network,
+        freeSpace: space,
+        files: const PackFileService(),
+        verifier: const LocalPackRepository(
+          files: PackFileService(),
+          signatures: SignatureNotConfigured(),
+        ),
+        policy: _http,
+        acceptUnchecked: true,
+      );
+      addTearDown(repository.dispose);
+
+      await expectLater(repository.start(), throwsStateError);
+
+      expect(await repository.started, failedWith(isA<StoreFailed>()));
+      expect(
+        await install(repository, _text, 1),
+        failedWith(isA<StoreFailed>()),
+      );
     });
 
     test('lists the installed packs and names one whose manifest is '

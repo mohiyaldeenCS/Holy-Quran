@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/config/dependencies.dart';
+import 'package:holyquran/config/providers/settings_providers.dart';
 import 'package:holyquran/config/providers/tafsir_providers.dart';
 import 'package:holyquran/data/models/pack_manifest_json.dart';
 import 'package:holyquran/data/repositories/pack_install_repository.dart';
@@ -83,8 +84,86 @@ void main() {
     return provided;
   }
 
-  test('the area provides nothing until its inputs are provided', () async {
-    expect(await buildDependencies(areas: [tafsirProviders]), isEmpty);
+  test('keeps its settings in memory when the user file could not be read '
+      '(D-133)', () async {
+    final file = File('${root.path}/${UserDatabase.fileName}')
+      ..writeAsStringSync('synthetic text that is not a database file' * 100);
+    final bytes = file.readAsBytesSync();
+    final unreadable = UserDatabase(NativeDatabase(file));
+    addTearDown(unreadable.close);
+    TafsirRepository? provided;
+
+    await buildDependencies(
+      areas: [
+        (dependencies) async => dependencies.provide(unreadable),
+        settingsProviders,
+        (dependencies) async => dependencies
+          ..provideListenable<PackInstallRepository>(installs)
+          ..provideListenable<PackIntegrityRepository>(integrity)
+          ..provide<QuranStructure>(FakeQuranIndexRepository.synthetic()),
+        tafsirProviders,
+        (dependencies) async =>
+            provided = dependencies.tryRead<TafsirRepository>(),
+      ],
+    );
+    if (provided case final LocalTafsirRepository repository) {
+      addTearDown(repository.dispose);
+    }
+
+    expect(provided, isA<LocalTafsirRepository>());
+    expect(file.readAsBytesSync(), bytes);
+  });
+
+  group('the area', () {
+    Future<TafsirRepository?> over({required bool withStructure}) async {
+      TafsirRepository? provided;
+      await buildDependencies(
+        areas: [
+          (dependencies) async => dependencies.provide(db),
+          settingsProviders,
+          (dependencies) async {
+            dependencies
+              ..provideListenable<PackInstallRepository>(installs)
+              ..provideListenable<PackIntegrityRepository>(integrity);
+            if (withStructure) {
+              dependencies.provide<QuranStructure>(
+                FakeQuranIndexRepository.synthetic(),
+              );
+            }
+          },
+          tafsirProviders,
+          (dependencies) async =>
+              provided = dependencies.tryRead<TafsirRepository>(),
+        ],
+      );
+      if (provided case final LocalTafsirRepository repository) {
+        addTearDown(repository.dispose);
+      }
+      return provided;
+    }
+
+    test('provides the repository once the Quran structure is there', () async {
+      expect(await over(withStructure: true), isA<LocalTafsirRepository>());
+    });
+
+    test('provides nothing, and does not fail, without the Quran '
+        'structure', () async {
+      expect(await over(withStructure: false), isNull);
+    });
+
+    test('reads neither the installer nor the integrity while the structure '
+        'is missing', () async {
+      expect(
+        await buildDependencies(
+          areas: [
+            (dependencies) async => dependencies.provide(db),
+            settingsProviders,
+            tafsirProviders,
+          ],
+        ),
+        hasLength(3),
+      );
+    });
   });
 
   test('provides a repository that reads installed packs', () async {

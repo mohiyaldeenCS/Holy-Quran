@@ -23,6 +23,11 @@ abstract interface class PackIntegrityRepository implements Listenable {
   /// for it.
   Stream<PackIntegrityEvent> get events;
 
+  /// Drops what was reported for [pack], so that it reads as [IntegrityMissing]
+  /// until a repository checks it again, for a pack whose files were
+  /// replaced or deleted. No event is added: the log keeps what happened.
+  void forget(String pack);
+
   /// Records [state] for [pack], notifying and adding an event when it
   /// differs from the state before. Every failure is recorded.
   void report(String pack, PackIntegrity state, {int? version});
@@ -58,6 +63,11 @@ final class LocalPackIntegrityRepository extends ChangeNotifier
 
   @override
   Stream<PackIntegrityEvent> get events => _events.stream;
+
+  @override
+  void forget(String pack) {
+    if (_states.remove(pack) != null) notifyListeners();
+  }
 
   @override
   void report(String pack, PackIntegrity state, {int? version}) {

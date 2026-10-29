@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:holyquran/config/base_pack.dart';
 import 'package:holyquran/config/dependencies.dart';
+import 'package:holyquran/config/providers/base_pack_guard.dart';
 import 'package:holyquran/config/signing_keys.dart';
 import 'package:holyquran/data/repositories/local_pack_repository.dart';
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
@@ -33,7 +34,8 @@ Future<void> quranProviders(Dependencies dependencies) async {
 
 /// Provides the [PackIntegrityRepository], then checks the base pack and,
 /// once it is verified, provides it as the [VerifiedPack], whose manifest
-/// names the sources the app credits, then its [QuranTextRepository] and its
+/// names the sources the app credits, the [BasePackGuard] that readers of it
+/// use, then its [QuranTextRepository] and its
 /// [QuranIndexRepository], also as the [QuranStructure], and the
 /// [PlaybackPlanBuilder] over the same edition. A base pack that is
 /// missing or failed provides only its integrity.
@@ -71,8 +73,16 @@ Future<void> provideQuran(
     unawaited(integrity.forgetBasePackCheck());
   }
 
+  dependencies.provide<BasePackGuard>(
+    BasePackGuard(serving: serving, failed: failed),
+  );
+
   final PackQuranTextRepository text;
-  switch (PackQuranTextRepository.open(verified, onDisabled: failed)) {
+  switch (PackQuranTextRepository.open(
+    verified,
+    onDisabled: failed,
+    serving: serving,
+  )) {
     case Ok(:final value):
       text = value;
     case Failure(:final error):
