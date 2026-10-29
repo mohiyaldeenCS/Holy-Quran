@@ -90,7 +90,24 @@ final class RecitationContents {
   final List<RecitationFile> files;
 
   Uri urlOf(RecitationFile file) => baseUrl.resolve(file.path);
+
+  /// How much of the recitation at [qualityKbps] is among the [present]
+  /// paths: all of its files, some, or none.
+  AudioCoverage coverageAt(int qualityKbps, Set<String> present) {
+    var total = 0;
+    var here = 0;
+    for (final file in files) {
+      if (file.qualityKbps != qualityKbps) continue;
+      total++;
+      if (present.contains(file.path)) here++;
+    }
+    if (total == 0 || here == 0) return AudioCoverage.none;
+    return here == total ? AudioCoverage.whole : AudioCoverage.partial;
+  }
 }
+
+/// How much of a recitation is on the device.
+enum AudioCoverage { none, partial, whole }
 
 /// One download: [selection] of the recitation at [qualityKbps].
 final class RecitationTarget {

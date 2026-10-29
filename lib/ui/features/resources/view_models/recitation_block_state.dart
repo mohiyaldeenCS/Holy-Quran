@@ -6,11 +6,17 @@ import 'package:holyquran/ui/features/resources/view_models/pack_row_state.dart'
 /// What a scope row downloads (`AU-13`).
 enum ScopeKind { whole, surah, juz }
 
+/// How much of a recitation is on the device.
+enum RecitationStatus { available, partial, downloaded }
+
 /// The two lists a recitation's scopes are shown in.
 enum ScopeTab { surahs, juz }
 
 enum ScopeStatus {
   available,
+
+  /// In the queue behind another job.
+  queued,
   downloading,
 
   /// Held back until a network the job may use is up.
@@ -63,6 +69,7 @@ final class RecitationBlockState {
     required this.pack,
     this.qualities = const [],
     this.quality,
+    this.hasJob = false,
     this.tab = ScopeTab.surahs,
     this.whole,
     this.surahs = const [],
@@ -71,6 +78,10 @@ final class RecitationBlockState {
 
   final CatalogueRecitation recitation;
   final PackRowState pack;
+
+  /// A job of this recitation's pack is queued or running; its audio and
+  /// pack cannot be deleted meanwhile.
+  final bool hasJob;
   final List<int> qualities;
   final int? quality;
   final ScopeTab tab;
@@ -82,6 +93,15 @@ final class RecitationBlockState {
 
   /// Whether the scopes are known, which they are once the pack is read.
   bool get ready => whole != null;
+
+  /// How much of the whole recitation is on the device at the quality
+  /// chosen: none, some or all of it (`AU-13`).
+  RecitationStatus get status => switch (whole) {
+    null => RecitationStatus.available,
+    ScopeRowState(missingBytes: 0) => RecitationStatus.downloaded,
+    ScopeRowState(partial: true) => RecitationStatus.partial,
+    _ => RecitationStatus.available,
+  };
 
   /// Several qualities to choose from (`AU-14`).
   bool get choosesQuality => qualities.length > 1;

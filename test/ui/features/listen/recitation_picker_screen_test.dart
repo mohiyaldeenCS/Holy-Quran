@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart' hide IconButton;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:holyquran/data/models/catalogue_json.dart';
+import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/domain/models/catalogue.dart';
 import 'package:holyquran/domain/models/catalogue_entry.dart';
 import 'package:holyquran/domain/models/download_progress.dart';
@@ -9,6 +11,7 @@ import 'package:holyquran/domain/models/installed_pack.dart';
 import 'package:holyquran/domain/models/pack_manifest.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/domain/models/recitation.dart';
+import 'package:holyquran/domain/models/recitation_download.dart';
 import 'package:holyquran/domain/models/recitation_target.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes.dart';
@@ -17,6 +20,7 @@ import 'package:holyquran/ui/core/theme/app_theme.dart';
 import 'package:holyquran/ui/core/widgets/recitation_card.dart';
 import 'package:holyquran/ui/features/listen/view_models/recitation_picker_view_model.dart';
 import 'package:holyquran/ui/features/listen/views/recitation_picker_screen.dart';
+import 'package:holyquran/utils/result.dart';
 
 import '../../../../testing/fakes/fake_catalogue_repository.dart';
 import '../../../../testing/fakes/fake_pack_install_repository.dart';
@@ -74,6 +78,7 @@ RecitationPickerViewModel _viewModel({
   List<CatalogueRecitation>? recitations,
   FakePackInstallRepository? installs,
   FakeRecitationDownloadRepository? downloads,
+  DownloadSettingsRepository? settings,
   bool withCatalogue = true,
 }) {
   final viewModel = RecitationPickerViewModel(
@@ -83,6 +88,7 @@ RecitationPickerViewModel _viewModel({
     catalogue: withCatalogue ? FakeCatalogueRepository(_catalogue) : null,
     installs: installs ?? FakePackInstallRepository(),
     downloads: downloads,
+    settings: settings,
   );
   addTearDown(viewModel.dispose);
   return viewModel;
@@ -180,27 +186,111 @@ void main() {
   });
 
   group('with the audio downloads (AU-13)', () {
-    testWidgets('a recitation is available until some of its audio is here', (
-      tester,
-    ) async {
+    testWidgets(
+      'a recitation is available, partly downloaded, then downloaded',
+      (tester) async {
+        final installs = FakePackInstallRepository(
+          installed: [_installed('synthetic-recitation')],
+        );
+        final downloads = FakeRecitationDownloadRepository();
+        await _pump(
+          tester,
+          _viewModel(installs: installs, downloads: downloads),
+        );
+
+        expect(
+          find.text(_line([_style, _l10n.resourceAvailable])),
+          findsOneWidget,
+        );
+
+        downloads.arrive({ayahPath(128, 1, 1)});
+        await tester.pumpAndSettle();
+        expect(
+          find.text(_line([_style, _l10n.recitationPartial])),
+          findsOneWidget,
+        );
+
+        downloads.arrive({
+          for (final MapEntry(key: surah, value: ayat) in ayatOfSurah.entries)
+            for (var a = 1; a <= ayat; a++) ayahPath(128, surah, a),
+        });
+        await tester.pumpAndSettle();
+        expect(
+          find.text(_line([_style, _l10n.resourceDownloaded])),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('judges the quality the user chose', (tester) async {
       final installs = FakePackInstallRepository(
         installed: [_installed('synthetic-recitation')],
       );
-      final downloads = FakeRecitationDownloadRepository();
-      await _pump(tester, _viewModel(installs: installs, downloads: downloads));
+      final downloads = FakeRecitationDownloadRepository()
+        ..onDevice = {
+          for (final MapEntry(key: surah, value: ayat) in ayatOfSurah.entries)
+            for (var a = 1; a <= ayat; a++) ayahPath(128, surah, a),
+        };
+      final settings = InMemoryDownloadSettingsRepository(
+        qualities: {'synthetic-listed': 64},
+      );
+      await _pump(
+        tester,
+        _viewModel(
+          installs: installs,
+          downloads: downloads,
+          settings: settings,
+        ),
+      );
 
       expect(
         find.text(_line([_style, _l10n.resourceAvailable])),
         findsOneWidget,
       );
+    });
 
-      downloads.arrive({ayahPath(64, 1, 1)});
-      await tester.pumpAndSettle();
-
-      expect(
-        find.text(_line([_style, _l10n.resourceDownloaded])),
-        findsOneWidget,
+    testWidgets('says a download is queued or waits for the network', (
+      tester,
+    ) async {
+      final downloads = FakeRecitationDownloadRepository();
+      await _pump(tester, _viewModel(downloads: downloads));
+      final target = RecitationTarget(
+        syntheticContents(),
+        64,
+        const RecitationSurah(1),
       );
+
+      downloads.jobs = [jobFor(target, const RecitationQueued())];
+      await tester.pump();
+      expect(find.text(_line([_style, _l10n.resourceQueued])), findsOneWidget);
+
+      downloads.jobs = [
+        jobFor(target, const RecitationWaitingForNetwork(wifiOnly: true)),
+      ];
+      await tester.pump();
+      expect(find.text(_line([_style, _l10n.waitingForWifi])), findsOneWidget);
+    });
+
+    testWidgets('keeps an update of the pack in view', (tester) async {
+      final json = syntheticCatalogueJson();
+      ((json['packs']! as List<Object?>)[2]!
+              as Map<String, Object?>)['version'] =
+          2;
+      final installs = FakePackInstallRepository(
+        installed: [_installed('synthetic-recitation')],
+      );
+      final viewModel = RecitationPickerViewModel(
+        recitations: FakeRecitationRepository(_catalogue.recitations),
+        catalogue: FakeCatalogueRepository(
+          (parseCatalogue(catalogueBytes(json)) as Ok<Catalogue>).value,
+        ),
+        installs: installs,
+        downloads: FakeRecitationDownloadRepository(),
+      );
+      addTearDown(viewModel.dispose);
+      await _pump(tester, viewModel);
+
+      expect(find.text(_line([_style, _l10n.updateAvailable])), findsOneWidget);
     });
 
     testWidgets('shows the percent of the job that runs', (tester) async {

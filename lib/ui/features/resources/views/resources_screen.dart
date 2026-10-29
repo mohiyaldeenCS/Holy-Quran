@@ -96,7 +96,10 @@ class _Body extends StatelessWidget {
                 title: AppLocalizations.of(context).connectionFailed,
               ),
             if (recitations case final recitations?)
-              RecitationSection(viewModel: recitations),
+              RecitationSection(
+                viewModel: recitations,
+                storageBytes: storageBytes,
+              ),
             for (final section in viewModel.sections)
               PackCategorySection(
                 key: ValueKey(section.kind),

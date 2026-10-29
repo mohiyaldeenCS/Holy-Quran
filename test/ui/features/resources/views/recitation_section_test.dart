@@ -10,11 +10,15 @@ import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/l10n/megabytes.dart';
 import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
+import 'package:holyquran/ui/core/widgets/level_switch.dart';
 import 'package:holyquran/ui/core/widgets/progress_bar.dart';
+import 'package:holyquran/ui/core/widgets/storage_bar.dart';
 import 'package:holyquran/ui/core/widgets/switch.dart' as qk;
 import 'package:holyquran/ui/features/resources/view_models/recitation_section_view_model.dart';
 import 'package:holyquran/ui/features/resources/view_models/resources_view_model.dart';
 import 'package:holyquran/ui/features/resources/views/resources_screen.dart';
+import 'package:holyquran/ui/features/resources/views/sections/delete_recitation_sheet.dart';
+import 'package:holyquran/ui/features/resources/views/sections/recitation_header.dart';
 import 'package:holyquran/ui/features/resources/views/sections/scope_row.dart';
 import 'package:holyquran/utils/result.dart';
 
@@ -352,7 +356,8 @@ void main() {
         findsOneWidget,
       );
       expect(_in(row, find.text(_l10n.lowSpace)), findsOneWidget);
-      expect(_in(row, find.text(_l10n.resourceDownload)), findsOneWidget);
+      expect(_in(row, find.text(_l10n.resourceResume)), findsOneWidget);
+      expect(_in(row, find.text(_l10n.resourceDownload)), findsNothing);
     },
   );
 
@@ -408,6 +413,210 @@ void main() {
       _in(_scope('64/surah-3'), find.text(_l10n.connectionFailed)),
       findsOneWidget,
     );
+  });
+
+  group('the recitation as a whole', () {
+    Finder inHeader(Finder finder) =>
+        find.descendant(of: find.byType(RecitationHeader), matching: finder);
+
+    Set<String> everyFileAt64() => {
+      for (final MapEntry(key: surah, value: ayat) in ayatOfSurah.entries)
+        for (var a = 1; a <= ayat; a++) ayahPath(64, surah, a),
+    };
+
+    testWidgets('is available, partly downloaded, then downloaded', (
+      tester,
+    ) async {
+      await _pump(tester);
+      expect(inHeader(find.textContaining(_l10n.resourceAvailable)), findsOne);
+
+      _downloads.arrive({ayahPath(64, 1, 1)});
+      await _settle(tester);
+      expect(inHeader(find.textContaining(_l10n.recitationPartial)), findsOne);
+      expect(
+        inHeader(find.textContaining(_l10n.resourceDownloaded)),
+        findsNothing,
+      );
+
+      _downloads.arrive(everyFileAt64());
+      await _settle(tester);
+      expect(
+        inHeader(find.textContaining(_l10n.resourceDownloaded)),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('is deleted only after the user confirms, stating the size', (
+      tester,
+    ) async {
+      await _pump(tester);
+      _downloads.arrive({ayahPath(64, 1, 1), ayahPath(128, 1, 1)});
+      await _settle(tester);
+
+      await tester.tap(inHeader(find.text(_l10n.resourceDelete)));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DeleteRecitationSheet), findsOneWidget);
+      expect(find.text(_l10n.deleteRecitationTitle), findsOneWidget);
+      final pack = _catalogue.catalogue!.pack(recitationPackId)!;
+      expect(
+        find.text(
+          _l10n.downloadSize(megabytes(_l10n, 2 * fileBytes + pack.bytes)),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        _downloads.calls,
+        isNot(contains(('deleteAudio', recitationPackId))),
+      );
+
+      await tester.tap(find.text(_l10n.resourceDelete).last);
+      await tester.pumpAndSettle();
+
+      expect(_downloads.calls, contains(('deleteAudio', recitationPackId)));
+      expect(_installs.calls, contains(('delete', recitationPackId)));
+    });
+
+    testWidgets('is kept when the user leaves the confirmation', (
+      tester,
+    ) async {
+      await _pump(tester);
+
+      await tester.tap(inHeader(find.text(_l10n.resourceDelete)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(_l10n.resourceCancel));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DeleteRecitationSheet), findsNothing);
+      expect(
+        _downloads.calls,
+        isNot(contains(('deleteAudio', recitationPackId))),
+      );
+      expect(_installs.calls, isEmpty);
+    });
+
+    testWidgets('cannot be deleted while a job of it runs', (tester) async {
+      await _pump(tester);
+      _downloads.arrive(everyFileAt64());
+      await _settle(tester);
+      expect(find.text(_l10n.resourceDelete), findsWidgets);
+
+      _downloads.jobs = [
+        jobFor(_target(64, const RecitationSurah(1)), const RecitationQueued()),
+      ];
+      await tester.pump();
+
+      expect(inHeader(find.text(_l10n.resourceDelete)), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byType(ScopeRow),
+          matching: find.text(_l10n.resourceDelete),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('shows the space its recitations use', (tester) async {
+      await _pump(tester);
+
+      final bar = find.byWidgetPredicate(
+        (widget) =>
+            widget is StorageBar &&
+            widget.label == _l10n.resourceCategoryRecitations,
+      );
+      expect(bar, findsOneWidget);
+    });
+  });
+
+  group('a scope row', () {
+    testWidgets('names its buttons by the scope for a screen reader', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      try {
+        await _pump(tester);
+        _downloads.arrive({ayahPath(64, 2, 1)});
+        _downloads.jobs = [
+          jobFor(
+            _target(64, const RecitationSurah(1)),
+            downloadingBytes(1000000, 2000000),
+          ),
+        ];
+        await _settle(tester);
+
+        expect(
+          find.bySemanticsLabel(_l10n.resourceDownloadNamed(_surahTitle(3))),
+          findsOneWidget,
+        );
+        expect(
+          find.bySemanticsLabel(_l10n.resourceStopNamed(_surahTitle(1))),
+          findsOneWidget,
+        );
+        expect(
+          find.bySemanticsLabel(_l10n.resourceResumeNamed(_surahTitle(2))),
+          findsOneWidget,
+        );
+      } finally {
+        semantics.dispose();
+      }
+    });
+
+    testWidgets('says it is queued, without a percent', (tester) async {
+      await _pump(tester);
+      _downloads.jobs = [
+        jobFor(_target(64, const RecitationSurah(1)), const RecitationQueued()),
+      ];
+      await tester.pump();
+
+      final row = _scope('64/surah-1');
+      expect(_in(row, find.text(_l10n.resourceQueued)), findsOneWidget);
+      expect(_in(row, find.textContaining('٪')), findsNothing);
+      expect(_in(row, find.text(_l10n.resourceStop)), findsOneWidget);
+    });
+
+    testWidgets('says it waits for the network when Wi-Fi is not required', (
+      tester,
+    ) async {
+      await _pump(tester);
+      _downloads.jobs = [
+        jobFor(
+          _target(64, const RecitationSurah(1)),
+          const RecitationWaitingForNetwork(wifiOnly: false),
+        ),
+      ];
+      await tester.pump();
+
+      final row = _scope('64/surah-1');
+      expect(_in(row, find.text(_l10n.waitingForNetwork)), findsOneWidget);
+      expect(_in(row, find.textContaining('٪')), findsNothing);
+    });
+
+    testWidgets('resumes a scope that is partly on the device', (tester) async {
+      await _pump(tester);
+      _downloads.arrive({ayahPath(64, 1, 1)});
+      await _settle(tester);
+
+      await tester.tap(
+        _in(_scope('64/surah-1'), find.text(_l10n.resourceResume)),
+      );
+
+      expect(
+        _downloads.calls.where((c) => c.$1 == 'download').single.$2,
+        '$recitationId/64/surah-1',
+      );
+    });
+  });
+
+  group('the choices', () {
+    testWidgets('the qualities and the lists are segmented controls', (
+      tester,
+    ) async {
+      await _pump(tester);
+
+      expect(find.byType(LevelSwitch), findsNWidgets(2));
+      expect(find.bySemanticsLabel(_l10n.qualityLabel), findsWidgets);
+      expect(find.bySemanticsLabel(_l10n.recitationScopeLabel), findsWidgets);
+    });
   });
 
   group('the design system checklist', () {

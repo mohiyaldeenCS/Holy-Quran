@@ -1061,11 +1061,75 @@
   "@recitationDownloadWhole": {
     "description": "P1-33. The row that downloads a whole recitation. Source: docs/prd/PRD.ar.md (AU-13). Wording awaits the lead's approval (D-128 (5))."
   },
-  "recitationQualityKbps": "{kbps} ك.ب/ث",
+  "recitationQualityKbps": "{kbps} كيلوبت/ث",
   "@recitationQualityKbps": {
     "description": "P1-33. A recitation's quality, a bit rate in kilobits per second; kbps is the number already written in Arabic-Indic digits (AU-14). Wording awaits the lead's approval (D-128 (5)).",
     "placeholders": {
       "kbps": {
+        "type": "String"
+      }
+    }
+  },
+  "resourceCancel": "إلغاء",
+  "@resourceCancel": {
+    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). The button that leaves a confirmation without acting."
+  },
+  "deleteRecitationTitle": "حذف التلاوة",
+  "@deleteRecitationTitle": {
+    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). Title of the sheet that confirms deleting a downloaded recitation (owner, 2026-10-29)."
+  },
+  "recitationScopeLabel": "نطاق التنزيل",
+  "@recitationScopeLabel": {
+    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). Spoken name of the choice between the surahs and the juz of a recitation (AU-13)."
+  },
+  "waitingForNetwork": "بانتظار الشبكة",
+  "@waitingForNetwork": {
+    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). A download held until any network is up."
+  },
+  "resourceResume": "استئناف",
+  "@resourceResume": {
+    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). The action that goes on with a download that was stopped part way (AU-13)."
+  },
+  "resourceQueued": "في قائمة الانتظار",
+  "@resourceQueued": {
+    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). A download waiting behind another."
+  },
+  "recitationPartial": "تنزيل جزئي",
+  "@recitationPartial": {
+    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). A recitation of which only some is on the device."
+  },
+  "resourceDownloadNamed": "تنزيل {title}",
+  "@resourceDownloadNamed": {
+    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). Spoken name of a row download button; title names the surah or juz.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "resourceResumeNamed": "استئناف تنزيل {title}",
+  "@resourceResumeNamed": {
+    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). Spoken name of a row resume button.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "resourceStopNamed": "إيقاف تنزيل {title}",
+  "@resourceStopNamed": {
+    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). Spoken name of a row stop button.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "resourceDeleteNamed": "حذف {title}",
+  "@resourceDeleteNamed": {
+    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). Spoken name of a row delete button.",
+    "placeholders": {
+      "title": {
         "type": "String"
       }
     }

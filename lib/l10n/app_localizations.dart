@@ -1381,8 +1381,74 @@ abstract class AppLocalizations {
   /// P1-33. A recitation's quality, a bit rate in kilobits per second; kbps is the number already written in Arabic-Indic digits (AU-14). Wording awaits the lead's approval (D-128 (5)).
   ///
   /// In ar, this message translates to:
-  /// **'{kbps} ك.ب/ث'**
+  /// **'{kbps} كيلوبت/ث'**
   String recitationQualityKbps(String kbps);
+
+  /// P1-33. Wording awaits the lead's approval (D-128 (5)). The button that leaves a confirmation without acting.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء'**
+  String get resourceCancel;
+
+  /// P1-33. Wording awaits the lead's approval (D-128 (5)). Title of the sheet that confirms deleting a downloaded recitation (owner, 2026-10-29).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف التلاوة'**
+  String get deleteRecitationTitle;
+
+  /// P1-33. Wording awaits the lead's approval (D-128 (5)). Spoken name of the choice between the surahs and the juz of a recitation (AU-13).
+  ///
+  /// In ar, this message translates to:
+  /// **'نطاق التنزيل'**
+  String get recitationScopeLabel;
+
+  /// P1-33. Wording awaits the lead's approval (D-128 (5)). A download held until any network is up.
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار الشبكة'**
+  String get waitingForNetwork;
+
+  /// P1-33. Wording awaits the lead's approval (D-128 (5)). The action that goes on with a download that was stopped part way (AU-13).
+  ///
+  /// In ar, this message translates to:
+  /// **'استئناف'**
+  String get resourceResume;
+
+  /// P1-33. Wording awaits the lead's approval (D-128 (5)). A download waiting behind another.
+  ///
+  /// In ar, this message translates to:
+  /// **'في قائمة الانتظار'**
+  String get resourceQueued;
+
+  /// P1-33. Wording awaits the lead's approval (D-128 (5)). A recitation of which only some is on the device.
+  ///
+  /// In ar, this message translates to:
+  /// **'تنزيل جزئي'**
+  String get recitationPartial;
+
+  /// P1-33. Wording awaits the lead's approval (D-128 (5)). Spoken name of a row download button; title names the surah or juz.
+  ///
+  /// In ar, this message translates to:
+  /// **'تنزيل {title}'**
+  String resourceDownloadNamed(String title);
+
+  /// P1-33. Wording awaits the lead's approval (D-128 (5)). Spoken name of a row resume button.
+  ///
+  /// In ar, this message translates to:
+  /// **'استئناف تنزيل {title}'**
+  String resourceResumeNamed(String title);
+
+  /// P1-33. Wording awaits the lead's approval (D-128 (5)). Spoken name of a row stop button.
+  ///
+  /// In ar, this message translates to:
+  /// **'إيقاف تنزيل {title}'**
+  String resourceStopNamed(String title);
+
+  /// P1-33. Wording awaits the lead's approval (D-128 (5)). Spoken name of a row delete button.
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف {title}'**
+  String resourceDeleteNamed(String title);
 
   /// The title of the settings screen. Source: docs/prd/PRD.ar.md (§7.1).
   ///

@@ -25,12 +25,15 @@ Future<RecitationSectionViewModel> _viewModel({
   /// The quality the user chose before; none leaves the default.
   int? quality = 64,
   bool wifiOnly = true,
+  bool basmala = false,
 }) async {
   final catalogue = syntheticCatalogue();
   _installs = FakePackInstallRepository(
     installed: installed ? [installedRecitationPack()] : const [],
   );
-  _downloads = FakeRecitationDownloadRepository();
+  _downloads = FakeRecitationDownloadRepository(
+    contents: syntheticContents(withBasmala: basmala),
+  );
   _integrity = FakePackIntegrityRepository();
   _settings = InMemoryDownloadSettingsRepository(
     wifiOnly: wifiOnly,
@@ -167,6 +170,86 @@ void main() {
         expect(_surah(block, 1).status, ScopeStatus.downloaded);
         expect(block.juz.first.status, ScopeStatus.downloaded);
         expect(block.juz.last.status, ScopeStatus.available);
+      },
+    );
+  });
+
+  group('how much of the recitation is here (AU-13)', () {
+    test('none of it, some of it, then all of it', () async {
+      final viewModel = await _viewModel();
+      expect(_block(viewModel).status, RecitationStatus.available);
+
+      _downloads.arrive({ayahPath(64, 1, 1)});
+      await _settle();
+      expect(_block(viewModel).status, RecitationStatus.partial);
+
+      _downloads.arrive({
+        for (final MapEntry(key: surah, value: ayat) in ayatOfSurah.entries)
+          for (var a = 1; a <= ayat; a++) ayahPath(64, surah, a),
+      });
+      await _settle();
+      expect(_block(viewModel).status, RecitationStatus.downloaded);
+    });
+
+    test('is judged at the quality chosen', () async {
+      final viewModel = await _viewModel();
+      _downloads.arrive({
+        for (final MapEntry(key: surah, value: ayat) in ayatOfSurah.entries)
+          for (var a = 1; a <= ayat; a++) ayahPath(64, surah, a),
+      });
+      await _settle();
+
+      viewModel.selectQuality(recitationId, 128);
+      await _settle();
+
+      expect(_block(viewModel).status, RecitationStatus.available);
+    });
+
+    test('a scope needs the reciter\'s own files too', () async {
+      final viewModel = await _viewModel(basmala: true);
+      _downloads.arrive({for (var a = 1; a <= 4; a++) ayahPath(64, 1, a)});
+      await _settle();
+
+      final before = _surah(_block(viewModel), 1);
+      expect(before.status, ScopeStatus.available);
+      expect(before.missingBytes, fileBytes);
+
+      _downloads.arrive({basmalaPath(64)});
+      await _settle();
+      expect(_surah(_block(viewModel), 1).status, ScopeStatus.downloaded);
+      expect(_surah(_block(viewModel), 2).status, ScopeStatus.available);
+    });
+
+    test('a job of its pack is told, so that it cannot be deleted', () async {
+      final viewModel = await _viewModel();
+      expect(_block(viewModel).hasJob, isFalse);
+
+      _downloads.jobs = [
+        jobFor(_target(64, const RecitationSurah(1)), const RecitationQueued()),
+      ];
+
+      expect(_block(viewModel).hasJob, isTrue);
+      expect(_surah(_block(viewModel), 1).status, ScopeStatus.queued);
+    });
+
+    test('the space used is the audio at every quality', () async {
+      final viewModel = await _viewModel();
+      expect(viewModel.usedBytes, 0);
+
+      _downloads.arrive({ayahPath(64, 1, 1), ayahPath(128, 1, 1)});
+      await _settle();
+
+      expect(viewModel.usedBytes, 2 * fileBytes);
+    });
+
+    test(
+      'the space used leaves out a recitation that is not installed',
+      () async {
+        final viewModel = await _viewModel(installed: false);
+        _downloads.arrive({ayahPath(64, 1, 1)});
+        await _settle();
+
+        expect(viewModel.usedBytes, 0);
       },
     );
   });
@@ -313,19 +396,41 @@ void main() {
     );
 
     test(
-      'deleting the recitation removes its audio at every quality, then its pack',
+      'deleting the recitation removes all its audio, then its pack',
       () async {
         final viewModel = await _viewModel();
 
         await viewModel.deleteRecitation(recitationId);
 
-        expect(
-          _downloads.calls.where((c) => c.$1 == 'delete').map((c) => c.$2),
-          ['$recitationId/64/all', '$recitationId/128/all'],
-        );
+        expect(_downloads.calls, contains(('deleteAudio', recitationPackId)));
         expect(_installs.calls, [('delete', recitationPackId)]);
       },
     );
+
+    test('the size to delete counts every quality and the pack', () async {
+      final viewModel = await _viewModel();
+      _downloads.arrive({ayahPath(64, 1, 1), ayahPath(128, 1, 1)});
+
+      final size = await viewModel.sizeToDelete(recitationId);
+
+      final pack = syntheticCatalogue().pack(recitationPackId)!;
+      expect(size, 2 * fileBytes + pack.bytes);
+    });
+
+    test('a delete that fails is shown on its row', () async {
+      final viewModel = await _viewModel();
+      _downloads.arrive({for (var a = 1; a <= 4; a++) ayahPath(64, 1, a)});
+      await _settle();
+      _downloads.deletes = (_) =>
+          const Failure(RecitationStoreFailed('k', 'synthetic'));
+
+      await viewModel.delete(recitationId, _surah(_block(viewModel), 1));
+
+      expect(
+        _surah(_block(viewModel), 1).failure,
+        isA<RecitationStoreFailed>(),
+      );
+    });
   });
 
   group('the quality (AU-14)', () {

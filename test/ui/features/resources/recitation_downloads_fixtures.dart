@@ -26,12 +26,27 @@ const ayatOfSurah = {1: 4, 2: 3, 3: 1};
 
 /// The files of the synthetic recitation, at each quality: one per ayah and
 /// the reciter's own basmala. All of it is invented.
-RecitationContents syntheticContents({int? onlySurah}) => RecitationContents(
+RecitationContents syntheticContents({
+  int? onlySurah,
+  bool withBasmala = false,
+}) => RecitationContents(
   recitationId: recitationId,
   packId: recitationPackId,
   baseUrl: Uri.parse('https://example.invalid/synthetic/audio/'),
   unit: RecitationUnit.ayah,
   files: [
+    if (withBasmala)
+      for (final quality in qualities)
+        RecitationFile(
+          qualityKbps: quality,
+          part: RecitationFilePart.basmala,
+          surah: null,
+          ayah: null,
+          path: basmalaPath(quality),
+          bytes: fileBytes,
+          sha256: syntheticHash(),
+          duration: null,
+        ),
     for (final quality in qualities)
       for (final MapEntry(key: surah, value: ayat) in ayatOfSurah.entries)
         if (onlySurah == null || onlySurah == surah)
@@ -48,6 +63,9 @@ RecitationContents syntheticContents({int? onlySurah}) => RecitationContents(
             ),
   ],
 );
+
+/// The path in the pack of the reciter's basmala at a quality.
+String basmalaPath(int quality) => 'q$quality/basmala.mp3';
 
 /// The path in the pack of an ayah file at a quality.
 String ayahPath(int quality, int surah, int ayah) =>
@@ -87,6 +105,8 @@ final class FakeRecitationDownloadRepository extends ChangeNotifier
   Result<RecitationContents>? contentsAnswer;
   Result<void> Function(RecitationTarget target, bool wifiOnly) downloads =
       (_, _) => const Ok(null);
+  Result<void> Function(RecitationTarget target) deletes = (_) =>
+      const Ok(null);
   final List<(String, String)> calls = [];
   final List<bool> wifiOnlyOf = [];
 
@@ -161,6 +181,7 @@ final class FakeRecitationDownloadRepository extends ChangeNotifier
   @override
   Future<Result<void>> delete(RecitationTarget target) async {
     calls.add(('delete', target.key));
+    if (deletes(target) case Failure(:final error)) return Failure(error);
     onDevice = onDevice.difference({
       for (final file in target.files) file.path,
     });

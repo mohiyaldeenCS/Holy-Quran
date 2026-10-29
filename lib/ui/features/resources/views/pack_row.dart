@@ -4,11 +4,10 @@ import 'package:holyquran/domain/models/resource_state.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/l10n/megabytes.dart';
-import 'package:holyquran/ui/core/metrics/resources_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
-import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/resource_row.dart';
 import 'package:holyquran/ui/features/resources/view_models/pack_row_state.dart';
+import 'package:holyquran/ui/features/resources/views/pack_row_alert.dart';
 
 /// One pack (`OF-02`): its [ResourceRow], whose status line carries the
 /// size, the catalogue's summary of its sources, the version and, for an
@@ -68,22 +67,7 @@ class PackRow extends StatelessWidget {
             divider: false,
           ),
           if (row.alert case final alert?)
-            Padding(
-              padding: resourcesRowFootPadding,
-              child: switch (alert) {
-                // Its title and body await their wording (PHASE1.md,
-                // Appendix C); the action names what it does.
-                PackRowAlert.integrity => IntegrityAlert(
-                  action: (
-                    label: l10n.resourceRedownload,
-                    onPressed: onRedownload,
-                  ),
-                ),
-                PackRowAlert.connection => IntegrityAlert(
-                  title: l10n.connectionFailed,
-                ),
-              },
-            ),
+            PackRowAlertView(alert: alert, onRedownload: onRedownload),
         ],
       ),
     );

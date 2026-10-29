@@ -10,19 +10,16 @@ import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/recitation_download_repository.dart';
 import 'package:holyquran/data/repositories/recitation_repository.dart';
 import 'package:holyquran/domain/models/catalogue_entry.dart';
-import 'package:holyquran/domain/models/edition_map.dart';
 import 'package:holyquran/domain/models/installed_pack.dart';
 import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
-import 'package:holyquran/domain/models/quran_address.dart';
-import 'package:holyquran/domain/models/quran_range.dart';
 import 'package:holyquran/domain/models/recitation_download.dart';
-import 'package:holyquran/domain/models/recitation_file.dart';
 import 'package:holyquran/domain/models/recitation_target.dart';
 import 'package:holyquran/domain/models/resource_state.dart';
 import 'package:holyquran/ui/core/metrics/resources_metrics.dart';
 import 'package:holyquran/ui/features/resources/view_models/pack_row_state.dart';
 import 'package:holyquran/ui/features/resources/view_models/recitation_block_state.dart';
+import 'package:holyquran/ui/features/resources/view_models/recitation_tally.dart';
 import 'package:holyquran/utils/result.dart';
 
 /// The recitations section of the resource manager (`AU-13`, `AU-14`,
@@ -74,22 +71,38 @@ final class RecitationSectionViewModel extends ChangeNotifier {
   int _revisionSeen = 0;
   Set<String> _jobKeys = const {};
 
-  final _packs = <String, _Pack>{};
+  final _packs = <String, RecitationPackFiles>{};
   final _loading = <String>{};
   final _unreadable = <String, int>{};
   final _reads = <(String, int), int>{};
   final _qualityOf = <String, int>{};
   final _tabOf = <String, ScopeTab>{};
   final _present = <(String, int), Set<String>>{};
-  final _tallies = <(String, int), Map<String, _Count>>{};
+  final _tallies = <(String, int), Map<String, RecitationCount>>{};
+  final _audioBytes = <String, int>{};
   final _refused = <String, RecitationDownloadFailure>{};
-  late final List<_Scope> _scopes = _scopesOf(_index);
+  late final List<RecitationScope> _scopes = scopesOf(_index);
 
   /// Whether downloads wait for Wi-Fi: on until the user turns it off, and
   /// kept across launches. A change reaches the jobs already queued.
   bool get wifiOnly => _settings.wifiOnly;
 
   set wifiOnly(bool value) => unawaited(_settings.setWifiOnly(value));
+
+  /// What the listed recitations use on the device: their installed packs
+  /// and their audio at every quality (`OF-03`).
+  int get usedBytes {
+    var bytes = 0;
+    for (final listed in _recitations.recitations) {
+      final installed = _installs.installed
+          .where((pack) => pack.id == listed.packId)
+          .firstOrNull;
+      if (installed == null) continue;
+      bytes += installed.manifest.files.fold(0, (sum, f) => sum + f.bytes);
+      bytes += _audioBytes[listed.packId] ?? 0;
+    }
+    return bytes;
+  }
 
   /// The surah [number]'s name from the base pack; null without an index.
   PackText? surahName(int number) =>
@@ -131,20 +144,23 @@ final class RecitationSectionViewModel extends ChangeNotifier {
     }
   }
 
-  /// Deletes the recitation's audio at every quality and then its pack.
+  /// What deleting the recitation frees: its audio at every quality and
+  /// its pack.
+  Future<int> sizeToDelete(String recitationId) async {
+    final entry = _entryOf(recitationId);
+    if (entry == null) return 0;
+    return await _downloads.audioBytes(entry.id) + entry.bytes;
+  }
+
+  /// Deletes all the recitation's audio, at every quality, and then its
+  /// pack. A recitation with a job running is not deleted; its row offers no
+  /// delete.
   Future<void> deleteRecitation(String recitationId) async {
     final entry = _entryOf(recitationId);
     if (entry == null) return;
-    if (_packs[recitationId] case _Pack(:final contents)) {
-      for (final quality in _qualitiesOf(contents)) {
-        final target = RecitationTarget(
-          contents,
-          quality,
-          const WholeRecitation(),
-        );
-        if (await _downloads.delete(target) case Failure()) return;
-      }
-    }
+    if (await _downloads.deleteAudio(entry.id) case Failure()) return;
+    _tallies.removeWhere((key, _) => key.$1 == recitationId);
+    _audioBytes.remove(entry.id);
     await _installs.delete(entry.id);
   }
 
@@ -180,10 +196,15 @@ final class RecitationSectionViewModel extends ChangeNotifier {
     final pack = _packs[recitationId];
     final quality = _chosenQuality(recitationId);
     if (pack == null || quality == null) return;
-    await _downloads.delete(
+    final result = await _downloads.delete(
       RecitationTarget(pack.contents, quality, row.selection),
     );
+    if (result case Failure(error: final RecitationDownloadFailure failure)) {
+      _refused[row.key] = failure;
+    }
     await _readPresent(recitationId);
+    await _readAudioBytes();
+    if (!_disposed) notifyListeners();
   }
 
   RecitationBlockState? _block(
@@ -208,10 +229,17 @@ final class RecitationSectionViewModel extends ChangeNotifier {
       integrityFailed:
           installed != null && _integrity.stateOf(entry.id) is IntegrityFailed,
     );
+    final hasJob = jobs.values.any(
+      (job) => job.target.contents.packId == entry.id,
+    );
     final quality = _chosenQuality(id);
     final tally = quality == null ? null : _tallies[(id, quality)];
     if (quality == null || tally == null) {
-      return RecitationBlockState(recitation: listed, pack: pack);
+      return RecitationBlockState(
+        recitation: listed,
+        pack: pack,
+        hasJob: hasJob,
+      );
     }
     final rows = <ScopeKind, List<ScopeRowState>>{};
     for (final scope in _scopes) {
@@ -229,6 +257,7 @@ final class RecitationSectionViewModel extends ChangeNotifier {
     return RecitationBlockState(
       recitation: listed,
       pack: pack,
+      hasJob: hasJob,
       qualities: listed.qualities,
       quality: quality,
       tab: _tabOf[id] ?? ScopeTab.surahs,
@@ -239,9 +268,9 @@ final class RecitationSectionViewModel extends ChangeNotifier {
   }
 
   ScopeRowState _row(
-    _Scope scope,
+    RecitationScope scope,
     String key,
-    _Count count,
+    RecitationCount count,
     RecitationDownloadJob? job,
   ) {
     ScopeRowState row(
@@ -266,7 +295,7 @@ final class RecitationSectionViewModel extends ChangeNotifier {
         ScopeStatus.downloading,
         progress: progress.fraction ?? 0,
       ),
-      RecitationQueued() => row(ScopeStatus.downloading),
+      RecitationQueued() => row(ScopeStatus.queued),
       RecitationWaitingForNetwork(:final wifiOnly) => row(
         ScopeStatus.waiting,
         waitingForWifi: wifiOnly,
@@ -301,10 +330,6 @@ final class RecitationSectionViewModel extends ChangeNotifier {
         ? chosen
         : listed.qualities.last;
   }
-
-  static Set<int> _qualitiesOf(RecitationContents contents) => {
-    for (final file in contents.files) file.qualityKbps,
-  };
 
   void _onChange() {
     if (_settings.wifiOnly != _appliedWifiOnly) {
@@ -342,7 +367,7 @@ final class RecitationSectionViewModel extends ChangeNotifier {
     switch (result) {
       case Ok(:final value):
         _forget(id);
-        _packs[id] = _Pack(value, installed.version);
+        _packs[id] = RecitationPackFiles(value, installed.version);
         await _readPresent(id);
       case Failure():
         // Left alone until another version is installed: a pack that does
@@ -350,6 +375,7 @@ final class RecitationSectionViewModel extends ChangeNotifier {
         _forget(id);
         _unreadable[id] = installed.version;
     }
+    await _readAudioBytes();
     if (!_disposed) notifyListeners();
   }
 
@@ -370,7 +396,7 @@ final class RecitationSectionViewModel extends ChangeNotifier {
     if (_disposed || !identical(_packs[id], pack)) return;
     if (read != _reads[(id, quality)]) return;
     _present[(id, quality)] = present;
-    _tallies[(id, quality)] = _tally(pack, quality, present);
+    _tallies[(id, quality)] = pack.tally(_scopes, quality, present);
     notifyListeners();
   }
 
@@ -400,72 +426,22 @@ final class RecitationSectionViewModel extends ChangeNotifier {
     for (final id in _packs.keys.toList()) {
       unawaited(_readPresent(id));
     }
+    unawaited(_readAudioBytes());
   }
 
-  Map<String, _Count> _tally(_Pack pack, int quality, Set<String> present) {
-    final files = pack.byQuality[quality] ?? const _Files();
-    return {
-      for (final scope in _scopes)
-        scope.selection.key: _count(files, scope.selection, present),
-    };
-  }
-
-  static _Count _count(
-    _Files files,
-    RecitationSelection selection,
-    Set<String> present,
-  ) {
-    var total = 0;
-    var missing = 0;
-    void add(RecitationFile file) {
-      total += file.bytes;
-      if (!present.contains(file.path)) missing += file.bytes;
-    }
-
-    files.common.forEach(add);
-    final (first, last) = switch (selection) {
-      WholeRecitation() => (1, files.bySurah.keys.fold(1, _larger)),
-      RecitationSurah(:final surah) => (surah, surah),
-      RecitationSpan(:final range) => (range.start.surah, range.end.surah),
-    };
-    for (var surah = first; surah <= last; surah++) {
-      for (final file in files.bySurah[surah] ?? const <RecitationFile>[]) {
-        if (selection.includes(file)) add(file);
+  /// What the audio of each installed recitation uses on the device, at
+  /// every quality.
+  Future<void> _readAudioBytes() async {
+    for (final listed in _recitations.recitations) {
+      if (!_installs.installed.any((pack) => pack.id == listed.packId)) {
+        _audioBytes.remove(listed.packId);
+        continue;
       }
+      final bytes = await _downloads.audioBytes(listed.packId);
+      if (_disposed) return;
+      _audioBytes[listed.packId] = bytes;
     }
-    return _Count(total, missing);
-  }
-
-  static int _larger(int a, int b) => a > b ? a : b;
-
-  static List<_Scope> _scopesOf(QuranIndexRepository? index) => [
-    const _Scope(ScopeKind.whole, 0, WholeRecitation()),
-    if (index != null) ...[
-      for (var surah = 1; surah <= index.surahCount; surah++)
-        _Scope(ScopeKind.surah, surah, RecitationSurah(surah)),
-      for (var juz = 1; juz <= index.count(Division.juz); juz++)
-        _Scope(ScopeKind.juz, juz, RecitationSpan(_juzRange(index, juz))),
-    ],
-  ];
-
-  /// From the first ayah of the juz to the ayah before the next juz starts.
-  static QuranRange _juzRange(QuranIndexRepository index, int juz) {
-    final start = index.firstAyah(Division.juz, juz);
-    final QuranAddress end;
-    if (juz < index.count(Division.juz)) {
-      final next = index.firstAyah(Division.juz, juz + 1);
-      end = next.ayah > 1
-          ? QuranAddress(next.riwaya, next.surah, next.ayah - 1)
-          : QuranAddress(
-              next.riwaya,
-              next.surah - 1,
-              index.ayahCount(next.surah - 1),
-            );
-    } else {
-      final last = index.surahCount;
-      end = QuranAddress(index.riwaya, last, index.ayahCount(last));
-    }
-    return QuranRange(start, end);
+    if (!_disposed) notifyListeners();
   }
 
   @override
@@ -477,57 +453,4 @@ final class RecitationSectionViewModel extends ChangeNotifier {
     }
     super.dispose();
   }
-}
-
-final class _Scope {
-  const _Scope(this.kind, this.number, this.selection);
-
-  final ScopeKind kind;
-  final int number;
-  final RecitationSelection selection;
-}
-
-final class _Count {
-  const _Count(this.total, this.missing);
-
-  final int total;
-  final int missing;
-}
-
-/// The files of one quality: those of no surah, which every selection
-/// takes, and the others by surah.
-final class _Files {
-  const _Files({this.common = const [], this.bySurah = const {}});
-
-  final List<RecitationFile> common;
-  final Map<int, List<RecitationFile>> bySurah;
-}
-
-final class _Pack {
-  _Pack(this.contents, this.version) {
-    final common = <int, List<RecitationFile>>{};
-    final bySurah = <int, Map<int, List<RecitationFile>>>{};
-    for (final file in contents.files) {
-      final surah = file.surah;
-      if (surah == null) {
-        common.putIfAbsent(file.qualityKbps, () => []).add(file);
-      } else {
-        bySurah
-            .putIfAbsent(file.qualityKbps, () => {})
-            .putIfAbsent(surah, () => [])
-            .add(file);
-      }
-    }
-    byQuality = {
-      for (final quality in {...common.keys, ...bySurah.keys})
-        quality: _Files(
-          common: common[quality] ?? const [],
-          bySurah: bySurah[quality] ?? const {},
-        ),
-    };
-  }
-
-  final RecitationContents contents;
-  final int version;
-  late final Map<int, _Files> byQuality;
 }

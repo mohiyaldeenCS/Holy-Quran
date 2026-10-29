@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/data/repositories/catalogue_repository.dart';
+import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/data/repositories/pack_install_repository.dart';
 import 'package:holyquran/data/repositories/player_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
@@ -56,6 +57,7 @@ RecitationPickerViewModel createRecitationPickerViewModel(
   catalogue: _provided<CatalogueRepository>(context),
   installs: _provided<PackInstallRepository>(context),
   downloads: _provided<RecitationDownloadRepository>(context),
+  settings: _provided<DownloadSettingsRepository>(context),
 );
 
 // Areas provide a repository only once what it stands on is ready.
