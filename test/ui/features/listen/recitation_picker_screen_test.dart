@@ -315,6 +315,43 @@ void main() {
       );
     });
 
+    testWidgets('judges again at once when the chosen quality changes', (
+      tester,
+    ) async {
+      final installs = FakePackInstallRepository(
+        installed: [_installed('synthetic-recitation')],
+      );
+      final downloads = FakeRecitationDownloadRepository()
+        ..onDevice = {
+          for (final MapEntry(key: surah, value: ayat) in ayatOfSurah.entries)
+            for (var a = 1; a <= ayat; a++) ayahPath(128, surah, a),
+        };
+      final settings = InMemoryDownloadSettingsRepository(
+        qualities: {'synthetic-listed': 128},
+      );
+      await _pump(
+        tester,
+        _viewModel(
+          installs: installs,
+          downloads: downloads,
+          settings: settings,
+          countEvery: recitationCountEvery,
+        ),
+      );
+      expect(
+        find.text(_line([_style, _l10n.resourceDownloaded])),
+        findsOneWidget,
+      );
+
+      await settings.setQuality('synthetic-listed', 64);
+      await tester.pump();
+
+      expect(
+        find.text(_line([_style, _l10n.resourceAvailable])),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('says a download is queued or waits for the network', (
       tester,
     ) async {

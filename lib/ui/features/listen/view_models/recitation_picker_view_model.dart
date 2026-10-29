@@ -70,6 +70,7 @@ final class RecitationPickerViewModel extends ChangeNotifier {
   int _revisionSeen = 0;
   Object? _installedSeen;
   Set<String> _jobKeys = const {};
+  Map<String, int> _qualitiesSeen = const {};
   late final _counts = Throttle(_countEvery, () => unawaited(_readAudio()));
   bool _reading = false;
   bool _readAgain = false;
@@ -151,16 +152,25 @@ final class RecitationPickerViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// What changed since the last look: the jobs or installed packs, which
-  /// change what is listed, or only the files on the device.
+  /// What changed since the last look: the jobs, installed packs or chosen
+  /// qualities, which change what is judged, or only the files on the
+  /// device.
   ({bool listed, bool added}) _look(RecitationDownloadRepository downloads) {
     final keys = {for (final job in downloads.jobs) job.key};
     final installed = _installs?.installed;
+    final qualities = {
+      for (final listed
+          in _recitations?.recitations ?? const <CatalogueRecitation>[])
+        listed.id: _qualityOf(listed),
+    };
     final seen = (
       listed:
-          !setEquals(keys, _jobKeys) || !identical(installed, _installedSeen),
+          !setEquals(keys, _jobKeys) ||
+          !identical(installed, _installedSeen) ||
+          !mapEquals(qualities, _qualitiesSeen),
       added: downloads.revision != _revisionSeen,
     );
+    _qualitiesSeen = qualities;
     _installedSeen = installed;
     _revisionSeen = downloads.revision;
     _jobKeys = keys;
