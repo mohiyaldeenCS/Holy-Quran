@@ -1,24 +1,41 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 
 import 'package:holyquran/config/dependencies.dart';
+import 'package:holyquran/data/services/catalogue_service.dart';
 import 'package:holyquran/data/services/user_database.dart';
 
 /// Provides the user's database in application support for the areas after
-/// this one, once it has been checked (D-133): every table the schema
-/// declares must be readable. If any is not, the user's file is suspect, and
-/// the database every area uses is one kept in memory ([useDatabaseInMemory]),
-/// so that nothing of the user's is ever written to the file. Without an
-/// application support folder there is no file: the database is in memory
-/// from the start.
+/// this one, once it has been checked (D-133). An existing file that drift
+/// could not open without writing to it, such as one of version 0, is not
+/// opened at all. An opened one must have every table the schema declares
+/// readable. In either case the user's file is suspect, and the database every
+/// area uses is one kept in memory ([useDatabaseInMemory]), so that nothing of
+/// the user's is ever written to the file. A new install has no file and
+/// creates it. Without an application support folder the database is in
+/// memory from the start.
 Future<void> userDatabaseProviders(Dependencies dependencies) =>
-    provideUserDatabase(dependencies, open: _open);
+    provideUserDatabase(dependencies, locate: _locate);
 
-/// [userDatabaseProviders] over the database [open] returns.
+/// [userDatabaseProviders] over the file [locate] finds, which [open] opens.
 Future<void> provideUserDatabase(
   Dependencies dependencies, {
-  required Future<UserDatabase> Function() open,
+  required Future<File?> Function() locate,
+  UserDatabase Function(File file) open = UserDatabase.openFile,
 }) async {
-  final database = await open();
+  final file = await locate();
+  if (file == null) {
+    dependencies.provide<UserDatabase>(UserDatabase.inMemory());
+    return;
+  }
+  if (!UserDatabase.canOpenAsIs(file)) {
+    debugPrint('User database not opened, user data in memory: ${file.path}');
+    final memory = _fallbacks[dependencies] = UserDatabase.inMemory();
+    dependencies.provide<UserDatabase>(memory);
+    return;
+  }
+  final database = open(file);
   dependencies.provide<UserDatabase>(database);
   if (!await _readable(database)) {
     useDatabaseInMemory(dependencies);
@@ -46,13 +63,14 @@ Future<bool> _readable(UserDatabase database) async {
   }
 }
 
-Future<UserDatabase> _open() async {
+Future<File?> _locate() async {
   try {
-    return await UserDatabase.open();
-  } on Exception catch (error, stack) {
+    final directory = Directory(await applicationSupportPath());
+    await directory.create(recursive: true);
+    return File('${directory.path}/${UserDatabase.fileName}');
+  } on Exception catch (error) {
     debugPrint('No application support folder, user data in memory: $error');
-    debugPrintStack(stackTrace: stack);
-    return UserDatabase.inMemory();
+    return null;
   }
 }
 
