@@ -8,10 +8,13 @@ import 'package:go_router/go_router.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/router.dart';
 import 'package:holyquran/routing/routes.dart';
+import 'package:holyquran/routing/routes/bookmarks_routes.dart';
 import 'package:holyquran/routing/routes/feature_routes.dart';
+import 'package:holyquran/routing/routes/sources_routes.dart';
 import 'package:holyquran/ui/core/gallery/gallery_screen.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
+import 'package:holyquran/ui/features/bookmarks/views/bookmarks_screen.dart';
 import 'package:holyquran/ui/features/more/views/more_screen.dart';
 import 'package:holyquran/ui/features/settings/views/settings_screen.dart';
 import 'package:holyquran/ui/features/sources/views/sources_screen.dart';
@@ -43,6 +46,7 @@ void main() {
         button.label,
     ];
     expect(labels, [
+      _l10n.bookmarksAndNotes,
       _l10n.resourceManagerTitle,
       _l10n.settingsTitle,
       _l10n.sourcesTitle,
@@ -71,24 +75,29 @@ void main() {
     expect(router.state.uri.path, Routes.settings);
   });
 
-  for (final (label, path, location) in [
-    (_l10n.bookmarksAndNotes, RoutePaths.bookmarks, Routes.bookmarks),
+  testWidgets('opens the bookmarks and notes', (tester) async {
+    final router = await _pumpMore(tester);
+
+    await tester.tap(_entry(_l10n.bookmarksAndNotes));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BookmarksScreen), findsOneWidget);
+    expect(router.state.uri.path, Routes.bookmarks);
+  });
+
+  for (final (label, routes) in [
+    (_l10n.bookmarksAndNotes, bookmarksRoutes),
+    (_l10n.sourcesTitle, sourcesRoutes),
   ]) {
-    testWidgets('shows «$label» once its screen has a route (PRD §7.1)', (
+    testWidgets('hides «$label» while its screen has no route (PRD §7.1)', (
       tester,
     ) async {
-      await _pumpMore(tester);
-      expect(_entry(label), findsNothing);
-
-      final router = await _pumpMore(
+      await _pumpMore(
         tester,
-        features: [...appFeatures, _syntheticScreenAt(path)],
+        features: [...appFeatures.where((feature) => feature != routes)],
       );
-      await tester.tap(_entry(label));
-      await tester.pumpAndSettle();
 
-      expect(find.byKey(_syntheticScreen), findsOneWidget);
-      expect(router.state.uri.path, location);
+      expect(_entry(label), findsNothing);
     });
   }
 
@@ -141,19 +150,6 @@ void main() {
     expect(overrides.clients, 0);
   });
 }
-
-const _syntheticScreen = Key('synthetic screen');
-
-FeatureRoutes _syntheticScreenAt(String path) => FeatureRoutes(
-  tabChildren: {
-    ShellTab.more: [
-      GoRoute(
-        path: path,
-        builder: (context, state) => const SizedBox(key: _syntheticScreen),
-      ),
-    ],
-  },
-);
 
 final class _CountingHttpOverrides extends HttpOverrides {
   int clients = 0;
