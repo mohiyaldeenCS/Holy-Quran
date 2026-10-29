@@ -13,8 +13,25 @@ import 'package:holyquran/ui/core/widgets/search_result.dart';
 import 'package:holyquran/ui/core/widgets/search_summary.dart';
 import 'package:holyquran/ui/features/search/view_models/search_view_model.dart';
 
+/// The fixed sentence for an empty list, announced when it appears: nothing
+/// was found, or the search could not be made.
+class SearchNothingFound extends StatelessWidget {
+  const SearchNothingFound({super.key});
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    container: true,
+    child: Text(
+      AppLocalizations.of(context).noSearchResults,
+      style: AppTextStyles.secondary.copyWith(color: context.colors.inkMuted),
+    ),
+  );
+}
+
 /// What was searched and how many results, with the order control (`SR-04`,
-/// `SR-05`), or the sentence that nothing was found.
+/// `SR-05`), or the sentence that nothing was found. The count is announced
+/// when it changes.
 class SearchSummaryLine extends StatelessWidget {
   const SearchSummaryLine({required this.viewModel, super.key});
 
@@ -23,11 +40,8 @@ class SearchSummaryLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    if (viewModel.ayat == 0) {
-      return Text(
-        l10n.noSearchResults,
-        style: AppTextStyles.secondary.copyWith(color: context.colors.inkMuted),
-      );
+    if (viewModel.failed || viewModel.ayat == 0) {
+      return const SearchNothingFound();
     }
     final places = l10n.searchPlaces(
       viewModel.occurrences,
@@ -35,15 +49,22 @@ class SearchSummaryLine extends StatelessWidget {
     );
     return Padding(
       padding: SearchMetrics.summary,
-      child: SearchSummary(
-        title: viewModel.query ?? '',
-        count: l10n.searchResultCount(places, ayahCount(l10n, viewModel.ayat)),
-        sortLabel: switch (viewModel.order) {
-          SearchOrder.mushaf => l10n.searchSortMushafOrder,
-          SearchOrder.closeness => l10n.searchSortNearest,
-          SearchOrder.frequency => l10n.searchSortFrequent,
-        },
-        onSort: viewModel.nextOrder,
+      child: Semantics(
+        liveRegion: true,
+        container: true,
+        child: SearchSummary(
+          title: viewModel.query ?? '',
+          count: l10n.searchResultCount(
+            places,
+            ayahCount(l10n, viewModel.ayat),
+          ),
+          sortLabel: switch (viewModel.order) {
+            SearchOrder.mushaf => l10n.searchSortMushafOrder,
+            SearchOrder.closeness => l10n.searchSortNearest,
+            SearchOrder.frequency => l10n.searchSortFrequent,
+          },
+          onSort: viewModel.nextOrder,
+        ),
       ),
     );
   }
@@ -111,7 +132,7 @@ class _ResultItemState extends State<_ResultItem> {
       expanded: viewModel.isWhole(index),
       onExpand: () => viewModel.showWhole(index),
       onContext: () => context.push(Routes.contextSheet(card.ayah)),
-      onOpen: () => context.go(Routes.mushafRead(card.ayah)),
+      onOpen: () => context.push(Routes.mushafRead(card.ayah)),
     );
   }
 }

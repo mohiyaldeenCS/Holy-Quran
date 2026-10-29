@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,12 +9,14 @@ import 'package:holyquran/ui/core/metrics/search_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/widgets/icon_button.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
+import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/mode_chips.dart';
+import 'package:holyquran/ui/core/widgets/number_field.dart';
+import 'package:holyquran/ui/core/widgets/place_refusal.dart';
 import 'package:holyquran/ui/core/widgets/search_field.dart';
 import 'package:holyquran/ui/features/search/view_models/search_view_model.dart';
-import 'package:holyquran/ui/features/search/views/scope_field.dart';
+import 'package:holyquran/ui/features/search/views/pinned_controls.dart';
 import 'package:holyquran/ui/features/search/views/search_history.dart';
-import 'package:holyquran/ui/features/search/views/search_refusal.dart';
 import 'package:holyquran/ui/features/search/views/search_results.dart';
 
 /// The search screen (`SR-01` to `SR-07`, `SR-10`) as the Search board draws
@@ -43,8 +47,9 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Future<void> _submit(SearchViewModel viewModel, String text) async {
     final target = await viewModel.submit(text);
+    // Pushed over the results, so that Back returns to them.
     if (target != null && mounted) {
-      context.go(Routes.mushafRead(target.start));
+      unawaited(context.push<void>(Routes.mushafRead(target.start)));
     }
   }
 
@@ -93,22 +98,7 @@ class _SearchScreenState extends State<SearchScreen> {
             Expanded(
               child: ListenableBuilder(
                 listenable: viewModel,
-                builder: (context, _) => CustomScrollView(
-                  slivers: [
-                    SliverPadding(
-                      padding: SearchMetrics.controls,
-                      sliver: SliverToBoxAdapter(
-                        child: _Controls(
-                          viewModel: viewModel,
-                          field: _field,
-                          scope: _scope,
-                          onSubmitted: (text) => _submit(viewModel, text),
-                        ),
-                      ),
-                    ),
-                    ..._below(viewModel),
-                  ],
-                ),
+                builder: (context, _) => _body(viewModel),
               ),
             ),
         ],
@@ -116,7 +106,35 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  List<Widget> _below(SearchViewModel viewModel) {
+  Widget _body(SearchViewModel viewModel) {
+    final l10n = AppLocalizations.of(context);
+    // A pack that fails its check shows no text, not even in a result
+    // (PRD §9.5).
+    if (!viewModel.hasData) {
+      return Padding(
+        padding: SearchMetrics.controls,
+        child: Align(
+          alignment: AlignmentDirectional.topStart,
+          child: IntegrityAlert(
+            title: l10n.integrityBaseTitle,
+            body: l10n.integrityBaseBody,
+          ),
+        ),
+      );
+    }
+    return PinnedControls(
+      controls: _Controls(
+        viewModel: viewModel,
+        field: _field,
+        scope: _scope,
+        onSubmitted: (text) => _submit(viewModel, text),
+      ),
+      results: _results(viewModel),
+    );
+  }
+
+  List<Widget> _results(SearchViewModel viewModel) {
+    if (!viewModel.canSearch) return const [];
     if (viewModel.typed.trim().isEmpty) {
       return [
         if (viewModel.history.isNotEmpty)
@@ -124,6 +142,7 @@ class _SearchScreenState extends State<SearchScreen> {
             queries: viewModel.history,
             onChoose: (query) => _choose(viewModel, query),
             onClear: viewModel.canClearHistory ? viewModel.clearHistory : null,
+            clearFailed: viewModel.historyClearFailed,
           ),
       ];
     }
@@ -147,6 +166,10 @@ class _Controls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    // The pack has no search form this screen knows, so nothing could be
+    // searched: no field that would do nothing, and the fixed sentence for an
+    // empty list.
+    if (!viewModel.canSearch) return const SearchNothingFound();
     final refusal = viewModel.refusal;
     final choice = viewModel.scopeChoice;
     final kindLabels = {
@@ -162,13 +185,12 @@ class _Controls extends StatelessWidget {
           onChanged: viewModel.edit,
           onSubmitted: onSubmitted,
         ),
-        if (viewModel.kinds.isNotEmpty)
-          ModeChips(
-            label: l10n.searchModesLabel,
-            options: [for (final kind in viewModel.kinds) kindLabels[kind]!],
-            selectedIndex: viewModel.kindIndex,
-            onChanged: viewModel.selectKind,
-          ),
+        ModeChips(
+          label: l10n.searchModesLabel,
+          options: [for (final kind in viewModel.kinds) kindLabels[kind]!],
+          selectedIndex: viewModel.kindIndex,
+          onChanged: viewModel.selectKind,
+        ),
         ModeChips(
           label: l10n.searchScopeLabel,
           options: [l10n.searchScopeAll, l10n.goToSurah, l10n.goToJuz],
@@ -179,14 +201,17 @@ class _Controls extends StatelessWidget {
           },
         ),
         if (choice != ScopeChoice.whole)
-          ScopeField(
+          NumberField(
             controller: scope,
-            label: choice == ScopeChoice.surah ? l10n.goToSurah : l10n.goToJuz,
+            label: choice == ScopeChoice.surah
+                ? l10n.searchScopeSurahNumber
+                : l10n.searchScopeJuzNumber,
             onChanged: viewModel.setScopeText,
           ),
         if (refusal != null)
-          SearchRefusal(error: refusal, surahName: viewModel.surahName),
-        if (viewModel.searched && viewModel.typed.trim().isNotEmpty)
+          PlaceRefusal(error: refusal, surahName: viewModel.surahName),
+        if (viewModel.typed.trim().isNotEmpty &&
+            (viewModel.searched || viewModel.failed))
           SearchSummaryLine(viewModel: viewModel),
       ],
     );

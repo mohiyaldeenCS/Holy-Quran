@@ -63,7 +63,8 @@ class RenderMatchHighlight extends RenderProxyBox {
   List<HighlightShape>? _shapes;
   double _fontHeight = 0;
 
-  /// The rects the matches fill, one for each line they cover; for tests.
+  /// The rects the matches fill, one for each line they cover.
+  @visibleForTesting
   List<Rect> get rects => [for (final shape in _shapesOf()) shape.rect];
 
   @override

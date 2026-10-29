@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:holyquran/data/repositories/address_input_repository.dart';
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
+import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/data/repositories/reading_position_repository.dart';
@@ -20,6 +21,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../testing/fakes/fake_address_input_repository.dart';
 import '../../../../testing/fakes/fake_app_settings_repository.dart';
+import '../../../../testing/fakes/fake_pack_integrity_repository.dart';
 import '../../../../testing/fakes/fake_reading_position_repository.dart';
 import '../../../../testing/fakes/fake_search_history_repository.dart';
 import '../../../../testing/fakes/fake_search_repository.dart';
@@ -39,6 +41,7 @@ Future<GoRouter> pumpSearchApp(
   String location = Routes.search,
   bool withPack = true,
   List<FeatureRoutes>? features,
+  FakePackIntegrityRepository? integrity,
 }) async {
   tester.view
     ..physicalSize = size
@@ -68,6 +71,8 @@ Future<GoRouter> pumpSearchApp(
             value: FakeAddressInputRepository(),
           ),
         ],
+        if (integrity != null)
+          ListenableProvider<PackIntegrityRepository>.value(value: integrity),
         ChangeNotifierProvider<SearchHistoryRepository>.value(
           value: history ?? FakeSearchHistoryRepository(),
         ),

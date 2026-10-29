@@ -3,8 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart' hide Icon, IconButton;
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/domain/models/pack_failure.dart';
+import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
+import 'package:holyquran/domain/models/search_hit.dart';
 import 'package:holyquran/domain/models/word_span.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes.dart';
@@ -12,10 +15,12 @@ import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/widgets/match_highlight.dart';
 import 'package:holyquran/ui/core/widgets/mode_chips.dart';
 import 'package:holyquran/ui/core/widgets/quran_text.dart';
+import 'package:holyquran/ui/core/widgets/search_field.dart';
 import 'package:holyquran/ui/core/widgets/search_result.dart';
 import 'package:holyquran/ui/core/widgets/search_summary.dart';
 import 'package:holyquran/utils/result.dart';
 
+import '../../../../testing/fakes/fake_pack_integrity_repository.dart';
 import '../../../../testing/fakes/fake_search_history_repository.dart';
 import '../../../../testing/fakes/fake_search_repository.dart';
 import '../index/index_fixture.dart';
@@ -23,6 +28,13 @@ import 'search_fixture.dart';
 import 'search_harness.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
+
+Finder _liveRegionAround(Finder finder) => find.ancestor(
+  of: finder,
+  matching: find.byWidgetPredicate(
+    (widget) => widget is Semantics && widget.properties.liveRegion == true,
+  ),
+);
 
 void main() {
   late Directory root;
@@ -36,6 +48,7 @@ void main() {
     fixture.close();
     await root.delete(recursive: true);
   });
+  tearDown(() => fixture.serving = true);
 
   Future<void> search(WidgetTester tester, String text) async {
     await tester.enterText(find.byType(TextField).first, text);
@@ -151,7 +164,12 @@ void main() {
       await pumpSearchApp(tester, fixture, search: searchFinding(many));
       await search(tester, query);
 
-      final list = find.byType(Scrollable).first;
+      final list = find
+          .descendant(
+            of: find.byType(CustomScrollView),
+            matching: find.byType(Scrollable),
+          )
+          .first;
       final link = find.text(_l10n.searchResultShowWhole);
       await tester.scrollUntilVisible(link, 300, scrollable: list);
       await tester.ensureVisible(link.first);
@@ -268,6 +286,10 @@ void main() {
         router.state.uri.path,
         Routes.mushafRead(QuranAddress(fixture.index.riwaya, 2, 3)),
       );
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, Routes.search);
+      expect(find.byType(SearchResult), findsNWidgets(3));
     });
   });
 
@@ -282,6 +304,9 @@ void main() {
         Routes.mushafRead(QuranAddress(fixture.index.riwaya, 2, 3)),
       );
       expect(fake.queries, isEmpty);
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, Routes.search);
     });
 
     testWidgets('that the edition lacks is refused in words', (tester) async {
@@ -340,7 +365,142 @@ void main() {
 
       expect(find.text(_l10n.searchHistoryTitle), findsNothing);
       expect(find.text('one'), findsNothing);
-      expect(await history.queries(), isNotNull);
+      expect((await history.queries() as Ok<List<String>>).value, isEmpty);
+    });
+  });
+
+  group('what the screen says in words', () {
+    testWidgets('a pack that fails its check shows the alert, no text', (
+      tester,
+    ) async {
+      final integrity = FakePackIntegrityRepository();
+      await pumpSearchApp(
+        tester,
+        fixture,
+        search: finding(),
+        integrity: integrity,
+      );
+      await search(tester, query);
+      expect(find.byType(SearchResult), findsNWidgets(3));
+
+      fixture.serving = false;
+      integrity.report(
+        'synthetic-text',
+        const IntegrityFailed(PackInconsistent('synthetic-text', 'broken')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SearchResult), findsNothing);
+      expect(find.byType(QuranText), findsNothing);
+      expect(find.byType(TextField), findsNothing);
+      expect(find.text(_l10n.integrityBaseTitle), findsOneWidget);
+      expect(find.text(_l10n.integrityBaseBody), findsOneWidget);
+    });
+
+    testWidgets('a pack with no known search form has no field, only the '
+        'sentence for an empty list', (tester) async {
+      await pumpSearchApp(
+        tester,
+        fixture,
+        search: FakeSearchRepository(
+          kinds: const ['synthetic-plain', 'synthetic_spelled'],
+        ),
+        history: FakeSearchHistoryRepository(['one']),
+      );
+
+      expect(find.byType(TextField), findsNothing);
+      expect(find.byType(ModeChips), findsNothing);
+      expect(find.text(_l10n.noSearchResults), findsOneWidget);
+      expect(find.text(_l10n.searchHistoryTitle), findsNothing);
+    });
+
+    testWidgets('a search that fails says nothing was found, announced', (
+      tester,
+    ) async {
+      final fake = finding();
+      await pumpSearchApp(tester, fixture, search: fake);
+      fake.failure = Exception('broken');
+      await search(tester, query);
+
+      expect(find.text(_l10n.noSearchResults), findsOneWidget);
+      expect(find.byType(SearchResult), findsNothing);
+      expect(
+        _liveRegionAround(find.text(_l10n.noSearchResults)),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the count line is a live region', (tester) async {
+      await pumpSearchApp(tester, fixture, search: finding());
+      await search(tester, query);
+
+      expect(_liveRegionAround(find.byType(SearchSummary)), findsOneWidget);
+    });
+
+    testWidgets('a history that cannot be cleared says so', (tester) async {
+      final history = FakeSearchHistoryRepository(['one'])
+        ..clearFailure = Exception('not saved');
+      await pumpSearchApp(tester, fixture, search: finding(), history: history);
+      await tester.tap(find.text(_l10n.searchHistoryClear));
+      await tester.pumpAndSettle();
+
+      expect(find.text(_l10n.userDataNotSaved), findsOneWidget);
+      expect(find.text('one'), findsOneWidget);
+    });
+
+    testWidgets('the scope field says a number is expected', (tester) async {
+      await pumpSearchApp(tester, fixture, search: finding());
+      await tester.tap(find.text(_l10n.goToSurah));
+      await tester.pumpAndSettle();
+      expect(find.text(_l10n.searchScopeSurahNumber), findsOneWidget);
+      await tester.tap(find.text(_l10n.goToJuz));
+      await tester.pumpAndSettle();
+      expect(find.text(_l10n.searchScopeJuzNumber), findsOneWidget);
+      await tester.enterText(find.byType(TextField).last, '1');
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel(_l10n.searchScopeJuzNumber), findsOneWidget);
+    });
+  });
+
+  group('the controls stay while the results scroll', () {
+    double fieldTop(WidgetTester tester) =>
+        tester.getTopLeft(find.byType(SearchField)).dy;
+
+    Future<void> scrollResults(WidgetTester tester) async {
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -100));
+      await tester.pumpAndSettle();
+    }
+
+    List<SearchHit> many() => [
+      for (var a = 1; a <= 12; a++) hit(fixture, 2, a),
+    ];
+
+    testWidgets('at 100% they are pinned', (tester) async {
+      await pumpSearchApp(tester, fixture, search: searchFinding(many()));
+      await search(tester, query);
+      final before = fieldTop(tester);
+      final summary = tester.getTopLeft(find.byType(SearchSummary)).dy;
+      await scrollResults(tester);
+
+      expect(fieldTop(tester), before);
+      expect(tester.getTopLeft(find.byType(SearchSummary)).dy, summary);
+    });
+
+    testWidgets('at 200% they scroll with the results', (tester) async {
+      await pumpSearchApp(
+        tester,
+        fixture,
+        search: searchFinding(many()),
+        textScale: 2,
+        size: const Size(360, 480),
+      );
+      await search(tester, query);
+      await tester.pumpAndSettle();
+      final before = fieldTop(tester);
+      await scrollResults(tester);
+
+      expect(fieldTop(tester), lessThan(before));
+      expect(tester.takeException(), isNull);
     });
   });
 

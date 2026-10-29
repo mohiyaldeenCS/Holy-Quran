@@ -5,6 +5,7 @@ import 'package:holyquran/ui/core/metrics/search_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
+import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 
 /// The recent queries (`SR-10`), newest first, under their title and the
 /// button that clears them. A query is the user's own text, so it is shown
@@ -14,12 +15,16 @@ class SearchHistorySliver extends StatelessWidget {
     required this.queries,
     required this.onChoose,
     required this.onClear,
+    required this.clearFailed,
     super.key,
   });
 
   final List<String> queries;
   final ValueChanged<String> onChoose;
   final VoidCallback? onClear;
+
+  /// Whether the last clearing failed, which the list says in words.
+  final bool clearFailed;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +56,14 @@ class SearchHistorySliver extends StatelessWidget {
                 ),
             ],
           ),
+          if (clearFailed) ...[
+            const SizedBox(height: SearchMetrics.historyGap),
+            Semantics(
+              liveRegion: true,
+              container: true,
+              child: IntegrityAlert(body: l10n.userDataNotSaved),
+            ),
+          ],
           for (final query in queries) ...[
             const SizedBox(height: SearchMetrics.historyGap),
             Button(

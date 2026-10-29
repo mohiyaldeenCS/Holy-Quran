@@ -2039,6 +2039,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'مسح السجل'**
   String get searchHistoryClear;
+
+  /// P1-29, for the lead's approval under D-128 (5). The hint and spoken name of the field for the number of the surah a search is limited to; the Go to sheet's «سورة» with the word a number is expected (SR-06).
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم السورة'**
+  String get searchScopeSurahNumber;
+
+  /// P1-29, for the lead's approval under D-128 (5). The hint and spoken name of the field for the number of the juz a search is limited to (SR-06).
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم الجزء'**
+  String get searchScopeJuzNumber;
 }
 
 class _AppLocalizationsDelegate

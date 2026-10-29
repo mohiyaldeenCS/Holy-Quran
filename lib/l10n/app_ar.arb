@@ -1656,5 +1656,13 @@
   "searchHistoryClear": "مسح السجل",
   "@searchHistoryClear": {
     "description": "P1-29, approved by the owner. The button that clears the search history (SR-10)."
+  },
+  "searchScopeSurahNumber": "رقم السورة",
+  "@searchScopeSurahNumber": {
+    "description": "P1-29, for the lead's approval under D-128 (5). The hint and spoken name of the field for the number of the surah a search is limited to; the Go to sheet's «سورة» with the word a number is expected (SR-06)."
+  },
+  "searchScopeJuzNumber": "رقم الجزء",
+  "@searchScopeJuzNumber": {
+    "description": "P1-29, for the lead's approval under D-128 (5). The hint and spoken name of the field for the number of the juz a search is limited to (SR-06)."
   }
 }

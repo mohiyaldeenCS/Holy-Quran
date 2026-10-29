@@ -1136,4 +1136,10 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get searchHistoryClear => 'مسح السجل';
+
+  @override
+  String get searchScopeSurahNumber => 'رقم السورة';
+
+  @override
+  String get searchScopeJuzNumber => 'رقم الجزء';
 }

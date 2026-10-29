@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -53,6 +55,26 @@ void main() {
     expect(rects.single.width, greaterThan(0));
     expect(rects.single.height, lessThanOrEqualTo(paragraph.size.height));
     expect(rects.single.height, greaterThan(0));
+  });
+
+  testWidgets('paints on the glyph boxes of the matched characters, in RTL', (
+    tester,
+  ) async {
+    await _pump(tester, const [SearchMatch(start: 1, end: 3)]);
+
+    final paragraph = tester.renderObject<RenderParagraph>(
+      find.byType(RichText),
+    );
+    expect(paragraph.textDirection, TextDirection.rtl);
+    final boxes = paragraph.getBoxesForSelection(
+      const TextSelection(baseOffset: 1, extentOffset: 3),
+    );
+    final rect = _highlight(tester).rects.single;
+    expect(rect.left, boxes.map((b) => b.left).reduce(min));
+    expect(rect.right, boxes.map((b) => b.right).reduce(max));
+    // Starting at the start of the text, the first characters are at the
+    // right in RTL, so the match is nearer the right edge than the left.
+    expect(rect.center.dx, greaterThan(paragraph.size.width / 2));
   });
 
   testWidgets('paints a rect for each line a match covers', (tester) async {

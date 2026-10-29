@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart' show InputBorder, InputDecoration;
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/ui/core/metrics/settings_metrics.dart';
@@ -28,6 +27,11 @@ abstract final class SearchMetrics {
   static const EdgeInsets controls = EdgeInsets.symmetric(horizontal: 20);
   static const double controlsGap = AppSpacing.space3;
 
+  // The Search board keeps the field, the chips and the summary fixed and
+  // scrolls only the results. Controls taller than this share of the height
+  // scroll with the results instead (a decision of the lead, 2026-10-29).
+  static const double pinnedShare = 0.5;
+
   // Search.dc.html, the summary row: `padding-top:2px`.
   static const EdgeInsets summary = EdgeInsets.only(top: 2);
 
@@ -45,18 +49,4 @@ abstract final class SearchMetrics {
   // padding and the controls' gap.
   static const EdgeInsets history = results;
   static const double historyGap = AppSpacing.space3;
-
-  // The scope's number field takes the search field's box (`SearchFieldBox`,
-  // `.qk-search`), as the go-to sheet's fields do; the identity has no other
-  // field.
-  static final BorderRadius fieldRadius = BorderRadius.circular(
-    AppRadius.radiusButton,
-  );
-  static const EdgeInsets fieldPadding = EdgeInsets.symmetric(
-    horizontal: AppSpacing.space4,
-  );
-  static const InputDecoration fieldDecoration = InputDecoration(
-    border: InputBorder.none,
-    contentPadding: EdgeInsets.zero,
-  );
 }
