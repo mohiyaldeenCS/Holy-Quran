@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
+import 'package:holyquran/data/repositories/search_repository.dart';
 import 'package:holyquran/domain/models/edition_map.dart';
 import 'package:holyquran/domain/models/mark_span.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
@@ -12,6 +15,7 @@ import 'package:holyquran/domain/models/pack_manifest.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/search_hit.dart';
+import 'package:holyquran/domain/models/search_query.dart';
 import 'package:holyquran/domain/models/surah_info.dart';
 import 'package:holyquran/domain/models/word_span.dart';
 import 'package:holyquran/ui/features/search/view_models/search_view_model.dart';
@@ -68,6 +72,55 @@ final class _HeldText implements QuranTextRepository {
       _inner.contains(address);
 }
 
+/// A search whose answers the test gives one by one, so that two can be in
+/// flight; the form kinds are the usual two.
+final class _HeldSearch implements SearchRepository {
+  final pending = <(SearchQuery, Completer<Result<SearchResults>>)>[];
+
+  @override
+  Future<Result<List<String>>> formKinds() async =>
+      const Ok([SearchKinds.word, SearchKinds.bare]);
+
+  @override
+  Future<Result<SearchResults>> search(SearchQuery query) {
+    final completer = Completer<Result<SearchResults>>();
+    pending.add((query, completer));
+    return completer.future;
+  }
+
+  void answer(int index, List<SearchHit> hits) => pending[index].$2.complete(
+    Ok(SearchResults(query: pending[index].$1, hits: hits)),
+  );
+}
+
+/// An integrity repository that counts its listeners.
+final class _CountedIntegrity extends ChangeNotifier
+    implements PackIntegrityRepository {
+  int listeners = 0;
+
+  @override
+  void addListener(VoidCallback listener) {
+    listeners++;
+    super.addListener(listener);
+  }
+
+  @override
+  void removeListener(VoidCallback listener) {
+    listeners--;
+    super.removeListener(listener);
+  }
+
+  @override
+  PackIntegrity stateOf(String pack) => const IntegrityMissing();
+
+  @override
+  Stream<PackIntegrityEvent> get events => const Stream.empty();
+
+  @override
+  void report(String pack, PackIntegrity state, {int? version}) =>
+      notifyListeners();
+}
+
 void main() {
   late Directory root;
   late IndexFixture fixture;
@@ -83,10 +136,10 @@ void main() {
   tearDown(() => fixture.serving = true);
 
   SearchViewModel viewModelOf(
-    FakeSearchRepository search, {
+    SearchRepository search, {
     QuranTextRepository? text,
     FakeSearchHistoryRepository? history,
-    FakePackIntegrityRepository? integrity,
+    PackIntegrityRepository? integrity,
   }) {
     final viewModel = SearchViewModel(
       search: search,
@@ -127,25 +180,37 @@ void main() {
     expect(viewModel.cardCount, 0);
   });
 
-  test('a card read for results that were replaced is not kept', () async {
-    final held = _HeldText(fixture.text);
-    final viewModel = viewModelOf(finding(), text: held);
-    await viewModel.load();
-    await viewModel.submit(query);
-    held.holding = true;
-    final reading = viewModel.loadCard(0);
-    await pumpEventQueue();
-    expect(held.gates, hasLength(1));
+  test(
+    'a card started while the replacing search is in flight is dropped',
+    () async {
+      final search = _HeldSearch();
+      final held = _HeldText(fixture.text);
+      final viewModel = viewModelOf(search, text: held);
+      await viewModel.load();
+      final first = viewModel.submit(query);
+      await pumpEventQueue();
+      // The first results match words 2 and 3 of the ayah, the replacing ones
+      // word 5: a card made from the old hit would show the wrong match.
+      search.answer(0, [hit(fixture, 2, 3)]);
+      await first;
 
-    held.holding = false;
-    await viewModel.selectKind(1);
-    held.gates.values.single.complete();
-    await reading;
+      final replacing = viewModel.selectKind(1);
+      await pumpEventQueue();
+      held.holding = true;
+      final reading = viewModel.loadCard(0);
+      await pumpEventQueue();
+      expect(held.gates, hasLength(1));
+      search.answer(1, [hit(fixture, 2, 3, first: 5, last: 5)]);
+      await replacing;
+      held.holding = false;
+      held.gates.values.single.complete();
+      await reading;
 
-    expect(viewModel.cardAt(0), isNull, reason: 'the old results are gone');
-    await viewModel.loadCard(0);
-    expect(viewModel.cardAt(0), isNotNull);
-  });
+      expect(viewModel.cardAt(0), isNull, reason: 'the old hit is gone');
+      await viewModel.loadCard(0);
+      expect(viewModel.cardAt(0)!.matches, hasLength(1));
+    },
+  );
 
   test(
     'a pack with no search form of a known kind cannot be searched',
@@ -165,15 +230,25 @@ void main() {
   test(
     'a search superseded by a change of chip is kept once it is answered',
     () async {
+      final search = _HeldSearch();
       final history = FakeSearchHistoryRepository();
-      final viewModel = viewModelOf(finding(), history: history);
+      final viewModel = viewModelOf(search, history: history);
       await viewModel.load();
       final first = viewModel.submit(query);
+      await pumpEventQueue();
       final second = viewModel.selectKind(1);
-      await Future.wait([first, second]);
+      await pumpEventQueue();
+      expect(search.pending, hasLength(2));
+      expect(viewModel.history, isEmpty);
 
-      expect(viewModel.searched, isTrue);
+      search.answer(1, [hit(fixture, 2, 3)]);
+      await second;
       expect(viewModel.history, [query]);
+      search.answer(0, [hit(fixture, 3, 1)]);
+      await first;
+
+      expect(viewModel.history, [query], reason: 'once, by the answer kept');
+      expect(viewModel.ayahAt(0).surah, 2);
     },
   );
 
@@ -194,6 +269,73 @@ void main() {
     await viewModel.submit(query);
     expect(viewModel.failed, isFalse);
   });
+
+  test(
+    'a pack that is failing when the screen opens has no chips, and gets them when it serves',
+    () async {
+      fixture.serving = false;
+      final search = finding()..failure = const PackDisabled('synthetic-text');
+      final integrity = FakePackIntegrityRepository();
+      final viewModel = viewModelOf(search, integrity: integrity);
+      await viewModel.load();
+
+      expect(viewModel.hasData, isFalse);
+      expect(viewModel.loaded, isTrue);
+      expect(viewModel.canSearch, isFalse);
+
+      fixture.serving = true;
+      search.failure = null;
+      integrity.report('synthetic-text', const IntegrityOk());
+      await pumpEventQueue();
+
+      expect(viewModel.hasData, isTrue);
+      expect(viewModel.canSearch, isTrue);
+      expect(viewModel.kinds, [SearchKinds.word, SearchKinds.bare]);
+    },
+  );
+
+  test('is not loaded until the pack has answered with its kinds', () async {
+    final search = _HeldSearch();
+    final viewModel = viewModelOf(search);
+    final loading = viewModel.load();
+    expect(viewModel.loaded, isFalse);
+    await loading;
+
+    expect(viewModel.loaded, isTrue);
+    expect(viewModel.canSearch, isTrue);
+  });
+
+  test('stops listening to the integrity when it is disposed', () async {
+    final integrity = _CountedIntegrity();
+    final viewModel = SearchViewModel(
+      search: finding(),
+      text: fixture.text,
+      index: fixture.index,
+      words: jumpWords,
+      integrity: integrity,
+    );
+    expect(integrity.listeners, 1);
+    viewModel.dispose();
+
+    expect(integrity.listeners, 0);
+  });
+
+  test(
+    'a failure to clear the history ends when the history changes',
+    () async {
+      final history = FakeSearchHistoryRepository(['one'])
+        ..clearFailure = Exception('not saved');
+      final viewModel = viewModelOf(finding(), history: history);
+      await viewModel.load();
+      await viewModel.clearHistory();
+      expect(viewModel.historyClearFailed, isTrue);
+
+      await viewModel.submit(query);
+      await pumpEventQueue();
+
+      expect(viewModel.historyClearFailed, isFalse);
+    },
+  );
 
   test('a history that cannot be cleared says so', () async {
     final history = FakeSearchHistoryRepository(['one'])
