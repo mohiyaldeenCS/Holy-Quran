@@ -1065,6 +1065,9 @@ class AppLocalizationsAr extends AppLocalizations {
       'تعذّر فتح بيانات التطبيق، فلن تُحفظ تغييراتك في هذه الجلسة.';
 
   @override
+  String get changeNotSaved => 'تعذّر حفظ التغيير.';
+
+  @override
   String searchPlaces(int count, String digits) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

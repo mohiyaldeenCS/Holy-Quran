@@ -61,7 +61,7 @@ class SearchHistorySliver extends StatelessWidget {
             Semantics(
               liveRegion: true,
               container: true,
-              child: IntegrityAlert(body: l10n.userDataNotSaved),
+              child: IntegrityAlert(body: l10n.changeNotSaved),
             ),
           ],
           for (final query in queries) ...[

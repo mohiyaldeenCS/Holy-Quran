@@ -1972,6 +1972,12 @@ abstract class AppLocalizations {
   /// **'تعذّر فتح بيانات التطبيق، فلن تُحفظ تغييراتك في هذه الجلسة.'**
   String get userDataNotSaved;
 
+  /// Lead, 2026-10-29, D-128 (5). One change, a deletion, an undo or a read, that could not be stored or read. Not the in-memory sentence of D-133 (userDataNotSaved). The P1-23 branch adds the same key and value.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر حفظ التغيير.'**
+  String get changeNotSaved;
+
   /// Lead, 2026-10-28, D-128 (5). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.
   ///
   /// In ar, this message translates to:

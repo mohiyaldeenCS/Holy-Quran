@@ -1544,6 +1544,10 @@
   "@userDataNotSaved": {
     "description": "Lead, 2026-10-28, D-128 (5)"
   },
+  "changeNotSaved": "تعذّر حفظ التغيير.",
+  "@changeNotSaved": {
+    "description": "Lead, 2026-10-29, D-128 (5). One change, a deletion, an undo or a read, that could not be stored or read. Not the in-memory sentence of D-133 (userDataNotSaved). The P1-23 branch adds the same key and value."
+  },
   "searchPlaces": "{count, plural, zero{لا مواضع} one{موضع واحد} two{موضعان} few{{digits} مواضع} many{{digits} موضعًا} other{{digits} موضع}}",
   "@searchPlaces": {
     "description": "Lead, 2026-10-28, D-128 (5). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.",

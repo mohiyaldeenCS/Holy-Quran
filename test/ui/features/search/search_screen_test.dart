@@ -397,8 +397,9 @@ void main() {
       expect(find.text(_l10n.integrityBaseBody), findsOneWidget);
     });
 
-    testWidgets('a pack with no known search form has no field, only the '
-        'sentence for an empty list', (tester) async {
+    testWidgets('a pack with no known search form shows its title alone', (
+      tester,
+    ) async {
       await pumpSearchApp(
         tester,
         fixture,
@@ -408,9 +409,10 @@ void main() {
         history: FakeSearchHistoryRepository(['one']),
       );
 
+      expect(find.text(_l10n.searchTitle), findsOneWidget);
       expect(find.byType(TextField), findsNothing);
       expect(find.byType(ModeChips), findsNothing);
-      expect(find.text(_l10n.noSearchResults), findsOneWidget);
+      expect(find.text(_l10n.noSearchResults), findsNothing);
       expect(find.text(_l10n.searchHistoryTitle), findsNothing);
     });
 
@@ -444,7 +446,7 @@ void main() {
       await tester.tap(find.text(_l10n.searchHistoryClear));
       await tester.pumpAndSettle();
 
-      expect(find.text(_l10n.userDataNotSaved), findsOneWidget);
+      expect(find.text(_l10n.changeNotSaved), findsOneWidget);
       expect(find.text('one'), findsOneWidget);
     });
 
