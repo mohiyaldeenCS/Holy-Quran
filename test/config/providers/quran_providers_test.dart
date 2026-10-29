@@ -16,6 +16,7 @@ import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/quran_structure.dart';
+import 'package:holyquran/domain/models/verified_pack.dart';
 import 'package:holyquran/utils/result.dart';
 import 'package:provider/provider.dart';
 
@@ -113,6 +114,7 @@ void main() {
     );
     final index = context.read<QuranIndexRepository>();
     expect(index.surahCount, 3);
+    expect(context.read<VerifiedPack>().manifest.id, _id);
     expect(context.read<QuranStructure>(), same(index));
     final text = context.read<QuranTextRepository>();
     expect(

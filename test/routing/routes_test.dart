@@ -311,7 +311,7 @@ void main() {
     testWidgets('a route not built yet lands on the home tab', (tester) async {
       final router = await _pumpApp(tester);
 
-      router.go(Routes.sources);
+      router.go(Routes.bookmarks);
       await tester.pumpAndSettle();
 
       _expectHome(tester, router);
