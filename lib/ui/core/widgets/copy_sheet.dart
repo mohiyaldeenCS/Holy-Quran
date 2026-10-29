@@ -129,18 +129,40 @@ class _Preview extends StatelessWidget {
 /// The title of a sheet on [CopySheetFrame], as Share.dc.html draws it: 19
 /// semibold on `ink`, with the board's padding, announced as a heading.
 class CopySheetTitle extends StatelessWidget {
-  const CopySheetTitle(this.text, {super.key});
+  const CopySheetTitle(this.text, {super.key}) : _surah = null, _ayah = null;
 
-  final String text;
+  /// The title «سورة {name} · الآية {ayah}», the name being the pack's, drawn
+  /// by [SurahName] in the same style.
+  const CopySheetTitle.surahWithAyah(
+    PackText name, {
+    required int this._ayah,
+    super.key,
+  }) : text = null,
+       _surah = name;
+
+  final String? text;
+  final PackText? _surah;
+  final int? _ayah;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: _titlePadding,
-    child: Semantics(
-      header: true,
-      child: Text(text, style: _titleStyle.copyWith(color: context.colors.ink)),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final style = _titleStyle.copyWith(color: context.colors.ink);
+    final text = this.text;
+    return Padding(
+      padding: _titlePadding,
+      child: Semantics(
+        header: true,
+        child: text != null
+            ? Text(text, style: style)
+            : SurahName(
+                _surah!,
+                format: SurahNameFormat.titledWithAyah,
+                ayah: _ayah,
+                style: style,
+              ),
+      ),
+    );
+  }
 }
 
 /// The copy sheet's frame (Share.dc.html): `surface` with the sheet shadow,

@@ -4,8 +4,8 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
+import 'package:holyquran/ui/core/tafsir/source_details_sheet.dart';
 import 'package:holyquran/ui/features/tafsir/view_models/tafsir_view_model.dart';
-import 'package:holyquran/ui/features/tafsir/views/source_details_sheet.dart';
 
 import '../../../../testing/fakes/fake_catalogue_repository.dart';
 import '../../../../testing/golden.dart';

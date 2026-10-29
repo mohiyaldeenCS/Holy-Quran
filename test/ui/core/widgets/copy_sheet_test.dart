@@ -357,4 +357,54 @@ void main() {
       });
     }
   }
+
+  group('CopySheetTitle', () {
+    Future<void> pumpTitle(WidgetTester tester, Widget title) =>
+        _pump(tester, CopySheetFrame(children: [title]));
+
+    testWidgets('the surah form has the style and padding of the text form, '
+        'and is a heading', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpTitle(tester, const CopySheetTitle('عنوان'));
+      final textStyle = tester.widget<Text>(find.text('عنوان')).style!;
+      final textPadding = tester.widget<Padding>(
+        find
+            .ancestor(of: find.text('عنوان'), matching: find.byType(Padding))
+            .first,
+      );
+
+      await pumpTitle(
+        tester,
+        const CopySheetTitle.surahWithAyah(_name, ayah: _ayahNumber),
+      );
+
+      final written = _l10n.surahTitleAyahReference(
+        _name.verbatim,
+        arabicDigits(_ayahNumber),
+      );
+      final style = tester.widget<Text>(find.text(written)).style!;
+      expect(style.fontSize, 19);
+      expect(style.fontWeight, FontWeight.w600);
+      expect(style.color, AppColors.paper.ink);
+      expect(style, textStyle);
+      expect(
+        tester
+            .widget<Padding>(
+              find
+                  .ancestor(
+                    of: find.text(written),
+                    matching: find.byType(Padding),
+                  )
+                  .first,
+            )
+            .padding,
+        textPadding.padding,
+      );
+      expect(
+        tester.getSemantics(find.text(written)),
+        matchesSemantics(label: written, isHeader: true),
+      );
+      handle.dispose();
+    });
+  });
 }

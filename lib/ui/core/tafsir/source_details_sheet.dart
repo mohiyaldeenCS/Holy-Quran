@@ -3,11 +3,11 @@ import 'package:flutter/widgets.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes/sheet_page.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
+import 'package:holyquran/ui/core/tafsir/tafsir_page.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/copy_sheet.dart';
 import 'package:holyquran/ui/core/widgets/tafsir_text.dart';
-import 'package:holyquran/ui/features/tafsir/view_models/tafsir_page.dart';
 
 /// Opens the details of the source behind [page] over the current screen
 /// (`TF-05`): a sheet, as PRD §7.7 has the source badge open.

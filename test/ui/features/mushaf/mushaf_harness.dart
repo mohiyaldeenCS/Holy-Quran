@@ -11,6 +11,7 @@ import 'package:holyquran/data/repositories/bookmark_repository.dart';
 import 'package:holyquran/data/repositories/category_repository.dart';
 import 'package:holyquran/data/repositories/keep_awake_repository.dart';
 import 'package:holyquran/data/repositories/pack_quran_text_repository.dart';
+import 'package:holyquran/data/repositories/player_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/domain/models/pack_integrity.dart';
@@ -114,6 +115,7 @@ final class MushafRig {
     BookmarkRepository? bookmarks,
     CategoryRepository? categories,
     KeepAwakeRepository? keepAwake,
+    PlayerRepository? player,
     AyahTools tools = AyahTools.none,
   }) => MushafViewModel(
     text: text,
@@ -125,6 +127,7 @@ final class MushafRig {
     bookmarks: bookmarks,
     categories: categories,
     keepAwake: keepAwake,
+    player: player,
     tools: tools,
   );
 

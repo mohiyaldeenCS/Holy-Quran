@@ -105,6 +105,11 @@ void main() {
     expect(names, {GallerySamples.surahName(_l10n)});
   });
 
+  testWidgets('offers the way back to the recitation', (tester) async {
+    await _pump(tester);
+    expect(find.text(_l10n.returnToRecitation), findsOneWidget);
+  });
+
   testWidgets('shows the recited, selected and matched states of the text', (
     tester,
   ) async {

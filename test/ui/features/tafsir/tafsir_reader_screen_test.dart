@@ -8,6 +8,7 @@ import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/domain/models/tafsir_book.dart';
 import 'package:holyquran/domain/models/tafsir_position.dart';
+import 'package:holyquran/ui/core/tafsir/source_details_sheet.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/ayah_row.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
@@ -17,7 +18,6 @@ import 'package:holyquran/ui/core/widgets/quran_text.dart';
 import 'package:holyquran/ui/core/widgets/radio_row.dart';
 import 'package:holyquran/ui/core/widgets/source_badge.dart';
 import 'package:holyquran/ui/core/widgets/tafsir_text.dart';
-import 'package:holyquran/ui/features/tafsir/views/source_details_sheet.dart';
 import 'package:holyquran/ui/features/tafsir/views/tafsir_reader_screen.dart';
 import 'package:holyquran/utils/result.dart';
 

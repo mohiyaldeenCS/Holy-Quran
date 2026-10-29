@@ -9,12 +9,11 @@ import 'package:holyquran/domain/models/installed_pack.dart';
 import 'package:holyquran/domain/models/pack_manifest.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
-import 'package:holyquran/domain/models/tafsir_book.dart';
-import 'package:holyquran/domain/models/tafsir_position.dart';
 import 'package:holyquran/ui/core/share/copy_sheet_view_model.dart';
+import 'package:holyquran/ui/core/tafsir/read_tafsir_page.dart';
+import 'package:holyquran/ui/core/tafsir/tafsir_page.dart';
 import 'package:holyquran/ui/features/tafsir/tafsir_copy_text.dart';
-import 'package:holyquran/ui/features/tafsir/tafsir_source.dart';
-import 'package:holyquran/ui/features/tafsir/view_models/tafsir_page.dart';
+import 'package:holyquran/ui/features/tafsir/view_models/tafsir_choice.dart';
 import 'package:holyquran/utils/command.dart';
 import 'package:holyquran/utils/result.dart';
 
@@ -130,8 +129,7 @@ final class TafsirViewModel extends ChangeNotifier {
 
   String? get _shownPack {
     final tafsirs = _tafsirs;
-    if (tafsirs == null) return null;
-    return tafsirs.defaultTafsir ?? tafsirs.installed.firstOrNull?.id;
+    return tafsirs == null ? null : shownTafsirPack(tafsirs);
   }
 
   Future<void> _load() async {
@@ -146,7 +144,7 @@ final class TafsirViewModel extends ChangeNotifier {
     TafsirPage? page;
     Object? failure;
     if (tafsirs != null && packId != null) {
-      switch (await _read(tafsirs, packId, ayah)) {
+      switch (await readTafsirPage(tafsirs, packId, ayah)) {
         case Ok(:final value):
           page = value;
         case Failure(:final error):
@@ -197,38 +195,6 @@ final class TafsirViewModel extends ChangeNotifier {
     }
     _downloaded = downloaded;
     notifyListeners();
-  }
-
-  Future<Result<TafsirPage>> _read(
-    TafsirRepository tafsirs,
-    String packId,
-    QuranAddress ayah,
-  ) async {
-    final TafsirPosition position;
-    switch (await tafsirs.positionAt(packId, ayah)) {
-      case Ok(:final value):
-        position = value;
-      case Failure(:final error):
-        return Failure(error);
-    }
-    final TafsirBook book;
-    switch (await tafsirs.book(packId)) {
-      case Ok(:final value):
-        book = value;
-      case Failure(:final error):
-        return Failure(error);
-    }
-    final pack = installedTafsirOf(tafsirs, packId);
-    if (pack == null) return Failure(TafsirNotInstalled(packId));
-    return Ok(
-      TafsirPage(
-        packId: packId,
-        position: position,
-        book: book,
-        source: digitisationSourceOf(pack).name,
-        version: pack.version,
-      ),
-    );
   }
 
   List<String> _availableTitles(List<InstalledPack> installed) {
