@@ -9,9 +9,12 @@ import 'package:holyquran/config/dependencies.dart';
 import 'package:holyquran/config/providers/audio_providers.dart';
 import 'package:holyquran/config/providers/quran_providers.dart';
 import 'package:holyquran/config/providers/share_providers.dart';
+import 'package:holyquran/data/repositories/category_repository.dart';
+import 'package:holyquran/data/repositories/note_repository.dart';
 import 'package:holyquran/data/repositories/pack_quran_text_repository.dart';
 import 'package:holyquran/data/repositories/player_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
+import 'package:holyquran/data/repositories/tag_repository.dart';
 import 'package:holyquran/data/services/base_pack_service.dart';
 import 'package:holyquran/data/services/manifest_signature.dart';
 import 'package:holyquran/domain/models/playback_plan.dart';
@@ -23,6 +26,9 @@ import 'package:holyquran/routing/routes.dart';
 import 'package:provider/provider.dart';
 
 import '../../testing/fakes/fake_audio_engine_service.dart';
+import '../../testing/fakes/fake_category_repository.dart';
+import '../../testing/fakes/fake_note_repository.dart';
+import '../../testing/fakes/fake_tag_repository.dart';
 import '../../testing/packs/synthetic_pack.dart';
 import '../../testing/test_app.dart';
 
@@ -48,10 +54,12 @@ final class _DirectoryBundle extends CachingAssetBundle {
 
 final _sheets = [for (final feature in appFeatures) ...feature.sheets];
 
-// The sheets that read nothing a base pack provides, so they stay open.
+// The sheets that read nothing a base pack provides, so they stay open. The
+// note sheet reads the user's data, which the tests provide as fakes.
 const _needNoBasePack = {
   RoutePaths.reportSheet,
   RoutePaths.firstUseTafsirSheet,
+  RoutePaths.noteSheet,
 };
 
 /// The location of [path] with its parameters filled in, over ayah 1:1.
@@ -113,7 +121,19 @@ void main() {
     final router = createRouter();
     addTearDown(router.dispose);
     await tester.pumpWidget(
-      MultiProvider(providers: providers!, child: testApp(router)),
+      MultiProvider(
+        providers: [
+          ...providers!,
+          ChangeNotifierProvider<NoteRepository>.value(
+            value: FakeNoteRepository(),
+          ),
+          ChangeNotifierProvider<TagRepository>.value(
+            value: FakeTagRepository(),
+          ),
+          Provider<CategoryRepository>.value(value: FakeCategoryRepository()),
+        ],
+        child: testApp(router),
+      ),
     );
     await tester.pumpAndSettle();
     if (basePack) {

@@ -195,6 +195,16 @@ final class _BlockHostState extends State<_BlockHost> {
     super.dispose();
   }
 
+  int? _selectedHere(BlockLayout block) {
+    final selected = widget.highlights.selectedAyah;
+    final text = block.plan.text;
+    return selected != null &&
+            selected.riwaya == text.riwaya &&
+            selected.surah == text.surah
+        ? selected.ayah
+        : null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final block = _blockIn(context.colors.quranInk);
@@ -206,7 +216,15 @@ final class _BlockHostState extends State<_BlockHost> {
         clipBehavior: Clip.none,
         children: [
           ...highlightsUnder(context, block, widget.highlights),
-          ReaderBlock(block),
+          ReaderBlock(
+            block,
+            selectedAyah: _selectedHere(block),
+            onAyahActivated: widget.onTap == null
+                ? null
+                : (ayah) => widget.onTap!(
+                    MarkerTarget(block.plan.text.addressOf(ayah)),
+                  ),
+          ),
           ...highlightsOver(context, block, widget.highlights),
           if (widget.overlayBuilder case final overlay?)
             Positioned.fill(child: overlay(context, block)),

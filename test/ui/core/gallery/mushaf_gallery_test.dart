@@ -8,6 +8,8 @@ import 'package:holyquran/ui/core/gallery/sections/mushaf_gallery.dart';
 import 'package:holyquran/ui/core/reader/interactive_surah_sliver.dart';
 import 'package:holyquran/ui/core/widgets/ayah_marker.dart';
 import 'package:holyquran/ui/core/widgets/ayah_row.dart';
+import 'package:holyquran/ui/core/widgets/ayah_toolbar.dart';
+import 'package:holyquran/ui/core/widgets/bookmark_ribbon.dart';
 import 'package:holyquran/ui/core/widgets/quran_text.dart';
 import 'package:holyquran/ui/core/widgets/surah_list_item.dart';
 import 'package:holyquran/ui/core/widgets/surah_name.dart';
@@ -56,6 +58,18 @@ void main() {
     expect(find.text(_l10n.gallerySectionAyahRow), findsOneWidget);
     expect(find.text(_l10n.gallerySectionSurahListItem), findsOneWidget);
     expect(find.text(_l10n.gallerySectionQuranText), findsOneWidget);
+  });
+
+  testWidgets('shows the ayah toolbar plain and bookmarked, and the four '
+      'ribbons', (tester) async {
+    await _pump(tester);
+    final toolbars = tester
+        .widgetList<AyahToolbar>(find.byType(AyahToolbar))
+        .toList();
+    expect(toolbars.map((t) => t.bookmarked), [false, true]);
+    expect(toolbars.first.onShare, isNotNull);
+    expect(toolbars.last.onUndo, isNotNull);
+    expect(find.byType(BookmarkRibbon), findsNWidgets(4));
   });
 
   testWidgets('shows AyahRow with every action and with one', (tester) async {

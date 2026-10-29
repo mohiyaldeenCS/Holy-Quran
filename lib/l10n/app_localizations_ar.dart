@@ -610,6 +610,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get contextPlayFromAyah => 'تشغيل من هذه الآية';
 
   @override
+  String get changeNotSaved => 'تعذّر حفظ التغيير.';
+
+  @override
   String get toolbarBookmark => 'علامة';
 
   @override
@@ -1092,4 +1095,113 @@ class AppLocalizationsAr extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String sourceVersion(String version) {
+    return 'الإصدار $version';
+  }
+
+  @override
+  String sourcePublisher(String publisher) {
+    return 'الناشر: $publisher';
+  }
+
+  @override
+  String tafsirRange(String from, String to) {
+    return 'من الآية $from إلى الآية $to';
+  }
+
+  @override
+  String ayahsRangeShort(String from, String to) {
+    return '$from–$to';
+  }
+
+  @override
+  String tafsirCopyFormat(
+    String passage,
+    String title,
+    String author,
+    String surah,
+    String ayahs,
+    String source,
+    String version,
+  ) {
+    return '$passage\n\n$title · $author\n[$surah: $ayahs]\n$source · $version';
+  }
+
+  @override
+  String get bookmarksSearchHint => 'ابحث في العلامات والملاحظات';
+
+  @override
+  String get bookmarksTabBookmarks => 'العلامات';
+
+  @override
+  String get bookmarksTabNotes => 'الملاحظات';
+
+  @override
+  String bookmarksCount(int count, String digits) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$digits علامة',
+      few: '$digits علامات',
+      two: 'علامتان',
+      one: 'علامة واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String notesCount(int count, String digits) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$digits ملاحظة',
+      few: '$digits ملاحظات',
+      two: 'ملاحظتان',
+      one: 'ملاحظة واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get categoryLabel => 'التصنيف';
+
+  @override
+  String get bookmarkDelete => 'احذف العلامة';
+
+  @override
+  String get itemDeleted => 'تم الحذف';
+
+  @override
+  String get noteAdd => 'أضف ملاحظة';
+
+  @override
+  String get tagNewHint => 'وسم جديد';
+
+  @override
+  String get tagAdd => 'أضف';
+
+  @override
+  String get tagsEditHint => 'غيّر التصنيف والوسوم';
+
+  @override
+  String get noteEdit => 'عدّل الملاحظة';
+
+  @override
+  String get searchScopeLabel => 'نطاق البحث';
+
+  @override
+  String searchResultCount(String places, String ayat) {
+    return '$places في $ayat';
+  }
+
+  @override
+  String get searchHistoryClear => 'مسح السجل';
+
+  @override
+  String get searchScopeSurahNumber => 'رقم السورة';
+
+  @override
+  String get searchScopeJuzNumber => 'رقم الجزء';
 }

@@ -882,6 +882,10 @@
   "@contextPlayFromAyah": {
     "description": "Reference aria-label, index.jsx ContextSheet"
   },
+  "changeNotSaved": "تعذّر حفظ التغيير.",
+  "@changeNotSaved": {
+    "description": "Lead, D-128 (5): a single change the store refused or a read that failed, such as a bookmark that could not be made, removed or restored, a note that could not be deleted, or a search history that could not be cleared or read. Not the in-memory sentence of D-133 (userDataNotSaved)."
+  },
   "toolbarBookmark": "علامة",
   "@toolbarBookmark": {
     "description": "The selected ayah's toolbar: bookmark it. Source: docs/prd/PRD.ar.md (§7.4)."
@@ -1567,5 +1571,170 @@
         "type": "String"
       }
     }
+  },
+  "sourceVersion": "الإصدار {version}",
+  "@sourceVersion": {
+    "description": "Lead, 2026-10-28, D-128 (5). A source's version, made of the approved label versionLabel (TF-05) and the number. version is the pack's version, already written in Arabic-Indic digits.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcePublisher": "الناشر: {publisher}",
+  "@sourcePublisher": {
+    "description": "Lead, 2026-10-28, D-128 (5). A tafsir book's publisher as the source details list it (TF-05). publisher is the publisher from the pack, substituted whole and unchanged.",
+    "placeholders": {
+      "publisher": {
+        "type": "String"
+      }
+    }
+  },
+  "tafsirRange": "من الآية {from} إلى الآية {to}",
+  "@tafsirRange": {
+    "description": "Lead, 2026-10-28, D-128 (5). The ayat a tafsir passage explains together (TF-04), made of the approved words rangeFrom, rangeTo and repeatUnitAyah. from and to are ayah numbers, already written in Arabic-Indic digits.",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "ayahsRangeShort": "{from}–{to}",
+  "@ayahsRangeShort": {
+    "description": "Lead, 2026-10-28, D-128 (5). A run of ayah numbers inside the reference of a copied tafsir passage, with an en dash and no word. from and to are ayah numbers, already written in Arabic-Indic digits.",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "tafsirCopyFormat": "{passage}\n\n{title} · {author}\n[{surah}: {ayahs}]\n{source} · {version}",
+  "@tafsirCopyFormat": {
+    "description": "Pending the owner: credit wording (SOURCES.md, Zaydi Library). A copied tafsir passage with its attribution (TF-10). passage, title, author and surah are text from the pack, substituted whole and unchanged; ayahs is the passage's ayah number or ayahsRangeShort; source is the digitisation source's name from the manifest; version is sourceVersion with the pack's version.",
+    "placeholders": {
+      "passage": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      },
+      "author": {
+        "type": "String"
+      },
+      "surah": {
+        "type": "String"
+      },
+      "ayahs": {
+        "type": "String"
+      },
+      "source": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "bookmarksSearchHint": "ابحث في العلامات والملاحظات",
+  "@bookmarksSearchHint": {
+    "description": "The bookmarks screen's search field: its hint and spoken name. Wording of SR-08 in docs/prd/PRD.ar.md. P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "bookmarksTabBookmarks": "العلامات",
+  "@bookmarksTabBookmarks": {
+    "description": "The bookmarks tab of the bookmarks screen. First half of the screen title, docs/prd/PRD.ar.md (§7.1). P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "bookmarksTabNotes": "الملاحظات",
+  "@bookmarksTabNotes": {
+    "description": "The notes tab of the bookmarks screen. Second half of the screen title, docs/prd/PRD.ar.md (§7.1). P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "bookmarksCount": "{count, plural, =1{علامة واحدة} =2{علامتان} few{{digits} علامات} other{{digits} علامة}}",
+  "@bookmarksCount": {
+    "description": "The number of bookmarks listed. P1-24, proposed for the lead to approve under D-128 (5). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "digits": {
+        "type": "String"
+      }
+    }
+  },
+  "notesCount": "{count, plural, =1{ملاحظة واحدة} =2{ملاحظتان} few{{digits} ملاحظات} other{{digits} ملاحظة}}",
+  "@notesCount": {
+    "description": "The number of notes listed. P1-24, proposed for the lead to approve under D-128 (5). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "digits": {
+        "type": "String"
+      }
+    }
+  },
+  "categoryLabel": "التصنيف",
+  "@categoryLabel": {
+    "description": "Name of the category group of tags, in the filter and in the note editor. Wording of UD-03 in docs/prd/PRD.ar.md. P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "bookmarkDelete": "احذف العلامة",
+  "@bookmarkDelete": {
+    "description": "Spoken name of the delete button of a bookmark, beside noteDelete. P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "itemDeleted": "تم الحذف",
+  "@itemDeleted": {
+    "description": "The line beside the undo action after a bookmark or a note is deleted (UD-07). P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "noteAdd": "أضف ملاحظة",
+  "@noteAdd": {
+    "description": "The button that starts another note on an ayah that has some (UD-04). P1-24, wording given by the lead on the review of P1-24 (D-128 (5))."
+  },
+  "tagNewHint": "وسم جديد",
+  "@tagNewHint": {
+    "description": "Hint and spoken name of the field that makes a free tag (UD-02). P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "tagAdd": "أضف",
+  "@tagAdd": {
+    "description": "The button that makes the free tag typed in the note editor (UD-02). P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "tagsEditHint": "غيّر التصنيف والوسوم",
+  "@tagsEditHint": {
+    "description": "The spoken hint of a tag on a bookmark's or note's card, whose press opens the editor of its category and tags. Wording of UD-03 in docs/prd/PRD.ar.md. P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "noteEdit": "عدّل الملاحظة",
+  "@noteEdit": {
+    "description": "Lead, 2026-10-29, D-128 (5). Spoken name of the button on a note's card that opens that note in its editor (UD-04); noteAdd is the editor's new-note button."
+  },
+  "searchScopeLabel": "نطاق البحث",
+  "@searchScopeLabel": {
+    "description": "P1-29, for the lead's approval under D-128 (5). The name of the group of chips that choose where a search looks (SR-06). Wording from docs/prd/PRD.ar.md (SR-06)."
+  },
+  "searchResultCount": "{places} في {ayat}",
+  "@searchResultCount": {
+    "description": "P1-29, for the lead's approval under D-128 (5). The count line of the search summary, as the Search board writes it: places is searchPlaces and ayat is ayahCount, each already written. Source: design/identity-boards/Search.dc.html.",
+    "placeholders": {
+      "places": {
+        "type": "String"
+      },
+      "ayat": {
+        "type": "String"
+      }
+    }
+  },
+  "searchHistoryClear": "مسح السجل",
+  "@searchHistoryClear": {
+    "description": "P1-29, approved by the owner. The button that clears the search history (SR-10)."
+  },
+  "searchScopeSurahNumber": "رقم السورة",
+  "@searchScopeSurahNumber": {
+    "description": "P1-29, for the lead's approval under D-128 (5). The hint and spoken name of the field for the number of the surah a search is limited to; the Go to sheet's «سورة» with the word a number is expected (SR-06)."
+  },
+  "searchScopeJuzNumber": "رقم الجزء",
+  "@searchScopeJuzNumber": {
+    "description": "P1-29, for the lead's approval under D-128 (5). The hint and spoken name of the field for the number of the juz a search is limited to (SR-06)."
   }
 }
