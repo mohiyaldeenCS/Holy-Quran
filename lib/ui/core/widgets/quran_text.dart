@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/domain/models/pack_text.dart';
+import 'package:holyquran/domain/models/word_span.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/ramps.g.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
@@ -54,6 +55,7 @@ final class QuranText extends StatelessWidget {
     super.key,
   }) : cardFontSize = null,
        after = null,
+       _word = null,
        _quoted = false;
 
   /// The ayah on a share card (D-085, D-089): centred, line height 2.2, at
@@ -69,6 +71,7 @@ final class QuranText extends StatelessWidget {
        size = QuranTextSize.focus,
        align = QuranTextAlign.center,
        after = null,
+       _word = null,
        _quoted = false;
 
   /// The ayah in the copy sheet's preview (Share.dc.html, l.54): between the
@@ -83,7 +86,25 @@ final class QuranText extends StatelessWidget {
       align = QuranTextAlign.center,
       colour = QuranTextColour.quranInk,
       cardFontSize = null,
+      _word = null,
       _quoted = true;
+
+  /// One word of the ayah [text], cut at the offsets [span] stores for it: the
+  /// selected word of `WordSheet`. [text] is still the whole ayah, as the
+  /// pack gave it; only the slice between the stored offsets is drawn, as the
+  /// surah-mode engine slices its ayat. A span that does not lie on character
+  /// boundaries of [text] draws nothing rather than a wrong word.
+  const QuranText.word(
+    this.text,
+    WordSpan span, {
+    this.size = QuranTextSize.focus,
+    this.align = QuranTextAlign.start,
+    this.colour = QuranTextColour.quranInk,
+    super.key,
+  }) : cardFontSize = null,
+       after = null,
+       _word = span,
+       _quoted = false;
 
   /// The font size of [QuranTextSize.compact] before the text scale, for
   /// what is sized to that text.
@@ -100,10 +121,13 @@ final class QuranText extends StatelessWidget {
   /// What the quoted form sets after the closing bracket.
   final SurahNameSpan? after;
 
+  final WordSpan? _word;
   final bool _quoted;
 
   @override
   Widget build(BuildContext context) {
+    final shown = _shown;
+    if (shown == null) return const SizedBox.shrink();
     final cardFontSize = this.cardFontSize;
     final style = switch ((cardFontSize, _quoted)) {
       (final fontSize?, _) => _quranCard.copyWith(fontSize: fontSize),
@@ -114,7 +138,7 @@ final class QuranText extends StatelessWidget {
       // RichText rather than Text: Text merges the ambient style and the
       // system's bold-text setting into its style, and neither may reach here.
       text: TextSpan(
-        text: _quoted ? null : text.verbatim,
+        text: _quoted ? null : shown,
         children: _quoted ? _quotedSpans(context) : null,
         style: style.copyWith(color: _colourOf(context.colors)),
         locale: _arabic,
@@ -133,6 +157,18 @@ final class QuranText extends StatelessWidget {
           ? MediaQuery.textScalerOf(context)
           : TextScaler.noScaling,
     );
+  }
+
+  /// The string to draw: the text whole, or the slice of the word; null for a
+  /// span that is not a slice of the text.
+  String? get _shown {
+    final word = _word;
+    if (word == null) return text.verbatim;
+    final fits =
+        word.start < word.end &&
+        text.isSliceBoundary(word.start) &&
+        text.isSliceBoundary(word.end);
+    return fits ? text.verbatim.substring(word.start, word.end) : null;
   }
 
   List<InlineSpan> _quotedSpans(BuildContext context) {
