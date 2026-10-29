@@ -298,7 +298,7 @@ void main() {
       await created.close();
       sqlite3.open(file.path)
         ..execute('DROP TABLE listening_position')
-        ..dispose();
+        ..close();
       final bytes = file.readAsBytesSync();
       final damaged = UserDatabase(NativeDatabase(file));
       addTearDown(damaged.close);

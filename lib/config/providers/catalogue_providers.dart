@@ -26,17 +26,16 @@ Future<void> catalogueProviders(Dependencies dependencies) async {
 
 /// Provides the [RecitationRepository] over the catalogue, the installer and
 /// the integrity repository earlier areas provided. Recitations are played
-/// from verified packs, so without any of the three, the last of which needs a
-/// base pack, none is provided.
+/// from verified packs, so without the catalogue or the integrity repository,
+/// which needs a base pack, none is provided.
 void provideRecitations(Dependencies dependencies) {
   final catalogue = dependencies.tryRead<CatalogueRepository>();
-  final installs = dependencies.tryRead<PackInstallRepository>();
   final integrity = dependencies.tryRead<PackIntegrityRepository>();
-  if (catalogue == null || installs == null || integrity == null) return;
+  if (catalogue == null || integrity == null) return;
   dependencies.provideListenable<RecitationRepository>(
     recitationRepository(
       catalogue: catalogue,
-      installs: installs,
+      installs: dependencies.read<PackInstallRepository>(),
       integrity: integrity,
     ),
   );

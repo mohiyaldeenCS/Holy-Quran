@@ -77,20 +77,29 @@ void main() {
       expect(await buildDependencies(areas: [searchProviders]), isEmpty);
     });
 
-    test('provides nothing without the guard or the structure', () async {
+    test('provides nothing while the text and index did not open', () async {
       final pack = await buildSyntheticPack(root, formatVersion: 2);
-      final guard = BasePackGuard(serving: () => true, failed: (_) {});
 
-      final noGuard = await over(pack: pack.directory, guard: null);
-      final noStructure = await over(
+      final dependencies = await over(
         pack: pack.directory,
-        guard: guard,
+        guard: BasePackGuard(serving: () => true, failed: (_) {}),
         structure: false,
       );
 
-      expect(noGuard.tryRead<SearchRepository>(), isNull);
-      expect(noStructure.tryRead<SearchRepository>(), isNull);
+      expect(dependencies.tryRead<SearchRepository>(), isNull);
     });
+
+    test(
+      'fails the start when a verified pack came without its guard',
+      () async {
+        final pack = await buildSyntheticPack(root, formatVersion: 2);
+
+        await expectLater(
+          over(pack: pack.directory, guard: null),
+          throwsStateError,
+        );
+      },
+    );
 
     test('follows the guard: serving, and failing the pack', () async {
       final pack = await buildSyntheticPack(

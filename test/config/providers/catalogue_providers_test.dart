@@ -128,15 +128,20 @@ void main() {
       expect(messages, isEmpty);
     });
 
-    test('provides nothing while the catalogue, the installer or the '
-        'integrity is missing', () async {
-      for (final dependencies in [
-        await over(catalogue: false),
-        await over(installs: false),
-        await over(integrity: false),
-      ]) {
-        expect(dependencies.tryRead<RecitationRepository>(), isNull);
-      }
+    test(
+      'provides nothing while the catalogue or the integrity is missing',
+      () async {
+        for (final dependencies in [
+          await over(catalogue: false),
+          await over(integrity: false),
+        ]) {
+          expect(dependencies.tryRead<RecitationRepository>(), isNull);
+        }
+      },
+    );
+
+    test('fails the start when the installer is missing', () async {
+      await expectLater(over(installs: false), throwsStateError);
     });
   });
 }

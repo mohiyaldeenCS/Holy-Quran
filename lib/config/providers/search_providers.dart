@@ -8,19 +8,16 @@ import 'package:holyquran/domain/models/verified_pack.dart';
 
 /// Provides the [SearchRepository] of the verified base pack, which fails
 /// once the pack stops serving and disables the pack when its index cannot
-/// be built, through the [BasePackGuard] the Quran area provided. Without
-/// them, which is without a verified base pack, there is nothing to search.
+/// be built, through the [BasePackGuard] the Quran area provides with the
+/// [VerifiedPack]. Without a base pack that verified and whose text and index
+/// opened, there is nothing to search.
 ///
 /// The search of tafsir books is not provided: it needs the verified packs of
 /// the installed books, which only the tafsir repository holds, privately.
 Future<void> searchProviders(Dependencies dependencies) async {
   final pack = dependencies.tryRead<VerifiedPack>();
-  final guard = dependencies.tryRead<BasePackGuard>();
-  if (pack == null ||
-      guard == null ||
-      dependencies.tryRead<QuranStructure>() == null) {
-    return;
-  }
+  if (pack == null || dependencies.tryRead<QuranStructure>() == null) return;
+  final guard = dependencies.read<BasePackGuard>();
   provideSearch(
     dependencies,
     pack: pack,
