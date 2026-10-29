@@ -610,6 +610,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get contextPlayFromAyah => 'تشغيل من هذه الآية';
 
   @override
+  String get changeNotSaved => 'تعذّر حفظ التغيير.';
+
+  @override
   String get toolbarBookmark => 'علامة';
 
   @override

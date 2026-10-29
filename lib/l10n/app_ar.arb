@@ -882,6 +882,10 @@
   "@contextPlayFromAyah": {
     "description": "Reference aria-label, index.jsx ContextSheet"
   },
+  "changeNotSaved": "تعذّر حفظ التغيير.",
+  "@changeNotSaved": {
+    "description": "Lead, D-128 (5): a single change the store refused, such as a bookmark that could not be made, removed or restored."
+  },
   "toolbarBookmark": "علامة",
   "@toolbarBookmark": {
     "description": "The selected ayah's toolbar: bookmark it. Source: docs/prd/PRD.ar.md (§7.4)."

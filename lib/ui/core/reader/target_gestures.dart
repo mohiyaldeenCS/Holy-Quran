@@ -9,8 +9,11 @@ import 'gesture_target.dart';
 /// No double tap: its recogniser would hold every tap for 300 ms (`NF-05`
 /// allows 200).
 ///
-/// It sits inside the scroll view, one per block, so the scroll view's drag
-/// wins past the touch slop, and a tap that stops a fling never reaches it.
+/// It sits in the scroll view, one per block, or around the scroll view for
+/// the margin and what lies between blocks; either way the scroll view's drag
+/// wins past the touch slop. A block's is inside the scroll view, which
+/// ignores a touch that stops a fling; one around it must be left unarmed
+/// while the text scrolls, by passing no [onTap].
 /// The target is resolved from the block's own geometry near the point,
 /// never the whole surah's. Words, marks and markers stay out of semantics
 /// here.

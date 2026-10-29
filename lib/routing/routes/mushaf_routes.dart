@@ -1,10 +1,18 @@
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:holyquran/data/repositories/app_settings_repository.dart';
+import 'package:holyquran/data/repositories/bookmark_repository.dart';
+import 'package:holyquran/data/repositories/category_repository.dart';
+import 'package:holyquran/data/repositories/keep_awake_repository.dart';
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
+import 'package:holyquran/data/repositories/player_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/data/repositories/reading_position_repository.dart';
+import 'package:holyquran/data/services/clipboard_service.dart';
+import 'package:holyquran/data/services/share_service.dart';
+import 'package:holyquran/domain/models/playback_plan_builder.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/routing/routes/feature_routes.dart';
@@ -63,6 +71,11 @@ Widget _reader(BuildContext context, QuranAddress? address) =>
         positions: context.read<ReadingPositionRepository?>(),
         integrity: context.read<PackIntegrityRepository?>(),
         address: address,
+        settings: context.read<AppSettingsRepository?>(),
+        bookmarks: context.read<BookmarkRepository?>(),
+        categories: context.read<CategoryRepository?>(),
+        keepAwake: context.read<KeepAwakeRepository?>(),
+        tools: _ayahTools(context),
       ),
       // The screen listens to its view model itself.
       child: Builder(
@@ -71,3 +84,17 @@ Widget _reader(BuildContext context, QuranAddress? address) =>
         ),
       ),
     );
+
+// The tools whose sheets read objects that only a verified base pack, or the
+// player, provide; an entry point hides what cannot work (D-138, 3).
+AyahTools _ayahTools(BuildContext context) {
+  final hasText = context.read<QuranTextRepository?>() != null;
+  return AyahTools(
+    play:
+        context.read<PlayerRepository?>() != null &&
+        context.read<PlaybackPlanBuilder?>() != null &&
+        context.read<QuranIndexRepository?>() != null,
+    copy: hasText && context.read<ClipboardService?>() != null,
+    share: hasText && context.read<ShareService?>() != null,
+  );
+}

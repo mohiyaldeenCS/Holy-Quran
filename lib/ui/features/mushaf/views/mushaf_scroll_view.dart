@@ -1,15 +1,25 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
+import 'package:holyquran/routing/route_table.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/metrics/reader_screen_metrics.dart';
+import 'package:holyquran/ui/core/reader/block_layout.dart';
+import 'package:holyquran/ui/core/reader/block_margin.dart';
+import 'package:holyquran/ui/core/reader/gesture_target.dart';
+import 'package:holyquran/ui/core/reader/interactive_surah_sliver.dart';
+import 'package:holyquran/ui/core/reader/reader_highlights.dart';
+import 'package:holyquran/ui/core/reader/reader_pinch_stepper.dart';
+import 'package:holyquran/ui/core/reader/reader_text_scale.dart';
 import 'package:holyquran/ui/core/reader/surah_layout.dart';
-import 'package:holyquran/ui/core/reader/surah_sliver.dart';
+import 'package:holyquran/ui/core/reader/target_gestures.dart';
 import 'package:holyquran/ui/core/widgets/surah_header.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/mushaf_view_model.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/reader_surah.dart';
@@ -23,6 +33,11 @@ import 'package:holyquran/ui/features/mushaf/views/surah_info_text.dart';
 /// next surah before the reader reaches the end. While not [active] it
 /// neither tracks, saves nor loads. Every scroll it did not make itself
 /// counts as the user's, a screen reader's included.
+///
+/// Its gestures are the reader's (PRD §7.4): a tap or long press reaches the
+/// view model, which selects an ayah or toggles the interface; a pinch steps
+/// the text size (`RD-07`) and keeps the ayah under the fingers in place; the
+/// margins show the marks and the ribbons of bookmarks.
 final class MushafScrollView extends StatefulWidget {
   const MushafScrollView({
     required this.viewModel,
@@ -47,6 +62,19 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
   QuranAddress? _pendingAnchor;
   bool _jumping = false;
 
+  // The plan of the surah under the middle of the screen, which a pinch
+  // anchors in, and whether a step is waiting for its new plans.
+  final _focus = _FocusLayout();
+  int? _focusSurah;
+  bool _stepping = false;
+
+  // Whether the stepper holds an ayah to keep in place for the step in flight.
+  bool _anchored = false;
+
+  // Whether the text is scrolling. The scroll view ignores a touch that stops
+  // a fling, so a tap that does must not reach the layer around it either.
+  final _moving = ValueNotifier<bool>(false);
+
   MushafViewModel get _model => widget.viewModel;
 
   @override
@@ -60,6 +88,8 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
   @override
   void dispose() {
     _model.removeListener(_onModel);
+    _focus.dispose();
+    _moving.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -97,6 +127,28 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
 
   void _onLayout(SurahLayout layout) {
     _layouts[layout.text.surah] = layout;
+    if (_focusSurah == null || layout.text.surah == _focusSurah) {
+      _focusSurah = layout.text.surah;
+      // A step's new plans are anchored by the pinch stepper, to the ayah
+      // under the fingers; any other change of plan is kept in place here.
+      if (_stepping) {
+        _focus.publish(layout);
+        _stepping = false;
+        if (_anchored) {
+          _loadNextIfNear();
+          return;
+        }
+      } else {
+        _focus.keep(layout);
+      }
+    } else if (_stepping && _anchored) {
+      // The surahs above the focus change height with the step too, and a
+      // jump to keep the first visible line would move the scroll under the
+      // stepper. Without an anchor (fingers on a header or a basmala below
+      // the top surah) the first visible line is what is kept.
+      _loadNextIfNear();
+      return;
+    }
     final pending = _pendingAnchor;
     final target = pending ?? _model.position?.address;
     if (target != null && target.surah == layout.text.surah) {
@@ -135,11 +187,16 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
   }
 
   bool _onScroll(ScrollNotification notification) {
+    if (notification.depth == 0) {
+      if (notification is ScrollStartNotification) _moving.value = true;
+      if (notification is ScrollEndNotification) _moving.value = false;
+    }
     if (!widget.active || _jumping || notification.depth != 0) return false;
     if (notification is ScrollStartNotification) _pendingAnchor = null;
     if (notification is ScrollUpdateNotification ||
         notification is ScrollEndNotification) {
       _trackFirstVisible(notification.metrics.pixels);
+      _trackFocus(notification.metrics);
     }
     if (notification is ScrollEndNotification) {
       unawaited(_model.saveFirstVisible());
@@ -172,6 +229,58 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
     }
   }
 
+  void _trackFocus(ScrollMetrics metrics) => _focusAt(
+    metrics.pixels + metrics.viewportDimension * ReaderScreenMetrics.pinchFocus,
+  );
+
+  /// Takes the surah whose text, or whose header above it, holds the scroll
+  /// position [y] as the one a pinch anchors in.
+  void _focusAt(double y) {
+    for (final surah in _surahs) {
+      final number = surah.info.number;
+      final sliver = _sliverOf(_textKeys, number);
+      if (sliver == null) return;
+      final start = sliver.constraints.precedingScrollExtent;
+      if (y >= start + sliver.geometry!.scrollExtent) continue;
+      final layout = _layouts[number];
+      if (layout != null && identical(layout.text, surah.text)) {
+        _focusSurah = number;
+        _focus.keep(layout);
+      }
+      return;
+    }
+  }
+
+  double _focusLeading() {
+    final surah = _focusSurah;
+    if (surah == null) return 0;
+    return _sliverOf(_textKeys, surah)?.constraints.precedingScrollExtent ?? 0;
+  }
+
+  void _onStep(int step) {
+    _stepping = true;
+    _model.setTextStep(step);
+  }
+
+  void _tapped(GestureTarget target) {
+    final router = GoRouter.maybeOf(context);
+    final word = _model.tap(
+      target,
+      wordSheet:
+          router != null &&
+          target is WordTarget &&
+          hasRoute(router, Routes.wordSheet(target.word)),
+    );
+    if (word != null) unawaited(context.push<Object?>(Routes.wordSheet(word)));
+  }
+
+  Widget _margin(BuildContext context, BlockLayout layout) =>
+      ValueListenableBuilder(
+        valueListenable: _model.bookmarks.ribbons,
+        builder: (context, ribbons, _) =>
+            BlockMargin(layout: layout, bookmarks: ribbons),
+      );
+
   void _loadNextIfNear([ScrollMetrics? metrics]) {
     if (!widget.active) return;
     final reading =
@@ -202,34 +311,78 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
 
   @override
   Widget build(BuildContext context) {
-    return NotificationListener<ScrollMetricsNotification>(
-      onNotification: _onMetrics,
-      child: NotificationListener<ScrollNotification>(
-        onNotification: _onScroll,
-        child: CustomScrollView(
-          controller: _controller,
-          slivers: [
-            const SliverToBoxAdapter(
-              child: SizedBox(height: ReaderScreenMetrics.columnTop),
+    final step = readerTextSteps[_model.textStep];
+    final highlights = ReaderHighlights(selectedAyah: _model.selectedAyah);
+    return ReaderPinchStepper(
+      scrollController: _controller,
+      layout: _focus,
+      step: _model.textStep,
+      onStep: _onStep,
+      leadingExtent: _focusLeading,
+      focusAt: _focusAt,
+      onAnchor: (anchored) => _anchored = anchored,
+      child: NotificationListener<ScrollMetricsNotification>(
+        onNotification: _onMetrics,
+        child: NotificationListener<ScrollNotification>(
+          onNotification: _onScroll,
+          // The text column's sides and what lies between blocks belong to no
+          // block; a tap there is a tap on the margin (PRD §7.4). A long hold
+          // is not a tap, and neither is the touch that stops a fling.
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _moving,
+            builder: (context, moving, child) => TargetGestures(
+              targetAt: (_) => const MarginTarget(),
+              onTap: moving ? null : _tapped,
+              onLongPress: _model.longPress,
+              child: child!,
             ),
-            for (final surah in _surahs) ...[
-              SliverPadding(
-                key: _keyOf(_headerKeys, surah.info.number),
-                padding: ReaderScreenMetrics.blockPadding,
-                sliver: SliverToBoxAdapter(child: _header(context, surah)),
-              ),
-              SliverPadding(
-                padding: ReaderScreenMetrics.blockPadding,
-                sliver: SurahSliver(
-                  key: _keyOf(_textKeys, surah.info.number),
-                  text: surah.text,
-                  onLayout: _onLayout,
+            child: CustomScrollView(
+              controller: _controller,
+              slivers: [
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: ReaderScreenMetrics.columnTop),
                 ),
-              ),
-            ],
-          ],
+                for (final surah in _surahs) ...[
+                  SliverPadding(
+                    key: _keyOf(_headerKeys, surah.info.number),
+                    padding: ReaderScreenMetrics.blockPadding,
+                    sliver: SliverToBoxAdapter(child: _header(context, surah)),
+                  ),
+                  SliverPadding(
+                    padding: ReaderScreenMetrics.blockPadding,
+                    sliver: InteractiveSurahSliver(
+                      key: _keyOf(_textKeys, surah.info.number),
+                      text: surah.text,
+                      step: step,
+                      onLayout: _onLayout,
+                      highlights: highlights,
+                      onTap: _tapped,
+                      onLongPress: _model.longPress,
+                      blockOverlayBuilder: _margin,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
+  }
+}
+
+/// The plan of the surah in focus for [ReaderPinchStepper], which restores
+/// the scroll offset whenever the plan is announced. [keep] stores a plan
+/// without announcing it; [publish] announces it.
+final class _FocusLayout extends ChangeNotifier
+    implements ValueListenable<SurahLayout?> {
+  @override
+  SurahLayout? value;
+
+  void keep(SurahLayout layout) => value = layout;
+
+  void publish(SurahLayout layout) {
+    value = layout;
+    notifyListeners();
   }
 }
