@@ -12,7 +12,7 @@ import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/core/widgets/mode_chips.dart';
-import 'package:holyquran/ui/features/index/views/go_to_field.dart';
+import 'package:holyquran/ui/core/widgets/number_field.dart';
 
 import 'index_fixture.dart';
 import 'index_harness.dart';
@@ -56,7 +56,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       final fields = find.descendant(
-        of: find.byType(GoToField),
+        of: find.byType(NumberField),
         matching: find.byType(TextField),
       );
       await tester.enterText(fields.at(0), '2');

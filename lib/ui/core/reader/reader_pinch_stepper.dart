@@ -24,7 +24,9 @@ import 'surah_layout.dart';
 ///
 /// This widget's box is the scroll view's viewport, so [child] fills it. The
 /// sliver is as wide as that box and starts [leadingExtent] below the top of
-/// the scroll content.
+/// the scroll content. A scroll view that holds several surahs hands over the
+/// plan of the one in focus through [layout], and [leadingExtent] is asked
+/// each time it is needed, since the surahs above change height with a step.
 final class ReaderPinchStepper extends StatefulWidget {
   const ReaderPinchStepper({
     required this.scrollController,
@@ -32,7 +34,9 @@ final class ReaderPinchStepper extends StatefulWidget {
     required this.step,
     required this.onStep,
     required this.child,
-    this.leadingExtent = 0,
+    this.leadingExtent = _noLeadingExtent,
+    this.focusAt,
+    this.onAnchor,
     super.key,
   });
 
@@ -40,7 +44,18 @@ final class ReaderPinchStepper extends StatefulWidget {
   final ValueListenable<SurahLayout?> layout;
   final int step;
   final ValueChanged<int> onStep;
-  final double leadingExtent;
+  final ValueGetter<double> leadingExtent;
+
+  /// Called when a pinch ends, with the position of the fingers in the scroll
+  /// content, before the plan is read from [layout]: a scroll view that holds
+  /// several surahs makes [layout] the plan of the surah under the fingers.
+  final ValueChanged<double>? focusAt;
+
+  /// Called with each pinch's step, just before [onStep], to say whether the
+  /// stepper holds an ayah to keep in place: the one under the fingers, or the
+  /// one at the top of the focus surah. Without one, the new plan keeps the
+  /// scroll offset it had, and the caller keeps its own first visible line.
+  final ValueChanged<bool>? onAnchor;
   final Widget child;
 
   @override
@@ -117,7 +132,7 @@ final class _ReaderPinchStepperState extends State<ReaderPinchStepper> {
     final layout = widget.layout.value;
     final position = _position;
     if (!mounted || layout == null || position == null) return;
-    final y = position.pixels - widget.leadingExtent;
+    final y = position.pixels - widget.leadingExtent();
     _top = y < layout.basmalaExtent
         ? null
         : (focal: focalAyahOfLine(layout, y), viewportY: 0);
@@ -127,7 +142,7 @@ final class _ReaderPinchStepperState extends State<ReaderPinchStepper> {
     final position = _position;
     if (position == null) return;
     final y = yOfFocalAyah(layout, anchor.focal);
-    final target = widget.leadingExtent + y - anchor.viewportY;
+    final target = widget.leadingExtent() + y - anchor.viewportY;
     position.jumpTo(
       target.clamp(position.minScrollExtent, position.maxScrollExtent),
     );
@@ -136,13 +151,18 @@ final class _ReaderPinchStepperState extends State<ReaderPinchStepper> {
   void _pinched(double scale, Offset focalPoint) {
     final next = stepAfterPinch(widget.step, scale);
     if (next == widget.step) return;
-    final layout = widget.layout.value;
     final position = _position;
+    final local = (context.findRenderObject()! as RenderBox).globalToLocal(
+      focalPoint,
+    );
+    if (position != null) widget.focusAt?.call(position.pixels + local.dy);
+    final layout = widget.layout.value;
+    // The plan the pinch was made on is what the next plan is compared with,
+    // whether or not an earlier plan was announced for this surah.
+    _known = layout;
+    _recordTop();
     if (layout != null && position != null) {
-      final local = (context.findRenderObject()! as RenderBox).globalToLocal(
-        focalPoint,
-      );
-      final y = position.pixels - widget.leadingExtent + local.dy;
+      final y = position.pixels - widget.leadingExtent() + local.dy;
       final focal = focalAyahUnder(
         layout,
         Offset(local.dx, y),
@@ -154,6 +174,7 @@ final class _ReaderPinchStepperState extends State<ReaderPinchStepper> {
           ? null
           : (focal: focal, viewportY: local.dy);
     }
+    widget.onAnchor?.call(_pinch != null || _top != null);
     final from = widget.step;
     widget.onStep(next);
     // A screen that did not take the step brings no new plan, so the finger
@@ -169,3 +190,5 @@ final class _ReaderPinchStepperState extends State<ReaderPinchStepper> {
   Widget build(BuildContext context) =>
       ReaderPinch(onPinchEnd: _pinched, child: widget.child);
 }
+
+double _noLeadingExtent() => 0;

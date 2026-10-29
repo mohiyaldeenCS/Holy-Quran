@@ -16,6 +16,7 @@ final class AyahMarker extends StatelessWidget {
   const AyahMarker({
     required this.number,
     this.playing = false,
+    this.selected = false,
     this.size = AppSizes.ayahMarker,
     this.ringWidth = _ringWidth,
     super.key,
@@ -23,6 +24,7 @@ final class AyahMarker extends StatelessWidget {
 
   final int number;
   final bool playing;
+  final bool selected;
   final double size;
 
   /// The ring's stroke; `AyahRow` draws it thicker (`.qk-ayah-row .qk-ayah-no`).
@@ -31,6 +33,7 @@ final class AyahMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final ring = selected && !playing ? colors.primary : colors.ornament;
     final digits = arabicDigits(number);
     final diameter = MediaQuery.textScalerOf(context).scale(size);
     final digitScale = digits.length > _longNumberDigits
@@ -47,7 +50,7 @@ final class AyahMarker extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: playing ? colors.ornament : null,
-            border: Border.all(color: colors.ornament, width: ringWidth),
+            border: Border.all(color: ring, width: ringWidth),
           ),
           child: Text(
             digits,
@@ -57,7 +60,11 @@ final class AyahMarker extends StatelessWidget {
             style: AppTextStyles.caption.copyWith(
               fontSize: diameter * digitScale,
               height: _numberHeight,
-              color: playing ? Ramps.emerald950 : colors.accent,
+              color: playing
+                  ? Ramps.emerald950
+                  : selected
+                  ? colors.primary
+                  : colors.accent,
             ),
           ),
         ),

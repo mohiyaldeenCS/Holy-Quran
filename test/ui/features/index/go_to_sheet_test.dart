@@ -14,8 +14,8 @@ import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/core/widgets/mode_chips.dart';
+import 'package:holyquran/ui/core/widgets/number_field.dart';
 import 'package:holyquran/ui/core/widgets/surah_name.dart';
-import 'package:holyquran/ui/features/index/views/go_to_field.dart';
 import 'package:holyquran/ui/features/index/views/go_to_sheet.dart';
 
 import 'index_fixture.dart';
@@ -68,7 +68,7 @@ void main() {
   Future<void> type(WidgetTester tester, int field, String text) async {
     await tester.enterText(
       find.descendant(
-        of: find.byType(GoToField).at(field),
+        of: find.byType(NumberField).at(field),
         matching: find.byType(TextField),
       ),
       text,
@@ -97,7 +97,7 @@ void main() {
       _l10n.goToRub,
     ]);
     expect(chips.selectedIndex, 0);
-    expect(find.byType(GoToField), findsOneWidget);
+    expect(find.byType(NumberField), findsOneWidget);
     expect(find.text(_l10n.goToTitle), findsNWidgets(2));
   });
 
@@ -134,7 +134,7 @@ void main() {
   testWidgets('a surah and an ayah open at that ayah', (tester) async {
     final router = await openSheet(tester);
     await choose(tester, _l10n.goToAyah);
-    expect(find.byType(GoToField), findsNWidgets(2));
+    expect(find.byType(NumberField), findsNWidgets(2));
     await type(tester, 0, arabicDigits(2));
     await type(tester, 1, '5');
     await submit(tester);
@@ -288,7 +288,7 @@ void main() {
     await choose(tester, _l10n.goToAyah);
     expect(find.bySemanticsLabel(_l10n.goToSurah), findsWidgets);
     expect(find.bySemanticsLabel(_l10n.goToAyah), findsWidgets);
-    for (final field in tester.widgetList(find.byType(GoToField))) {
+    for (final field in tester.widgetList(find.byType(NumberField))) {
       expect(
         tester.getSize(find.byWidget(field)).height,
         greaterThanOrEqualTo(48),

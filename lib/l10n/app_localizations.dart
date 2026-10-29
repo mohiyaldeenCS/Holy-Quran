@@ -1138,6 +1138,12 @@ abstract class AppLocalizations {
   /// **'تشغيل من هذه الآية'**
   String get contextPlayFromAyah;
 
+  /// Lead, D-128 (5): a single change the store refused or a read that failed, such as a bookmark that could not be made, removed or restored, a note that could not be deleted, or a search history that could not be cleared or read. Not the in-memory sentence of D-133 (userDataNotSaved).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر حفظ التغيير.'**
+  String get changeNotSaved;
+
   /// The selected ayah's toolbar: bookmark it. Source: docs/prd/PRD.ar.md (§7.4).
   ///
   /// In ar, this message translates to:
@@ -2105,6 +2111,114 @@ abstract class AppLocalizations {
     String source,
     String version,
   );
+
+  /// The bookmarks screen's search field: its hint and spoken name. Wording of SR-08 in docs/prd/PRD.ar.md. P1-24, proposed for the lead to approve under D-128 (5).
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث في العلامات والملاحظات'**
+  String get bookmarksSearchHint;
+
+  /// The bookmarks tab of the bookmarks screen. First half of the screen title, docs/prd/PRD.ar.md (§7.1). P1-24, proposed for the lead to approve under D-128 (5).
+  ///
+  /// In ar, this message translates to:
+  /// **'العلامات'**
+  String get bookmarksTabBookmarks;
+
+  /// The notes tab of the bookmarks screen. Second half of the screen title, docs/prd/PRD.ar.md (§7.1). P1-24, proposed for the lead to approve under D-128 (5).
+  ///
+  /// In ar, this message translates to:
+  /// **'الملاحظات'**
+  String get bookmarksTabNotes;
+
+  /// The number of bookmarks listed. P1-24, proposed for the lead to approve under D-128 (5). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{علامة واحدة} =2{علامتان} few{{digits} علامات} other{{digits} علامة}}'**
+  String bookmarksCount(int count, String digits);
+
+  /// The number of notes listed. P1-24, proposed for the lead to approve under D-128 (5). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{ملاحظة واحدة} =2{ملاحظتان} few{{digits} ملاحظات} other{{digits} ملاحظة}}'**
+  String notesCount(int count, String digits);
+
+  /// Name of the category group of tags, in the filter and in the note editor. Wording of UD-03 in docs/prd/PRD.ar.md. P1-24, proposed for the lead to approve under D-128 (5).
+  ///
+  /// In ar, this message translates to:
+  /// **'التصنيف'**
+  String get categoryLabel;
+
+  /// Spoken name of the delete button of a bookmark, beside noteDelete. P1-24, proposed for the lead to approve under D-128 (5).
+  ///
+  /// In ar, this message translates to:
+  /// **'احذف العلامة'**
+  String get bookmarkDelete;
+
+  /// The line beside the undo action after a bookmark or a note is deleted (UD-07). P1-24, proposed for the lead to approve under D-128 (5).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الحذف'**
+  String get itemDeleted;
+
+  /// The button that starts another note on an ayah that has some (UD-04). P1-24, wording given by the lead on the review of P1-24 (D-128 (5)).
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف ملاحظة'**
+  String get noteAdd;
+
+  /// Hint and spoken name of the field that makes a free tag (UD-02). P1-24, proposed for the lead to approve under D-128 (5).
+  ///
+  /// In ar, this message translates to:
+  /// **'وسم جديد'**
+  String get tagNewHint;
+
+  /// The button that makes the free tag typed in the note editor (UD-02). P1-24, proposed for the lead to approve under D-128 (5).
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف'**
+  String get tagAdd;
+
+  /// The spoken hint of a tag on a bookmark's or note's card, whose press opens the editor of its category and tags. Wording of UD-03 in docs/prd/PRD.ar.md. P1-24, proposed for the lead to approve under D-128 (5).
+  ///
+  /// In ar, this message translates to:
+  /// **'غيّر التصنيف والوسوم'**
+  String get tagsEditHint;
+
+  /// Lead, 2026-10-29, D-128 (5). Spoken name of the button on a note's card that opens that note in its editor (UD-04); noteAdd is the editor's new-note button.
+  ///
+  /// In ar, this message translates to:
+  /// **'عدّل الملاحظة'**
+  String get noteEdit;
+
+  /// P1-29, for the lead's approval under D-128 (5). The name of the group of chips that choose where a search looks (SR-06). Wording from docs/prd/PRD.ar.md (SR-06).
+  ///
+  /// In ar, this message translates to:
+  /// **'نطاق البحث'**
+  String get searchScopeLabel;
+
+  /// P1-29, for the lead's approval under D-128 (5). The count line of the search summary, as the Search board writes it: places is searchPlaces and ayat is ayahCount, each already written. Source: design/identity-boards/Search.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'{places} في {ayat}'**
+  String searchResultCount(String places, String ayat);
+
+  /// P1-29, approved by the owner. The button that clears the search history (SR-10).
+  ///
+  /// In ar, this message translates to:
+  /// **'مسح السجل'**
+  String get searchHistoryClear;
+
+  /// P1-29, for the lead's approval under D-128 (5). The hint and spoken name of the field for the number of the surah a search is limited to; the Go to sheet's «سورة» with the word a number is expected (SR-06).
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم السورة'**
+  String get searchScopeSurahNumber;
+
+  /// P1-29, for the lead's approval under D-128 (5). The hint and spoken name of the field for the number of the juz a search is limited to (SR-06).
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم الجزء'**
+  String get searchScopeJuzNumber;
 }
 
 class _AppLocalizationsDelegate

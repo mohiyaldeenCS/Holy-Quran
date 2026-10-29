@@ -4,14 +4,22 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
+import 'package:holyquran/data/repositories/app_settings_repository.dart';
+import 'package:holyquran/data/repositories/bookmark_repository.dart';
+import 'package:holyquran/data/repositories/category_repository.dart';
+import 'package:holyquran/data/repositories/keep_awake_repository.dart';
 import 'package:holyquran/data/repositories/pack_quran_text_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
+import 'package:holyquran/l10n/app_localizations.dart';
+import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/shell_chrome.dart';
+import 'package:holyquran/ui/core/theme/app_theme.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/mushaf_view_model.dart';
 import 'package:holyquran/ui/features/mushaf/views/mushaf_screen.dart';
 import 'package:holyquran/utils/result.dart';
@@ -102,12 +110,22 @@ final class MushafRig {
   MushafViewModel viewModel({
     QuranAddress? address,
     ReadingPositionRepository? positions,
+    AppSettingsRepository? settings,
+    BookmarkRepository? bookmarks,
+    CategoryRepository? categories,
+    KeepAwakeRepository? keepAwake,
+    AyahTools tools = AyahTools.none,
   }) => MushafViewModel(
     text: text,
     index: index,
     positions: positions,
     integrity: integrity,
     address: address,
+    settings: settings,
+    bookmarks: bookmarks,
+    categories: categories,
+    keepAwake: keepAwake,
+    tools: tools,
   );
 
   void close() {
@@ -236,3 +254,60 @@ Future<Set<String>> labelsFromScrollingToEnd(
   ))
     ...snapshot,
 };
+
+/// The sheets the reader opens, as stub routes that record where they were
+/// opened, in a router the reader sits in at `/`.
+final class SheetLog {
+  final opened = <String>[];
+
+  GoRouter router(
+    MushafViewModel viewModel, {
+    Set<String> without = const {},
+  }) => GoRouter(
+    routes: [
+      GoRoute(
+        path: '/',
+        builder: (context, state) => SizedBox.fromSize(
+          size: const Size(readerWidth, readerHeight),
+          child: MushafScreen(key: ObjectKey(viewModel), viewModel: viewModel),
+        ),
+      ),
+      for (final path in [
+        RoutePaths.playOptionsSheet,
+        RoutePaths.copySheet,
+        RoutePaths.shareSheet,
+        RoutePaths.ayahSheet,
+        RoutePaths.wordSheet,
+        RoutePaths.goToSheet,
+      ])
+        if (!without.contains(path))
+          GoRoute(
+            path: path,
+            builder: (context, state) {
+              opened.add(state.uri.path);
+              return const SizedBox();
+            },
+          ),
+    ],
+  );
+}
+
+/// The reader in [router], in [theme] at system text scale [textScale].
+Widget readerRouterApp(
+  GoRouter router, {
+  ReadingTheme theme = ReadingTheme.paper,
+  double textScale = 1,
+}) => MaterialApp.router(
+  routerConfig: router,
+  theme: buildAppTheme(theme),
+  locale: const Locale('ar'),
+  supportedLocales: AppLocalizations.supportedLocales,
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  debugShowCheckedModeBanner: false,
+  builder: (context, child) => MediaQuery(
+    data: MediaQuery.of(
+      context,
+    ).copyWith(textScaler: TextScaler.linear(textScale)),
+    child: child!,
+  ),
+);
