@@ -4,7 +4,8 @@ import 'package:holyquran/data/services/wakelock_service.dart';
 import 'package:holyquran/utils/result.dart';
 
 /// Keeps the screen on while the setting is on and the reader is open or
-/// recitation plays (`RD-16`). Listeners hear when [awake] changes.
+/// recitation plays (`RD-16`), and whenever stand mode is on, setting or no
+/// setting (`SY-05`). Listeners hear when [awake] changes.
 abstract class KeepAwakeRepository extends ChangeNotifier {
   /// Whether the screen is being kept on.
   bool get awake;
@@ -12,6 +13,9 @@ abstract class KeepAwakeRepository extends ChangeNotifier {
   Future<Result<void>> setSettingOn(bool on);
   Future<Result<void>> setReaderActive(bool active);
   Future<Result<void>> setPlayerActive(bool active);
+
+  /// Stand mode prevents the screen from turning off whatever the setting.
+  Future<Result<void>> setStandActive(bool active);
 }
 
 /// [KeepAwakeRepository] over the wakelock. It starts with every input off
@@ -23,6 +27,7 @@ final class LocalKeepAwakeRepository extends KeepAwakeRepository {
   bool _settingOn = false;
   bool _readerActive = false;
   bool _playerActive = false;
+  bool _standActive = false;
   bool _awake = false;
 
   /// Changes run one after another, so the last input decides.
@@ -49,8 +54,16 @@ final class LocalKeepAwakeRepository extends KeepAwakeRepository {
     return _follow();
   }
 
+  @override
+  Future<Result<void>> setStandActive(bool active) {
+    _standActive = active;
+    return _follow();
+  }
+
   Future<Result<void>> _follow() => _queue = _queue.then(
-    (_) => _apply(_settingOn && (_readerActive || _playerActive)),
+    (_) => _apply(
+      _standActive || (_settingOn && (_readerActive || _playerActive)),
+    ),
   );
 
   Future<Result<void>> _apply(bool awake) async {

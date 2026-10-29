@@ -105,6 +105,84 @@ void main() {
     expect(shown(viewModel), [5]);
   });
 
+  group('showing a surah for the recitation', () {
+    late FakeReadingPositionRepository positions;
+
+    MushafViewModel reader(QuranTextRepository source) {
+      final viewModel = MushafViewModel(
+        text: source,
+        index: rig.index,
+        positions: positions,
+        integrity: rig.integrity,
+      );
+      addTearDown(viewModel.dispose);
+      return viewModel;
+    }
+
+    setUp(() => positions = FakeReadingPositionRepository());
+
+    test('replaces the surahs and opens at the ayah', () async {
+      final viewModel = reader(rig.text);
+      await viewModel.open.execute();
+
+      await viewModel.showAt(at(6, 1));
+
+      expect(shown(viewModel).first, 6);
+      expect(viewModel.anchor, at(6, 1));
+    });
+
+    test('is refused for an address outside the edition', () async {
+      final viewModel = reader(rig.text);
+      await viewModel.open.execute();
+
+      expect(viewModel.canShow(at(6, 1)), isTrue);
+      expect(viewModel.canShow(at(400, 1)), isFalse);
+      expect(viewModel.canShow(QuranAddress('warsh', 6, 1)), isFalse);
+    });
+
+    test('waits for an open that is reading, and lands after it', () async {
+      final text = _GatedText(rig.text, 5);
+      final viewModel = reader(text);
+      await viewModel.open.execute();
+      expect(shown(viewModel), [1]);
+      positions.last = at(5, 1);
+      final reopening = viewModel.open.execute();
+      await pumpEventQueue();
+
+      await viewModel.showAt(at(6, 1));
+      expect(shown(viewModel), [1]);
+
+      text.gate.complete();
+      await reopening;
+      await pumpEventQueue();
+
+      expect(shown(viewModel).first, 6);
+      expect(viewModel.anchor, at(6, 1));
+    });
+
+    test(
+      'an open waits for a surah being shown, and replaces it after',
+      () async {
+        final text = _GatedText(rig.text, 6);
+        final viewModel = reader(text);
+        await viewModel.open.execute();
+        final showing = viewModel.showAt(at(6, 1));
+        await pumpEventQueue();
+        positions.last = at(5, 1);
+        final reopening = viewModel.open.execute();
+        await pumpEventQueue();
+        expect(shown(viewModel), [1]);
+
+        text.gate.complete();
+        await showing;
+        await reopening;
+
+        expect(shown(viewModel).first, 5);
+        expect(viewModel.anchor, at(5, 1));
+      },
+    );
+  });
+
   test(
     'a position saved by another reader while shown reopens there',
     () async {

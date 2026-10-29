@@ -3,12 +3,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/domain/models/playback_segment.dart';
 import 'package:holyquran/domain/models/player_state.dart';
+import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/reader/gesture_target.dart';
 import 'package:holyquran/ui/core/shell_chrome.dart';
 import 'package:holyquran/ui/core/theme/motion.dart';
 import 'package:holyquran/ui/core/widgets/ayah_marker.dart';
+import 'package:holyquran/ui/core/widgets/ayah_toolbar.dart';
 import 'package:holyquran/ui/core/widgets/position_bar.dart';
 import 'package:holyquran/ui/core/widgets/small_button.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/mushaf_view_model.dart';
@@ -200,7 +203,7 @@ void main() {
       tester,
     ) async {
       await pumpReader(tester);
-      expect(viewModel.surahs.first.info.number, 2);
+      expect(viewModel.surahs.map((s) => s.info.number), [2]);
 
       player.reach(recitationPlan(), ayahSegment(3, 1));
       await tester.pumpAndSettle();
@@ -367,6 +370,45 @@ void main() {
       expect(viewModel.distractionFree, isFalse);
     });
 
+    testWidgets('a drag does not call off the scroll to the ayah', (
+      tester,
+    ) async {
+      await pumpReader(tester);
+      viewModel.setStandMode(true);
+      await tester.pumpAndSettle();
+
+      player.reach(recitationPlan(), ayahSegment(2, 30));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 60));
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, 300));
+      await tester.pumpAndSettle();
+
+      expect(filled(tester), [30]);
+      expect(viewModel.follow.following, isTrue);
+    });
+
+    testWidgets('a long press or a tap on a marker selects nothing', (
+      tester,
+    ) async {
+      await pumpReader(tester);
+      viewModel.select(ayahAt(2, 3));
+      await tester.pumpAndSettle();
+      expect(find.byType(AyahToolbar), findsOneWidget);
+
+      viewModel.setStandMode(true);
+      await tester.pumpAndSettle();
+      expect(viewModel.selectedAyah, isNull);
+      expect(find.byType(AyahToolbar), findsNothing);
+
+      viewModel.longPress(WordTarget(ayahAt(2, 3)));
+      viewModel.tap(MarkerTarget(ayahAt(2, 4)), wordSheet: false);
+      await tester.pumpAndSettle();
+
+      expect(viewModel.selectedAyah, isNull);
+      expect(find.byType(AyahToolbar), findsNothing);
+    });
+
     testWidgets('leaving it gives the interface back', (tester) async {
       await pumpReader(tester);
       viewModel.setStandMode(true);
@@ -410,14 +452,70 @@ void main() {
       expect(keepAwake.awake, isFalse);
     });
 
-    testWidgets('not with the setting off', (tester) async {
+    testWidgets('in stand mode, setting or no setting (SY-05)', (tester) async {
+      keepAwake.settingOn = false;
+      await pumpReader(tester, keepAwake: keepAwake);
+      player.reach(recitationPlan(), ayahSegment(2, 2));
+      await tester.pumpAndSettle();
+      expect(keepAwake.awake, isFalse);
+
+      viewModel.setStandMode(true);
+      await tester.pumpAndSettle();
+      expect(keepAwake.awake, isTrue);
+
+      viewModel.setStandMode(false);
+      await tester.pumpAndSettle();
+      expect(keepAwake.awake, isFalse);
+    });
+
+    testWidgets('not in stand mode once the reader is left', (tester) async {
       keepAwake.settingOn = false;
       await pumpReader(tester, keepAwake: keepAwake);
       viewModel.setStandMode(true);
-      player.reach(recitationPlan(), ayahSegment(2, 2));
+      await tester.pumpAndSettle();
+
+      await viewModel.leave();
       await tester.pumpAndSettle();
 
       expect(keepAwake.awake, isFalse);
+    });
+  });
+
+  group('an ayah of another riwaya', () {
+    testWidgets('of a surah shown is neither highlighted nor scrolled to', (
+      tester,
+    ) async {
+      await pumpReader(tester);
+      final other = QuranAddress('warsh', 2, 30);
+      player.reach(
+        recitationPlan(),
+        PlaybackSegment(
+          kind: SegmentKind.ayah,
+          address: other,
+          source: AyahFile(other),
+          repeat: 1,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(offset(tester), 0);
+      expect(filled(tester), isEmpty);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('the last ayah of the surahs shown', () {
+    testWidgets('is reached once the next surah is appended', (tester) async {
+      await pumpReader(tester);
+
+      player.reach(recitationPlan(), ayahSegment(2, 40));
+      await tester.pumpAndSettle();
+
+      expect(filled(tester), [40]);
+      expect(
+        tester.getCenter(playingMarker()).dy,
+        inInclusiveRange(0, readerHeight),
+      );
     });
   });
 
@@ -485,7 +583,7 @@ void main() {
 
       player.reach(recitationPlan(), ayahSegment(6, 1));
       await tester.pumpAndSettle();
-      expect(viewModel.surahs.first.info.number, 2);
+      expect(viewModel.surahs.map((s) => s.info.number), [2]);
 
       shown.value = true;
       await tester.pumpAndSettle();

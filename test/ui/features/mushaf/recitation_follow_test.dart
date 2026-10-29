@@ -191,7 +191,7 @@ void main() {
     expect(follow.request!.address, ayahAt(2, 5));
   });
 
-  test('the ayah the player holds from the plan before is not new', () {
+  test('the ayah of the plan before is not recited under the new plan', () {
     final old = recitationPlan();
     player.reach(old, ayahSegment(2, 40));
     final next = recitationPlan();
@@ -203,15 +203,52 @@ void main() {
       segmentIndex: 0,
       ayah: player.state.ayah,
     );
-    expect(follow.recited, ayahAt(2, 40));
+    expect(follow.recited, isNull);
+    expect(follow.heard, ayahAt(2, 40));
 
     player.reach(next, basmalaSegment(3));
-    expect(follow.recited, ayahAt(2, 40));
+    expect(follow.recited, isNull);
     expect(follow.heard, ayahAt(3, 1));
 
     player.reach(next, ayahSegment(3, 1), index: 1);
     expect(follow.recited, ayahAt(3, 1));
   });
+
+  test('a plan rebuilt at a basmala goes on as it was', () async {
+    final plan = recitationPlan();
+    player.reach(plan, ayahSegment(2, 40));
+    player.reach(plan, basmalaSegment(3), index: 1);
+    follow.userScrolled();
+
+    final rebuilt = recitationPlan();
+    await player.play(rebuilt);
+    player.reach(rebuilt, basmalaSegment(3));
+    expect(follow.recited, isNull);
+    player.reach(rebuilt, ayahSegment(3, 1), index: 1);
+
+    expect(follow.following, isFalse);
+    expect(follow.showReturn, isTrue);
+    expect(follow.recited, ayahAt(3, 1));
+  });
+
+  test(
+    'a plan played again after it stopped has no ayah of the last run',
+    () async {
+      final plan = recitationPlan();
+      player.reach(plan, ayahSegment(2, 40));
+      await player.stop();
+      expect(follow.recited, isNull);
+
+      // The very same plan, with the segment the stopped run left behind.
+      await player.play(plan);
+      expect(follow.recited, isNull);
+      expect(follow.heard, isNull);
+
+      player.reach(plan, ayahSegment(2, 1));
+      expect(follow.recited, ayahAt(2, 1));
+      expect(follow.request!.address, ayahAt(2, 1));
+    },
+  );
 
   test('a plan after none starts with no ayah of the one before', () {
     final next = recitationPlan();

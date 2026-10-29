@@ -215,8 +215,9 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
       position.minScrollExtent,
       position.maxScrollExtent,
     );
-    // The scroll's extent can fall short of the text's until its blocks are
-    // laid out, so the ask is kept and looked at again after each scroll,
+    // The scroll's extent can fall short of the ayah until the blocks above
+    // it are laid out, and at the end of the surahs shown until the next is
+    // appended, so the ask is kept and looked at again after each scroll,
     // until the ayah is in view, the scroll stops moving or it has taken too
     // many steps.
     if (offset == position.pixels || _followSteps++ >= _maxSteps) {
@@ -328,7 +329,8 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
       if (notification is ScrollEndNotification) _moving.value = false;
     }
     if (!widget.active || _jumping || notification.depth != 0) return false;
-    if (_byUser(notification)) {
+    // A stand follows whatever the user does, so a drag leaves its ask be.
+    if (_byUser(notification) && !_model.standMode) {
       _pendingFollow = null;
       _model.follow.userScrolled();
     }

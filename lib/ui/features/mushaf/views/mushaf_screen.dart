@@ -75,9 +75,7 @@ class _MushafScreenState extends State<MushafScreen> {
     _lifecycle.dispose();
     _model.removeListener(_syncChrome);
     if (_active) unawaited(_model.leave());
-    if (_tabBarHidden || _miniHidden) {
-      _giveChromeBack(_chrome, tabBar: _tabBarHidden, mini: _miniHidden);
-    }
+    if (_tabBarHidden || _miniHidden) _letGoOfChromeAfterFrame(_chrome);
     super.dispose();
   }
 
@@ -108,32 +106,33 @@ class _MushafScreenState extends State<MushafScreen> {
     _syncChrome();
   }
 
-  // The tab bar and the mini player are the shell's. The tab bar is hidden
-  // only while this reader is shown in distraction-free mode; the mini player
-  // while it is shown with a recitation to control, whose controls the
-  // reader draws itself and hides with the rest of the interface. Both are
-  // always given back.
+  // The tab bar and the mini player are the shell's, which keeps them hidden
+  // while any holder asks. This reader hides the tab bar only while it is
+  // shown in distraction-free mode, and the mini player while it is shown
+  // with a recitation to control, whose controls it draws itself and hides
+  // with the rest of the interface. It always lets go.
   void _syncChrome() {
+    final chrome = _chrome;
+    if (chrome == null) return;
     final hide = _active && _model.distractionFree;
     if (hide != _tabBarHidden) {
       _tabBarHidden = hide;
-      _chrome?.tabBarVisible = !hide;
+      chrome.holdTabBarHidden(this, hide);
     }
     final hideMini = _active && _model.hasPlayerBar;
     if (hideMini != _miniHidden) {
       _miniHidden = hideMini;
-      _chrome?.miniPlayerVisible = !hideMini;
+      chrome.holdMiniPlayerHidden(this, hideMini);
     }
   }
 
-  void _giveChromeBack(
-    ShellChrome? chrome, {
-    required bool tabBar,
-    required bool mini,
-  }) => WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (tabBar) chrome?.tabBarVisible = true;
-    if (mini) chrome?.miniPlayerVisible = true;
-  });
+  // The shell is built from the same frame as this reader is removed from.
+  void _letGoOfChromeAfterFrame(ShellChrome? chrome) =>
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        chrome
+          ?..holdTabBarHidden(this, false)
+          ..holdMiniPlayerHidden(this, false);
+      });
 
   @override
   Widget build(BuildContext context) => SafeArea(

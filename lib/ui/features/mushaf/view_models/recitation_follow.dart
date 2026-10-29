@@ -25,10 +25,11 @@ final class FollowRequest {
 /// ayah, and so does a change of speed, which changes no ayah.
 ///
 /// The reader follows from the start of each recitation: a plan that reaches
-/// another ayah than the one being recited, or any plan after playback
-/// stopped. A plan rebuilt at the ayah being recited, as the repeat and
-/// silence sheets do, goes on as it was: a reader the user scrolled away
-/// from stays away. A reader opened while a recitation is already running
+/// another ayah than the one heard when it replaced the last, or any plan
+/// after playback stopped. A plan rebuilt at the ayah being heard, as the
+/// repeat and silence sheets do, goes on as it was: a reader the user
+/// scrolled away from stays away. Until the new plan reaches its first ayah
+/// none is recited. A reader opened while a recitation is already running
 /// does not follow it: it opened on its own position, and [showReturn]
 /// offers the way to the recitation. A scroll the user makes
 /// ([userScrolled]) stops following until [resume]. In stand mode the reader
@@ -60,9 +61,9 @@ final class RecitationFollow extends ChangeNotifier {
   QuranAddress? _heardNow;
   bool _following = true;
 
-  // A plan replaced the one being recited; whether it goes on from the same
-  // ayah is known when it announces its first.
-  bool _carry = false;
+  // A plan replaced the one being heard: the ayah heard before, until the new
+  // plan announces its first, which says whether it goes on from there.
+  QuranAddress? _carryFrom;
   bool _stand = false;
   bool _playing = false;
   FollowRequest? _request;
@@ -137,13 +138,13 @@ final class RecitationFollow extends ChangeNotifier {
     final state = _player!.state;
     final before = (_recited, _heardNow, _plan, _following, _playing);
     if (!identical(state.plan, _plan)) {
-      _stale = _plan == null ? null : state.segment;
+      // The segment the player holds is the old plan's; after a stop the
+      // plan was forgotten and the segment noted then still is.
+      _stale = _plan == null ? _stale : state.segment;
+      _carryFrom = _heardNow;
       _plan = state.plan;
-      _carry = _recited != null;
-      if (!_carry) {
-        _recited = null;
-        _following = true;
-      }
+      _recited = null;
+      if (_carryFrom == null) _following = true;
     } else if (!identical(state.segment, _stale)) {
       _stale = null;
     }
@@ -151,16 +152,21 @@ final class RecitationFollow extends ChangeNotifier {
     if (plan == null || state.stopReason != null || !plan.hasAyahBoundaries) {
       _recited = null;
       _following = true;
-      _carry = false;
+      _carryFrom = null;
+      if (plan != null && state.stopReason != null) {
+        // A plan played again after it stopped is a new run.
+        _plan = null;
+        _stale = state.segment;
+      }
     } else if (_heard(state, ayahOnly: true) case final ayah?) {
-      if (_carry && ayah != _recited) _following = true;
-      _carry = false;
+      if (_carryFrom != null && ayah != _carryFrom) _following = true;
+      _carryFrom = null;
       if (ayah != _recited) {
         _recited = ayah;
         if (_following) _ask();
       }
     }
-    _heardNow = _heard(state) ?? (_carry ? _heardNow : null);
+    _heardNow = _heard(state) ?? (_carryFrom != null ? _heardNow : null);
     _playing = state.playing;
     if (before != (_recited, _heardNow, _plan, _following, _playing)) {
       notifyListeners();

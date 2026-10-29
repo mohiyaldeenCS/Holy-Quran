@@ -71,8 +71,10 @@ abstract final class ReaderScreenMetrics {
   static const double followLead = 0.25;
 
   /// How many scrolls one ask to follow may take: the scroll's extent can
-  /// fall short of the text's until its blocks are laid out, so a far ayah is
-  /// reached in steps. An engineering margin, not a drawn value.
+  /// fall short of the ayah until the blocks above it are laid out, and at
+  /// the end of the surahs shown until the next is appended, so a far ayah is
+  /// reached in steps. A bound that keeps the loop finite, not a drawn
+  /// value.
   static const int followSteps = 8;
 
   /// The message of a reader with no verified pack, inset as a screen's
