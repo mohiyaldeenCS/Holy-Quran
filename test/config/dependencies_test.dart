@@ -18,7 +18,15 @@ import 'package:holyquran/config/providers/tafsir_providers.dart';
 import 'package:holyquran/config/providers/user_data_providers.dart';
 import 'package:holyquran/config/providers/user_database_providers.dart';
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
+import 'package:holyquran/data/repositories/bookmark_repository.dart';
+import 'package:holyquran/data/repositories/category_repository.dart';
+import 'package:holyquran/data/repositories/integrity_log_repository.dart';
+import 'package:holyquran/data/repositories/keep_awake_repository.dart';
+import 'package:holyquran/data/repositories/listening_position_repository.dart';
+import 'package:holyquran/data/repositories/note_repository.dart';
 import 'package:holyquran/data/repositories/reading_position_repository.dart';
+import 'package:holyquran/data/repositories/search_history_repository.dart';
+import 'package:holyquran/data/repositories/tag_repository.dart';
 import 'package:holyquran/data/services/clipboard_service.dart';
 import 'package:holyquran/data/services/link_service.dart';
 import 'package:holyquran/data/services/share_service.dart';
@@ -61,18 +69,28 @@ void main() {
   });
 
   test('builds without a base pack or a catalogue, providing the user '
-      'database, the settings and the services that need neither', () async {
+      'database, the settings, the user data and the services that need '
+      'none of them', () async {
     final support = useTemporaryApplicationSupport();
     late Dependencies provided;
     final providers = await buildDependencies(
       areas: [...appAreas, (dependencies) async => provided = dependencies],
     );
     addTearDown(provided.read<UserDatabase>().close);
+    addTearDown(provided.read<IntegrityLogRepository>().dispose);
 
     expect(providers.map((provider) => provider.runtimeType), [
       Provider<UserDatabase>,
       ListenableProvider<AppSettingsRepository>,
       ListenableProvider<ReadingPositionRepository>,
+      ListenableProvider<BookmarkRepository>,
+      ListenableProvider<NoteRepository>,
+      ListenableProvider<TagRepository>,
+      Provider<CategoryRepository>,
+      ListenableProvider<ListeningPositionRepository>,
+      ListenableProvider<SearchHistoryRepository>,
+      ListenableProvider<IntegrityLogRepository>,
+      ListenableProvider<KeepAwakeRepository>,
       Provider<ClipboardService>,
       Provider<ShareService>,
       Provider<LinkService>,

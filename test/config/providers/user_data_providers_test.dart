@@ -5,13 +5,17 @@ import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/config/dependencies.dart';
+import 'package:holyquran/config/providers/settings_providers.dart';
 import 'package:holyquran/config/providers/user_data_providers.dart';
+import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/data/repositories/bookmark_repository.dart';
 import 'package:holyquran/data/repositories/category_repository.dart';
+import 'package:holyquran/data/repositories/in_memory_app_settings_repository.dart';
 import 'package:holyquran/data/repositories/integrity_log_repository.dart';
 import 'package:holyquran/data/repositories/keep_awake_repository.dart';
 import 'package:holyquran/data/repositories/listening_position_repository.dart';
 import 'package:holyquran/data/repositories/note_repository.dart';
+import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/search_history_repository.dart';
 import 'package:holyquran/data/repositories/tag_repository.dart';
 import 'package:holyquran/data/services/user_database.dart';
@@ -186,10 +190,108 @@ void main() {
     );
   });
 
-  test(
-    'the area itself provides nothing until the database is provided',
-    () async {
-      expect(await buildDependencies(areas: [userDataProviders]), isEmpty);
-    },
-  );
+  group('the area', () {
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    final messages = <String>[];
+
+    setUp(() {
+      messages.clear();
+      messenger.allMessagesHandler = (channel, handler, message) {
+        messages.add(channel);
+        return null;
+      };
+    });
+    tearDown(() => messenger.allMessagesHandler = null);
+
+    Future<Dependencies> over(
+      UserDatabase database, {
+      PackIntegrityRepository? integrity,
+    }) async {
+      late Dependencies provided;
+      await buildDependencies(
+        areas: [
+          (dependencies) async => dependencies.provide(database),
+          settingsProviders,
+          if (integrity != null)
+            (dependencies) async => dependencies.provideListenable(integrity),
+          userDataProviders,
+          (dependencies) async => provided = dependencies,
+        ],
+      );
+      return provided;
+    }
+
+    test('provides the repositories over the user database without touching '
+        'a plugin', () async {
+      final dependencies = await over(db);
+      addTearDown(dependencies.read<IntegrityLogRepository>().dispose);
+
+      expect(
+        await dependencies.read<BookmarkRepository>().add(
+          QuranAddress.parse('hafs:2:5'),
+          'c',
+        ),
+        isA<Ok<Object>>(),
+      );
+      expect(
+        dependencies.read<KeepAwakeRepository>(),
+        isA<LocalKeepAwakeRepository>(),
+      );
+      expect(messages, isEmpty);
+    });
+
+    test('stores the events of the integrity repository the Quran area '
+        'provided', () async {
+      final integrity = FakePackIntegrityRepository();
+      addTearDown(integrity.dispose);
+      final dependencies = await over(db, integrity: integrity);
+      final log = dependencies.read<IntegrityLogRepository>();
+      addTearDown(log.dispose);
+
+      integrity.report('synthetic-text', const IntegrityOk(), version: 3);
+      await pumpEventQueue();
+
+      switch (await log.entries()) {
+        case Ok(value: [final entry]):
+          expect(entry.packId, 'synthetic-text');
+        case final other:
+          fail('expected one entry, got $other');
+      }
+    });
+
+    test('keeps user data in memory when the settings could not be read, '
+        'and leaves the file as it is (D-133)', () async {
+      final directory = await Directory.systemTemp.createTemp('user_data_area');
+      addTearDown(() => directory.delete(recursive: true));
+      final file = File('${directory.path}/${UserDatabase.fileName}')
+        ..writeAsStringSync('synthetic text that is not a database file' * 100);
+      final bytes = file.readAsBytesSync();
+      final unreadable = UserDatabase(NativeDatabase(file));
+      addTearDown(unreadable.close);
+
+      final dependencies = await over(unreadable);
+      addTearDown(dependencies.read<IntegrityLogRepository>().dispose);
+
+      expect(
+        dependencies.read<AppSettingsRepository>(),
+        isA<InMemoryAppSettingsRepository>(),
+      );
+      expect(
+        await dependencies.read<BookmarkRepository>().add(
+          QuranAddress.parse('hafs:2:5'),
+          'c',
+        ),
+        isA<Ok<Object>>(),
+      );
+      expect(file.readAsBytesSync(), bytes);
+    });
+
+    test(
+      'needs the user database and the settings from the areas before it',
+      () {
+        expect(buildDependencies(areas: [userDataProviders]), throwsStateError);
+      },
+    );
+  });
 }

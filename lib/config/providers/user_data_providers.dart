@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:holyquran/config/dependencies.dart';
+import 'package:holyquran/config/providers/user_database_providers.dart';
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/data/repositories/bookmark_repository.dart';
 import 'package:holyquran/data/repositories/category_repository.dart';
@@ -9,6 +10,7 @@ import 'package:holyquran/data/repositories/integrity_log_repository.dart';
 import 'package:holyquran/data/repositories/keep_awake_repository.dart';
 import 'package:holyquran/data/repositories/listening_position_repository.dart';
 import 'package:holyquran/data/repositories/note_repository.dart';
+import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/search_history_repository.dart';
 import 'package:holyquran/data/repositories/tag_repository.dart';
 import 'package:holyquran/data/services/daos/bookmark_dao.dart';
@@ -23,9 +25,16 @@ import 'package:holyquran/data/services/wakelock_service.dart';
 import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/utils/result.dart';
 
-// Calls provideUserData once the user-database and settings areas provide
-// the database and the settings.
-Future<void> userDataProviders(Dependencies dependencies) async {}
+/// Provides the user's data over [userDataDatabase], with the keep-awake
+/// state following the settings and the integrity log storing the events of
+/// the [PackIntegrityRepository] when the Quran area provided one.
+Future<void> userDataProviders(Dependencies dependencies) => provideUserData(
+  dependencies,
+  database: userDataDatabase(dependencies),
+  settings: dependencies.read<AppSettingsRepository>(),
+  wakelock: const WakelockService(),
+  integrityEvents: dependencies.tryRead<PackIntegrityRepository>()?.events,
+);
 
 /// Provides the repositories of the user's own data over [database]: the
 /// keep-awake state follows [settings], and the integrity log stores
