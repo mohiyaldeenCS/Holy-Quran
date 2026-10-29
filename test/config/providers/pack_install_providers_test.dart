@@ -6,6 +6,7 @@ import 'package:holyquran/config/dependencies.dart';
 import 'package:holyquran/config/providers/pack_install_providers.dart';
 import 'package:holyquran/data/repositories/local_pack_repository.dart';
 import 'package:holyquran/data/repositories/pack_install_repository.dart';
+import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/services/connectivity_service.dart';
 import 'package:holyquran/data/services/download_service.dart';
 import 'package:holyquran/data/services/free_space_service.dart';
@@ -13,7 +14,11 @@ import 'package:holyquran/data/services/installed_packs_store.dart';
 import 'package:holyquran/data/services/manifest_signature.dart';
 import 'package:holyquran/data/services/pack_file_service.dart';
 import 'package:holyquran/domain/models/install_job.dart';
+import 'package:holyquran/domain/models/pack_failure.dart';
+import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/utils/result.dart';
+
+import '../../../testing/fakes/fake_pack_integrity_repository.dart';
 
 final class _Downloads implements DownloadService {
   int starts = 0;
@@ -79,6 +84,63 @@ void main() {
     expect(await installs.started, isA<Failure<void>>());
     expect(messages, contains('plugins.flutter.io/path_provider'));
     expect(provided.read<FreeSpaceService>(), isA<DiskFreeSpaceService>());
+  });
+
+  group('providePackInstall', () {
+    LocalPackInstallRepository dummy({
+      void Function(String packId)? onPackChanged,
+      Set<String> reservedPackIds = const {},
+    }) => packInstallRepository();
+
+    Future<(void Function(String)?, Set<String>)> told({
+      FakePackIntegrityRepository? integrity,
+    }) async {
+      void Function(String)? forget;
+      Set<String>? reserved;
+      await buildDependencies(
+        areas: [
+          if (integrity != null)
+            (d) async =>
+                d.provideListenable<PackIntegrityRepository>(integrity),
+          (d) => providePackInstall(
+            d,
+            create: ({onPackChanged, reservedPackIds = const {}}) {
+              forget = onPackChanged;
+              reserved = reservedPackIds;
+              final installer = dummy();
+              addTearDown(installer.dispose);
+              return installer;
+            },
+          ),
+        ],
+      );
+      return (forget, reserved!);
+    }
+
+    test(
+      'lets the integrity repository forget a pack that was changed',
+      () async {
+        final integrity = FakePackIntegrityRepository();
+        addTearDown(integrity.dispose);
+        integrity.report(
+          'synthetic-b',
+          const IntegrityFailed(PackDisabled('b')),
+        );
+        final (forget, _) = await told(integrity: integrity);
+
+        forget!('synthetic-b');
+
+        expect(integrity.stateOf('synthetic-b'), isA<IntegrityMissing>());
+      },
+    );
+
+    test('has nothing to tell without an integrity repository, and reserves '
+        'no id before the base pack is bundled', () async {
+      final (forget, reserved) = await told();
+
+      expect(forget, isNull);
+      expect(reserved, isEmpty);
+    });
   });
 
   group('provideInstaller', () {

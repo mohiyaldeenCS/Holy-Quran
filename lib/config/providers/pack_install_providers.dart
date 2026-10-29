@@ -14,25 +14,43 @@ import 'package:holyquran/data/services/installed_packs_store.dart';
 import 'package:holyquran/data/services/manifest_signature.dart';
 import 'package:holyquran/data/services/pack_file_service.dart';
 
+/// Makes the installer of [packInstallProviders], given what it is told of
+/// the packs.
+typedef InstallerFactory =
+    LocalPackInstallRepository Function({
+      void Function(String packId)? onPackChanged,
+      Set<String> reservedPackIds,
+    });
+
 /// Provides the device's [FreeSpaceService], which the resource manager
 /// reads too, and the installer, and starts it: the installed packs are
-/// read, and downloads cut short by the last session are picked up. Starting
-/// never throws and does not delay the first frame; a start that failed is
-/// the result of the installer's `started`. A pack installed again or
-/// deleted is forgotten by the integrity repository, when the Quran area
-/// provided one, so that an old failure is not shown for the new files.
-Future<void> packInstallProviders(Dependencies dependencies) async {
+/// read, and downloads cut short by the last session are picked up. The
+/// start does not delay the first frame. It fails as a result of the
+/// installer's `started`, and throws only an [Error], which is a bug and is
+/// reported as one. A pack installed again, rolled back or deleted is
+/// forgotten by the integrity repository, when the Quran area provided one,
+/// so that an old failure is not shown for the new files; the bundled base
+/// pack's id is never installed over.
+Future<void> packInstallProviders(Dependencies dependencies) =>
+    providePackInstall(dependencies, create: packInstallRepository);
+
+/// [packInstallProviders] over the installer [create] makes.
+Future<void> providePackInstall(
+  Dependencies dependencies, {
+  required InstallerFactory create,
+}) async {
   dependencies.provide<FreeSpaceService>(const DiskFreeSpaceService());
   provideInstaller(
     dependencies,
-    packInstallRepository(
+    create(
       onPackChanged: dependencies.tryRead<PackIntegrityRepository>()?.forget,
       reservedPackIds: {?bundledBasePack?.id},
     ),
   );
 }
 
-/// Provides [installer] as the [PackInstallRepository] and starts it.
+/// Provides [installer] as the [PackInstallRepository] and starts it without
+/// waiting.
 void provideInstaller(
   Dependencies dependencies,
   LocalPackInstallRepository installer,
