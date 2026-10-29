@@ -233,8 +233,7 @@ final class LocalPackInstallRepository extends ChangeNotifier
         case Failure(:final error):
           return Failure(error);
         case Ok(:final value):
-          await _reload();
-          _onPackChanged?.call(packId);
+          await _reloadAfterChange(packId);
           return switch (_installed
               .where((pack) => pack.id == packId)
               .firstOrNull) {
@@ -262,8 +261,11 @@ final class LocalPackInstallRepository extends ChangeNotifier
     }
     try {
       final result = await _store!.delete(packId);
-      await _reload();
-      if (result is Ok) _onPackChanged?.call(packId);
+      if (result is Ok) {
+        await _reloadAfterChange(packId);
+      } else {
+        await _reload();
+      }
       return result;
     } on Exception catch (e) {
       return Failure(StoreFailed(packId, '$e'));
@@ -439,8 +441,7 @@ final class LocalPackInstallRepository extends ChangeNotifier
       }
       switch (await _store!.activate(id, request.version)) {
         case Ok(:final value):
-          await _reload();
-          _onPackChanged?.call(id);
+          await _reloadAfterChange(id);
           return Ok(
             InstalledPack(
               manifest: pack.manifest,
@@ -609,6 +610,17 @@ final class LocalPackInstallRepository extends ChangeNotifier
 
   /// Reads the installed packs; a [Failure] names the first manifest that
   /// could not be read, and that pack is left out.
+  /// Reads the packs again after the files of [packId] changed, and tells of
+  /// the change whether or not the read worked: what was said of the old
+  /// files must not outlive them.
+  Future<void> _reloadAfterChange(String packId) async {
+    try {
+      await _reload();
+    } finally {
+      _onPackChanged?.call(packId);
+    }
+  }
+
   Future<Result<void>> _reload() async {
     final packs = <InstalledPack>[];
     Exception? problem;

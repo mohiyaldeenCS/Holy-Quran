@@ -730,6 +730,38 @@ void main() {
       expect(changed, [_text, _text, _text, _text]);
     });
 
+    test('tells of a deleted or rolled back pack even when the read of the '
+        'packs that follows fails', () async {
+      final changed = <String>[];
+      final repository = await started(onPackChanged: changed.add);
+      await install(repository, _text, 1);
+      await install(repository, _text, 2);
+      await install(repository, _other, 1);
+      changed.clear();
+      // A manifest that is a folder makes reading the installed packs throw.
+      final manifest = File('${support.path}/packs/$_other/1/manifest.json');
+      await manifest.delete();
+      await Directory(manifest.path).create();
+
+      expect(await repository.rollback(_text), failedWith(isA<StoreFailed>()));
+      expect(changed, [_text]);
+      expect(await repository.delete(_text), failedWith(isA<StoreFailed>()));
+      expect(changed, [_text, _text]);
+      expect(exists('packs/$_text'), isFalse);
+    });
+
+    test('does not tell of a delete that failed', () async {
+      final changed = <String>[];
+      final repository = await started(onPackChanged: changed.add);
+
+      expect(
+        await repository.delete('Not A Pack Id'),
+        failedWith(isA<InvalidPackId>()),
+      );
+
+      expect(changed, isEmpty);
+    });
+
     test('an installed version, active or previous, is refused', () async {
       final repository = await started();
       await install(repository, _text, 1);
