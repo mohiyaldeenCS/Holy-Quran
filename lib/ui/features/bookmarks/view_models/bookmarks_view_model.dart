@@ -106,6 +106,7 @@ final class BookmarksViewModel extends ChangeNotifier {
   int _reads = 0;
   bool _disposed = false;
   final _ayahTexts = <QuranAddress, PackText?>{};
+  final _expanded = <String>{};
 
   AnnotationTab get tab => _tab;
   ListOrder get order => _order;
@@ -141,6 +142,14 @@ final class BookmarksViewModel extends ChangeNotifier {
 
   /// Whether a deletion can still be undone.
   bool get canUndo => _deleted != null;
+
+  /// Whether the long ayah of entry [id] has been shown whole. A card built
+  /// again after it was scrolled away keeps it so.
+  bool isExpanded(String id) => _expanded.contains(id);
+
+  void expand(String id) {
+    if (_expanded.add(id)) notifyListeners();
+  }
 
   /// The built-in category with [id], or null for none or an unknown one.
   BuiltinCategory? categoryOf(String? id) {

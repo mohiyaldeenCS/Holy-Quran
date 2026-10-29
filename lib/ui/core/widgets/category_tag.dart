@@ -24,12 +24,16 @@ class CategoryTag extends StatelessWidget {
     required this.category,
     required this.selected,
     required this.onPressed,
+    this.hint,
     super.key,
   });
 
   final BuiltinCategory category;
   final bool selected;
   final VoidCallback onPressed;
+
+  /// See [Tag.hint].
+  final String? hint;
 
   @override
   Widget build(BuildContext context) {
@@ -46,24 +50,30 @@ class CategoryTag extends StatelessWidget {
       color: color,
       selected: selected,
       onPressed: onPressed,
+      hint: hint,
     );
   }
 }
 
 /// A free tag (`UD-02`) as a [Tag]. The identity gives no shape or colour to
 /// free tags; they take the hollow `ring` in `ink-muted`, so that no category
-/// colour is borrowed, and the name carries the meaning.
+/// colour is borrowed, and the name carries the meaning. The shape, and an
+/// icon for editing a card's tags, await the designer (owner, 2026-10-29).
 class FreeTag extends StatelessWidget {
   const FreeTag({
     required this.name,
     required this.selected,
     required this.onPressed,
+    this.hint,
     super.key,
   });
 
   final String name;
   final bool selected;
   final VoidCallback onPressed;
+
+  /// See [Tag.hint].
+  final String? hint;
 
   @override
   Widget build(BuildContext context) => Tag(
@@ -72,5 +82,6 @@ class FreeTag extends StatelessWidget {
     color: context.colors.inkMuted,
     selected: selected,
     onPressed: onPressed,
+    hint: hint,
   );
 }

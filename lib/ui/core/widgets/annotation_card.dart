@@ -3,53 +3,42 @@ import 'package:flutter/widgets.dart' hide Icon;
 
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
+import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
-import 'package:holyquran/ui/core/widgets/ayah_row.dart';
 import 'package:holyquran/ui/core/widgets/icon_button.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
-import 'package:holyquran/ui/core/widgets/surah_name.dart';
+import 'package:holyquran/ui/core/widgets/search_result.dart';
 
-// The list of bookmarks and notes is not drawn. Its item follows a result of
-// the Search board (Search.dc.html, the list of «البحث»): the reference line
-// with its round buttons over the ayah's card, set 4 apart.
-
-// Search.dc.html, the result's reference: `font-size:15px;font-weight:600`
-// in `#0E5A52` (`primary`); no line height, so the font's own (CSS `normal`),
-// and the style does not inherit.
-const TextStyle _referenceStyle = TextStyle(
-  inherit: false,
-  fontFamily: AppFonts.sans,
-  fontSize: 15,
-  fontWeight: FontWeight.w600,
-  letterSpacing: 0,
-  leadingDistribution: TextLeadingDistribution.even,
-);
-// Search.dc.html, the result's buttons: `<svg width="22" …>` in a 48 button,
-// `gap:2px` between them.
-const double _actionIconSize = 22;
-const double _actionsGap = 2;
+// The list of bookmarks and notes is not drawn. Its item is a result of the
+// Search board (Search.dc.html, the list of «البحث»), which `SearchResult`
+// builds: the reference over the round buttons, and the ayah at the compact
+// size, cut where it is long. The delete and edit buttons, the note and the
+// tags are added to that card.
 
 // .qk-sheet-rows: border-radius 20px.
 const BorderRadius _noteRadius = BorderRadius.all(Radius.circular(20));
 
-// The screen reader's order (AX-01): the reference, the ayah, the note, the
-// tags, then the actions.
+// The screen reader's order (AX-01) in the card drawn without a pack: the
+// reference, the note, the tags, then the buttons.
 const double _referenceOrder = 0;
-const double _ayahOrder = 1;
-const double _noteOrder = 2;
-const double _tagsOrder = 3;
-const double _actionsOrder = 4;
+const double _noteOrder = 1;
+const double _tagsOrder = 2;
+const double _actionsOrder = 3;
 
-/// One bookmark or note in its list (`UD-03`, `RD-14`): the surah and ayah
-/// over the round buttons, the ayah as an [AyahRow] card, the note under it
-/// when there is one, and the category and tags as `Tag`s.
+/// One bookmark or note in its list (`UD-03`, `RD-14`): a [SearchResult] card
+/// with the ayah in the compact size, cut where it is long and shown whole by
+/// «المزيد», to which a delete button, the note and the category and tags as
+/// `Tag`s are added.
 ///
-/// Each part is left out when its data is: no [surahName] and no [ayahText]
-/// when the app has no base pack, no [note] on a bookmark, no [tags] on an
-/// ayah that has none. A button whose callback is null is not shown.
+/// The card needs the base pack for the ayah and the surah's name. Without
+/// them ([surahName], [ayahText], [onContext] or [onOpen] null) it shows the
+/// surah and ayah numbers, which are the user's own address, where the name
+/// would be, and no ayah. Whatever else has no data is left out: no [note] on
+/// a bookmark, no [tags] on an ayah that has none, no [onEdit] on a bookmark.
 class AnnotationCard extends StatelessWidget {
   const AnnotationCard({
+    required this.surahNumber,
     required this.ayahNumber,
     required this.deleteLabel,
     required this.onDelete,
@@ -60,9 +49,12 @@ class AnnotationCard extends StatelessWidget {
     this.onContext,
     this.onOpen,
     this.onEdit,
+    this.expanded = false,
+    this.onExpand,
     super.key,
   });
 
+  final int surahNumber;
   final int ayahNumber;
   final PackText? surahName;
   final PackText? ayahText;
@@ -81,16 +73,68 @@ class AnnotationCard extends StatelessWidget {
   /// Opens the note's editor; given for a note.
   final VoidCallback? onEdit;
 
+  /// Whether a long ayah is shown whole, and the press that shows it. The
+  /// caller keeps it, as `SearchResult` asks, so a card scrolled away and
+  /// built again remembers. Without [onExpand] a long ayah is shown whole.
+  final bool expanded;
+  final VoidCallback? onExpand;
+
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final l10n = AppLocalizations.of(context);
     final surahName = this.surahName;
     final ayahText = this.ayahText;
-    final note = this.note;
     final onContext = this.onContext;
     final onOpen = this.onOpen;
     final onEdit = this.onEdit;
+    final note = this.note;
+    final buttons = [
+      if (onEdit != null)
+        IconButton(
+          icon: IconName.note,
+          label: l10n.noteLabel,
+          iconSize: SearchResult.actionIconSize,
+          onPressed: onEdit,
+        ),
+      IconButton(
+        icon: IconName.delete,
+        label: deleteLabel,
+        iconSize: SearchResult.actionIconSize,
+        onPressed: onDelete,
+      ),
+    ];
+    final footer = note == null && tags.isEmpty
+        ? null
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: AppSpacing.space2,
+            children: [
+              if (note != null) _Note(note),
+              if (tags.isNotEmpty)
+                Wrap(
+                  spacing: AppSpacing.space2,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: tags,
+                ),
+            ],
+          );
+    if (surahName != null &&
+        ayahText != null &&
+        onContext != null &&
+        onOpen != null) {
+      return SearchResult(
+        surahName: surahName,
+        ayahNumber: ayahNumber,
+        ayahText: ayahText,
+        onContext: onContext,
+        onOpen: onOpen,
+        clamp: onExpand != null,
+        expanded: expanded,
+        onExpand: onExpand,
+        actions: buttons,
+        footer: footer,
+      );
+    }
     return Semantics(
       container: true,
       explicitChildNodes: true,
@@ -101,66 +145,31 @@ class AnnotationCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: surahName == null
-                    ? const SizedBox.shrink()
-                    : Semantics(
-                        container: true,
-                        sortKey: const OrdinalSortKey(_referenceOrder),
-                        child: SurahName(
-                          surahName,
-                          format: SurahNameFormat.withAyah,
-                          ayah: ayahNumber,
-                          style: _referenceStyle.copyWith(
-                            color: colors.primary,
-                          ),
-                        ),
-                      ),
+                child: Semantics(
+                  container: true,
+                  sortKey: const OrdinalSortKey(_referenceOrder),
+                  child: Text(
+                    l10n.surahTitleAyahReference(
+                      arabicDigits(surahNumber),
+                      arabicDigits(ayahNumber),
+                    ),
+                    style: SearchResult.referenceStyle.copyWith(
+                      color: context.colors.primary,
+                    ),
+                  ),
+                ),
               ),
               Semantics(
                 container: true,
                 sortKey: const OrdinalSortKey(_actionsOrder),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  spacing: _actionsGap,
-                  children: [
-                    if (onEdit != null)
-                      IconButton(
-                        icon: IconName.note,
-                        label: l10n.noteLabel,
-                        iconSize: _actionIconSize,
-                        onPressed: onEdit,
-                      ),
-                    if (onContext != null)
-                      IconButton(
-                        icon: IconName.context,
-                        label: l10n.searchResultContext,
-                        iconSize: _actionIconSize,
-                        onPressed: onContext,
-                      ),
-                    if (onOpen != null)
-                      IconButton(
-                        icon: IconName.mushaf,
-                        label: l10n.searchResultOpen,
-                        iconSize: _actionIconSize,
-                        onPressed: onOpen,
-                      ),
-                    IconButton(
-                      icon: IconName.delete,
-                      label: deleteLabel,
-                      iconSize: _actionIconSize,
-                      onPressed: onDelete,
-                    ),
-                  ],
+                  spacing: SearchResult.actionsGap,
+                  children: buttons,
                 ),
               ),
             ],
           ),
-          if (ayahText != null)
-            Semantics(
-              container: true,
-              sortKey: const OrdinalSortKey(_ayahOrder),
-              child: AyahRow(number: ayahNumber, text: ayahText),
-            ),
           if (note != null)
             Semantics(
               container: true,

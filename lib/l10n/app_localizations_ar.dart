@@ -1145,4 +1145,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get tagAdd => 'أضف';
+
+  @override
+  String get tagsEditHint => 'غيّر التصنيف والوسوم';
 }

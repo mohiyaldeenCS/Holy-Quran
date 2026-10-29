@@ -288,6 +288,12 @@ void main() {
     await pumpBookmarksApp(tester, world, withPack: false);
 
     expect(find.byType(AnnotationCard), findsOneWidget);
+    expect(
+      find.text(
+        _l10n.surahTitleAyahReference(arabicDigits(2), arabicDigits(4)),
+      ),
+      findsOneWidget,
+    );
     expect(button(_l10n.searchResultOpen), findsNothing);
     expect(button(_l10n.searchResultContext), findsNothing);
     expect(button(_l10n.bookmarkDelete), findsOneWidget);
@@ -326,6 +332,23 @@ void main() {
       (stored as Ok<Bookmark?>).value!.categoryId,
       BookmarksWorld.category('study'),
     );
+  });
+
+  testWidgets('a card tag says it changes the category and tags', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await world.bookmark(world.ayah(1, 3));
+    await pumpBookmarksApp(tester, world);
+
+    final tag = find
+        .descendant(of: find.byType(AnnotationCard), matching: find.byType(Tag))
+        .first;
+    expect(
+      tester.getSemantics(tag).getSemanticsData().hint,
+      _l10n.tagsEditHint,
+    );
+    handle.dispose();
   });
 
   testWidgets('a level change loses nothing', (tester) async {

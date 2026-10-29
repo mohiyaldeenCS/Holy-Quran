@@ -259,6 +259,7 @@ class _Card extends StatelessWidget {
     final inPack = entry.ayahText != null && entry.surahName != null;
     final category = viewModel.categoryOf(entry.categoryId);
     return AnnotationCard(
+      surahNumber: entry.address.surah,
       ayahNumber: entry.address.ayah,
       surahName: entry.surahName,
       ayahText: entry.ayahText,
@@ -269,6 +270,7 @@ class _Card extends StatelessWidget {
             category: category,
             selected: viewModel.categoryId == entry.categoryId,
             onPressed: () => _edit(context),
+            hint: l10n.tagsEditHint,
           ),
         for (final id in entry.tagIds)
           if (viewModel.tagName(id) case final name?)
@@ -276,10 +278,13 @@ class _Card extends StatelessWidget {
               name: name,
               selected: viewModel.tagId == id,
               onPressed: () => _edit(context),
+              hint: l10n.tagsEditHint,
             ),
       ],
       deleteLabel: notes ? l10n.noteDelete : l10n.bookmarkDelete,
       onDelete: () => viewModel.delete(entry),
+      expanded: viewModel.isExpanded(entry.id),
+      onExpand: () => viewModel.expand(entry.id),
       onEdit: notes ? () => _edit(context) : null,
       onContext: inPack
           ? () => context.push(Routes.contextSheet(entry.address))

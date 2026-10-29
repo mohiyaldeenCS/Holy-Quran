@@ -29,6 +29,7 @@ void main() {
         width: 340,
         child: goldenColumn([
           AnnotationCard(
+            surahNumber: 2,
             ayahNumber: 5,
             surahName: _surah,
             ayahText: _ayah,
@@ -46,6 +47,7 @@ void main() {
             ],
           ),
           AnnotationCard(
+            surahNumber: 2,
             ayahNumber: 12,
             surahName: _surah,
             ayahText: _ayah,

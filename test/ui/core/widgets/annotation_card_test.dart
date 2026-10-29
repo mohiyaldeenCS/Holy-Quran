@@ -6,9 +6,9 @@ import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/widgets/annotation_card.dart';
-import 'package:holyquran/ui/core/widgets/ayah_row.dart';
 import 'package:holyquran/ui/core/widgets/category_tag.dart';
 import 'package:holyquran/ui/core/widgets/icon_button.dart';
+import 'package:holyquran/ui/core/widgets/search_result.dart';
 import 'package:holyquran/ui/core/widgets/surah_name.dart';
 
 import '../../../../testing/golden.dart';
@@ -17,6 +17,12 @@ final _l10n = lookupAppLocalizations(const Locale('ar'));
 // Synthetic, never Quran text.
 const _ayah = PackText.fromPack('نص تجريبي');
 const _surah = PackText.fromPack('اسم تجريبي');
+const _long = PackText.fromPack(
+  'نص تجريبي طويل يمتد على عدة أسطر ليظهر قص الكلام في البطاقة وليس آية '
+  'نص تجريبي طويل يمتد على عدة أسطر ليظهر قص الكلام في البطاقة وليس آية '
+  'نص تجريبي طويل يمتد على عدة أسطر ليظهر قص الكلام في البطاقة وليس آية '
+  'نص تجريبي طويل يمتد على عدة أسطر ليظهر قص الكلام في البطاقة وليس آية',
+);
 
 Future<void> _pump(
   WidgetTester tester,
@@ -52,7 +58,10 @@ AnnotationCard _card({
   VoidCallback? onOpen,
   VoidCallback? onEdit,
   VoidCallback? onDelete,
+  bool expanded = false,
+  VoidCallback? onExpand,
 }) => AnnotationCard(
+  surahNumber: 2,
   ayahNumber: 5,
   surahName: surahName,
   ayahText: ayahText,
@@ -63,6 +72,8 @@ AnnotationCard _card({
   onContext: onContext,
   onOpen: onOpen,
   onEdit: onEdit,
+  expanded: expanded,
+  onExpand: onExpand,
 );
 
 Finder _button(String label) => find.byWidgetPredicate(
@@ -71,20 +82,58 @@ Finder _button(String label) => find.byWidgetPredicate(
 
 void main() {
   testWidgets('shows the reference over the ayah in its card', (tester) async {
-    await _pump(tester, _card());
+    await _pump(tester, _card(onContext: () {}, onOpen: () {}));
     expect(
       find.text(_l10n.surahAyahReference('اسم تجريبي', '٥')),
       findsOneWidget,
     );
-    expect(find.byType(AyahRow), findsOneWidget);
-    expect(tester.widget<AyahRow>(find.byType(AyahRow)).number, 5);
+    final result = tester.widget<SearchResult>(find.byType(SearchResult));
+    expect(result.ayahNumber, 5);
+    expect(result.ayahText, _ayah);
     expect(_button(_l10n.bookmarkDelete), findsOneWidget);
+    expect(_button(_l10n.searchResultContext), findsOneWidget);
+  });
+
+  testWidgets('cuts a long ayah, and shows it whole when asked', (
+    tester,
+  ) async {
+    var expanded = 0;
+    await _pump(
+      tester,
+      _card(
+        ayahText: _long,
+        onContext: () {},
+        onOpen: () {},
+        onExpand: () => expanded++,
+      ),
+    );
+    await tester.tap(find.text(_l10n.searchResultShowWhole));
+    expect(expanded, 1);
+
+    await _pump(
+      tester,
+      _card(
+        ayahText: _long,
+        onContext: () {},
+        onOpen: () {},
+        onExpand: () => expanded++,
+        expanded: true,
+      ),
+    );
+    expect(find.text(_l10n.searchResultShowWhole), findsNothing);
+  });
+
+  testWidgets('without the pack it shows the surah and ayah numbers', (
+    tester,
+  ) async {
+    await _pump(tester, _card(surahName: null, ayahText: null));
+    expect(find.byType(SearchResult), findsNothing);
+    expect(find.text(_l10n.surahTitleAyahReference('٢', '٥')), findsOneWidget);
   });
 
   testWidgets('leaves out what has no data', (tester) async {
     await _pump(tester, _card(surahName: null, ayahText: null));
     expect(find.byType(SurahName), findsNothing);
-    expect(find.byType(AyahRow), findsNothing);
     expect(find.byType(Wrap), findsNothing);
     expect(_button(_l10n.searchResultContext), findsNothing);
     expect(_button(_l10n.searchResultOpen), findsNothing);

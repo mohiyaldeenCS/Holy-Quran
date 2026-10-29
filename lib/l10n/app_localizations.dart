@@ -2049,6 +2049,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'أضف'**
   String get tagAdd;
+
+  /// The spoken hint of a tag on a bookmark's or note's card, whose press opens the editor of its category and tags. Wording of UD-03 in docs/prd/PRD.ar.md. P1-24, proposed for the lead to approve under D-128 (5).
+  ///
+  /// In ar, this message translates to:
+  /// **'غيّر التصنيف والوسوم'**
+  String get tagsEditHint;
 }
 
 class _AppLocalizationsDelegate

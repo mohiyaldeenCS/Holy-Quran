@@ -43,6 +43,7 @@ const double _clampedBottomInset = _bottomInset - _moreHitOutset;
 const double _referenceOrder = 0;
 const double _ayahOrder = 1;
 const double _actionsOrder = 2;
+const double _footerOrder = 3;
 
 // No line height is set in `.qk-result*`, so each is the font's own (CSS
 // `normal`); the styles do not inherit, so the ambient body line height
@@ -91,8 +92,18 @@ class SearchResult extends StatefulWidget {
     this.clamp = false,
     this.expanded = false,
     this.onExpand,
+    this.actions = const [],
+    this.footer,
     super.key,
   }) : assert(!clamp || onExpand != null, 'a clamped card needs onExpand');
+
+  /// The reference's style, `.qk-result-ref`, for a reference drawn beside it.
+  static const TextStyle referenceStyle = _referenceStyle;
+
+  /// The size of an action's icon and the gap between actions, which a
+  /// button added to [actions] takes too.
+  static const double actionIconSize = _actionIconSize;
+  static const double actionsGap = _actionsGap;
 
   final PackText surahName;
   final int ayahNumber;
@@ -104,6 +115,12 @@ class SearchResult extends StatefulWidget {
   /// Whether a clamped ayah is shown whole.
   final bool expanded;
   final VoidCallback? onExpand;
+
+  /// Further 48 buttons after the two, such as a list's delete.
+  final List<Widget> actions;
+
+  /// Content under the ayah inside the card, such as a note and tags.
+  final Widget? footer;
 
   @override
   State<SearchResult> createState() => _SearchResultState();
@@ -191,6 +208,7 @@ class _SearchResultState extends State<SearchResult> {
                         iconSize: _actionIconSize,
                         onPressed: widget.onOpen,
                       ),
+                      ...widget.actions,
                     ],
                   ),
                 ),
@@ -212,6 +230,15 @@ class _SearchResultState extends State<SearchResult> {
                     )
                   : ayah,
             ),
+            if (widget.footer case final footer?)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.space2),
+                child: Semantics(
+                  container: true,
+                  sortKey: const OrdinalSortKey(_footerOrder),
+                  child: footer,
+                ),
+              ),
           ],
         ),
       ),

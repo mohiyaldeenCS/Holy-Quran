@@ -1627,5 +1627,9 @@
   "tagAdd": "أضف",
   "@tagAdd": {
     "description": "The button that makes the free tag typed in the note editor (UD-02). P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "tagsEditHint": "غيّر التصنيف والوسوم",
+  "@tagsEditHint": {
+    "description": "The spoken hint of a tag on a bookmark's or note's card, whose press opens the editor of its category and tags. Wording of UD-03 in docs/prd/PRD.ar.md. P1-24, proposed for the lead to approve under D-128 (5)."
   }
 }
