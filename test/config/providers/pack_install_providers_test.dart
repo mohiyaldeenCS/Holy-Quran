@@ -94,6 +94,7 @@ void main() {
 
     Future<(void Function(String)?, Set<String>)> told({
       FakePackIntegrityRepository? integrity,
+      ({String id, int version})? basePack,
     }) async {
       void Function(String)? forget;
       Set<String>? reserved;
@@ -104,6 +105,7 @@ void main() {
                 d.provideListenable<PackIntegrityRepository>(integrity),
           (d) => providePackInstall(
             d,
+            basePack: basePack,
             create: ({onPackChanged, reservedPackIds = const {}}) {
               forget = onPackChanged;
               reserved = reservedPackIds;
@@ -133,6 +135,14 @@ void main() {
         expect(integrity.stateOf('synthetic-b'), isA<IntegrityMissing>());
       },
     );
+
+    test('reserves the id of the base pack the app bundles', () async {
+      final (_, reserved) = await told(
+        basePack: (id: 'synthetic-text', version: 1),
+      );
+
+      expect(reserved, {'synthetic-text'});
+    });
 
     test('has nothing to tell without an integrity repository, and reserves '
         'no id before the base pack is bundled', () async {

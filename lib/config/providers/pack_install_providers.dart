@@ -34,17 +34,19 @@ typedef InstallerFactory =
 Future<void> packInstallProviders(Dependencies dependencies) =>
     providePackInstall(dependencies, create: packInstallRepository);
 
-/// [packInstallProviders] over the installer [create] makes.
+/// [packInstallProviders] over the installer [create] makes, which never
+/// installs over the id of the [basePack] the app bundles.
 Future<void> providePackInstall(
   Dependencies dependencies, {
   required InstallerFactory create,
+  ({String id, int version})? basePack = bundledBasePack,
 }) async {
   dependencies.provide<FreeSpaceService>(const DiskFreeSpaceService());
   provideInstaller(
     dependencies,
     create(
       onPackChanged: dependencies.tryRead<PackIntegrityRepository>()?.forget,
-      reservedPackIds: {?bundledBasePack?.id},
+      reservedPackIds: {?basePack?.id},
     ),
   );
 }
