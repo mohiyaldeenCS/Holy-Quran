@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:background_downloader/background_downloader.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -18,14 +19,25 @@ import 'package:holyquran/config/providers/tafsir_providers.dart';
 import 'package:holyquran/config/providers/user_data_providers.dart';
 import 'package:holyquran/config/providers/user_database_providers.dart';
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
+import 'package:holyquran/data/repositories/bookmark_repository.dart';
+import 'package:holyquran/data/repositories/category_repository.dart';
+import 'package:holyquran/data/repositories/integrity_log_repository.dart';
+import 'package:holyquran/data/repositories/keep_awake_repository.dart';
+import 'package:holyquran/data/repositories/listening_position_repository.dart';
+import 'package:holyquran/data/repositories/note_repository.dart';
+import 'package:holyquran/data/repositories/pack_install_repository.dart';
 import 'package:holyquran/data/repositories/reading_position_repository.dart';
+import 'package:holyquran/data/repositories/search_history_repository.dart';
+import 'package:holyquran/data/repositories/tag_repository.dart';
 import 'package:holyquran/data/services/clipboard_service.dart';
+import 'package:holyquran/data/services/free_space_service.dart';
 import 'package:holyquran/data/services/link_service.dart';
 import 'package:holyquran/data/services/share_service.dart';
 import 'package:holyquran/data/services/user_database.dart';
 import 'package:provider/provider.dart';
 
 import '../../testing/application_support.dart';
+import '../../testing/fakes/memory_task_storage.dart';
 
 final class _Database {
   const _Database(this.name);
@@ -41,6 +53,10 @@ final class _Settings extends ChangeNotifier {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  // The areas start the pack installer, which creates the downloader plugin;
+  // its own storage runs an isolate that outlives the test.
+  setUpAll(() => FileDownloader(persistentStorage: MemoryTaskStorage()));
 
   test('the areas are set up in the order of D-103', () {
     expect(appAreas, [
@@ -61,18 +77,34 @@ void main() {
   });
 
   test('builds without a base pack or a catalogue, providing the user '
-      'database, the settings and the services that need neither', () async {
+      'database, the settings, the user data and the services that need '
+      'none of them', () async {
     final support = useTemporaryApplicationSupport();
     late Dependencies provided;
     final providers = await buildDependencies(
       areas: [...appAreas, (dependencies) async => provided = dependencies],
     );
+    final installs = provided.read<PackInstallRepository>();
+    // The start runs on the support folder, which the test deletes.
+    await installs.started;
     addTearDown(provided.read<UserDatabase>().close);
+    addTearDown(provided.read<IntegrityLogRepository>().dispose);
+    addTearDown((installs as LocalPackInstallRepository).dispose);
 
     expect(providers.map((provider) => provider.runtimeType), [
       Provider<UserDatabase>,
       ListenableProvider<AppSettingsRepository>,
       ListenableProvider<ReadingPositionRepository>,
+      Provider<FreeSpaceService>,
+      ListenableProvider<PackInstallRepository>,
+      ListenableProvider<BookmarkRepository>,
+      ListenableProvider<NoteRepository>,
+      ListenableProvider<TagRepository>,
+      Provider<CategoryRepository>,
+      ListenableProvider<ListeningPositionRepository>,
+      ListenableProvider<SearchHistoryRepository>,
+      ListenableProvider<IntegrityLogRepository>,
+      ListenableProvider<KeepAwakeRepository>,
       Provider<ClipboardService>,
       Provider<ShareService>,
       Provider<LinkService>,
@@ -124,6 +156,72 @@ void main() {
     await expectLater(
       buildDependencies(
         areas: [(dependencies) async => dependencies.read<_Database>()],
+      ),
+      throwsStateError,
+    );
+  });
+
+  test('tryRead gives what an earlier area provided and null for the '
+      'rest', () async {
+    final found = <Object?>[];
+    await buildDependencies(
+      areas: [
+        (dependencies) async =>
+            dependencies.provide(const _Database('synthetic')),
+        (dependencies) async => found
+          ..add(dependencies.tryRead<_Database>())
+          ..add(dependencies.tryRead<_Settings>()),
+      ],
+    );
+
+    expect(found, [isA<_Database>(), isNull]);
+  });
+
+  testWidgets('replace gives later areas and the tree the new value, in '
+      'the same place', (tester) async {
+    final seen = <String>[];
+    final settings = _Settings(const _Database('settings'));
+    addTearDown(settings.dispose);
+    final providers = await tester.runAsync(
+      () => buildDependencies(
+        areas: [
+          (dependencies) async =>
+              dependencies.provide(const _Database('suspect')),
+          (dependencies) async => dependencies.provideListenable(settings),
+          (dependencies) async =>
+              dependencies.replace(const _Database('replacement')),
+          (dependencies) async => seen.add(dependencies.read<_Database>().name),
+        ],
+      ),
+    );
+    late String inTree;
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: providers!,
+        child: Builder(
+          builder: (context) {
+            inTree = context.read<_Database>().name;
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
+
+    expect(seen, ['replacement']);
+    expect(inTree, 'replacement');
+    expect(providers.map((provider) => provider.runtimeType), [
+      Provider<_Database>,
+      ListenableProvider<_Settings>,
+    ]);
+  });
+
+  test('replace needs a value an earlier area provided', () async {
+    await expectLater(
+      buildDependencies(
+        areas: [
+          (dependencies) async =>
+              dependencies.replace(const _Database('replacement')),
+        ],
       ),
       throwsStateError,
     );

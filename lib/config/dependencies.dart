@@ -54,16 +54,34 @@ final class Dependencies {
 
   final _values = <Type, Object>{};
   final _providers = <SingleChildWidget>[];
+  final _slots = <Type, int>{};
 
   /// The [T] an earlier area provided. Throws a [StateError] if none did.
   T read<T extends Object>() =>
-      _values[T] as T? ??
+      tryRead<T>() ??
       (throw StateError('$T is not provided by an earlier area'));
+
+  /// The [T] an earlier area provided, or null for what that area leaves out,
+  /// such as everything that needs a verified base pack.
+  T? tryRead<T extends Object>() => _values[T] as T?;
 
   /// Provides [value] as [T]. A [Listenable] goes through [provideListenable].
   void provide<T extends Object>(T value) {
     _keep<T>(value);
+    _slots[T] = _providers.length;
     _providers.add(Provider<T>.value(value: value));
+  }
+
+  /// Gives [value] in place of the [T] an earlier area provided with
+  /// [provide], for readers of both the areas after it and the widget tree.
+  /// Throws a [StateError] if no earlier area did.
+  void replace<T extends Object>(T value) {
+    final slot = _slots[T];
+    if (slot == null) {
+      throw StateError('$T was not provided by an earlier area');
+    }
+    _values[T] = value;
+    _providers[slot] = Provider<T>.value(value: value);
   }
 
   /// Provides [value] as [T], rebuilding its readers when it notifies.

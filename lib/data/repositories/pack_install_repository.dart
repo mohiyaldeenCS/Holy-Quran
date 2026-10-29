@@ -67,6 +67,8 @@ final class LocalPackInstallRepository extends ChangeNotifier
     required this._verifier,
     required this._policy,
     required this._acceptUnchecked,
+    this._onPackChanged,
+    this._reservedPackIds = const {},
   });
 
   static const _manifest = 'manifest.json';
@@ -84,6 +86,15 @@ final class LocalPackInstallRepository extends ChangeNotifier
   /// Whether a pack whose signature was not checked may be activated: only
   /// outside release builds (D-108).
   final bool _acceptUnchecked;
+
+  /// Called with the id of a pack whose files were replaced, rolled back or
+  /// deleted, so that what was said of the old files is not kept for the
+  /// new ones.
+  final void Function(String packId)? _onPackChanged;
+
+  /// Ids that are never installed, rolled back or deleted: the bundled base
+  /// pack's, which shares its folder with the installed packs.
+  final Set<String> _reservedPackIds;
 
   final _started = Completer<Result<void>>();
   final _queue = <_Job>[];
@@ -112,11 +123,13 @@ final class LocalPackInstallRepository extends ChangeNotifier
   ]);
 
   /// Opens the store, recovers it from a cut-short change, starts the
-  /// downloader and reads the installed packs. Never throws.
+  /// downloader and reads the installed packs. Throws nothing but an
+  /// [Error], which is a bug: [started] still completes, as a failure, so
+  /// that no install waits for it for ever.
   Future<Result<void>> start() async {
     if (_starting) return started;
     _starting = true;
-    Result<void> result;
+    Result<void> result = const Failure(StoreFailed('', 'the start stopped'));
     try {
       final store = await _openStore();
       await store.recover();
@@ -131,10 +144,11 @@ final class LocalPackInstallRepository extends ChangeNotifier
       result = await _reload();
     } on Exception catch (e) {
       result = Failure(e);
+    } finally {
+      _started.complete(result);
+      _notify();
+      unawaited(_drain());
     }
-    _started.complete(result);
-    _notify();
-    unawaited(_drain());
     return result;
   }
 
@@ -142,6 +156,7 @@ final class LocalPackInstallRepository extends ChangeNotifier
   Future<Result<InstalledPack>> install(InstallRequest request) async {
     final id = request.packId;
     if (!InstalledPacksStore.isValidId(id)) return Failure(InvalidPackId(id));
+    if (_reservedPackIds.contains(id)) return Failure(ReservedPackId(id));
     for (final url in request.urls) {
       if (!_policy.allows(url)) return Failure(UrlNotAllowed(id, url));
     }
@@ -215,6 +230,9 @@ final class LocalPackInstallRepository extends ChangeNotifier
 
   @override
   Future<Result<InstalledPack>> rollback(String packId) async {
+    if (_reservedPackIds.contains(packId)) {
+      return Failure(ReservedPackId(packId));
+    }
     if (await _unavailable() case final failure?) return Failure(failure);
     if (_jobOf(packId) != null || !_changing.add(packId)) {
       return Failure(AlreadyQueued(packId));
@@ -224,7 +242,7 @@ final class LocalPackInstallRepository extends ChangeNotifier
         case Failure(:final error):
           return Failure(error);
         case Ok(:final value):
-          await _reload();
+          await _reloadAfterChange(packId);
           return switch (_installed
               .where((pack) => pack.id == packId)
               .firstOrNull) {
@@ -246,13 +264,20 @@ final class LocalPackInstallRepository extends ChangeNotifier
 
   @override
   Future<Result<void>> delete(String packId) async {
+    if (_reservedPackIds.contains(packId)) {
+      return Failure(ReservedPackId(packId));
+    }
     if (await _unavailable() case final failure?) return Failure(failure);
     if (_jobOf(packId) != null || !_changing.add(packId)) {
       return Failure(AlreadyQueued(packId));
     }
     try {
       final result = await _store!.delete(packId);
-      await _reload();
+      if (result is Ok) {
+        await _reloadAfterChange(packId);
+      } else {
+        await _reload();
+      }
       return result;
     } on Exception catch (e) {
       return Failure(StoreFailed(packId, '$e'));
@@ -428,7 +453,7 @@ final class LocalPackInstallRepository extends ChangeNotifier
       }
       switch (await _store!.activate(id, request.version)) {
         case Ok(:final value):
-          await _reload();
+          await _reloadAfterChange(id);
           return Ok(
             InstalledPack(
               manifest: pack.manifest,
@@ -592,6 +617,17 @@ final class LocalPackInstallRepository extends ChangeNotifier
       await _store?.discardStaging(request.packId, request.version);
     } on Exception {
       // The next attempt checks every staged file against its hash again.
+    }
+  }
+
+  /// Reads the packs again after the files of [packId] changed, and tells of
+  /// the change whether or not the read worked: what was said of the old
+  /// files must not outlive them.
+  Future<void> _reloadAfterChange(String packId) async {
+    try {
+      await _reload();
+    } finally {
+      _onPackChanged?.call(packId);
     }
   }
 

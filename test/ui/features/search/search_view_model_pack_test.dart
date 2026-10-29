@@ -119,6 +119,8 @@ final class _CountedIntegrity extends ChangeNotifier
   @override
   void report(String pack, PackIntegrity state, {int? version}) =>
       notifyListeners();
+  @override
+  void forget(String pack) {}
 }
 
 void main() {

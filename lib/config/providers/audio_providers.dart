@@ -29,9 +29,8 @@ Future<void> provideAudio(
   required AudioEngineService Function() createEngine,
   required RecitationFileLocator locate,
 }) async {
-  final index = _providedOrNull<QuranIndexRepository>(dependencies);
-  if (index == null ||
-      _providedOrNull<PlaybackPlanBuilder>(dependencies) == null) {
+  final index = dependencies.tryRead<QuranIndexRepository>();
+  if (index == null || dependencies.tryRead<PlaybackPlanBuilder>() == null) {
     return;
   }
   final player = EnginePlayerRepository(
@@ -41,7 +40,7 @@ Future<void> provideAudio(
         index.surahs.where((info) => info.number == surah).firstOrNull?.name,
   );
   dependencies.provideListenable<PlayerRepository>(player);
-  if (_providedOrNull<ListeningPositionRepository>(dependencies)
+  if (dependencies.tryRead<ListeningPositionRepository>()
       case final positions?) {
     _recordListening(player, positions);
   }
@@ -62,13 +61,4 @@ void _recordListening(
     },
   );
   player.addListener(() => recorder.update(player.state));
-}
-
-// The Quran area provides these only once the base pack is verified.
-T? _providedOrNull<T extends Object>(Dependencies dependencies) {
-  try {
-    return dependencies.read<T>();
-  } on StateError {
-    return null;
-  }
 }
