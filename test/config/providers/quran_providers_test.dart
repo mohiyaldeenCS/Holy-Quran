@@ -132,11 +132,18 @@ void main() {
     final integrity = context.read<PackIntegrityRepository>();
     final guard = context.read<BasePackGuard>();
     expect(guard.serving(), isTrue);
+    final events = <PackIntegrityEvent>[];
+    integrity.events.listen(events.add);
 
     guard.failed(const FormatException('synthetic failure'));
     guard.failed(const FormatException('again'));
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
 
     expect(guard.serving(), isFalse);
+    expect(
+      [for (final e in events) '${e.state}'.split(':').first],
+      ['ok', 'failed'],
+    );
     expect(
       await tester.runAsync(
         () => context.read<QuranTextRepository>().ayahText(

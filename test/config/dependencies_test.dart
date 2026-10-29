@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:background_downloader/background_downloader.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -35,6 +36,7 @@ import 'package:holyquran/data/services/user_database.dart';
 import 'package:provider/provider.dart';
 
 import '../../testing/application_support.dart';
+import '../../testing/fakes/memory_task_storage.dart';
 
 final class _Database {
   const _Database(this.name);
@@ -50,6 +52,10 @@ final class _Settings extends ChangeNotifier {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  // The areas start the pack installer, which creates the downloader plugin;
+  // its own storage runs an isolate that outlives the test.
+  setUpAll(() => FileDownloader(persistentStorage: MemoryTaskStorage()));
 
   test('the areas are set up in the order of D-103', () {
     expect(appAreas, [
@@ -77,12 +83,12 @@ void main() {
     final providers = await buildDependencies(
       areas: [...appAreas, (dependencies) async => provided = dependencies],
     );
+    final installs = provided.read<PackInstallRepository>();
+    // The start runs on the support folder, which the test deletes.
+    await installs.started;
     addTearDown(provided.read<UserDatabase>().close);
     addTearDown(provided.read<IntegrityLogRepository>().dispose);
-    addTearDown(
-      (provided.read<PackInstallRepository>() as LocalPackInstallRepository)
-          .dispose,
-    );
+    addTearDown((installs as LocalPackInstallRepository).dispose);
 
     expect(providers.map((provider) => provider.runtimeType), [
       Provider<UserDatabase>,
