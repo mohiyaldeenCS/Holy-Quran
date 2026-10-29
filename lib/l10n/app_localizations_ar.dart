@@ -1094,6 +1094,39 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String sourceVersion(String version) {
+    return 'الإصدار $version';
+  }
+
+  @override
+  String sourcePublisher(String publisher) {
+    return 'الناشر: $publisher';
+  }
+
+  @override
+  String tafsirRange(String from, String to) {
+    return 'من الآية $from إلى الآية $to';
+  }
+
+  @override
+  String ayahsRangeShort(String from, String to) {
+    return '$from–$to';
+  }
+
+  @override
+  String tafsirCopyFormat(
+    String passage,
+    String title,
+    String author,
+    String surah,
+    String ayahs,
+    String source,
+    String version,
+  ) {
+    return '$passage\n\n$title · $author\n[$surah: $ayahs]\n$source · $version';
+  }
+
+  @override
   String get searchScopeLabel => 'نطاق البحث';
 
   @override
