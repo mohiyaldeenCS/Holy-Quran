@@ -1,8 +1,6 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:holyquran/config/dependencies.dart';
-import 'package:holyquran/data/repositories/app_settings_repository.dart';
-import 'package:holyquran/data/repositories/in_memory_app_settings_repository.dart';
 import 'package:holyquran/data/services/user_database.dart';
 
 /// Provides the user's database in application support for the areas after
@@ -23,11 +21,15 @@ Future<UserDatabase> _open() async {
   }
 }
 
-/// The database that the areas after the settings write to. When the
-/// settings could not be read (D-133) the user's file is suspect, so it is
-/// an in-memory database that nothing of the user's reaches the disk from;
-/// each area that asks gets its own.
-UserDatabase userDataDatabase(Dependencies dependencies) =>
-    dependencies.read<AppSettingsRepository>() is InMemoryAppSettingsRepository
-    ? UserDatabase.inMemory()
-    : dependencies.read<UserDatabase>();
+/// Replaces the user's database, for the areas after this call and for the
+/// widget tree, by one kept in memory (D-133): the user's file is suspect, so
+/// nothing of the user's is written to it from here on. There is one such
+/// database per [Dependencies]; asking again gives the same.
+UserDatabase useDatabaseInMemory(Dependencies dependencies) {
+  if (_fallbacks[dependencies] case final existing?) return existing;
+  final memory = _fallbacks[dependencies] = UserDatabase.inMemory();
+  dependencies.replace<UserDatabase>(memory);
+  return memory;
+}
+
+final _fallbacks = Expando<UserDatabase>('user database in memory');

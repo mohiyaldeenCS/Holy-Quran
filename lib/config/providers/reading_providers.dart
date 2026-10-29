@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:holyquran/config/dependencies.dart';
-import 'package:holyquran/config/providers/user_database_providers.dart';
 import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/data/services/daos/reading_position_dao.dart';
+import 'package:holyquran/data/services/user_database.dart';
 import 'package:holyquran/utils/result.dart';
 
 /// Provides the [ReadingPositionRepository] over the user database
@@ -16,7 +16,7 @@ import 'package:holyquran/utils/result.dart';
 /// written to it.
 Future<void> readingProviders(Dependencies dependencies) async {
   switch (await LocalReadingPositionRepository.load(
-    ReadingPositionDao(userDataDatabase(dependencies)),
+    ReadingPositionDao(dependencies.read<UserDatabase>()),
   )) {
     case Ok(:final value):
       dependencies.provideListenable<ReadingPositionRepository>(value);

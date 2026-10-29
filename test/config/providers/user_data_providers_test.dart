@@ -23,6 +23,7 @@ import 'package:holyquran/data/services/wakelock_service.dart';
 import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/utils/result.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 import '../../../testing/fakes/fake_app_settings_repository.dart';
 import '../../../testing/fakes/fake_pack_integrity_repository.dart';
@@ -284,6 +285,40 @@ void main() {
         ),
         isA<Ok<Object>>(),
       );
+      expect(file.readAsBytesSync(), bytes);
+    });
+
+    test('keeps the data in memory when one table cannot be read, and the '
+        'start goes on with the file as it is (D-133)', () async {
+      final directory = await Directory.systemTemp.createTemp('user_data_area');
+      addTearDown(() => directory.delete(recursive: true));
+      final file = File('${directory.path}/${UserDatabase.fileName}');
+      final created = UserDatabase(NativeDatabase(file));
+      await created.customSelect('SELECT 1').get();
+      await created.close();
+      sqlite3.open(file.path)
+        ..execute('DROP TABLE listening_position')
+        ..dispose();
+      final bytes = file.readAsBytesSync();
+      final damaged = UserDatabase(NativeDatabase(file));
+      addTearDown(damaged.close);
+
+      final dependencies = await over(damaged);
+      addTearDown(dependencies.read<IntegrityLogRepository>().dispose);
+
+      expect(dependencies.read<UserDatabase>(), isNot(same(damaged)));
+      expect(
+        dependencies.read<AppSettingsRepository>(),
+        isA<LocalAppSettingsRepository>(),
+      );
+      expect(
+        await dependencies.read<BookmarkRepository>().add(
+          QuranAddress.parse('hafs:2:5'),
+          'c',
+        ),
+        isA<Ok<Object>>(),
+      );
+      expect(dependencies.read<ListeningPositionRepository>().last, isNull);
       expect(file.readAsBytesSync(), bytes);
     });
 

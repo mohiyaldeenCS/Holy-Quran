@@ -84,6 +84,36 @@ void main() {
     return provided;
   }
 
+  test('keeps its settings in memory when the user file could not be read '
+      '(D-133)', () async {
+    final file = File('${root.path}/${UserDatabase.fileName}')
+      ..writeAsStringSync('synthetic text that is not a database file' * 100);
+    final bytes = file.readAsBytesSync();
+    final unreadable = UserDatabase(NativeDatabase(file));
+    addTearDown(unreadable.close);
+    TafsirRepository? provided;
+
+    await buildDependencies(
+      areas: [
+        (dependencies) async => dependencies.provide(unreadable),
+        settingsProviders,
+        (dependencies) async => dependencies
+          ..provideListenable<PackInstallRepository>(installs)
+          ..provideListenable<PackIntegrityRepository>(integrity)
+          ..provide<QuranStructure>(FakeQuranIndexRepository.synthetic()),
+        tafsirProviders,
+        (dependencies) async =>
+            provided = dependencies.tryRead<TafsirRepository>(),
+      ],
+    );
+    if (provided case final LocalTafsirRepository repository) {
+      addTearDown(repository.dispose);
+    }
+
+    expect(provided, isA<LocalTafsirRepository>());
+    expect(file.readAsBytesSync(), bytes);
+  });
+
   group('the area', () {
     Future<TafsirRepository?> over({required bool withStructure}) async {
       TafsirRepository? provided;

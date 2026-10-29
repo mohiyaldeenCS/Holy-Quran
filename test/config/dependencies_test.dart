@@ -169,6 +169,56 @@ void main() {
     expect(found, [isA<_Database>(), isNull]);
   });
 
+  testWidgets('replace gives later areas and the tree the new value, in '
+      'the same place', (tester) async {
+    final seen = <String>[];
+    final settings = _Settings(const _Database('settings'));
+    addTearDown(settings.dispose);
+    final providers = await tester.runAsync(
+      () => buildDependencies(
+        areas: [
+          (dependencies) async =>
+              dependencies.provide(const _Database('suspect')),
+          (dependencies) async => dependencies.provideListenable(settings),
+          (dependencies) async =>
+              dependencies.replace(const _Database('replacement')),
+          (dependencies) async => seen.add(dependencies.read<_Database>().name),
+        ],
+      ),
+    );
+    late String inTree;
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: providers!,
+        child: Builder(
+          builder: (context) {
+            inTree = context.read<_Database>().name;
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
+
+    expect(seen, ['replacement']);
+    expect(inTree, 'replacement');
+    expect(providers.map((provider) => provider.runtimeType), [
+      Provider<_Database>,
+      ListenableProvider<_Settings>,
+    ]);
+  });
+
+  test('replace needs a value an earlier area provided', () async {
+    await expectLater(
+      buildDependencies(
+        areas: [
+          (dependencies) async =>
+              dependencies.replace(const _Database('replacement')),
+        ],
+      ),
+      throwsStateError,
+    );
+  });
+
   test('providing a type twice throws', () async {
     await expectLater(
       buildDependencies(

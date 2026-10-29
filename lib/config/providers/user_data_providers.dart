@@ -25,21 +25,37 @@ import 'package:holyquran/data/services/wakelock_service.dart';
 import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/utils/result.dart';
 
-/// Provides the user's data over [userDataDatabase], with the keep-awake
+/// Provides the user's data over the user database, with the keep-awake
 /// state following the settings and the integrity log storing the events of
 /// the [PackIntegrityRepository] when the Quran area provided one.
-Future<void> userDataProviders(Dependencies dependencies) => provideUserData(
-  dependencies,
-  database: userDataDatabase(dependencies),
-  settings: dependencies.read<AppSettingsRepository>(),
-  wakelock: const WakelockService(),
-  integrityEvents: dependencies.tryRead<PackIntegrityRepository>()?.events,
-);
+///
+/// Reading the Quran needs no user data. When a repository cannot load, the
+/// user's file is suspect, so the data is kept in a database in memory
+/// instead ([useDatabaseInMemory], D-133), and the start goes on.
+Future<void> userDataProviders(Dependencies dependencies) async {
+  final database = dependencies.read<UserDatabase>();
+  Future<void> provide(UserDatabase over) => provideUserData(
+    dependencies,
+    database: over,
+    settings: dependencies.read<AppSettingsRepository>(),
+    wakelock: const WakelockService(),
+    integrityEvents: dependencies.tryRead<PackIntegrityRepository>()?.events,
+  );
+  try {
+    await provide(database);
+  } on Exception catch (error, stack) {
+    debugPrint('User data unreadable, keeping it in memory: $error');
+    debugPrintStack(stackTrace: stack);
+    final memory = useDatabaseInMemory(dependencies);
+    if (identical(memory, database)) rethrow;
+    await provide(memory);
+  }
+}
 
 /// Provides the repositories of the user's own data over [database]: the
 /// keep-awake state follows [settings], and the integrity log stores
-/// [integrityEvents]. Throws the error of a repository that cannot load, so
-/// that the start fails visibly rather than without the user's data.
+/// [integrityEvents]. Throws the error of a repository that cannot load,
+/// before it has provided or listened to anything.
 Future<void> provideUserData(
   Dependencies dependencies, {
   required UserDatabase database,
