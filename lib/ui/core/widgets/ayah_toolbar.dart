@@ -5,6 +5,7 @@ import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/icon_button.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
+import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/small_button.dart';
 
 // The selection frame is the thin line of `.qk-hl-select`, `inset 0 0 0
@@ -110,20 +111,14 @@ final class AyahToolbar extends StatelessWidget {
         DecoratedBox(
           decoration: BoxDecoration(
             color: colors.surface,
-            border: Border.all(color: colors.error),
-            borderRadius: BorderRadius.circular(AppRadius.radiusFull),
+            borderRadius: BorderRadius.circular(AppRadius.radiusMd),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.space4,
-              vertical: AppSpacing.space2,
-            ),
-            child: Semantics(
-              liveRegion: true,
-              child: Text(
-                notice,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.caption.copyWith(color: colors.error),
+            padding: const EdgeInsets.all(AppSpacing.space3),
+            child: MergeSemantics(
+              child: Semantics(
+                liveRegion: true,
+                child: IntegrityAlert(title: notice),
               ),
             ),
           ),
