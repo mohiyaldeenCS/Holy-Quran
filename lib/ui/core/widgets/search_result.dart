@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart' hide Icon;
 
 import 'package:holyquran/domain/models/pack_text.dart';
+import 'package:holyquran/domain/models/search_match.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
@@ -43,6 +44,7 @@ const double _clampedBottomInset = _bottomInset - _moreHitOutset;
 const double _referenceOrder = 0;
 const double _ayahOrder = 1;
 const double _actionsOrder = 2;
+const double _footerOrder = 3;
 
 // No line height is set in `.qk-result*`, so each is the font's own (CSS
 // `normal`); the styles do not inherit, so the ambient body line height
@@ -70,10 +72,10 @@ const TextStyle _moreStyle = TextStyle(
 /// ayah number, the context and open-in-the-mushaf buttons, and the ayah in
 /// the compact Quran size, on a `surface` card.
 ///
-/// [ayahText] is one whole ayah from the pack, with no inline marker and no
-/// match highlight (D-087, D-088). With [clamp], an ayah laid out taller than
-/// 92 px, grown as the ayah's text is, is cut there under a 40 px fade, with
-/// a link that shows it whole; one that fits is shown whole as without
+/// [ayahText] is one whole ayah from the pack, with no inline marker (D-087);
+/// [matches] are painted behind it, not cut into it (D-088). With [clamp], an
+/// ayah laid out taller than 92 px, grown as the ayah's text is, is cut there
+/// under a 40 px fade, with a link that shows it whole; one that fits is shown whole as without
 /// [clamp]. A screen reader always gets the whole ayah, after the reference
 /// and before the actions (AX-01).
 ///
@@ -88,22 +90,43 @@ class SearchResult extends StatefulWidget {
     required this.ayahText,
     required this.onContext,
     required this.onOpen,
+    this.matches = const [],
     this.clamp = false,
     this.expanded = false,
     this.onExpand,
+    this.actions = const [],
+    this.footer,
     super.key,
   }) : assert(!clamp || onExpand != null, 'a clamped card needs onExpand');
+
+  /// The reference's style, `.qk-result-ref`, for a reference drawn beside it.
+  static const TextStyle referenceStyle = _referenceStyle;
+
+  /// The size of an action's icon and the gap between actions, which a
+  /// button added to [actions] takes too.
+  static const double actionIconSize = _actionIconSize;
+  static const double actionsGap = _actionsGap;
 
   final PackText surahName;
   final int ayahNumber;
   final PackText ayahText;
   final VoidCallback onContext;
   final VoidCallback onOpen;
+
+  /// Where the search matched in [ayahText], offsets into it; painted as
+  /// `Match` does, with the string unchanged.
+  final List<SearchMatch> matches;
   final bool clamp;
 
   /// Whether a clamped ayah is shown whole.
   final bool expanded;
   final VoidCallback? onExpand;
+
+  /// Further 48 buttons after the two, such as a list's delete.
+  final List<Widget> actions;
+
+  /// Content under the ayah inside the card, such as a note and tags.
+  final Widget? footer;
 
   @override
   State<SearchResult> createState() => _SearchResultState();
@@ -136,6 +159,7 @@ class _SearchResultState extends State<SearchResult> {
       widget.ayahText,
       size: QuranTextSize.compact,
       align: QuranTextAlign.start,
+      matches: widget.matches,
     );
     return Semantics(
       container: true,
@@ -191,6 +215,7 @@ class _SearchResultState extends State<SearchResult> {
                         iconSize: _actionIconSize,
                         onPressed: widget.onOpen,
                       ),
+                      ...widget.actions,
                     ],
                   ),
                 ),
@@ -212,6 +237,15 @@ class _SearchResultState extends State<SearchResult> {
                     )
                   : ayah,
             ),
+            if (widget.footer case final footer?)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.space2),
+                child: Semantics(
+                  container: true,
+                  sortKey: const OrdinalSortKey(_footerOrder),
+                  child: footer,
+                ),
+              ),
           ],
         ),
       ),

@@ -8,6 +8,9 @@ final class FakeSearchHistoryRepository extends SearchHistoryRepository {
 
   final List<String> _queries;
 
+  /// While set, clearing fails with it and keeps the queries.
+  Exception? clearFailure;
+
   @override
   Future<Result<List<String>>> queries() async => Ok([..._queries]);
 
@@ -23,6 +26,7 @@ final class FakeSearchHistoryRepository extends SearchHistoryRepository {
 
   @override
   Future<Result<void>> clear() async {
+    if (clearFailure case final failure?) return Failure(failure);
     _queries.clear();
     notifyListeners();
     return const Ok(null);

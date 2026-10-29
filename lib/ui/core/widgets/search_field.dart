@@ -57,12 +57,22 @@ class SearchField extends StatefulWidget {
     required this.controller,
     required this.onChanged,
     required this.onSubmitted,
+    this.enabled = true,
+    this.hint,
     super.key,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final ValueChanged<String> onSubmitted;
+
+  /// Whether text can be typed. A field that cannot yet search is disabled
+  /// rather than left to do nothing.
+  final bool enabled;
+
+  /// The hint and spoken name, «ابحث في القرآن» when null. The bookmarks
+  /// screen, which searches the user's own marks, names what it searches.
+  final String? hint;
 
   @override
   State<SearchField> createState() => _SearchFieldState();
@@ -84,12 +94,14 @@ class _SearchFieldState extends State<SearchField> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final l10n = AppLocalizations.of(context);
+    final hint = widget.hint ?? l10n.searchFieldHint;
     final input = Material(
       // TextField draws through Material; the field itself has no Material
       // look.
       type: MaterialType.transparency,
       child: TextField(
         controller: widget.controller,
+        enabled: widget.enabled,
         onChanged: widget.onChanged,
         onSubmitted: widget.onSubmitted,
         textDirection: TextDirection.rtl,
@@ -103,7 +115,7 @@ class _SearchFieldState extends State<SearchField> {
         decoration: InputDecoration(
           border: InputBorder.none,
           contentPadding: EdgeInsets.zero,
-          hintText: l10n.searchFieldHint,
+          hintText: hint,
           hintStyle: SearchFieldBox.hintStyle(colors.inkMuted),
         ),
       ),
@@ -147,7 +159,7 @@ class _SearchFieldState extends State<SearchField> {
                     child: Semantics(
                       // `aria-label`: the shown hint names the empty field;
                       // once it holds text, the hint is gone and this does.
-                      label: value.text.isEmpty ? null : l10n.searchFieldHint,
+                      label: value.text.isEmpty ? null : hint,
                       child: field,
                     ),
                   ),

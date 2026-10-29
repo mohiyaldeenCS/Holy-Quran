@@ -1,0 +1,5 @@
+non-text: gold-600 on ground
+decision: D-128
+exception: paper 2.90
+exception: sepia 2.52
+The dot of a category tag, in the fixed colour of D-128 (9) in every theme (O-12 pattern, D-128 (10)); the word on the tag carries the meaning, with the shape.

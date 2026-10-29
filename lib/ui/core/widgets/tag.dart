@@ -52,6 +52,7 @@ class Tag extends StatelessWidget {
     required this.color,
     required this.selected,
     required this.onPressed,
+    this.hint,
     super.key,
   });
 
@@ -60,6 +61,10 @@ class Tag extends StatelessWidget {
   final Color color;
   final bool selected;
   final VoidCallback onPressed;
+
+  /// What pressing does when it is not selecting, such as editing; spoken
+  /// after the label.
+  final String? hint;
 
   @override
   Widget build(BuildContext context) {
@@ -104,6 +109,7 @@ class Tag extends StatelessWidget {
       // switch.
       selected: selected,
       label: label,
+      hint: hint,
       // Pressable covers the drawn face, where the focus ring goes; this
       // detector makes the rest of the target-min height press it too.
       child: GestureDetector(

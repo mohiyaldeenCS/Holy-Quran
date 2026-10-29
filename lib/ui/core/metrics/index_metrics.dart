@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart' show InputBorder, InputDecoration;
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/ui/core/metrics/settings_metrics.dart';
@@ -114,23 +113,6 @@ abstract final class IndexMetrics {
   // identity draws no such row; the step is a spacing token.
   static EdgeInsetsDirectional rowInset({required bool rub}) =>
       EdgeInsetsDirectional.only(start: rub ? AppSpacing.space5 : 0);
-
-  // The go-to sheet's number field takes the search field's box
-  // (`SearchFieldBox`, `.qk-search`): its height, rings and text, and the
-  // radius `radius-button`. The identity has no other field, so the sheet,
-  // which it does not draw, borrows this one.
-  static final BorderRadius fieldRadius = BorderRadius.circular(
-    AppRadius.radiusButton,
-  );
-  static const EdgeInsets fieldPadding = EdgeInsets.symmetric(
-    horizontal: AppSpacing.space4,
-  );
-  // Not collapsed, as SearchField's: the decorator keeps the input at least
-  // target-min high.
-  static const InputDecoration fieldDecoration = InputDecoration(
-    border: InputBorder.none,
-    contentPadding: EdgeInsets.zero,
-  );
 
   // A sheet over the keyboard keeps its content above it.
   static EdgeInsets keyboardInset(BuildContext context) =>

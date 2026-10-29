@@ -1,0 +1,3 @@
+text: quran-ink on search-match over surface
+decision: D-088
+The matched words of a search result, the Match highlight.

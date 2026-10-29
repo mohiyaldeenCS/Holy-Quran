@@ -57,6 +57,7 @@ class SearchSummary extends StatelessWidget {
     required this.count,
     required this.sortLabel,
     required this.onSort,
+    this.announceCount = false,
     super.key,
   });
 
@@ -64,6 +65,10 @@ class SearchSummary extends StatelessWidget {
   final String count;
   final String sortLabel;
   final VoidCallback onSort;
+
+  /// Whether a change of [count] is announced by a screen reader, for a
+  /// list that narrows as it is searched.
+  final bool announceCount;
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +82,13 @@ class SearchSummary extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title, style: _titleStyle.copyWith(color: colors.ink)),
-              Text(count, style: _countStyle.copyWith(color: colors.inkMuted)),
+              Semantics(
+                liveRegion: announceCount,
+                child: Text(
+                  count,
+                  style: _countStyle.copyWith(color: colors.inkMuted),
+                ),
+              ),
             ],
           ),
         ),

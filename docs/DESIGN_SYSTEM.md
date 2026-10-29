@@ -363,6 +363,7 @@ test fails on any new shortfall and also when one of these changes:
 | `primary-soft` on `surface` and `ground`: the fill of a selected `Tag` | 1.03 to 1.72 | The fill does not carry the state: the check mark and the weight do (D-089, 6) |
 | `gold-400` on `emerald-700`: the reference line of the emerald share card | 3.90 | Fixed card colours; part of O-12 |
 | Paper `ornament` on paper `ground`: the frames of the paper share card | 2.90 | Decorative, as on the paper theme |
+| `emerald-700` and `gold-600`, the fixed colours of the category dots of `Tag` (D-128, 9), on `ground`, `surface` and `primary-soft`: `emerald-700` in night 1.53 to 2.32 and in contrast 1.51 to 2.60; `gold-600` in paper 2.54 to 2.90 and in sepia 2.44 to 2.78 | below 3 | Non-text. The word on the tag carries the meaning, with the shape (D-128, 10, pattern). Listed per pair in `test/guards/allow/contrast/p1-24-*` |
 
 The list is a starting point. When a widget is built, every text colour it draws on
 every background it sits on is added to the test (PRD §8.20 asks for an automatic

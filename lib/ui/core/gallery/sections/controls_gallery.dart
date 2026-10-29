@@ -1,11 +1,24 @@
 import 'package:flutter/widgets.dart';
 
+import 'package:holyquran/domain/models/category.dart';
+import 'package:holyquran/domain/models/user_tag.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/gallery/gallery_section.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/note_editor.dart';
 import 'package:holyquran/ui/core/widgets/stepper.dart';
 import 'package:holyquran/ui/core/widgets/tag.dart';
+
+// The note editor's samples: the four categories of Tag/README.md and two
+// tags, named with the gallery's sample labels.
+const List<Category> _noteCategories = [
+  Category(id: 'sample-memorise', builtin: BuiltinCategory.memorise),
+  Category(id: 'sample-review', builtin: BuiltinCategory.review),
+  Category(id: 'sample-study', builtin: BuiltinCategory.study),
+  Category(id: 'sample-important', builtin: BuiltinCategory.important),
+];
+const List<String> _noteTagIds = ['sample-tag-a', 'sample-tag-b'];
 
 // Stepper/preview.html: each sample's starting value and bounds.
 const int _repeatStart = 7;
@@ -17,7 +30,8 @@ const int _silenceMin = 0;
 const int _silenceMax = 10;
 
 /// The gallery's controls section: `Tag` in its four shapes, selected and
-/// not, and `Stepper`, as their previews show them.
+/// not, and `Stepper`, as their previews show them, and the note editor
+/// (PRD §7.7), which is built from `Tag` and `Button`.
 class ControlsGallery extends StatefulWidget {
   const ControlsGallery({super.key});
 
@@ -33,6 +47,18 @@ class _ControlsGalleryState extends State<ControlsGallery> {
   int _repeat = _repeatStart;
   int _merge = _mergeStart;
   int _silence = _silenceStart;
+
+  final _noteBody = TextEditingController();
+  final _newTag = TextEditingController();
+  String? _noteCategory = _noteCategories.first.id;
+  final Set<String> _noteTags = {_noteTagIds.first};
+
+  @override
+  void dispose() {
+    _noteBody.dispose();
+    _newTag.dispose();
+    super.dispose();
+  }
 
   void _toggle((int, TagShape) tag) => setState(() {
     if (!_selected.remove(tag)) _selected.add(tag);
@@ -74,6 +100,39 @@ class _ControlsGalleryState extends State<ControlsGallery> {
                     ),
                 ]),
             ],
+          ),
+        ),
+        GallerySection(
+          title: l10n.noteLabel,
+          child: NoteEditor(
+            controller: _noteBody,
+            categories: _noteCategories,
+            selectedCategoryId: _noteCategory,
+            onCategoryChanged: (id) => setState(() => _noteCategory = id),
+            tags: [
+              UserTag(
+                id: _noteTagIds.first,
+                name: l10n.sampleWord,
+                createdAt: DateTime.utc(2026),
+              ),
+              UserTag(
+                id: _noteTagIds.last,
+                name: l10n.sampleInfo,
+                createdAt: DateTime.utc(2026),
+              ),
+            ],
+            selectedTagIds: _noteTags,
+            onTagToggled: (id) => setState(() {
+              if (!_noteTags.remove(id)) _noteTags.add(id);
+            }),
+            newTagController: _newTag,
+            onTagAdded: () {},
+            onSave: () {},
+            onDelete: () {},
+            existing: [l10n.sampleText],
+            selectedExisting: 0,
+            onExistingSelected: (_) {},
+            onNew: () {},
           ),
         ),
         GallerySection(

@@ -1,0 +1,3 @@
+non-text: info on search-match over surface
+decision: D-088
+The underline of a search match against its own tint.

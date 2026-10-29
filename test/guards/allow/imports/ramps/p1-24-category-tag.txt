@@ -1,0 +1,3 @@
+lib/ui/core/widgets/category_tag.dart
+decision: D-128
+The four categories keep the fixed colours of the Tag preview in every theme (D-128, 9).
