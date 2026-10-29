@@ -36,6 +36,7 @@ final class ReaderPinchStepper extends StatefulWidget {
     required this.child,
     this.leadingExtent = _noLeadingExtent,
     this.focusAt,
+    this.onAnchor,
     super.key,
   });
 
@@ -49,6 +50,12 @@ final class ReaderPinchStepper extends StatefulWidget {
   /// content, before the plan is read from [layout]: a scroll view that holds
   /// several surahs makes [layout] the plan of the surah under the fingers.
   final ValueChanged<double>? focusAt;
+
+  /// Called with each pinch's step, just before [onStep], to say whether the
+  /// stepper holds an ayah to keep in place: the one under the fingers, or the
+  /// one at the top of the focus surah. Without one, the new plan keeps the
+  /// scroll offset it had, and the caller keeps its own first visible line.
+  final ValueChanged<bool>? onAnchor;
   final Widget child;
 
   @override
@@ -167,6 +174,7 @@ final class _ReaderPinchStepperState extends State<ReaderPinchStepper> {
           ? null
           : (focal: focal, viewportY: local.dy);
     }
+    widget.onAnchor?.call(_pinch != null || _top != null);
     final from = widget.step;
     widget.onStep(next);
     // A screen that did not take the step brings no new plan, so the finger

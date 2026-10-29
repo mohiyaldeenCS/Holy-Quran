@@ -68,6 +68,9 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
   int? _focusSurah;
   bool _stepping = false;
 
+  // Whether the stepper holds an ayah to keep in place for the step in flight.
+  bool _anchored = false;
+
   // Whether the text is scrolling. The scroll view ignores a touch that stops
   // a fling, so a tap that does must not reach the layer around it either.
   final _moving = ValueNotifier<bool>(false);
@@ -131,16 +134,18 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
       if (_stepping) {
         _focus.publish(layout);
         _stepping = false;
-        _loadNextIfNear();
-        return;
+        if (_anchored) {
+          _loadNextIfNear();
+          return;
+        }
+      } else {
+        _focus.keep(layout);
       }
-      _focus.keep(layout);
-    }
-    // The surahs above the focus change height with the step too, and a jump
-    // to keep the first visible line would move the scroll under the
-    // stepper, which anchors the ayah under the fingers once the focus
-    // surah's plan arrives.
-    if (_stepping) {
+    } else if (_stepping && _anchored) {
+      // The surahs above the focus change height with the step too, and a
+      // jump to keep the first visible line would move the scroll under the
+      // stepper. Without an anchor (fingers on a header or a basmala below
+      // the top surah) the first visible line is what is kept.
       _loadNextIfNear();
       return;
     }
@@ -315,6 +320,7 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
       onStep: _onStep,
       leadingExtent: _focusLeading,
       focusAt: _focusAt,
+      onAnchor: (anchored) => _anchored = anchored,
       child: NotificationListener<ScrollMetricsNotification>(
         onNotification: _onMetrics,
         child: NotificationListener<ScrollNotification>(

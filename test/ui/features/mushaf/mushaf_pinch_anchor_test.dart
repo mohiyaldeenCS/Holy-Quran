@@ -1,10 +1,13 @@
 import 'dart:io';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/ui/core/reader/reader_block.dart';
 import 'package:holyquran/ui/core/reader/reader_text_scale.dart';
+import 'package:holyquran/ui/core/widgets/quran_text.dart';
+import 'package:holyquran/ui/core/widgets/surah_header.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/mushaf_view_model.dart';
 
 import '../../../../testing/fakes/fake_app_settings_repository.dart';
@@ -205,5 +208,146 @@ void main() {
       expect(lower.surah, greaterThan(viewModel.position!.address.surah));
       await pinchKeeps(tester, lower, from: from, to: to);
     });
+  }
+
+  /// The ayah the top of the reading area is in: the last one, in screen
+  /// order, whose text begins at or above the top edge; where the top edge is
+  /// over a header or a basmala, the first one below it.
+  ({int surah, int ayah, double start}) topAyah(WidgetTester tester) {
+    final edge = tester.getTopLeft(find.byType(CustomScrollView)).dy + 1;
+    ({int surah, int ayah, double start})? containing;
+    ({int surah, int ayah, double start})? next;
+    for (final element in find.byType(ReaderBlock).evaluate()) {
+      final block = element.widget as ReaderBlock;
+      final origin = tester.getTopLeft(find.byWidget(block));
+      for (final ayah in block.layout.ayat) {
+        final start = origin.dy + (block.layout.topOfAyah(ayah) ?? 0);
+        final end = origin.dy + block.layout.markerRect(ayah)!.bottom;
+        final found = (
+          surah: block.layout.plan.text.surah,
+          ayah: ayah,
+          start: start,
+        );
+        if (start <= edge && end > edge) {
+          if (containing == null || start > containing.start) {
+            containing = found;
+          }
+        } else if (start > edge && (next == null || start < next.start)) {
+          next = found;
+        }
+      }
+    }
+    return containing ?? next ?? fail('no ayah in the reading area');
+  }
+
+  /// Where the text of an ayah begins on screen; null when it is not on it.
+  double? ayahStart(WidgetTester tester, int surah, int ayah) {
+    for (final element in find.byType(ReaderBlock).evaluate()) {
+      final block = element.widget as ReaderBlock;
+      if (block.layout.plan.text.surah != surah) continue;
+      final top = block.layout.topOfAyah(ayah);
+      if (top == null) continue;
+      return tester.getTopLeft(find.byWidget(block)).dy + top;
+    }
+    return null;
+  }
+
+  double lineHeight(WidgetTester tester) => tester
+      .widgetList<ReaderBlock>(find.byType(ReaderBlock))
+      .first
+      .layout
+      .plan
+      .lineHeight;
+
+  // The header of a surah below the one the top of the screen is in, and its
+  // basmala, both on screen.
+  Future<({Offset header, Offset basmala})> scrollToLowerHeader(
+    WidgetTester tester,
+  ) async {
+    final controller = scrollOf(tester);
+    for (var step = 0; step < 400; step++) {
+      final headers = find
+          .byType(SurahHeader)
+          .evaluate()
+          .map((e) => tester.getCenter(find.byWidget(e.widget)));
+      final inRange = headers.where((h) => h.dy > 150 && h.dy < 420);
+      final basmalas = find
+          .byType(QuranText)
+          .evaluate()
+          .map((e) => tester.getCenter(find.byWidget(e.widget)));
+      if (inRange.isNotEmpty) {
+        final header = inRange.last;
+        final below = basmalas.where(
+          (b) => b.dy > header.dy && b.dy < readerHeight - 60,
+        );
+        // The surah whose text is nearest below the header.
+        ({double y, int surah})? lower;
+        for (final element in find.byType(ReaderBlock).evaluate()) {
+          final y = tester.getTopLeft(find.byWidget(element.widget)).dy;
+          if (y > header.dy && (lower == null || y < lower.y)) {
+            lower = (
+              y: y,
+              surah: (element.widget as ReaderBlock).layout.plan.text.surah,
+            );
+          }
+        }
+        final top = topAyah(tester);
+        // The top edge is inside an ayah of the surah above.
+        if (below.isNotEmpty &&
+            lower != null &&
+            lower.surah != top.surah &&
+            top.start <= tester.getTopLeft(find.byType(CustomScrollView)).dy) {
+          return (header: header, basmala: below.first);
+        }
+      }
+      controller.jumpTo(controller.offset + 40);
+      await tester.pumpAndSettle();
+    }
+    fail('no lower surah header on screen');
+  }
+
+  for (final (name, onBasmala, scale, from, to) in [
+    ('header, out', false, 1.0, 80.0, 130.0),
+    ('header, in', false, 1.5, 130.0, 80.0),
+    ('basmala, out', true, 1.0, 80.0, 130.0),
+    ('basmala, in', true, 1.5, 130.0, 80.0),
+  ]) {
+    testWidgets(
+      'fingers on the $name of a lower surah keep the ayah at the top',
+      (tester) async {
+        // The long surah 2 is followed by surah 3: the top line is in an ayah
+        // of 2 that is not its first, with 3's header lower down.
+        await pumpReader(tester, QuranAddress('hafs', 2, 30), scale: scale);
+        final target = await scrollToLowerHeader(tester);
+        // The first visible ayah as the reader counts it: the one the top
+        // line starts in.
+        final first = viewModel.position!.address;
+        final before = ayahStart(tester, first.surah, first.ayah);
+        final stepBefore = viewModel.textStep;
+        await pinch(
+          tester,
+          onBasmala ? target.basmala : target.header,
+          from: from,
+          to: to,
+        );
+        expect(viewModel.textStep, isNot(stepBefore));
+        final after = ayahStart(tester, first.surah, first.ayah);
+        final edge = tester.getTopLeft(find.byType(CustomScrollView)).dy;
+        expect(
+          after,
+          isNotNull,
+          reason:
+              'the first visible ayah ${first.surah}:${first.ayah} is on '
+              'screen (it started at $before)',
+        );
+        expect(
+          (after! - edge).abs(),
+          lessThanOrEqualTo(lineHeight(tester)),
+          reason:
+              'the first visible ayah ${first.surah}:${first.ayah} started at '
+              '$before and is at $after, the top edge at $edge',
+        );
+      },
+    );
   }
 }
