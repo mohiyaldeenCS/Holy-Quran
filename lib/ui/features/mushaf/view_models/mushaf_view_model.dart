@@ -433,6 +433,7 @@ final class MushafViewModel extends ChangeNotifier {
     _position = null;
     _positionSurahName = null;
     _selected = null;
+    _keepAwake.shown(false);
     _status = ReaderStatus.unavailable;
     notifyListeners();
     return Failure(error);

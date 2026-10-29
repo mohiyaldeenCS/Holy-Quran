@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:holyquran/domain/models/bookmark.dart';
 import 'package:holyquran/domain/models/category.dart';
+import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/domain/models/ui_level.dart';
@@ -449,6 +450,20 @@ void main() {
       expect(keepAwake.readerActive, isTrue);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
+      expect(keepAwake.readerActive, isFalse);
+    });
+  });
+
+  group('the screen is not kept on for a reader with no text', () {
+    readerTest('a reader whose pack stops serving lets go', (tester) async {
+      await pumpReader(tester);
+      expect(keepAwake.readerActive, isTrue);
+      addTearDown(
+        () => rig.integrity.report(MushafRig.packId, const IntegrityOk()),
+      );
+      rig.integrity.report(MushafRig.packId, const IntegrityRepairing());
+      await tester.pumpAndSettle();
+      expect(viewModel.status, ReaderStatus.unavailable);
       expect(keepAwake.readerActive, isFalse);
     });
   });

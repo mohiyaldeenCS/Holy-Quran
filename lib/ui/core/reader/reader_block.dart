@@ -61,7 +61,7 @@ final class ReaderBlock extends StatelessWidget {
                 child: ayahSemantics(
                   layout.plan.text.ayat[ayah - 1],
                   readingOrder(ayah).toDouble(),
-                  selected: ayah == selectedAyah,
+                  selected: ayah == selectedAyah ? true : null,
                   onActivate: activate == null ? null : () => activate(ayah),
                 ),
               ),
@@ -88,7 +88,7 @@ final class ReaderBlock extends StatelessWidget {
       container: true,
       sortKey: sortKey,
       button: true,
-      selected: ayah == selectedAyah,
+      selected: ayah == selectedAyah ? true : null,
       label: AppLocalizations.of(context).ayahMarkerLabel(arabicDigits(ayah)),
       onTap: () => activate(ayah),
       child: ExcludeSemantics(child: marker),

@@ -200,11 +200,12 @@ double basmalaHeight(PackText basmala, ReaderStyle style, double width) {
 
 /// What a screen reader reads for an ayah: its stored text, at [order]
 /// among the block's text, markers and page marks. With [onActivate] a
-/// screen reader can activate it, and [selected] says it is the chosen ayah.
+/// screen reader can activate it, and [selected] true says it is the chosen
+/// ayah; null leaves the state out, as for every other ayah.
 Widget ayahSemantics(
   AyahText ayah,
   double order, {
-  bool selected = false,
+  bool? selected,
   VoidCallback? onActivate,
 }) => Semantics(
   container: true,
