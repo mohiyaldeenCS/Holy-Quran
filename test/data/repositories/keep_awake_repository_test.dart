@@ -54,6 +54,23 @@ void main() {
     }
   }
 
+  for (final setting in [false, true]) {
+    test('stand mode keeps the screen on with the setting $setting, and '
+        'leaving it goes back to the rule of the setting', () async {
+      await keepAwake.setSettingOn(setting);
+      await keepAwake.setStandActive(true);
+      expect(keepAwake.awake, isTrue);
+
+      await keepAwake.setStandActive(false);
+      expect(keepAwake.awake, isFalse);
+      await keepAwake.setReaderActive(true);
+      expect(keepAwake.awake, setting);
+      await keepAwake.setStandActive(true);
+      await keepAwake.setStandActive(false);
+      expect(keepAwake.awake, setting);
+    });
+  }
+
   test('calls the wakelock only when the outcome changes', () async {
     await keepAwake.setSettingOn(true);
     await keepAwake.setReaderActive(true);

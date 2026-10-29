@@ -1,4 +1,3 @@
-import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/tafsir_book.dart';
 import 'package:holyquran/domain/models/tafsir_passage.dart';
 import 'package:holyquran/domain/models/tafsir_position.dart';
@@ -35,22 +34,4 @@ final class TafsirPage {
     final last = passage.range.end.ayah;
     return first == last ? null : (first: first, last: last);
   }
-}
-
-/// A downloaded book the default tafsir can be chosen from (`TF-01`).
-final class TafsirChoice {
-  const TafsirChoice({
-    required this.packId,
-    required this.title,
-    required this.chosen,
-  });
-
-  final String packId;
-
-  /// The book's title; null when the pack failed its checks, so that it has
-  /// none to show.
-  final PackText? title;
-
-  /// Whether the reader shows this book.
-  final bool chosen;
 }

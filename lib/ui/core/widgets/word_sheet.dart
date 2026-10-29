@@ -5,8 +5,10 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/domain/models/pack_text.dart';
+import 'package:holyquran/domain/models/word_span.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
+import 'package:holyquran/ui/core/metrics/sheet_rows_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/focus_ring.dart';
@@ -35,10 +37,8 @@ const double _hitOutset = (AppSizes.targetMin - _tabHeight) / 2;
 // further out.
 const double _stripInsetX = 2;
 const double _stripInsetY = AppSpacing.space1;
-// .qk-sheet-rows: border-radius 20px; padding 4px 18px.
-const BorderRadius _rowsRadius = BorderRadius.all(Radius.circular(20));
-const double _rowsInsetX = 18;
-const double _rowsInsetY = AppSpacing.space1;
+// .qk-sheet-rows (sheet_rows_metrics.dart): border-radius 20px; padding 4px
+// 18px.
 // .qk-sheet-row: gap var(--space-4).
 const double _rowGap = AppSpacing.space4;
 
@@ -108,6 +108,13 @@ final class WordSheetRow {
 /// [rows] come with the [note] that names their source (WordSheet README).
 /// A row with an empty value is not shown, and the note is shown only under
 /// the rows that are.
+///
+/// When [span] is given, [word] is the whole ayah and the word drawn is the
+/// slice between the offsets [span] stores for it; the text is never cut
+/// anywhere else. [body] is the content of a tab the identity draws no rows
+/// for, such as a tafsir passage (docs/DESIGN_SYSTEM.md, "Building a screen
+/// the identity does not draw"): it stands under the word, scrolls when it
+/// is taller than the screen, and is announced as the tab's panel.
 class WordSheet extends StatelessWidget {
   const WordSheet({
     required this.word,
@@ -116,8 +123,10 @@ class WordSheet extends StatelessWidget {
     required this.tabs,
     required this.selectedTab,
     required this.onTabSelected,
+    this.span,
     this.rows = const [],
     this.note,
+    this.body,
     super.key,
   }) : assert(wordNumber >= 1 && wordNumber <= wordCount),
        assert(tabs.length > 0),
@@ -129,8 +138,10 @@ class WordSheet extends StatelessWidget {
   final Set<WordSheetTab> tabs;
   final WordSheetTab selectedTab;
   final ValueChanged<WordSheetTab> onTabSelected;
+  final WordSpan? span;
   final List<WordSheetRow> rows;
   final String? note;
+  final Widget? body;
 
   @override
   Widget build(BuildContext context) {
@@ -153,9 +164,11 @@ class WordSheet extends StatelessWidget {
         ),
         boxShadow: context.shadows.shadowSheet,
       ),
-      padding: const EdgeInsets.only(
+      // The sheet route keeps no safe area at the bottom (as in
+      // CopySheetFrame); the content stays above the home indicator.
+      padding: EdgeInsets.only(
         top: AppSpacing.space3,
-        bottom: _sheetBottom,
+        bottom: _sheetBottom + MediaQuery.viewPaddingOf(context).bottom,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -200,12 +213,19 @@ class WordSheet extends StatelessWidget {
                   word: FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: AlignmentDirectional.centerStart,
-                    child: QuranText(
-                      word,
-                      size: QuranTextSize.focus,
-                      align: QuranTextAlign.start,
-                      colour: QuranTextColour.accent,
-                    ),
+                    child: switch (span) {
+                      final span? => QuranText.word(
+                        word,
+                        span,
+                        colour: QuranTextColour.accent,
+                      ),
+                      null => QuranText(
+                        word,
+                        size: QuranTextSize.focus,
+                        align: QuranTextAlign.start,
+                        colour: QuranTextColour.accent,
+                      ),
+                    },
                   ),
                   position: Text(
                     l10n.wordSheetPosition(
@@ -227,6 +247,23 @@ class WordSheet extends StatelessWidget {
               ],
             ),
           ),
+          if (body case final body?)
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  _sheetSide,
+                  gap,
+                  _sheetSide,
+                  0,
+                ),
+                child: Semantics(
+                  container: true,
+                  explicitChildNodes: true,
+                  role: SemanticsRole.tabPanel,
+                  child: body,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -364,12 +401,9 @@ class _Rows extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surfaceSunk,
         border: Border.all(color: colors.line),
-        borderRadius: _rowsRadius,
+        borderRadius: sheetRowsRadius,
       ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: _rowsInsetX,
-        vertical: _rowsInsetY,
-      ),
+      padding: sheetRowsPadding,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,

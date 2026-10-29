@@ -59,6 +59,24 @@ abstract final class ReaderScreenMetrics {
   /// choice, not a drawn value.
   static const double pinchFocus = 0.5;
 
+  /// The player bar under the reader, `margin: 0 16px 20px`
+  /// (`Screens.dc.html` l.88, the paper reader with tajweed colours, the bar
+  /// `height: 68px`).
+  static const EdgeInsetsDirectional playerBarPadding =
+      EdgeInsetsDirectional.fromSTEB(16, 0, 16, 20);
+
+  /// How far down the viewport the ayah being recited is put when following
+  /// scrolls to it: a quarter, so that the lines just recited stay above it.
+  /// An engineering choice, not a drawn value.
+  static const double followLead = 0.25;
+
+  /// How many scrolls one ask to follow may take: the scroll's extent can
+  /// fall short of the ayah until the blocks above it are laid out, and at
+  /// the end of the surahs shown until the next is appended, so a far ayah is
+  /// reached in steps. A bound that keeps the loop finite, not a drawn
+  /// value.
+  static const int followSteps = 8;
+
   /// The message of a reader with no verified pack, inset as a screen's
   /// body (`Search.dc.html`, «خطة الحفظ» body: `padding: 0 20px`).
   static const EdgeInsetsDirectional messagePadding =

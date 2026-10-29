@@ -62,9 +62,13 @@ const _needNoBasePack = {
   RoutePaths.noteSheet,
 };
 
-/// The location of [path] with its parameters filled in, over ayah 1:1.
+/// The location of [path] with its parameters filled in, over ayah 1:1, or
+/// over its first word for the word sheet.
 String _locationOf(String path) => path
-    .replaceAll(':${Routes.addressParameter}', 'hafs:1:1')
+    .replaceAll(
+      ':${Routes.addressParameter}',
+      path == RoutePaths.wordSheet ? 'hafs:1:1:1' : 'hafs:1:1',
+    )
     .replaceAll(':${Routes.surahParameter}', '1');
 
 final _recitation = Recitation(

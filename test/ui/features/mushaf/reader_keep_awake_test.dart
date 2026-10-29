@@ -35,9 +35,29 @@ void main() {
     expect(repository.readerActive, isTrue);
   });
 
+  test('stand mode is counted apart from reading, across readers', () async {
+    final repository = FakeKeepAwakeRepository(settingOn: false);
+    final first = ReaderKeepAwake(repository);
+    final second = ReaderKeepAwake(repository);
+    first.standing(true);
+    second.standing(true);
+    first.standing(false);
+    first.standing(false);
+    await Future<void>.delayed(Duration.zero);
+    expect(repository.standActive, isTrue);
+    expect(repository.awake, isTrue);
+
+    second.standing(false);
+    await Future<void>.delayed(Duration.zero);
+    expect(repository.standActive, isFalse);
+    expect(repository.awake, isFalse);
+  });
+
   test('without a repository nothing happens', () {
     ReaderKeepAwake(null)
       ..shown(true)
+      ..standing(true)
+      ..standing(false)
       ..shown(false);
   });
 }

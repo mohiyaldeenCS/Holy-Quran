@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
+import 'package:holyquran/domain/models/word_span.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/focus_ring.dart';
@@ -952,5 +953,131 @@ void main() {
     final face = tester.getRect(_tabFace(_tabLabels.last));
     expect(face.left, greaterThanOrEqualTo(strip.left));
     expect(tester.hasRunningAnimations, isFalse);
+  });
+
+  group('a word cut from its ayah', () {
+    const ayah = PackText.fromPack(' نص تجريبي  للاختبار ');
+    const span = WordSpan(
+      number: 2,
+      start: ' نص '.length,
+      end: ' نص تجريبي'.length,
+    );
+
+    testWidgets('draws the slice at the stored offsets, in accent', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        WordSheet(
+          word: ayah,
+          span: span,
+          wordNumber: 2,
+          wordCount: 3,
+          tabs: const {WordSheetTab.text},
+          selectedTab: WordSheetTab.text,
+          onTabSelected: (_) {},
+        ),
+      );
+
+      final text = tester.widget<RichText>(_wordText()).text as TextSpan;
+      expect(text.text, 'تجريبي');
+      expect(text.style!.color, _colors.accent);
+      expect(find.text(_l10n.wordSheetPosition('٢', '٣')), findsOneWidget);
+    });
+  });
+
+  group('the body of a tab', () {
+    WordSheet withBody(Widget? body, {bool rows = false}) => WordSheet(
+      word: _word,
+      wordNumber: 2,
+      wordCount: 5,
+      tabs: const {WordSheetTab.text, WordSheetTab.tafsir},
+      selectedTab: WordSheetTab.tafsir,
+      onTabSelected: (_) {},
+      rows: rows ? [_row] : const [],
+      note: rows ? _l10n.sampleNote : null,
+      body: body,
+    );
+
+    testWidgets('stands under the word, as the tab panel', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(
+        tester,
+        SizedBox(height: 700, child: withBody(Text(_l10n.sampleLongText))),
+      );
+
+      final word = tester.getRect(_wordText());
+      final body = tester.getRect(find.text(_l10n.sampleLongText));
+      expect(body.top, greaterThan(word.bottom));
+      final panel = tester.getSemantics(
+        find.ancestor(
+          of: find.text(_l10n.sampleLongText),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Semantics &&
+                widget.properties.role == SemanticsRole.tabPanel,
+          ),
+        ),
+      );
+      expect(panel.getSemanticsData().role, SemanticsRole.tabPanel);
+      handle.dispose();
+    });
+
+    testWidgets('scrolls inside a sheet shorter than it, word and tabs fixed', (
+      tester,
+    ) async {
+      final long = List.filled(60, _l10n.sampleLongText).join(' ');
+      await _pump(
+        tester,
+        SizedBox(height: 500, child: withBody(Text(long))),
+        textScale: 2,
+      );
+
+      expect(tester.takeException(), isNull);
+      final word = tester.getRect(_wordText());
+      final scroll = find.descendant(
+        of: find.byType(WordSheet),
+        matching: find.byType(SingleChildScrollView),
+      );
+      // The tab strip scrolls sideways; the body scrolls up and down.
+      final body = scroll.last;
+      final position = tester
+          .state<ScrollableState>(
+            find.descendant(of: body, matching: find.byType(Scrollable)),
+          )
+          .position;
+      expect(position.maxScrollExtent, greaterThan(0));
+      await tester.drag(body, const Offset(0, -300));
+      await tester.pump();
+      expect(tester.getRect(_wordText()), word);
+    });
+
+    testWidgets('is not there without a body: the sheet is as before', (
+      tester,
+    ) async {
+      await _pump(tester, withBody(null));
+
+      expect(
+        find.descendant(
+          of: find.byType(WordSheet),
+          matching: find.byType(Flexible),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('keeps its rows and note above the body', (tester) async {
+      await _pump(
+        tester,
+        SizedBox(
+          height: 700,
+          child: withBody(Text(_l10n.sampleLongText), rows: true),
+        ),
+      );
+
+      final note = tester.getRect(find.text(_l10n.sampleNote));
+      final body = tester.getRect(find.text(_l10n.sampleLongText));
+      expect(body.top, greaterThan(note.bottom));
+    });
   });
 }
