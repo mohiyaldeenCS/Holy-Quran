@@ -1984,6 +1984,44 @@ abstract class AppLocalizations {
   /// **'{count, plural, one{دقيقة واحدة} two{دقيقتان} few{{digits} دقائق} many{{digits} دقيقة} other{{digits} دقيقة}}'**
   String minutesCount(int count, String digits);
 
+  /// Lead, 2026-10-28, D-128 (5). A source's version, made of the approved label versionLabel (TF-05) and the number. version is the pack's version, already written in Arabic-Indic digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإصدار {version}'**
+  String sourceVersion(String version);
+
+  /// Lead, 2026-10-28, D-128 (5). A tafsir book's publisher as the source details list it (TF-05). publisher is the publisher from the pack, substituted whole and unchanged.
+  ///
+  /// In ar, this message translates to:
+  /// **'الناشر: {publisher}'**
+  String sourcePublisher(String publisher);
+
+  /// Lead, 2026-10-28, D-128 (5). The ayat a tafsir passage explains together (TF-04), made of the approved words rangeFrom, rangeTo and repeatUnitAyah. from and to are ayah numbers, already written in Arabic-Indic digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'من الآية {from} إلى الآية {to}'**
+  String tafsirRange(String from, String to);
+
+  /// Lead, 2026-10-28, D-128 (5). A run of ayah numbers inside the reference of a copied tafsir passage, with an en dash and no word. from and to are ayah numbers, already written in Arabic-Indic digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'{from}–{to}'**
+  String ayahsRangeShort(String from, String to);
+
+  /// Pending the owner: credit wording (SOURCES.md, Zaydi Library). A copied tafsir passage with its attribution (TF-10). passage, title, author and surah are text from the pack, substituted whole and unchanged; ayahs is the passage's ayah number or ayahsRangeShort; source is the digitisation source's name from the manifest; version is sourceVersion with the pack's version.
+  ///
+  /// In ar, this message translates to:
+  /// **'{passage}\n\n{title} · {author}\n[{surah}: {ayahs}]\n{source} · {version}'**
+  String tafsirCopyFormat(
+    String passage,
+    String title,
+    String author,
+    String surah,
+    String ayahs,
+    String source,
+    String version,
+  );
+
   /// P1-29, for the lead's approval under D-128 (5). The name of the group of chips that choose where a search looks (SR-06). Wording from docs/prd/PRD.ar.md (SR-06).
   ///
   /// In ar, this message translates to:
@@ -1996,7 +2034,7 @@ abstract class AppLocalizations {
   /// **'{places} في {ayat}'**
   String searchResultCount(String places, String ayat);
 
-  /// P1-29, for the lead's approval under D-128 (5). The button that clears the search history (SR-10).
+  /// P1-29, approved by the owner. The button that clears the search history (SR-10).
   ///
   /// In ar, this message translates to:
   /// **'مسح السجل'**
