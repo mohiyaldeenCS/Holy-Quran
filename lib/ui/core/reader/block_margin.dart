@@ -29,8 +29,9 @@ final class BlockMargin extends StatelessWidget {
 
   final BlockLayout layout;
 
-  /// The category of each bookmarked ayah, by address.
-  final Map<QuranAddress, BuiltinCategory> bookmarks;
+  /// The category of each bookmarked ayah, by address; null where it is not
+  /// known.
+  final Map<QuranAddress, BuiltinCategory?> bookmarks;
 
   @override
   Widget build(BuildContext context) {
@@ -69,9 +70,11 @@ final class BlockMargin extends StatelessWidget {
                   container: true,
                   sortKey: OrdinalSortKey(readingOrder(address.ayah) + 2),
                   child: BookmarkRibbon(
-                    shape: ribbonShapeOf(category),
+                    shape: category == null ? null : ribbonShapeOf(category),
                     label: l10n.ayahRowBookmark,
-                    category: ribbonCategoryName(l10n, category),
+                    category: category == null
+                        ? null
+                        : ribbonCategoryName(l10n, category),
                   ),
                 ),
               ),

@@ -31,7 +31,8 @@ const double _ringStroke = 1.8;
 /// night and contrast, where `primary` is itself the gold.
 ///
 /// [label] and [category] are what a screen reader hears: the word for a
-/// bookmark and the category's name.
+/// bookmark and the category's name. A bookmark whose category is not known
+/// has a null [shape] and [category]: the ribbon stands without a mark.
 final class BookmarkRibbon extends StatelessWidget {
   const BookmarkRibbon({
     required this.shape,
@@ -40,9 +41,9 @@ final class BookmarkRibbon extends StatelessWidget {
     super.key,
   });
 
-  final TagShape shape;
+  final TagShape? shape;
   final String label;
-  final String category;
+  final String? category;
 
   /// The drawn size, which the margin positions it by.
   static const Size size = _size;
@@ -76,7 +77,7 @@ final class _RibbonPainter extends CustomPainter {
     required this.mark,
   });
 
-  final TagShape shape;
+  final TagShape? shape;
   final Color body;
   final Color mark;
 
@@ -98,6 +99,8 @@ final class _RibbonPainter extends CustomPainter {
     final fill = Paint()..color = mark;
     const centre = Offset(_middle, _markCentreY);
     switch (shape) {
+      case null:
+        break;
       case TagShape.diamond:
         canvas.drawPath(
           Path()

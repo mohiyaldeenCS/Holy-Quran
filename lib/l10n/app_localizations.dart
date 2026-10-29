@@ -1138,6 +1138,12 @@ abstract class AppLocalizations {
   /// **'تشغيل من هذه الآية'**
   String get contextPlayFromAyah;
 
+  /// Lead, D-128 (5): a single change the store refused, such as a bookmark that could not be made, removed or restored.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر حفظ التغيير.'**
+  String get changeNotSaved;
+
   /// The selected ayah's toolbar: bookmark it. Source: docs/prd/PRD.ar.md (§7.4).
   ///
   /// In ar, this message translates to:

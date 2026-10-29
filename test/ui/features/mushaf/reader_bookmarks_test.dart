@@ -126,6 +126,7 @@ void main() {
     bookmarks = ReaderBookmarks(bookmarks: store, categories: categories);
     addTearDown(bookmarks.dispose);
     await bookmarks.load();
+    expect(bookmarks.failed, isFalse, reason: 'nothing the user did');
 
     await bookmarks.toggle(_ayah);
     expect(bookmarks.failed, isTrue);
@@ -135,6 +136,26 @@ void main() {
     await bookmarks.toggle(_ayah);
     expect(bookmarks.failed, isFalse);
     expect(bookmarks.ribbons.value, {_ayah: BuiltinCategory.memorise});
+  });
+
+  test('bookmarks keep their ribbon, without a category, while the '
+      'categories are missing, and get it back on the next tap', () async {
+    store = FakeBookmarkRepository(
+      bookmarks: [_bookmark(QuranAddress('hafs', 2, 7), 'fake-study')],
+    );
+    categories = FakeCategoryRepository(failure: Exception('closed'));
+    bookmarks = ReaderBookmarks(bookmarks: store, categories: categories);
+    addTearDown(bookmarks.dispose);
+    await bookmarks.load();
+    expect(bookmarks.ribbons.value, {QuranAddress('hafs', 2, 7): null});
+
+    categories.failure = null;
+    await bookmarks.toggle(_ayah);
+    expect(bookmarks.failed, isFalse);
+    expect(bookmarks.ribbons.value, {
+      QuranAddress('hafs', 2, 7): BuiltinCategory.study,
+      _ayah: BuiltinCategory.study,
+    });
   });
 
   test('a change in the store shows in the ribbons', () async {

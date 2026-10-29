@@ -420,7 +420,7 @@ void main() {
       bookmarks.failure = Exception('closed');
       await tapBookmark(tester);
       expect(
-        find.text(lookupAppLocalizations(const Locale('ar')).userDataNotSaved),
+        find.text(lookupAppLocalizations(const Locale('ar')).changeNotSaved),
         findsOneWidget,
       );
       expect(find.byType(BookmarkRibbon), findsNothing);

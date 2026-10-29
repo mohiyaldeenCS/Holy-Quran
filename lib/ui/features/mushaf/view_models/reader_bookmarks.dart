@@ -20,7 +20,10 @@ import 'package:holyquran/utils/result.dart';
 /// (`UD-07`). What the user did shows at once, from the result of the
 /// action; the stored list is read again when the repository says it changed.
 /// An action the store refused sets [failed], which the toolbar says in words;
-/// it clears with the next action that works, or when the selection moves.
+/// it clears with the next action that works, or when the selection moves. A
+/// bookmark whose category is not known, because the categories did not load,
+/// still has its ribbon, without the category's shape; the next action reads
+/// the categories again.
 final class ReaderBookmarks extends ChangeNotifier {
   ReaderBookmarks({this._bookmarks, this._categories}) {
     _bookmarks?.addListener(_changed);
@@ -38,8 +41,9 @@ final class ReaderBookmarks extends ChangeNotifier {
   bool _failed = false;
   bool _disposed = false;
 
-  /// The category of each bookmarked ayah, replaced whenever it changes.
-  final ValueNotifier<Map<QuranAddress, BuiltinCategory>> ribbons =
+  /// The category of each bookmarked ayah, replaced whenever it changes; null
+  /// where it is not known.
+  final ValueNotifier<Map<QuranAddress, BuiltinCategory?>> ribbons =
       ValueNotifier(const {});
 
   bool get available => _bookmarks != null && _categories != null;
@@ -83,10 +87,10 @@ final class ReaderBookmarks extends ChangeNotifier {
   }
 
   void _publish() {
+    if (_disposed) return;
     ribbons.value = {
       for (final b in _live.values)
-        if (_categoryById[b.categoryId] case final category?)
-          b.address: category.builtin,
+        b.address: _categoryById[b.categoryId]?.builtin,
     };
   }
 
@@ -97,6 +101,10 @@ final class ReaderBookmarks extends ChangeNotifier {
     if (bookmarks == null || _busy) return;
     _busy = true;
     try {
+      if (_categoryById.isEmpty) {
+        await _loadCategories();
+        _publish();
+      }
       final existing = _live[ayah];
       if (existing != null) {
         await _remove(bookmarks, existing);
@@ -110,17 +118,15 @@ final class ReaderBookmarks extends ChangeNotifier {
   }
 
   Future<void> _add(BookmarkRepository bookmarks, QuranAddress ayah) async {
-    // A category list that failed to load once is read again.
-    if (_lastCategoryId == null && _memoriseId == null) {
-      await _loadCategories();
-    }
     final category = _lastCategoryId ?? _memoriseId;
     if (category == null) {
       _failed = true;
       return;
     }
     _clearUndo();
-    switch (await bookmarks.add(ayah, category)) {
+    final result = await bookmarks.add(ayah, category);
+    if (_disposed) return;
+    switch (result) {
       case Ok(:final value):
         _failed = false;
         _live = {..._live, ayah: value};
@@ -132,14 +138,19 @@ final class ReaderBookmarks extends ChangeNotifier {
   }
 
   Future<void> _remove(BookmarkRepository bookmarks, Bookmark existing) async {
-    switch (await bookmarks.delete(existing.id)) {
+    // The window runs from the delete, which the repository stamps after this
+    // point, so the undo never outlives it.
+    final sinceDelete = Stopwatch()..start();
+    final result = await bookmarks.delete(existing.id);
+    if (_disposed) return;
+    switch (result) {
       case Ok():
         _failed = false;
         _live = {..._live}..remove(existing.address);
         _publish();
         _removed = existing;
         _undoExpiry?.cancel();
-        _undoExpiry = Timer(undoWindow, () {
+        _undoExpiry = Timer(undoWindow - sinceDelete.elapsed, () {
           _removed = null;
           if (!_disposed) notifyListeners();
         });
@@ -156,7 +167,9 @@ final class ReaderBookmarks extends ChangeNotifier {
     _busy = true;
     _clearUndo();
     try {
-      switch (await bookmarks.restore(removed.id)) {
+      final result = await bookmarks.restore(removed.id);
+      if (_disposed) return;
+      switch (result) {
         case Ok():
           _failed = false;
           _live = {..._live, removed.address: removed};
