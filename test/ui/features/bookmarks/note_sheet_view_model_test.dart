@@ -246,4 +246,19 @@ void main() {
       expect(viewModel.canSave, isTrue);
     },
   );
+
+  test('cannot save a note of whitespace alone', () async {
+    final viewModel = make();
+    await settle();
+
+    viewModel.setBody('   ');
+    expect(viewModel.canSave, isFalse);
+    expect(await viewModel.save(), isFalse);
+    expect(await stored(), isEmpty);
+
+    viewModel.setBody(' نص تجريبي ');
+    expect(viewModel.canSave, isTrue);
+    await viewModel.save();
+    expect((await stored()).single.body, ' نص تجريبي ');
+  });
 }

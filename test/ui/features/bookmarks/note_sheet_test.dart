@@ -111,6 +111,15 @@ void main() {
     expect(note.tagIds, hasLength(1));
   });
 
+  testWidgets('a note of whitespace alone cannot be saved', (tester) async {
+    final router = await pumpBookmarksApp(tester, world, size: tallSheet);
+    await openSheet(tester, router);
+
+    await tester.enterText(field(0), '   ');
+    await tester.pump();
+    expect(tester.widget<Button>(button(_l10n.noteSave)).onPressed, isNull);
+  });
+
   testWidgets('pressing the chosen category again clears it', (tester) async {
     final router = await pumpBookmarksApp(tester, world, size: tallSheet);
     await openSheet(tester, router);

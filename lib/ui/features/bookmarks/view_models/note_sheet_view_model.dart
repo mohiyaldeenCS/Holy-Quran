@@ -87,7 +87,8 @@ final class NoteSheetViewModel extends ChangeNotifier {
   /// Whether the last save, deletion or undo could not be stored.
   bool get writeFailed => _writeFailed;
 
-  bool get canSave => _body.isNotEmpty && !_saving;
+  // Whitespace alone is no note. The text is stored as typed.
+  bool get canSave => _body.trim().isNotEmpty && !_saving;
   bool get canUndo => _deletedId != null;
 
   /// The name of the ayah's surah in the pack, or null without the index.
