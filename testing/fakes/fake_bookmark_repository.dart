@@ -16,6 +16,9 @@ final class FakeBookmarkRepository extends BookmarkRepository {
   final _deleted = <String, Bookmark>{};
   Map<String, String> tagNames;
   Exception? failure;
+
+  /// How many times [delete] was called, whatever it answered.
+  int deleteCalls = 0;
   var _next = 0;
 
   @override
@@ -53,6 +56,7 @@ final class FakeBookmarkRepository extends BookmarkRepository {
 
   @override
   Future<Result<void>> delete(String id) async {
+    deleteCalls++;
     if (failure case final failure?) return Failure(failure);
     final bookmark = _live.remove(id);
     if (bookmark == null) return Failure(ItemNotFound(id));

@@ -884,7 +884,7 @@
   },
   "changeNotSaved": "تعذّر حفظ التغيير.",
   "@changeNotSaved": {
-    "description": "Lead, D-128 (5): a single change the store refused, such as a bookmark that could not be made, removed or restored."
+    "description": "Lead, D-128 (5): a single change the store refused or a read that failed, such as a bookmark that could not be made, removed or restored, or a note that could not be deleted. Not the in-memory sentence of D-133 (userDataNotSaved)."
   },
   "toolbarBookmark": "علامة",
   "@toolbarBookmark": {
@@ -1640,5 +1640,73 @@
         "type": "String"
       }
     }
+  },
+  "bookmarksSearchHint": "ابحث في العلامات والملاحظات",
+  "@bookmarksSearchHint": {
+    "description": "The bookmarks screen's search field: its hint and spoken name. Wording of SR-08 in docs/prd/PRD.ar.md. P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "bookmarksTabBookmarks": "العلامات",
+  "@bookmarksTabBookmarks": {
+    "description": "The bookmarks tab of the bookmarks screen. First half of the screen title, docs/prd/PRD.ar.md (§7.1). P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "bookmarksTabNotes": "الملاحظات",
+  "@bookmarksTabNotes": {
+    "description": "The notes tab of the bookmarks screen. Second half of the screen title, docs/prd/PRD.ar.md (§7.1). P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "bookmarksCount": "{count, plural, =1{علامة واحدة} =2{علامتان} few{{digits} علامات} other{{digits} علامة}}",
+  "@bookmarksCount": {
+    "description": "The number of bookmarks listed. P1-24, proposed for the lead to approve under D-128 (5). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "digits": {
+        "type": "String"
+      }
+    }
+  },
+  "notesCount": "{count, plural, =1{ملاحظة واحدة} =2{ملاحظتان} few{{digits} ملاحظات} other{{digits} ملاحظة}}",
+  "@notesCount": {
+    "description": "The number of notes listed. P1-24, proposed for the lead to approve under D-128 (5). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "digits": {
+        "type": "String"
+      }
+    }
+  },
+  "categoryLabel": "التصنيف",
+  "@categoryLabel": {
+    "description": "Name of the category group of tags, in the filter and in the note editor. Wording of UD-03 in docs/prd/PRD.ar.md. P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "bookmarkDelete": "احذف العلامة",
+  "@bookmarkDelete": {
+    "description": "Spoken name of the delete button of a bookmark, beside noteDelete. P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "itemDeleted": "تم الحذف",
+  "@itemDeleted": {
+    "description": "The line beside the undo action after a bookmark or a note is deleted (UD-07). P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "noteAdd": "أضف ملاحظة",
+  "@noteAdd": {
+    "description": "The button that starts another note on an ayah that has some (UD-04). P1-24, wording given by the lead on the review of P1-24 (D-128 (5))."
+  },
+  "tagNewHint": "وسم جديد",
+  "@tagNewHint": {
+    "description": "Hint and spoken name of the field that makes a free tag (UD-02). P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "tagAdd": "أضف",
+  "@tagAdd": {
+    "description": "The button that makes the free tag typed in the note editor (UD-02). P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "tagsEditHint": "غيّر التصنيف والوسوم",
+  "@tagsEditHint": {
+    "description": "The spoken hint of a tag on a bookmark's or note's card, whose press opens the editor of its category and tags. Wording of UD-03 in docs/prd/PRD.ar.md. P1-24, proposed for the lead to approve under D-128 (5)."
+  },
+  "noteEdit": "عدّل الملاحظة",
+  "@noteEdit": {
+    "description": "Lead, 2026-10-29, D-128 (5). Spoken name of the button on a note's card that opens that note in its editor (UD-04); noteAdd is the editor's new-note button."
   }
 }

@@ -1,0 +1,5 @@
+non-text: emerald-700 on primary-soft
+decision: D-128
+exception: night 1.53
+exception: contrast 1.51
+The dot of a category tag, in the fixed colour of D-128 (9) in every theme (O-12 pattern, D-128 (10)); the word on the tag carries the meaning, with the shape.

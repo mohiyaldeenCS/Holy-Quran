@@ -5,6 +5,7 @@ import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/gallery/sections/controls_gallery.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/note_editor.dart';
 import 'package:holyquran/ui/core/widgets/stepper.dart';
 import 'package:holyquran/ui/core/widgets/tag.dart';
 
@@ -18,7 +19,7 @@ Future<void> _pump(
   double textScale = 1,
 }) async {
   tester.view
-    ..physicalSize = const Size(360, 800)
+    ..physicalSize = const Size(360, 2400)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
@@ -47,17 +48,74 @@ void main() {
     }
   }
 
-  testWidgets('titles its two sections', (tester) async {
+  testWidgets('titles its three sections', (tester) async {
     await _pump(tester);
     expect(find.text(_l10n.gallerySectionTag), findsOneWidget);
+    expect(find.text(_l10n.noteLabel), findsOneWidget);
     expect(find.text(_l10n.gallerySectionStepper), findsOneWidget);
+  });
+
+  testWidgets('shows the note editor with its category, tags and actions', (
+    tester,
+  ) async {
+    await _pump(tester);
+    final editor = find.byType(NoteEditor);
+    expect(editor, findsOneWidget);
+    for (final label in [
+      _l10n.noteHint,
+      _l10n.tagNewHint,
+      _l10n.noteSave,
+      _l10n.noteDelete,
+      _l10n.noteAdd,
+      _l10n.tagMemorise,
+      _l10n.tagImportant,
+      _l10n.sampleWord,
+    ]) {
+      expect(
+        find.descendant(of: editor, matching: find.textContaining(label)),
+        findsWidgets,
+        reason: label,
+      );
+    }
+  });
+
+  testWidgets('the note editor chooses and clears its category', (
+    tester,
+  ) async {
+    await _pump(tester);
+    Tag category(String label) => tester.widget<Tag>(
+      find.descendant(
+        of: find.byType(NoteEditor),
+        matching: find.widgetWithText(Tag, label),
+      ),
+    );
+    expect(category(_l10n.tagMemorise).selected, isTrue);
+    await tester.tap(find.widgetWithText(Tag, _l10n.tagStudy).last);
+    await tester.pump();
+    expect(category(_l10n.tagStudy).selected, isTrue);
+    expect(category(_l10n.tagMemorise).selected, isFalse);
+    await tester.tap(find.widgetWithText(Tag, _l10n.tagStudy).last);
+    await tester.pump();
+    expect(category(_l10n.tagStudy).selected, isFalse);
   });
 
   testWidgets('shows each shape selected and not, in theme colours', (
     tester,
   ) async {
     await _pump(tester);
-    final tags = tester.widgetList<Tag>(find.byType(Tag)).toList();
+    // The editor has tags of its own.
+    final inEditor = tester
+        .widgetList<Tag>(
+          find.descendant(
+            of: find.byType(NoteEditor),
+            matching: find.byType(Tag),
+          ),
+        )
+        .toSet();
+    final tags = tester
+        .widgetList<Tag>(find.byType(Tag))
+        .where((tag) => !inEditor.contains(tag))
+        .toList();
     expect(tags, hasLength(8));
     for (final shape in TagShape.values) {
       final ofShape = tags.where((tag) => tag.shape == shape);
