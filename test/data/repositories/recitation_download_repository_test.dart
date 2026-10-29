@@ -715,6 +715,12 @@ void main() {
       network.set(NetworkKind.unmetered);
       expect(await done, isA<Ok<void>>());
       expect(downloads.orders.last.wifiOnly, isTrue);
+      expect(
+        downloads.orders
+            .where((o) => o.url.path.endsWith('2_1.mp3'))
+            .map((o) => o.attempt),
+        [0, 1],
+      );
     });
 
     test(

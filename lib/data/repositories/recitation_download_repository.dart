@@ -269,6 +269,7 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
         when _network != NetworkKind.unmetered &&
             order.wifiOnly != job.wifiOnly) {
       job.restart = true;
+      job.attempt++;
       unawaited(_downloads.cancel(order));
     }
   }
@@ -383,6 +384,7 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
     final packId = target.contents.packId;
     final url = target.contents.urlOf(file);
     var rejected = false;
+    job.attempt = 0;
     while (true) {
       if (!await _ready(job)) return RecitationDownloadCancelled(key);
       // Where a host leads is asked once for the job; the network is
@@ -406,6 +408,7 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
         url: url,
         path: RecitationFileStore.stagingRelativePath(packId, file),
         wifiOnly: job.wifiOnly,
+        attempt: job.attempt,
       );
       job.fileReceived = 0;
       _set(job, RecitationDownloading(job.progress));
@@ -514,6 +517,10 @@ final class _Job {
   final RecitationTarget target;
   bool wifiOnly;
   bool restart = false;
+
+  /// The order made for the file now; it grows each time one is stopped to
+  /// be made again.
+  int attempt = 0;
   final checkedHosts = <String>{};
   final result = Completer<Result<void>>();
   RecitationDownloadState state = const RecitationQueued();

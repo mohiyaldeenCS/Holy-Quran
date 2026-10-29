@@ -28,11 +28,17 @@ final class FileOrder {
     required this.url,
     required this.path,
     required this.wifiOnly,
+    this.attempt = 0,
   });
 
   final Uri url;
   final String path;
   final bool wifiOnly;
+
+  /// Which order for this file it is: one made again after another was
+  /// stopped is a task of its own, so that the stopped one can neither end
+  /// it nor lend it its network requirement.
+  final int attempt;
 }
 
 enum FileTaskStatus { enqueued, running, retrying, paused }
@@ -89,8 +95,9 @@ abstract interface class DownloadService {
 /// [DownloadService] on `background_downloader` (D-107). Each file is one
 /// task that can pause and resume, with retries; a retry continues from the
 /// bytes received once more than 1 MiB has arrived (S5). The task id
-/// follows from the URL and the path, so after a relaunch a call for the
-/// same file attaches to the plugin's task.
+/// follows from the URL, the path and the order's attempt, so after a
+/// relaunch a call for the same file attaches to the plugin's task, and a
+/// later attempt does not.
 final class BackgroundDownloadService implements DownloadService {
   /// Files land under the application-support directory, named relative to
   /// it, because iOS moves the app's container between launches.
@@ -118,9 +125,12 @@ final class BackgroundDownloadService implements DownloadService {
   final Map<String, _Pending> _pending = {};
   FileDownloader? _downloader;
 
-  /// The plugin's task id for [url] and [path].
-  static String taskIdFor(Uri url, String path) =>
-      sha256.convert(utf8.encode('$url\n$path')).toString().substring(0, 32);
+  /// The plugin's task id for [url] and [path]; a later [attempt] is another
+  /// task, and the first one's id is as it was before attempts existed.
+  static String taskIdFor(Uri url, String path, [int attempt = 0]) {
+    final text = attempt == 0 ? '$url\n$path' : '$url\n$path\n$attempt';
+    return sha256.convert(utf8.encode(text)).toString().substring(0, 32);
+  }
 
   /// Creates the plugin, tracks its tasks and delivers what happened while
   /// the app was not running.
@@ -148,7 +158,7 @@ final class BackgroundDownloadService implements DownloadService {
     void Function(FileTaskUpdate update) onUpdate,
   ) async {
     final downloader = _started;
-    final id = taskIdFor(order.url, order.path);
+    final id = taskIdFor(order.url, order.path, order.attempt);
     if (_pending[id] case final pending?) return pending.done.future;
     final pending = _pending[id] = _Pending(_taskFor(order, id), onUpdate);
     try {
@@ -171,7 +181,7 @@ final class BackgroundDownloadService implements DownloadService {
 
   @override
   Future<bool> pause(FileOrder order) async {
-    final pending = _pending[taskIdFor(order.url, order.path)];
+    final pending = _pending[taskIdFor(order.url, order.path, order.attempt)];
     if (pending == null) return false;
     pending.resumeWanted = false;
     try {
@@ -183,7 +193,7 @@ final class BackgroundDownloadService implements DownloadService {
 
   @override
   Future<void> resume(FileOrder order) async {
-    final pending = _pending[taskIdFor(order.url, order.path)];
+    final pending = _pending[taskIdFor(order.url, order.path, order.attempt)];
     if (pending == null) return;
     // Until the plugin reports the task paused it has no resume data, and
     // enqueuing the running task again would start a second writer.
@@ -207,7 +217,7 @@ final class BackgroundDownloadService implements DownloadService {
   /// not stop its task; a later call for the same file attaches to it.
   @override
   Future<void> cancel(FileOrder order) async {
-    final id = taskIdFor(order.url, order.path);
+    final id = taskIdFor(order.url, order.path, order.attempt);
     if (!_pending.containsKey(id)) return;
     try {
       await _started.cancelTaskWithId(id);

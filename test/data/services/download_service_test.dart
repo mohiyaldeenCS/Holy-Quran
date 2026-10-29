@@ -420,6 +420,50 @@ void main() {
       expect(await landed('staging/canceled.bin').exists(), isFalse);
     });
 
+    test('an order made again after a stop is a task of its own, which the '
+        'stopped one cannot end', () async {
+      server.bytesPerSecond['/large.bin'] = 1 << 20;
+      final first = order('/large.bin', 'staging/again.bin');
+      final running = Completer<void>();
+      final stopped = service.download(first, (u) {
+        if ((u.progress?.receivedBytes ?? 0) > 0 && !running.isCompleted) {
+          running.complete();
+        }
+      });
+      await running.future;
+      server.bytesPerSecond.remove('/large.bin');
+      final again = FileOrder(
+        url: first.url,
+        path: first.path,
+        wifiOnly: false,
+        attempt: 1,
+      );
+
+      await service.cancel(first);
+      final outcome = service.download(again, (_) {});
+
+      expect(await stopped, isA<FileDownloadCanceled>());
+      expect(await outcome, isA<FileDownloaded>());
+      expect(await landed('staging/again.bin').readAsBytes(), _large);
+    });
+
+    test(
+      'the first attempt keeps the id it always had, a later one differs',
+      () {
+        final url = server.uri('/small.bin');
+        final id = BackgroundDownloadService.taskIdFor(url, 'a/b.bin');
+
+        expect(
+          BackgroundDownloadService.taskIdFor(url, 'a/b.bin', 1),
+          isNot(id),
+        );
+        expect(
+          BackgroundDownloadService.taskIdFor(url, 'a/b.bin', 1),
+          isNot(BackgroundDownloadService.taskIdFor(url, 'a/b.bin', 2)),
+        );
+      },
+    );
+
     test('pause, resume and cancel of an unknown order do nothing', () async {
       final unknown = order('/small.bin', 'staging/unknown.bin');
       expect(await service.pause(unknown), isFalse);
