@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,34 +16,38 @@ import '../../testing/flows/flow_rig.dart';
 import '../integrity/pack_integrity_suite.dart';
 import '../ui/core/share/share_test_pack.dart';
 
-// SH-01, SH-05, NF-20: what the user copies is the pack's text. The format is
-// read from the ARB file, so no template is typed here, and no copied text is
-// ever printed.
+// SH-01, SH-05, NF-20: what the user copies is the pack's text. No template is
+// typed here, and no copied text is ever printed.
 
-final _templates =
-    jsonDecode(File('lib/l10n/app_ar.arb').readAsStringSync())
-        as Map<String, Object?>;
-
-final _placeholder = RegExp(r'\{(\w+)\}');
-
-/// The bytes of `copyFormatFull` filled with the stored [ayah] and [surah]
-/// and the number [number] in Arabic-Indic digits.
+/// The bytes of the full copy format filled with the stored [ayah] and
+/// [surah] and the number [number] in Arabic-Indic digits. The format is the
+/// app's own, found by filling it with markers; the pack's bytes are spliced
+/// in unchanged.
 List<int> expectedCopy(List<int> ayah, List<int> surah, int number) {
-  final template = _templates['copyFormatFull']! as String;
+  final slots = {
+    'AYAH-MARKER': ayah,
+    'SURAH-MARKER': surah,
+    'NUMBER-MARKER': utf8.encode(arabicDigits(number)),
+  };
+  final template = flowL10n.copyFormatFull(
+    'AYAH-MARKER',
+    'SURAH-MARKER',
+    'NUMBER-MARKER',
+  );
+  final places = [
+    for (final marker in slots.keys)
+      if (template.indexOf(marker) case final at when at >= 0) (at, marker),
+  ]..sort((a, b) => a.$1.compareTo(b.$1));
+  if (places.length != slots.length) fail('copyFormatFull lacks a placeholder');
   final bytes = <int>[];
-  var at = 0;
-  for (final match in _placeholder.allMatches(template)) {
+  var from = 0;
+  for (final (at, marker) in places) {
     bytes
-      ..addAll(utf8.encode(template.substring(at, match.start)))
-      ..addAll(switch (match[1]) {
-        'ayah' => ayah,
-        'surah' => surah,
-        'number' => utf8.encode(arabicDigits(number)),
-        final other => fail('copyFormatFull has the placeholder $other'),
-      });
-    at = match.end;
+      ..addAll(utf8.encode(template.substring(from, at)))
+      ..addAll(slots[marker]!);
+    from = at + marker.length;
   }
-  return bytes..addAll(utf8.encode(template.substring(at)));
+  return bytes..addAll(utf8.encode(template.substring(from)));
 }
 
 /// Copies each of [ayat] with [copy], which opens the copy sheet, presses
@@ -80,7 +83,7 @@ Future<void> copyEverySyntheticAyah(WidgetTester tester, FlowRun run) async {
   );
   addTearDown(pack.close);
   final ayat = await real(tester, () => packAyat(pack, pack.openRepository()));
-  expect(ayat, hasLength(pack.manifest.counts.ayat));
+  expect(ayat.length, pack.manifest.counts.ayat);
 
   await run.session(tester, (session) async {
     final router = GoRouter.of(tester.element(find.byType(Navigator).first));

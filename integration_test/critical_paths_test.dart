@@ -5,14 +5,15 @@ import '../testing/flows/flow_rig.dart';
 import '../testing/flows/flow_scenarios.dart';
 
 // The critical paths of NF-20 on a device, over the same synthetic pack as
-// test/flows/, with the plugins the app uses there: the application-support
-// folder, the user's database on its own isolate and the system clipboard.
-// What stays replaced is named in testing/flows/flow_session.dart.
+// test/flows/. The application-support folder, the user's database on its own
+// isolate and the system clipboard are the device's. Still replaced, as
+// testing/flows/flow_session.dart says: the audio engine, the downloader and
+// the wakelock, so these runs are only partly on real plugins.
 //
 // Run: flutter test integration_test/critical_paths_test.dart -d <device>.
 // The command needs `integration_test: sdk: flutter` under dev_dependencies in
-// pubspec.yaml. These runs are pending until the owner or the lead makes them
-// on an Android and an iOS device.
+// pubspec.yaml. These runs are pending until they are made on an Android and
+// an iOS device.
 
 void main() {
   final rig = FlowRig(onDevice: true);
@@ -44,16 +45,16 @@ void main() {
     'an ayah set to repeat three times is heard exactly three times',
     () {},
     skip:
-        'pending: it needs a recitation pack with audio files to play on the '
-        'device (P1-33), and the real audio engine',
+        'pending: the rig still plays through a recording engine and a '
+        'stand-in locator; a device run waits for the real engine and the '
+        'locator of P1-13 and P1-33',
   );
 
   test(
     'a pack is downloaded, verified, activated, deleted and downloaded again',
     () {},
     skip:
-        'pending: the real downloader needs a host the device may fetch from '
-        'over HTTPS; the loopback server speaks plain HTTP, which Android '
-        'refuses',
+        'pending: the rig still downloads through a loopback fetcher; a device '
+        'run waits for the real downloader and a host it may fetch from',
   );
 }

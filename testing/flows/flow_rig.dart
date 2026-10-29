@@ -34,9 +34,12 @@ final class FlowRun {
       await pumpFlowApp(tester, session!.providers);
       await body(session);
     } finally {
-      await leaveFlowApp(tester);
-      semantics.dispose();
-      await tester.runAsync(() => session!.close());
+      try {
+        await leaveFlowApp(tester);
+      } finally {
+        semantics.dispose();
+        await tester.runAsync(() => session!.close());
+      }
     }
   }
 }
@@ -48,8 +51,9 @@ final class FlowRig {
   /// emptied for each flow, and the user's database is opened as the app
   /// opens it.
   FlowRig({this.onDevice = false}) {
-    final overrides = HttpOverrides.current;
+    HttpOverrides? overrides;
     setUpAll(() async {
+      overrides = HttpOverrides.current;
       // The test binding refuses every connection; the server is on loopback.
       HttpOverrides.global = null;
       _root = await Directory.systemTemp.createTemp('flows');
@@ -82,7 +86,7 @@ final class FlowRig {
 
   FlowSources get sources => (bundle: bundle, server: server);
 
-  Future<Directory> _freshSupport(WidgetTester tester) async {
+  Future<Directory> _freshSupport() async {
     if (!onDevice) return useTemporaryApplicationSupport();
     final directory = await getApplicationSupportDirectory();
     if (directory.existsSync()) {
@@ -99,6 +103,6 @@ final class FlowRig {
     Future<void> Function(WidgetTester tester, FlowRun run) body, {
     Timeout? timeout,
   }) => testWidgets(description, (tester) async {
-    await body(tester, FlowRun._(this, await _freshSupport(tester)));
+    await body(tester, FlowRun._(this, await _freshSupport()));
   }, timeout: timeout);
 }

@@ -102,7 +102,7 @@ Future<void> reopenAtLastPosition(WidgetTester tester, FlowRun run) async {
     await tester.pumpAndSettle();
     expect(_reader(tester).position!.address.ayah, greaterThan(20));
 
-    // Closing the app saves where reading stopped.
+    // Where reading stopped is saved, and again when the app is left.
     pauseApp(tester);
     await settle(
       tester,

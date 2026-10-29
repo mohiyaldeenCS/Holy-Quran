@@ -46,9 +46,6 @@ final class RecordingEngine implements AudioEngineService {
   /// The name of the file that plays now, or null.
   String? get playing => _current == null ? null : audioNameOfTrack(_current!);
 
-  /// The name of the file queued after the one that plays, or null.
-  String? get queued => _next == null ? null : audioNameOfTrack(_next!);
-
   @override
   Stream<EngineEvent> get events => _events.stream;
 

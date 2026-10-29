@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
 import 'package:holyquran/config/dependencies.dart';
 import 'package:holyquran/config/providers/address_providers.dart';
 import 'package:holyquran/config/providers/audio_providers.dart';
@@ -15,17 +16,21 @@ import 'package:holyquran/config/providers/share_providers.dart';
 import 'package:holyquran/config/providers/tafsir_providers.dart';
 import 'package:holyquran/config/providers/user_data_providers.dart';
 import 'package:holyquran/config/providers/user_database_providers.dart';
+import 'package:holyquran/config/signing_keys.dart';
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/data/repositories/catalogue_repository.dart';
 import 'package:holyquran/data/repositories/local_pack_repository.dart';
 import 'package:holyquran/data/repositories/pack_install_repository.dart';
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/pack_quran_text_repository.dart';
+import 'package:holyquran/data/repositories/player_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
+import 'package:holyquran/data/repositories/tafsir_repository.dart';
 import 'package:holyquran/data/services/base_pack_service.dart';
 import 'package:holyquran/data/services/catalogue_service.dart';
 import 'package:holyquran/data/services/download_service.dart'
     show HttpUrlCheck, UrlPolicy;
+import 'package:holyquran/data/services/free_space_service.dart';
 import 'package:holyquran/data/services/installed_packs_store.dart';
 import 'package:holyquran/data/services/manifest_signature.dart';
 import 'package:holyquran/data/services/pack_file_service.dart';
@@ -63,11 +68,17 @@ typedef FlowSources = ({Directory bundle, FlowServer server});
 /// position, the verified base pack copied from [FlowSources.bundle], the
 /// installer, the catalogue fetched from [FlowSources.server], the user's
 /// data, the player, tafsir, search, sharing, addresses and links. Only the
-/// plugins are replaced: the audio engine and its files' locator, the
-/// wakelock, the downloader, the network and disk probes, and the drift
-/// executor, which a widget test's clock cannot drive in a background isolate;
-/// with [start]'s `onDevice` the database is opened as the app opens it.
+/// plugins are replaced: the audio engine, the wakelock, the downloader, the
+/// network and disk probes, and the drift executor, which a widget test's
+/// clock cannot drive in a background isolate; with [start]'s `onDevice` the
+/// database is opened as the app opens it.
 /// Starting a second session over the same folder is a restart of the app.
+///
+/// What is not a plugin and differs from the app, and why: the URLs are plain
+/// `http` (the server is on the loopback address); the catalogue repository is
+/// built here, on that server, because `catalogueUrl` is not configured; and
+/// the player's file locator is a stand-in for the one P1-13 and P1-33 bring,
+/// which finds a file for every segment.
 final class FlowSession {
   FlowSession._(this.providers, this._dependencies, this.engine);
 
@@ -98,13 +109,15 @@ final class FlowSession {
             version: flowPackVersion,
             bundle: DirectoryBundle(sources.bundle),
           ),
-          signatures: const SignatureNotConfigured(),
+          signatures: Ed25519ManifestVerifier(manifestPublicKeys),
         ),
         (d) => providePackInstall(
           d,
           create: _installer,
           basePack: (id: flowPackId, version: flowPackVersion),
         ),
+        // The area provides the device's disk probe, a plugin.
+        (d) async => d.replace<FreeSpaceService>(const RoomyDisk()),
         (d) async {
           d.provideListenable<CatalogueRepository>(
             RemoteCatalogueRepository(
@@ -113,7 +126,7 @@ final class FlowSession {
               openStore: () async => CatalogueStore(
                 '${(await getApplicationSupportDirectory()).path}/catalogue',
               ),
-              verifier: const SignatureNotConfigured(),
+              verifier: Ed25519ManifestVerifier(manifestPublicKeys),
               policy: _http,
               acceptUnchecked: true,
             ),
@@ -136,9 +149,6 @@ final class FlowSession {
         linksProviders,
       ],
     );
-    // The app fetches the catalogue when the resource manager opens; here it
-    // is fetched at the start, so that the recitations it lists are known.
-    await dependencies.read<CatalogueRepository>().refresh();
     return FlowSession._(providers, dependencies, engine);
   }
 
@@ -156,6 +166,14 @@ final class FlowSession {
   /// Closes what holds a file open, which Windows will not delete. Run it in
   /// `WidgetTester.runAsync`, after the app is gone from the tree.
   Future<void> close() async {
+    for (final object in [
+      _dependencies.tryRead<PlayerRepository>(),
+      _dependencies.tryRead<TafsirRepository>(),
+      _dependencies.tryRead<PackInstallRepository>(),
+    ]) {
+      if (object case final ChangeNotifier notifier) notifier.dispose();
+    }
+    await engine.dispose();
     if (_dependencies.tryRead<QuranTextRepository>()
         case final PackQuranTextRepository text) {
       text.close();
@@ -179,9 +197,9 @@ final class FlowSession {
     connectivity: const UnmeteredNetwork(),
     freeSpace: const RoomyDisk(),
     files: const PackFileService(),
-    verifier: const LocalPackRepository(
-      files: PackFileService(),
-      signatures: SignatureNotConfigured(),
+    verifier: LocalPackRepository(
+      files: const PackFileService(),
+      signatures: Ed25519ManifestVerifier(manifestPublicKeys),
     ),
     policy: _http,
     acceptUnchecked: true,

@@ -111,8 +111,10 @@ final class DirectoryBundle extends CachingAssetBundle {
 
   @override
   Future<ByteData> load(String key) async {
-    final file = File('${directory.path}/${key.substring(_prefix.length)}');
-    if (!key.startsWith(_prefix) || !file.existsSync()) {
+    final file = key.startsWith(_prefix)
+        ? File('${directory.path}/${key.substring(_prefix.length)}')
+        : null;
+    if (file == null || !file.existsSync()) {
       throw FlutterError('Unable to load asset: "$key".');
     }
     return ByteData.sublistView(await file.readAsBytes());

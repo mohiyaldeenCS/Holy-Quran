@@ -45,7 +45,7 @@ void main() {
       'pack stores it',
       (tester) async {
         tester.view
-          ..physicalSize = const Size(390, 1200)
+          ..physicalSize = Size(flowPhone.width, 1200)
           ..devicePixelRatio = 1;
         addTearDown(tester.view.reset);
         mockClipboard(tester);
@@ -53,7 +53,7 @@ void main() {
         addTearDown(pack.close);
         final PackQuranTextRepository repository = pack.openRepository();
         final ayat = await real(tester, () => packAyat(pack, repository));
-        expect(ayat, hasLength(pack.manifest.counts.ayat));
+        expect(ayat.length, pack.manifest.counts.ayat);
         final copyText = AyahCopyText(repository, flowL10n);
 
         final problems = await copyAll(ayat, (address) async {
@@ -72,7 +72,8 @@ void main() {
             ),
           );
           await tester.pump();
-          // The sheet sits in a plain page here, with no route to hit-test.
+          // The sheet is laid out in a plain page here, outside the bounds a
+          // tap on it would need.
           tester
               .widget<Button>(find.widgetWithText(Button, flowL10n.copyAction))
               .onPressed!();
