@@ -57,12 +57,17 @@ class SearchField extends StatefulWidget {
     required this.controller,
     required this.onChanged,
     required this.onSubmitted,
+    this.enabled = true,
     super.key,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final ValueChanged<String> onSubmitted;
+
+  /// Whether text can be typed. A field that cannot yet search is disabled
+  /// rather than left to do nothing.
+  final bool enabled;
 
   @override
   State<SearchField> createState() => _SearchFieldState();
@@ -90,6 +95,7 @@ class _SearchFieldState extends State<SearchField> {
       type: MaterialType.transparency,
       child: TextField(
         controller: widget.controller,
+        enabled: widget.enabled,
         onChanged: widget.onChanged,
         onSubmitted: widget.onSubmitted,
         textDirection: TextDirection.rtl,

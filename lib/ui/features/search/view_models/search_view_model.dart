@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'package:holyquran/data/repositories/address_input_repository.dart';
@@ -77,18 +79,32 @@ final class SearchViewModel extends ChangeNotifier {
   String? _unrecorded;
   bool _failed = false;
   bool _historyClearFailed = false;
+  bool _loaded = false;
   int _generation = 0;
   bool _disposed = false;
 
   /// Reads which chips the pack has data for and the history.
   Future<void> load() async {
-    if (await _search.formKinds() case Ok(:final value)) {
-      _kinds = [
+    await _loadKinds();
+    await _loadHistory();
+    _notify();
+  }
+
+  /// Whether the form kinds have been asked of the pack. The first index
+  /// build can take a while, and until it is done nothing is known about the
+  /// chips.
+  bool get loaded => _loaded;
+
+  Future<void> _loadKinds() async {
+    final found = await _search.formKinds();
+    _kinds = switch (found) {
+      Ok(:final value) => [
         for (final kind in SearchKinds.all)
           if (value.contains(kind)) kind,
-      ];
-    }
-    await _loadHistory();
+      ],
+      Failure() => const [],
+    };
+    _loaded = true;
     _notify();
   }
 
@@ -385,14 +401,26 @@ final class SearchViewModel extends ChangeNotifier {
   Future<void> _loadHistory() async {
     if (await _history?.queries() case Ok(:final value)) {
       _queries = value;
+      // The history changed, so an earlier failure to clear it is over.
+      _historyClearFailed = false;
       _notify();
     }
   }
 
   static Future<Result<int?>> _noNames(String name) async => const Ok(null);
 
+  /// A pack that stops serving takes everything it gave away, the chips too,
+  /// since its search forms were refused with it; one that serves again is
+  /// asked for them anew.
   void _packChanged() {
-    if (!hasData) _forget();
+    if (!hasData) {
+      _forget();
+      _kinds = const [];
+      _loaded = false;
+    } else if (_kinds.isEmpty) {
+      _loaded = false;
+      unawaited(_loadKinds());
+    }
     _notify();
   }
 

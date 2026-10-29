@@ -108,12 +108,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _body(SearchViewModel viewModel) {
     final l10n = AppLocalizations.of(context);
-    // The pack has no search form this screen knows, so nothing can be
-    // searched and there is nothing to show: a field with no data is not
-    // shown (docs/DESIGN_SYSTEM.md, "When data is missing").
-    if (!viewModel.canSearch) return const SizedBox.shrink();
     // A pack that fails its check shows no text, not even in a result
-    // (PRD §9.5).
+    // (PRD §9.5), whether it failed before the screen opened or after.
     if (!viewModel.hasData) {
       return Padding(
         padding: SearchMetrics.controls,
@@ -126,6 +122,26 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
       );
     }
+    // Which chips there are is not known until the pack has answered, which
+    // the first index build can make slow: the field waits, disabled.
+    if (!viewModel.loaded) {
+      return Padding(
+        padding: SearchMetrics.controls,
+        child: Align(
+          alignment: AlignmentDirectional.topStart,
+          child: SearchField(
+            controller: _field,
+            enabled: false,
+            onChanged: viewModel.edit,
+            onSubmitted: (_) {},
+          ),
+        ),
+      );
+    }
+    // The pack has no search form this screen knows, so nothing can be
+    // searched and there is nothing to show: a field with no data is not
+    // shown (docs/DESIGN_SYSTEM.md, "When data is missing").
+    if (!viewModel.canSearch) return const SizedBox.shrink();
     return PinnedControls(
       controls: _Controls(
         viewModel: viewModel,

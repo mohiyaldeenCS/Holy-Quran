@@ -1,13 +1,16 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart' hide Icon, IconButton;
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/data/repositories/search_repository.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/search_hit.dart';
+import 'package:holyquran/domain/models/search_query.dart';
 import 'package:holyquran/domain/models/word_span.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes.dart';
@@ -18,6 +21,7 @@ import 'package:holyquran/ui/core/widgets/quran_text.dart';
 import 'package:holyquran/ui/core/widgets/search_field.dart';
 import 'package:holyquran/ui/core/widgets/search_result.dart';
 import 'package:holyquran/ui/core/widgets/search_summary.dart';
+import 'package:holyquran/ui/features/search/view_models/search_view_model.dart';
 import 'package:holyquran/utils/result.dart';
 
 import '../../../../testing/fakes/fake_pack_integrity_repository.dart';
@@ -28,6 +32,18 @@ import 'search_fixture.dart';
 import 'search_harness.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
+
+/// A search that has not yet said which form kinds the pack provides.
+final class _HeldKinds implements SearchRepository {
+  final kinds = Completer<Result<List<String>>>();
+
+  @override
+  Future<Result<List<String>>> formKinds() => kinds.future;
+
+  @override
+  Future<Result<SearchResults>> search(SearchQuery query) async =>
+      Ok(SearchResults(query: query, hits: const []));
+}
 
 Finder _liveRegionAround(Finder finder) => find.ancestor(
   of: finder,
@@ -395,6 +411,51 @@ void main() {
       expect(find.byType(TextField), findsNothing);
       expect(find.text(_l10n.integrityBaseTitle), findsOneWidget);
       expect(find.text(_l10n.integrityBaseBody), findsOneWidget);
+    });
+
+    testWidgets('a pack failing when the screen opens shows the alert, then '
+        'the field and chips once it serves', (tester) async {
+      fixture.serving = false;
+      final fake = finding()..failure = const PackDisabled('synthetic-text');
+      final integrity = FakePackIntegrityRepository();
+      await pumpSearchApp(tester, fixture, search: fake, integrity: integrity);
+
+      expect(find.text(_l10n.integrityBaseTitle), findsOneWidget);
+      expect(find.byType(TextField), findsNothing);
+
+      fixture.serving = true;
+      fake.failure = null;
+      integrity.report('synthetic-text', const IntegrityOk());
+      await tester.pumpAndSettle();
+
+      expect(find.text(_l10n.integrityBaseTitle), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.byType(ModeChips), findsNWidgets(2));
+    });
+
+    testWidgets('while the kinds are being read the field waits, disabled; '
+        'then the chips, or the title alone', (tester) async {
+      final held = _HeldKinds();
+      await pumpSearchApp(tester, fixture, search: held);
+
+      expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
+      expect(find.byType(ModeChips), findsNothing);
+
+      held.kinds.complete(const Ok([SearchKinds.word]));
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(find.byType(TextField)).enabled, isTrue);
+      expect(find.byType(ModeChips), findsNWidgets(2));
+    });
+
+    testWidgets('when the pack answers with no known kind, only the title '
+        'remains', (tester) async {
+      final held = _HeldKinds();
+      await pumpSearchApp(tester, fixture, search: held);
+      held.kinds.complete(const Ok(['synthetic-plain']));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TextField), findsNothing);
+      expect(find.text(_l10n.searchTitle), findsOneWidget);
     });
 
     testWidgets('a pack with no known search form shows its title alone', (

@@ -33,7 +33,7 @@ import 'search_fixture.dart';
 Future<GoRouter> pumpSearchApp(
   WidgetTester tester,
   IndexFixture fixture, {
-  required FakeSearchRepository search,
+  required SearchRepository search,
   FakeSearchHistoryRepository? history,
   ReadingTheme theme = ReadingTheme.paper,
   double textScale = 1,
