@@ -65,14 +65,18 @@ typedef FlowSources = ({Directory bundle, FlowServer server});
 /// data, the player, tafsir, search, sharing, addresses and links. Only the
 /// plugins are replaced: the audio engine and its files' locator, the
 /// wakelock, the downloader, the network and disk probes, and the drift
-/// executor, which a widget test's clock cannot drive in a background isolate.
+/// executor, which a widget test's clock cannot drive in a background isolate;
+/// with [start]'s `onDevice` the database is opened as the app opens it.
 /// Starting a second session over the same folder is a restart of the app.
 final class FlowSession {
   FlowSession._(this.providers, this._dependencies, this.engine);
 
   /// Starts a session. Run it in `WidgetTester.runAsync`: it reads files, the
   /// database and the catalogue.
-  static Future<FlowSession> start(FlowSources sources) async {
+  static Future<FlowSession> start(
+    FlowSources sources, {
+    bool onDevice = false,
+  }) async {
     final engine = RecordingEngine();
     late Dependencies dependencies;
     final providers = await buildDependencies(
@@ -81,7 +85,9 @@ final class FlowSession {
         (d) => provideUserDatabase(
           d,
           locate: _userFile,
-          open: (file) => UserDatabase(NativeDatabase(file)),
+          open: onDevice
+              ? UserDatabase.openFile
+              : (file) => UserDatabase(NativeDatabase(file)),
         ),
         settingsProviders,
         readingProviders,

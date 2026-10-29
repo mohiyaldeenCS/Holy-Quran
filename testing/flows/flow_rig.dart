@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../application_support.dart';
 import '../packs/synthetic_tafsir_pack.dart';
@@ -12,9 +13,9 @@ import 'flow_session.dart';
 /// One run of a flow: a new application-support folder, which every session
 /// of the run shares, as the app's runs on one device do.
 final class FlowRun {
-  FlowRun._(this._rig, this.support);
+  FlowRun._(this.rig, this.support);
 
-  final FlowRig _rig;
+  final FlowRig rig;
 
   /// The folder `path_provider` answers with for this run.
   final Directory support;
@@ -26,7 +27,7 @@ final class FlowRun {
     Future<void> Function(FlowSession session) body,
   ) async {
     final session = await tester.runAsync(
-      () => FlowSession.start(_rig.sources),
+      () => FlowSession.start(rig.sources, onDevice: rig.onDevice),
     );
     final semantics = tester.ensureSemantics();
     try {
@@ -43,7 +44,10 @@ final class FlowRun {
 /// The synthetic base pack the flows bundle, built once for a test file.
 /// Create it in `main`: it registers its own set-up and tear-down.
 final class FlowRig {
-  FlowRig() {
+  /// With [onDevice] the run is on a device: the folder is the app's own,
+  /// emptied for each flow, and the user's database is opened as the app
+  /// opens it.
+  FlowRig({this.onDevice = false}) {
     final overrides = HttpOverrides.current;
     setUpAll(() async {
       // The test binding refuses every connection; the server is on loopback.
@@ -63,6 +67,8 @@ final class FlowRig {
     });
   }
 
+  final bool onDevice;
+
   late final Directory _root;
 
   /// The directory of the pack the app bundles.
@@ -76,12 +82,23 @@ final class FlowRig {
 
   FlowSources get sources => (bundle: bundle, server: server);
 
+  Future<Directory> _freshSupport(WidgetTester tester) async {
+    if (!onDevice) return useTemporaryApplicationSupport();
+    final directory = await getApplicationSupportDirectory();
+    if (directory.existsSync()) {
+      for (final entry in directory.listSync()) {
+        entry.deleteSync(recursive: true);
+      }
+    }
+    return directory;
+  }
+
   /// A widget test of one flow, run over a new application-support folder.
   void test(
     String description,
     Future<void> Function(WidgetTester tester, FlowRun run) body, {
     Timeout? timeout,
   }) => testWidgets(description, (tester) async {
-    await body(tester, FlowRun._(this, useTemporaryApplicationSupport()));
+    await body(tester, FlowRun._(this, await _freshSupport(tester)));
   }, timeout: timeout);
 }

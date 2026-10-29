@@ -88,15 +88,20 @@ Future<void> tapNamed(
   await settle(tester, done);
 }
 
-/// The text that `Clipboard.setData` was given, in order, while the test runs.
-List<String> recordClipboard(WidgetTester tester) {
-  final copied = <String>[];
+/// Stands in for the system clipboard while the test runs: it keeps the text
+/// last put on it. A device test uses the system's own and does not call
+/// this.
+void mockClipboard(WidgetTester tester) {
+  String? text;
   tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
     SystemChannels.platform,
     (call) async {
-      if (call.method == 'Clipboard.setData') {
-        final arguments = call.arguments as Map<Object?, Object?>;
-        copied.add(arguments['text']! as String);
+      switch (call.method) {
+        case 'Clipboard.setData':
+          text = (call.arguments as Map<Object?, Object?>)['text'] as String?;
+          return null;
+        case 'Clipboard.getData':
+          return <String, Object?>{'text': text};
       }
       return null;
     },
@@ -107,7 +112,24 @@ List<String> recordClipboard(WidgetTester tester) {
       null,
     ),
   );
-  return copied;
+}
+
+/// Empties the clipboard, so that what [copiedText] finds was copied after.
+Future<void> clearClipboard(WidgetTester tester) =>
+    real(tester, () => Clipboard.setData(const ClipboardData(text: '')));
+
+/// The text on the clipboard once something is copied, or null if nothing
+/// arrives.
+Future<String?> copiedText(WidgetTester tester) async {
+  for (var round = 0; round < 100; round++) {
+    final data = await real(
+      tester,
+      () => Clipboard.getData(Clipboard.kTextPlain),
+    );
+    if (data?.text case final text? when text.isNotEmpty) return text;
+    await settle(tester);
+  }
+  return null;
 }
 
 /// The spoken names on screen, to assert what the user hears.
