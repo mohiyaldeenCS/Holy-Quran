@@ -18,18 +18,17 @@ const double _middle = 15;
 // (`.qk-tag-dot-*`, 10 px) are drawn at this mark's size, 0.9 of the dot's.
 const double _markCentreY = 14;
 const double _markReach = 4.5;
-const double _squareSide = 7;
+const double _squareSide = 9;
 const double _squareRadius = 1.8;
 const double _ringStroke = 1.8;
 
 /// The bookmark ribbon the margin shows beside a bookmarked ayah (`UD-05`),
 /// as the Mushaf board draws it: an emerald ribbon in `primary` with the
 /// bookmark's category inside it as the shape the category has in [Tag]
-/// (`AX-05`: never the colour alone). The board gives the inner mark the
-/// category's colour; the category colours are open (O-14), and `primary`
-/// is itself the gold in night, so every mark is `on-primary` here, which
-/// stands out of the ribbon in every theme, and the shape tells the
-/// categories apart.
+/// (`AX-05`: never the colour alone). The inner mark is `on-primary` with the
+/// category told by its shape, by the owner's decision of 2026-10-29 (D-146):
+/// the board's gold, like the category colours, fails against the ribbon in
+/// night and contrast, where `primary` is itself the gold.
 ///
 /// [label] and [category] are what a screen reader hears: the word for a
 /// bookmark and the category's name.

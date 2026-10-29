@@ -60,7 +60,7 @@ final class AyahToolbar extends StatelessWidget {
             if (onPlay case final onPlay?)
               IconButton(
                 icon: IconName.play,
-                label: l10n.toolbarPlay,
+                label: l10n.playerPlay,
                 onPressed: onPlay,
               ),
             if (onBookmark case final onBookmark?)

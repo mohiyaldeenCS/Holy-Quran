@@ -1132,12 +1132,6 @@ abstract class AppLocalizations {
   /// **'السورة'**
   String get contextSurah;
 
-  /// The selected ayah's toolbar: play it. Source: docs/prd/PRD.ar.md (§7.4).
-  ///
-  /// In ar, this message translates to:
-  /// **'تشغيل'**
-  String get toolbarPlay;
-
   /// Reference aria-label, index.jsx ContextSheet
   ///
   /// In ar, this message translates to:
