@@ -108,6 +108,10 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _body(SearchViewModel viewModel) {
     final l10n = AppLocalizations.of(context);
+    // The pack has no search form this screen knows, so nothing can be
+    // searched and there is nothing to show: a field with no data is not
+    // shown (docs/DESIGN_SYSTEM.md, "When data is missing").
+    if (!viewModel.canSearch) return const SizedBox.shrink();
     // A pack that fails its check shows no text, not even in a result
     // (PRD §9.5).
     if (!viewModel.hasData) {
@@ -134,7 +138,6 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   List<Widget> _results(SearchViewModel viewModel) {
-    if (!viewModel.canSearch) return const [];
     if (viewModel.typed.trim().isEmpty) {
       return [
         if (viewModel.history.isNotEmpty)
@@ -166,10 +169,6 @@ class _Controls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    // The pack has no search form this screen knows, so nothing could be
-    // searched: no field that would do nothing, and the fixed sentence for an
-    // empty list.
-    if (!viewModel.canSearch) return const SearchNothingFound();
     final refusal = viewModel.refusal;
     final choice = viewModel.scopeChoice;
     final kindLabels = {
