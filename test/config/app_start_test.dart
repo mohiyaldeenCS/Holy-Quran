@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
-import 'package:holyquran/data/repositories/in_memory_app_settings_repository.dart';
 import 'package:holyquran/data/services/user_database.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/main.dart' as app;
@@ -95,7 +94,7 @@ void main() {
     expect(find.byType(Splash), findsNothing);
     final home = tester.element(find.byType(HomeScreen));
     final settings = home.read<AppSettingsRepository>();
-    expect(settings, isA<InMemoryAppSettingsRepository>());
+    expect(settings, isA<LocalAppSettingsRepository>());
     expect(home.colors, same(AppColors.paper));
 
     await settings.setTheme(ReadingTheme.night);

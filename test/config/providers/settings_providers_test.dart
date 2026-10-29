@@ -25,6 +25,7 @@ import 'package:holyquran/ui/features/home/views/home_screen.dart';
 import 'package:holyquran/ui/features/settings/views/settings_screen.dart';
 import 'package:holyquran/utils/result.dart';
 import 'package:provider/provider.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 import '../../../testing/application_support.dart';
 
@@ -53,6 +54,33 @@ void main() {
 
     setUp(() => db = UserDatabase(NativeDatabase.memory()));
     tearDown(() => db.close());
+
+    test('settings that cannot be read give the areas after them a database '
+        'in memory, and the file is closed', () async {
+      final directory = await Directory.systemTemp.createTemp('settings_area');
+      addTearDown(() => directory.delete(recursive: true));
+      final file = File('${directory.path}/${UserDatabase.fileName}');
+      final created = UserDatabase(NativeDatabase(file));
+      await created.customSelect('SELECT 1').get();
+      await created.close();
+      sqlite3.open(file.path)
+        ..execute('DROP TABLE settings')
+        ..close();
+      final suspect = UserDatabase(NativeDatabase(file));
+      addTearDown(suspect.close);
+
+      final provided = await _settingsOver(suspect);
+
+      expect(
+        provided.read<AppSettingsRepository>(),
+        isA<InMemoryAppSettingsRepository>(),
+      );
+      expect(provided.read<UserDatabase>(), isNot(same(suspect)));
+      await expectLater(
+        suspect.customSelect('SELECT 1').get(),
+        throwsStateError,
+      );
+    });
 
     test('provides the settings stored in the user database', () async {
       final first = (await _settingsOver(db)).read<AppSettingsRepository>();

@@ -12,13 +12,14 @@ import 'package:holyquran/data/services/user_database.dart';
 /// user data, so settings that cannot be read do not stop the start: the app
 /// starts on the defaults, kept in memory only, and the user's file is left
 /// as it is: the areas after this one get a database in memory
-/// ([useDatabaseInMemory], D-133).
+/// ([useDatabaseInMemory], D-133). The database area has already checked that
+/// every table can be read, so this is for settings whose rows are not.
 Future<void> settingsProviders(Dependencies dependencies) async {
   final database = dependencies.read<UserDatabase>();
   final loaded = await _load(SettingsDao(database));
   if (loaded == null) {
     useDatabaseInMemory(dependencies);
-    await _release(database);
+    await releaseDatabase(database);
   }
   dependencies.provideListenable<AppSettingsRepository>(
     loaded ?? InMemoryAppSettingsRepository(),
@@ -34,14 +35,5 @@ Future<AppSettingsRepository?> _load(SettingsDao dao) async {
     debugPrint('Settings unreadable, starting on the defaults: $error');
     debugPrintStack(stackTrace: stack);
     return null;
-  }
-}
-
-/// Nothing reads the suspect file any more; closing it frees the file.
-Future<void> _release(UserDatabase database) async {
-  try {
-    await database.close();
-  } on Exception catch (error) {
-    debugPrint('The unreadable user database did not close: $error');
   }
 }
