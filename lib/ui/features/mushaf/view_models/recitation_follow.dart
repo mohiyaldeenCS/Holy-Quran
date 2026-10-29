@@ -1,0 +1,145 @@
+import 'package:flutter/foundation.dart';
+
+import 'package:holyquran/data/repositories/player_repository.dart';
+import 'package:holyquran/domain/models/playback_plan.dart';
+import 'package:holyquran/domain/models/playback_segment.dart';
+import 'package:holyquran/domain/models/player_state.dart';
+import 'package:holyquran/domain/models/quran_address.dart';
+
+/// Asks the reader to bring [address] into view. A new object for each ask,
+/// so that the reader tells an ask it has met from one it has not.
+final class FollowRequest {
+  FollowRequest(this.address);
+
+  final QuranAddress address;
+}
+
+/// The reader's view of the recitation (`SY-01`, `SY-03`, `SY-05`, D-112):
+/// the ayah being recited, whether the reader follows it, and the asks to
+/// scroll to it.
+///
+/// The recited ayah is the one the playing plan has reached, announced with
+/// the segment of that ayah. A plan of whole surahs without timing data has
+/// no ayah events, so it recites none here (its ayah timing waits for
+/// registry row 6). Nothing is recited once playback stops. Pausing keeps the
+/// ayah, and so does a change of speed, which changes no ayah.
+///
+/// The reader follows from the start of each recitation: a new plan, or the
+/// state after one stopped. A reader opened while a recitation is already
+/// running does not follow it: it opened on its own position, and
+/// [showReturn] offers the way to the recitation. A scroll the user makes
+/// ([userScrolled]) stops following until [resume]. In stand mode the reader
+/// follows whatever the user does (`SY-05`).
+final class RecitationFollow extends ChangeNotifier {
+  RecitationFollow(this._player) {
+    final player = _player;
+    if (player == null) return;
+    final state = player.state;
+    _plan = state.plan;
+    _recited = _heard(state);
+    _following = _recited == null;
+    _playing = state.playing;
+    player.addListener(_onPlayer);
+  }
+
+  final PlayerRepository? _player;
+  PlaybackPlan? _plan;
+
+  // The segment the player still holds from the plan before, which says
+  // nothing of the new plan until the player gives another.
+  PlaybackSegment? _stale;
+  QuranAddress? _recited;
+  bool _following = true;
+  bool _stand = false;
+  bool _playing = false;
+  FollowRequest? _request;
+
+  /// The ayah being recited, or null when the plan reached none, stopped, or
+  /// has no ayah events.
+  QuranAddress? get recited => _recited;
+
+  /// Whether the reader scrolls to each ayah as it is recited.
+  bool get following => _following || _stand;
+
+  /// The last ask to scroll; null before the first.
+  FollowRequest? get request => _request;
+
+  /// Whether a recitation is sounding, for the screen to stay on (`RD-16`).
+  bool get playing => _playing;
+
+  /// Whether «عُد إلى موضع التلاوة» is offered: a recitation is running and
+  /// the reader no longer follows it.
+  bool get showReturn => _recited != null && !following;
+
+  /// Stand mode keeps the reader on the recitation (`SY-05`).
+  set stand(bool value) {
+    if (value == _stand) return;
+    _stand = value;
+    if (value) _ask();
+    notifyListeners();
+  }
+
+  /// The user scrolled the text: following stops while a recitation runs.
+  void userScrolled() {
+    if (_stand || _recited == null || !_following) return;
+    _following = false;
+    notifyListeners();
+  }
+
+  /// Follows again and scrolls to the ayah being recited.
+  void resume() {
+    _following = true;
+    _ask();
+    notifyListeners();
+  }
+
+  void _ask() {
+    if (_recited case final ayah?) _request = FollowRequest(ayah);
+  }
+
+  void _onPlayer() {
+    final state = _player!.state;
+    final before = (_recited, _following, _playing);
+    if (!identical(state.plan, _plan)) {
+      _stale = _plan == null ? null : state.segment;
+      _plan = state.plan;
+      _recited = null;
+      _following = true;
+    } else if (!identical(state.segment, _stale)) {
+      _stale = null;
+    }
+    final plan = state.plan;
+    if (plan == null || state.stopReason != null || !plan.hasAyahBoundaries) {
+      _recited = null;
+      _following = true;
+    } else if (_heard(state) case final ayah? when ayah != _recited) {
+      _recited = ayah;
+      if (_following) _ask();
+    }
+    _playing = state.playing;
+    if (before != (_recited, _following, _playing)) notifyListeners();
+  }
+
+  // The ayah of the segment being heard, once the plan has one of its own. A
+  // basmala or an isti'adha names the ayah it comes before, which is not
+  // heard yet, so the ayah before it stays recited.
+  QuranAddress? _heard(PlayerState state) {
+    final plan = state.plan;
+    final segment = state.segment;
+    if (plan == null ||
+        !plan.hasAyahBoundaries ||
+        state.stopReason != null ||
+        segment == null ||
+        segment.kind != SegmentKind.ayah ||
+        identical(segment, _stale)) {
+      return null;
+    }
+    return segment.address.ayahAddress;
+  }
+
+  @override
+  void dispose() {
+    _player?.removeListener(_onPlayer);
+    super.dispose();
+  }
+}

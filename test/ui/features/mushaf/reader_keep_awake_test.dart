@@ -35,9 +35,36 @@ void main() {
     expect(repository.readerActive, isTrue);
   });
 
+  test(
+    'a recitation is held apart from reading, and counted the same',
+    () async {
+      final repository = FakeKeepAwakeRepository();
+      final first = ReaderKeepAwake(repository);
+      final second = ReaderKeepAwake(repository);
+      first.shown(true);
+      first.reciting(true);
+      second.reciting(true);
+      await Future<void>.delayed(Duration.zero);
+      expect(repository.readerActive, isTrue);
+      expect(repository.playerActive, isTrue);
+
+      first.reciting(false);
+      first.reciting(false);
+      await Future<void>.delayed(Duration.zero);
+      expect(repository.playerActive, isTrue);
+
+      second.reciting(false);
+      await Future<void>.delayed(Duration.zero);
+      expect(repository.playerActive, isFalse);
+      expect(repository.readerActive, isTrue);
+    },
+  );
+
   test('without a repository nothing happens', () {
     ReaderKeepAwake(null)
       ..shown(true)
+      ..reciting(true)
+      ..reciting(false)
       ..shown(false);
   });
 }

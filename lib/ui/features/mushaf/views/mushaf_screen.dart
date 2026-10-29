@@ -12,9 +12,11 @@ import 'package:holyquran/ui/core/metrics/reader_screen_metrics.dart';
 import 'package:holyquran/ui/core/reader/page_mark.dart';
 import 'package:holyquran/ui/core/reader/position_bar_button.dart';
 import 'package:holyquran/ui/core/shell_chrome.dart';
+import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/ayah_toolbar.dart';
 import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/position_bar.dart';
+import 'package:holyquran/ui/core/widgets/small_button.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/mushaf_view_model.dart';
 import 'package:holyquran/ui/features/mushaf/views/mushaf_scroll_view.dart';
 import 'package:provider/provider.dart';
@@ -158,6 +160,10 @@ class _Reader extends StatelessWidget {
     final position = viewModel.position;
     final chrome = !viewModel.distractionFree && position != null;
     final router = GoRouter.maybeOf(context);
+    // «عُد إلى موضع التلاوة» is interface: the distraction-free state hides
+    // it with the rest (`RD-09`).
+    final showReturn =
+        viewModel.follow.showReturn && !viewModel.distractionFree;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -174,12 +180,26 @@ class _Reader extends StatelessWidget {
               Positioned.fill(
                 child: MushafScrollView(viewModel: viewModel, active: active),
               ),
-              if (viewModel.selectedAyah case final ayah?)
+              if (viewModel.selectedAyah != null || showReturn)
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Padding(
                     padding: ReaderScreenMetrics.toolbarPadding,
-                    child: _Toolbar(viewModel: viewModel, ayah: ayah),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: AppSpacing.space3,
+                      children: [
+                        if (showReturn)
+                          SmallButton(
+                            label: AppLocalizations.of(
+                              context,
+                            ).returnToRecitation,
+                            onPressed: viewModel.follow.resume,
+                          ),
+                        if (viewModel.selectedAyah case final ayah?)
+                          _Toolbar(viewModel: viewModel, ayah: ayah),
+                      ],
+                    ),
                   ),
                 ),
             ],

@@ -7,6 +7,7 @@ import 'package:holyquran/data/repositories/bookmark_repository.dart';
 import 'package:holyquran/data/repositories/category_repository.dart';
 import 'package:holyquran/data/repositories/keep_awake_repository.dart';
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
+import 'package:holyquran/data/repositories/player_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/data/repositories/reading_position_repository.dart';
@@ -23,6 +24,7 @@ import 'package:holyquran/ui/core/reader/surah_text.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/reader_bookmarks.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/reader_keep_awake.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/reader_surah.dart';
+import 'package:holyquran/ui/features/mushaf/view_models/recitation_follow.dart';
 import 'package:holyquran/utils/command.dart';
 import 'package:holyquran/utils/result.dart';
 
@@ -62,8 +64,8 @@ final class ReaderUnavailable implements Exception {
 ///
 /// It also holds what the reader's gestures change: the selected ayah and its
 /// tools (PRD §7.4), the text size step (`RD-07`), the distraction-free state
-/// (`RD-09`), the bookmarks the margin shows (`UD-05`) and the screen kept on
-/// (`RD-16`).
+/// (`RD-09`), the bookmarks the margin shows (`UD-05`), the recitation it
+/// follows (`SY-01`, `SY-03`, `SY-05`) and the screen kept on (`RD-16`).
 final class MushafViewModel extends ChangeNotifier {
   MushafViewModel({
     this._text,
@@ -75,6 +77,7 @@ final class MushafViewModel extends ChangeNotifier {
     BookmarkRepository? bookmarks,
     CategoryRepository? categories,
     KeepAwakeRepository? keepAwake,
+    PlayerRepository? player,
     this.tools = AyahTools.none,
   }) : _settings = settings,
        _keepAwake = ReaderKeepAwake(keepAwake),
@@ -82,11 +85,13 @@ final class MushafViewModel extends ChangeNotifier {
          bookmarks: bookmarks,
          categories: categories,
        ),
+       follow = RecitationFollow(player),
        _textStep = _stepOf(settings) {
     _integrity?.addListener(_onIntegrity);
     _positions?.addListener(_onPositions);
     _settings?.addListener(_onSettings);
     this.bookmarks.addListener(notifyListeners);
+    follow.addListener(_onFollow);
     unawaited(this.bookmarks.load());
   }
 
@@ -102,6 +107,9 @@ final class MushafViewModel extends ChangeNotifier {
 
   /// The bookmarks of the ayat the reader shows.
   final ReaderBookmarks bookmarks;
+
+  /// The recitation the reader follows.
+  final RecitationFollow follow;
 
   final QuranTextRepository? _text;
   final QuranIndexRepository? _index;
@@ -131,6 +139,7 @@ final class MushafViewModel extends ChangeNotifier {
   QuranPosition? _position;
   PackText? _positionSurahName;
   bool _distractionFree = false;
+  bool _standMode = false;
   QuranAddress? _selected;
   int _textStep;
   int _writes = 0;
@@ -150,8 +159,20 @@ final class MushafViewModel extends ChangeNotifier {
   /// The name of the surah the first visible ayah is in.
   PackText? get positionSurahName => _positionSurahName;
 
-  /// Whether everything but the text is hidden (`RD-09`).
-  bool get distractionFree => _distractionFree;
+  /// Whether everything but the text is hidden (`RD-09`); stand mode hides
+  /// it whatever a tap says.
+  bool get distractionFree => _distractionFree || _standMode;
+
+  /// Whether the reader is on a stand (`SY-05`): the interface hidden, the
+  /// recitation followed on its own, the screen kept on.
+  bool get standMode => _standMode;
+
+  void setStandMode(bool value) {
+    if (value == _standMode) return;
+    _standMode = value;
+    follow.stand = value;
+    notifyListeners();
+  }
 
   void setDistractionFree(bool value) {
     if (value == _distractionFree) return;
@@ -276,6 +297,7 @@ final class MushafViewModel extends ChangeNotifier {
     }
     _shown = true;
     _keepAwake.shown(true);
+    _syncReciting();
     final elsewhere = _savedElsewhere;
     final target = _target(index, elsewhere);
     final kept =
@@ -294,6 +316,7 @@ final class MushafViewModel extends ChangeNotifier {
         _surahs = List.unmodifiable([value]);
         _anchor = QuranAddress(target.riwaya, target.surah, target.ayah);
         _status = ReaderStatus.ready;
+        _syncReciting();
         _position = null;
         showFirstVisible(target);
         notifyListeners();
@@ -335,6 +358,7 @@ final class MushafViewModel extends ChangeNotifier {
   Future<void> leave() async {
     _shown = false;
     _keepAwake.shown(false);
+    _syncReciting();
     if (!_moved) return;
     _moved = false;
     await _save();
@@ -433,10 +457,22 @@ final class MushafViewModel extends ChangeNotifier {
     _position = null;
     _positionSurahName = null;
     _selected = null;
-    _keepAwake.shown(false);
     _status = ReaderStatus.unavailable;
+    _keepAwake.shown(false);
+    _syncReciting();
     notifyListeners();
     return Failure(error);
+  }
+
+  // The screen stays on while a recitation sounds under a reader that shows
+  // text (`RD-16`).
+  void _syncReciting() => _keepAwake.reciting(
+    _shown && _status != ReaderStatus.unavailable && follow.playing,
+  );
+
+  void _onFollow() {
+    _syncReciting();
+    notifyListeners();
   }
 
   void _onIntegrity() {
@@ -450,6 +486,10 @@ final class MushafViewModel extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _keepAwake.shown(false);
+    _keepAwake.reciting(false);
+    follow
+      ..removeListener(_onFollow)
+      ..dispose();
     bookmarks.dispose();
     _integrity?.removeListener(_onIntegrity);
     _positions?.removeListener(_onPositions);

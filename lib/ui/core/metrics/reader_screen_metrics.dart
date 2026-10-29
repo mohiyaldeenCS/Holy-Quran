@@ -59,6 +59,16 @@ abstract final class ReaderScreenMetrics {
   /// choice, not a drawn value.
   static const double pinchFocus = 0.5;
 
+  /// How far down the viewport the ayah being recited is put when following
+  /// scrolls to it: a quarter, so that the lines just recited stay above it.
+  /// An engineering choice, not a drawn value.
+  static const double followLead = 0.25;
+
+  /// How many scrolls one ask to follow may take: the extent of the text not
+  /// yet laid out is an estimate, so a far ayah is reached in steps. An
+  /// engineering margin, not a drawn value.
+  static const int followSteps = 8;
+
   /// The message of a reader with no verified pack, inset as a screen's
   /// body (`Search.dc.html`, «خطة الحفظ» body: `padding: 0 20px`).
   static const EdgeInsetsDirectional messagePadding =
