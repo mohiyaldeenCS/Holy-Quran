@@ -82,6 +82,65 @@ void main() {
       );
     });
 
+    test('settings that cannot be read from a file opened in the background '
+        'start on the defaults', () async {
+      final directory = await Directory.systemTemp.createTemp('settings_area');
+      addTearDown(() => directory.delete(recursive: true));
+      final file = File('${directory.path}/${UserDatabase.fileName}');
+      final created = UserDatabase(NativeDatabase(file));
+      await created.customSelect('SELECT 1').get();
+      await created.close();
+      sqlite3.open(file.path)
+        ..execute('DROP TABLE settings')
+        ..close();
+      final suspect = UserDatabase.openFile(file);
+      addTearDown(suspect.close);
+
+      final provided = await _settingsOver(suspect);
+
+      expect(
+        provided.read<AppSettingsRepository>(),
+        isA<InMemoryAppSettingsRepository>(),
+      );
+    });
+
+    test(
+      'never closes the database in memory it already fell back to',
+      () async {
+        late UserDatabase memory;
+        late Dependencies provided;
+        await buildDependencies(
+          areas: [
+            (dependencies) => provideUserDatabase(
+              dependencies,
+              locate: () async {
+                final directory = Directory.systemTemp.createTempSync(
+                  'settings',
+                );
+                addTearDown(() => directory.deleteSync(recursive: true));
+                return File('${directory.path}/${UserDatabase.fileName}')
+                  ..writeAsStringSync('synthetic, not a database' * 100);
+              },
+            ),
+            (dependencies) async {
+              memory = dependencies.read<UserDatabase>();
+              await memory.customStatement('DROP TABLE settings');
+            },
+            settingsProviders,
+            (dependencies) async => provided = dependencies,
+          ],
+        );
+        addTearDown(memory.close);
+
+        expect(
+          provided.read<AppSettingsRepository>(),
+          isA<InMemoryAppSettingsRepository>(),
+        );
+        expect(provided.read<UserDatabase>(), same(memory));
+        await memory.customSelect('SELECT 1').get();
+      },
+    );
+
     test('provides the settings stored in the user database', () async {
       final first = (await _settingsOver(db)).read<AppSettingsRepository>();
       expect(first, isA<LocalAppSettingsRepository>());

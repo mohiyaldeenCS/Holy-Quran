@@ -18,8 +18,8 @@ Future<void> settingsProviders(Dependencies dependencies) async {
   final database = dependencies.read<UserDatabase>();
   final loaded = await _load(SettingsDao(database));
   if (loaded == null) {
-    useDatabaseInMemory(dependencies);
-    await releaseDatabase(database);
+    final memory = useDatabaseInMemory(dependencies);
+    if (!identical(memory, database)) await releaseDatabase(database);
   }
   dependencies.provideListenable<AppSettingsRepository>(
     loaded ?? InMemoryAppSettingsRepository(),
@@ -29,11 +29,10 @@ Future<void> settingsProviders(Dependencies dependencies) async {
 Future<AppSettingsRepository?> _load(SettingsDao dao) async {
   try {
     return await LocalAppSettingsRepository.load(dao);
-  } on Exception catch (error, stack) {
+  } on Exception catch (error) {
     // The integrity log is kept in the same unreadable database; the
     // failure stays on the device.
     debugPrint('Settings unreadable, starting on the defaults: $error');
-    debugPrintStack(stackTrace: stack);
     return null;
   }
 }
