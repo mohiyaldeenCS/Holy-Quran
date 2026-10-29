@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/data/repositories/recitation_download_repository.dart';
@@ -120,6 +122,13 @@ final class FakeRecitationDownloadRepository extends ChangeNotifier
   final List<(String, String)> calls = [];
   final List<bool> wifiOnlyOf = [];
 
+  /// While set, [present] waits for it before it answers.
+  Future<void>? presentHeld;
+  int _presentRunning = 0;
+
+  /// The most counts of the files on the device that ran at one time.
+  int mostPresentRunning = 0;
+
   @override
   List<RecitationDownloadJob> get jobs => _jobs;
 
@@ -147,6 +156,9 @@ final class FakeRecitationDownloadRepository extends ChangeNotifier
   @override
   Future<Set<String>> present(RecitationContents contents, int quality) async {
     calls.add(('present', '$quality'));
+    mostPresentRunning = max(mostPresentRunning, ++_presentRunning);
+    await presentHeld;
+    _presentRunning--;
     return {
       for (final file in contents.files)
         if (file.qualityKbps == quality && onDevice.contains(file.path))

@@ -12,6 +12,8 @@ import 'package:holyquran/domain/models/install_job.dart';
 import 'package:holyquran/domain/models/recitation_download.dart';
 import 'package:holyquran/domain/models/recitation_target.dart';
 import 'package:holyquran/domain/models/resource_state.dart';
+import 'package:holyquran/ui/core/metrics/resources_metrics.dart';
+import 'package:holyquran/ui/core/throttle.dart';
 import 'package:holyquran/utils/result.dart';
 
 /// A recitation as the picker lists it (`AU-01`): its download state is
@@ -38,7 +40,9 @@ final class RecitationPickerViewModel extends ChangeNotifier {
     this._installs,
     this._downloads,
     this._settings,
+    this._countEvery = recitationCountEvery,
   }) {
+    if (_downloads case final downloads?) _look(downloads);
     _changes.addListener(_onChange);
     unawaited(_readAudio());
   }
@@ -48,6 +52,10 @@ final class RecitationPickerViewModel extends ChangeNotifier {
   final PackInstallRepository? _installs;
   final RecitationDownloadRepository? _downloads;
   final DownloadSettingsRepository? _settings;
+
+  /// How often the files on the device are counted again while a download
+  /// adds to them.
+  final Duration _countEvery;
   late final Listenable _changes = Listenable.merge([
     _recitations,
     _catalogue,
@@ -62,7 +70,9 @@ final class RecitationPickerViewModel extends ChangeNotifier {
   int _revisionSeen = 0;
   Object? _installedSeen;
   Set<String> _jobKeys = const {};
-  int _reads = 0;
+  late final _counts = Throttle(_countEvery, () => unawaited(_readAudio()));
+  bool _reading = false;
+  bool _readAgain = false;
   bool _disposed = false;
 
   /// In the catalogue's order. A recitation without a complete rights
@@ -130,26 +140,54 @@ final class RecitationPickerViewModel extends ChangeNotifier {
   }
 
   void _onChange() {
-    final downloads = _downloads;
-    if (downloads != null) {
-      final keys = {for (final job in downloads.jobs) job.key};
-      final installed = _installs?.installed;
-      if (downloads.revision != _revisionSeen ||
-          !setEquals(keys, _jobKeys) ||
-          !identical(installed, _installedSeen)) {
-        _installedSeen = installed;
-        _revisionSeen = downloads.revision;
-        _jobKeys = keys;
-        unawaited(_readAudio());
+    if (_downloads case final downloads?) {
+      final (:listed, :added) = _look(downloads);
+      if (listed) {
+        _counts.now();
+      } else if (added) {
+        _counts.soon();
       }
     }
     notifyListeners();
   }
 
+  /// What changed since the last look: the jobs or installed packs, which
+  /// change what is listed, or only the files on the device.
+  ({bool listed, bool added}) _look(RecitationDownloadRepository downloads) {
+    final keys = {for (final job in downloads.jobs) job.key};
+    final installed = _installs?.installed;
+    final seen = (
+      listed:
+          !setEquals(keys, _jobKeys) || !identical(installed, _installedSeen),
+      added: downloads.revision != _revisionSeen,
+    );
+    _installedSeen = installed;
+    _revisionSeen = downloads.revision;
+    _jobKeys = keys;
+    return seen;
+  }
+
+  /// A count looks at every file, so one runs at a time; a change that
+  /// comes meanwhile is counted when it ends.
   Future<void> _readAudio() async {
+    if (_reading) {
+      _readAgain = true;
+      return;
+    }
+    _reading = true;
+    try {
+      do {
+        _readAgain = false;
+        await _countAudio();
+      } while (_readAgain && !_disposed);
+    } finally {
+      _reading = false;
+    }
+  }
+
+  Future<void> _countAudio() async {
     final downloads = _downloads;
     if (downloads == null) return;
-    final read = ++_reads;
     final found = <String, AudioCoverage>{};
     for (final listed
         in _recitations?.recitations ?? const <CatalogueRecitation>[]) {
@@ -164,7 +202,7 @@ final class RecitationPickerViewModel extends ChangeNotifier {
         );
       }
     }
-    if (_disposed || read != _reads || mapEquals(found, _coverage)) return;
+    if (_disposed || mapEquals(found, _coverage)) return;
     _coverage = found;
     notifyListeners();
   }
@@ -172,6 +210,7 @@ final class RecitationPickerViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _counts.cancel();
     _changes.removeListener(_onChange);
     super.dispose();
   }

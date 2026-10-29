@@ -17,6 +17,7 @@ import 'package:holyquran/domain/models/recitation_download.dart';
 import 'package:holyquran/domain/models/recitation_target.dart';
 import 'package:holyquran/domain/models/resource_state.dart';
 import 'package:holyquran/ui/core/metrics/resources_metrics.dart';
+import 'package:holyquran/ui/core/throttle.dart';
 import 'package:holyquran/ui/features/resources/view_models/pack_row_state.dart';
 import 'package:holyquran/ui/features/resources/view_models/recitation_block_state.dart';
 import 'package:holyquran/ui/features/resources/view_models/recitation_tally.dart';
@@ -66,7 +67,7 @@ final class RecitationSectionViewModel extends ChangeNotifier {
 
   bool _disposed = false;
   bool _settingNotSaved = false;
-  Timer? _refresh;
+  late final _counts = Throttle(_refreshEvery, _readAllPresent);
   int _revisionSeen = 0;
   Set<String> _jobKeys = const {};
 
@@ -442,14 +443,9 @@ final class RecitationSectionViewModel extends ChangeNotifier {
     if (!changed && revision == _revisionSeen) return;
     _revisionSeen = revision;
     if (changed) {
-      _refresh?.cancel();
-      _refresh = null;
-      _readAllPresent();
+      _counts.now();
     } else {
-      _refresh ??= Timer(_refreshEvery, () {
-        _refresh = null;
-        _readAllPresent();
-      });
+      _counts.soon();
     }
   }
 
@@ -478,7 +474,7 @@ final class RecitationSectionViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    _refresh?.cancel();
+    _counts.cancel();
     for (final source in _sources) {
       source.removeListener(_onChange);
     }

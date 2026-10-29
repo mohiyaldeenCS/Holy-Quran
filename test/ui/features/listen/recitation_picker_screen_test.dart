@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart' hide IconButton;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -16,6 +18,7 @@ import 'package:holyquran/domain/models/recitation_target.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
+import 'package:holyquran/ui/core/metrics/resources_metrics.dart';
 import 'package:holyquran/ui/core/theme/app_theme.dart';
 import 'package:holyquran/ui/core/widgets/recitation_card.dart';
 import 'package:holyquran/ui/features/listen/view_models/recitation_picker_view_model.dart';
@@ -80,6 +83,7 @@ RecitationPickerViewModel _viewModel({
   FakeRecitationDownloadRepository? downloads,
   DownloadSettingsRepository? settings,
   bool withCatalogue = true,
+  Duration countEvery = Duration.zero,
 }) {
   final viewModel = RecitationPickerViewModel(
     recitations: FakeRecitationRepository(
@@ -89,6 +93,7 @@ RecitationPickerViewModel _viewModel({
     installs: installs ?? FakePackInstallRepository(),
     downloads: downloads,
     settings: settings,
+    countEvery: countEvery,
   );
   addTearDown(viewModel.dispose);
   return viewModel;
@@ -221,6 +226,67 @@ void main() {
         );
       },
     );
+
+    testWidgets('counts the files again at most once in the interval while '
+        'a download adds to them', (tester) async {
+      final installs = FakePackInstallRepository(
+        installed: [_installed('synthetic-recitation')],
+      );
+      final downloads = FakeRecitationDownloadRepository();
+      final viewModel = RecitationPickerViewModel(
+        recitations: FakeRecitationRepository(_catalogue.recitations),
+        catalogue: FakeCatalogueRepository(_catalogue),
+        installs: installs,
+        downloads: downloads,
+      );
+      addTearDown(viewModel.dispose);
+      await tester.pump();
+      int counts() => downloads.calls.where((c) => c.$1 == 'present').length;
+      final before = counts();
+
+      for (var a = 1; a <= 4; a++) {
+        downloads.arrive({ayahPath(128, 1, a)});
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(counts(), before);
+
+      await tester.pump(recitationCountEvery);
+      expect(counts(), before + 1);
+      expect(viewModel.listings.single.partial, isTrue);
+    });
+
+    testWidgets('never counts twice at once, and counts the latest change '
+        'once the count that runs has ended', (tester) async {
+      final installs = FakePackInstallRepository(
+        installed: [_installed('synthetic-recitation')],
+      );
+      final held = Completer<void>();
+      final downloads = FakeRecitationDownloadRepository()
+        ..presentHeld = held.future;
+      _viewModel(installs: installs, downloads: downloads);
+      await tester.pump();
+      int counts() => downloads.calls.where((c) => c.$1 == 'present').length;
+      expect(counts(), 1);
+      final target = RecitationTarget(
+        syntheticContents(),
+        64,
+        const RecitationSurah(1),
+      );
+
+      downloads.jobs = [jobFor(target, const RecitationQueued())];
+      downloads.jobs = const [];
+      downloads.jobs = [jobFor(target, const RecitationQueued())];
+      await tester.pump();
+      expect(counts(), 1);
+
+      downloads.presentHeld = null;
+      held.complete();
+      await tester.pump();
+      await tester.pump();
+
+      expect(counts(), 2);
+      expect(downloads.mostPresentRunning, 1);
+    });
 
     testWidgets('judges the quality the user chose', (tester) async {
       final installs = FakePackInstallRepository(
