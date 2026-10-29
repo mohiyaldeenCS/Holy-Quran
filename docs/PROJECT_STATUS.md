@@ -10,7 +10,7 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-28 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **30 merged**: P1-01 to P1-22, P1-25 to P1-28, P1-30, P1-38 to P1-40 (P1-12, P1-14, P1-15, P1-17, P1-22, P1-25, P1-26, P1-27, P1-28, P1-30 and P1-40 partial). **In progress**: P1-23 (#67), P1-24 (#68), P1-29 (#70), P1-33 (#71), the composition-root wiring (#72). **6 not started**: P1-31, P1-32, P1-34 to P1-37. The lead merges after an independent review and CI (D-136) |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **31 merged**: P1-01 to P1-22, P1-24 to P1-28, P1-30, P1-38 to P1-40 (P1-12, P1-14, P1-15, P1-17, P1-22, P1-24, P1-25, P1-26, P1-27, P1-28, P1-30 and P1-40 partial). **In progress**: P1-23 (#67), P1-29 (#70), P1-33 (#71), the composition-root wiring (#72). **6 not started**: P1-31, P1-32, P1-34 to P1-37. The lead merges after an independent review and CI (D-136) |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/p1-*`); worktrees under the session's scratchpad for parallel agents (D-132) |
 | Last session | 2026-10-28, local session on the owner's Windows machine, stopped for the account switch. **Read `HANDOFF.md` first**: it says exactly what was in flight (#53, P1-14, P1-22) and what each needs |
@@ -306,7 +306,13 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   base-pack integrity alert on home (D-148). Partial: the home alert cannot show in the app until
   the base pack is bundled (B0.2). Pending human checks: start-up, resume and the alert on a device.
   Reviewed by `code-reviewer` (opus; then a sonnet verification) and `identity-auditor`.
-- In progress: P1-23 (#67), P1-24 (#68), P1-29 (#70), P1-33 (#71), the composition-root wiring (#72).
+- **P1-24 merged (#68), partial.** The bookmarks and notes list at `/more/bookmarks` with order,
+  filter, search and undo (UD-03), and notes on an ayah with tags in `/sheet/note/:address`
+  (UD-04), on the compact search-result card (D-149; the owner's answers in D-146). Partial: D-133's
+  in-memory warning on these screens. Pending human checks: the list, the note editor, drafts and
+  undo on a device, in the four themes and at 200%; how faint the «حفظ» dot is in night.
+  Reviewed by `code-reviewer` (opus; then a sonnet verification) and `identity-auditor`.
+- In progress: P1-23 (#67), P1-29 (#70), P1-33 (#71), the composition-root wiring (#72).
   Not started: P1-31, P1-32, P1-34 (wave 4), P1-35 to P1-37 (wave 5).
 - The local branches of 2026-10-13 (`fix/bookmark-restore-nullable`,
   `chore/analysis-exclude-platform-dirs`) are not needed on the pinned SDK (analyze is
