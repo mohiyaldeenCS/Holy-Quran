@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:holyquran/config/base_pack.dart';
 import 'package:holyquran/config/dependencies.dart';
 import 'package:holyquran/config/signing_keys.dart';
 import 'package:holyquran/data/repositories/local_pack_repository.dart';
@@ -26,6 +27,7 @@ Future<void> packInstallProviders(Dependencies dependencies) async {
     dependencies,
     packInstallRepository(
       onPackChanged: dependencies.tryRead<PackIntegrityRepository>()?.forget,
+      reservedPackIds: {?bundledBasePack?.id},
     ),
   );
 }
@@ -43,14 +45,14 @@ void provideInstaller(
 /// whose signature was not checked accepted outside release builds (D-108).
 /// Nothing touches a plugin until [LocalPackInstallRepository.start].
 LocalPackInstallRepository packInstallRepository({
-  FreeSpaceService freeSpace = const DiskFreeSpaceService(),
   void Function(String packId)? onPackChanged,
+  Set<String> reservedPackIds = const {},
 }) => LocalPackInstallRepository(
   openStore: InstalledPacksStore.openInApplicationSupport,
   downloads: BackgroundDownloadService.applicationSupport(),
   urlCheck: const HttpUrlCheck(),
   connectivity: PlusConnectivityService(),
-  freeSpace: freeSpace,
+  freeSpace: const DiskFreeSpaceService(),
   files: const PackFileService(),
   verifier: LocalPackRepository(
     files: const PackFileService(),
@@ -59,4 +61,5 @@ LocalPackInstallRepository packInstallRepository({
   policy: UrlPolicy.httpsOnly,
   acceptUnchecked: !kReleaseMode,
   onPackChanged: onPackChanged,
+  reservedPackIds: reservedPackIds,
 );

@@ -68,6 +68,7 @@ final class LocalPackInstallRepository extends ChangeNotifier
     required this._policy,
     required this._acceptUnchecked,
     this._onPackChanged,
+    this._reservedPackIds = const {},
   });
 
   static const _manifest = 'manifest.json';
@@ -90,6 +91,10 @@ final class LocalPackInstallRepository extends ChangeNotifier
   /// deleted, so that what was said of the old files is not kept for the
   /// new ones.
   final void Function(String packId)? _onPackChanged;
+
+  /// Ids that are never installed, rolled back or deleted: the bundled base
+  /// pack's, which shares its folder with the installed packs.
+  final Set<String> _reservedPackIds;
 
   final _started = Completer<Result<void>>();
   final _queue = <_Job>[];
@@ -151,6 +156,7 @@ final class LocalPackInstallRepository extends ChangeNotifier
   Future<Result<InstalledPack>> install(InstallRequest request) async {
     final id = request.packId;
     if (!InstalledPacksStore.isValidId(id)) return Failure(InvalidPackId(id));
+    if (_reservedPackIds.contains(id)) return Failure(ReservedPackId(id));
     for (final url in request.urls) {
       if (!_policy.allows(url)) return Failure(UrlNotAllowed(id, url));
     }
@@ -224,6 +230,9 @@ final class LocalPackInstallRepository extends ChangeNotifier
 
   @override
   Future<Result<InstalledPack>> rollback(String packId) async {
+    if (_reservedPackIds.contains(packId)) {
+      return Failure(ReservedPackId(packId));
+    }
     if (await _unavailable() case final failure?) return Failure(failure);
     if (_jobOf(packId) != null || !_changing.add(packId)) {
       return Failure(AlreadyQueued(packId));
@@ -255,6 +264,9 @@ final class LocalPackInstallRepository extends ChangeNotifier
 
   @override
   Future<Result<void>> delete(String packId) async {
+    if (_reservedPackIds.contains(packId)) {
+      return Failure(ReservedPackId(packId));
+    }
     if (await _unavailable() case final failure?) return Failure(failure);
     if (_jobOf(packId) != null || !_changing.add(packId)) {
       return Failure(AlreadyQueued(packId));

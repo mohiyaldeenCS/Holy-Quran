@@ -336,6 +336,7 @@ void main() {
     bool acceptUnchecked = true,
     UrlPolicy policy = _http,
     void Function(String packId)? onPackChanged,
+    Set<String> reservedPackIds = const {},
   }) async {
     final repository = LocalPackInstallRepository(
       openStore: () async => InstalledPacksStore(support),
@@ -351,6 +352,7 @@ void main() {
       policy: policy,
       acceptUnchecked: acceptUnchecked,
       onPackChanged: onPackChanged,
+      reservedPackIds: reservedPackIds,
     );
     addTearDown(repository.dispose);
     expect(await repository.start(), isA<Ok<void>>());
@@ -762,6 +764,39 @@ void main() {
       expect(changed, isEmpty);
     });
 
+    test('the id of the bundled base pack is never installed, rolled back or '
+        'deleted, and no file is touched', () async {
+      final first = await started();
+      await install(first, _text, 1);
+      await install(first, _text, 2);
+      final before = File(
+        '${support.path}/packs/$_text/active.json',
+      ).readAsStringSync();
+      final requests = server.requests.length;
+      final changed = <String>[];
+      final guarded = await started(
+        reservedPackIds: {_text},
+        onPackChanged: changed.add,
+      );
+
+      expect(
+        await install(guarded, _text, 3),
+        failedWith(isA<ReservedPackId>()),
+      );
+      expect(await guarded.rollback(_text), failedWith(isA<ReservedPackId>()));
+      expect(await guarded.delete(_text), failedWith(isA<ReservedPackId>()));
+
+      expect(
+        File('${support.path}/packs/$_text/active.json').readAsStringSync(),
+        before,
+      );
+      expect(exists('packs/$_text/2'), isTrue);
+      expect(exists('pack-staging/$_text/3'), isFalse);
+      expect(server.requests, hasLength(requests));
+      expect(changed, isEmpty);
+      expect(await install(guarded, _other, 1), installedAs(_other, 1));
+    });
+
     test('an installed version, active or previous, is refused', () async {
       final repository = await started();
       await install(repository, _text, 1);
@@ -817,7 +852,7 @@ void main() {
 
         expect(await others(), before);
         expect(exists('packs/$_text'), isFalse);
-        expect(exists('pack-staging/$_text'), isFalse);
+        expect(exists('pack-staging/$_text/3'), isFalse);
         expect([for (final p in repository.installed) p.id], [_other]);
         expect(await repository.delete('synthetic-foreign'), isA<Ok<void>>());
         expect(await foreign.readAsBytes(), [1, 2, 3]);
