@@ -112,11 +112,13 @@ final class LocalPackInstallRepository extends ChangeNotifier
   ]);
 
   /// Opens the store, recovers it from a cut-short change, starts the
-  /// downloader and reads the installed packs. Never throws.
+  /// downloader and reads the installed packs. Throws nothing but an
+  /// [Error], which is a bug: [started] still completes, as a failure, so
+  /// that no install waits for it for ever.
   Future<Result<void>> start() async {
     if (_starting) return started;
     _starting = true;
-    Result<void> result;
+    Result<void> result = const Failure(StoreFailed('', 'the start stopped'));
     try {
       final store = await _openStore();
       await store.recover();
@@ -131,10 +133,11 @@ final class LocalPackInstallRepository extends ChangeNotifier
       result = await _reload();
     } on Exception catch (e) {
       result = Failure(e);
+    } finally {
+      _started.complete(result);
+      _notify();
+      unawaited(_drain());
     }
-    _started.complete(result);
-    _notify();
-    unawaited(_drain());
     return result;
   }
 

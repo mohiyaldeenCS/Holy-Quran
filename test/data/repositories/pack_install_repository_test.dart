@@ -1138,6 +1138,33 @@ void main() {
       expect(server.requests, isEmpty);
     });
 
+    test('an Error in the start is rethrown, and the start still completes '
+        'as a failure', () async {
+      final repository = LocalPackInstallRepository(
+        openStore: () async => throw StateError('synthetic bug'),
+        downloads: downloads,
+        urlCheck: const HttpUrlCheck(),
+        connectivity: network,
+        freeSpace: space,
+        files: const PackFileService(),
+        verifier: const LocalPackRepository(
+          files: PackFileService(),
+          signatures: SignatureNotConfigured(),
+        ),
+        policy: _http,
+        acceptUnchecked: true,
+      );
+      addTearDown(repository.dispose);
+
+      await expectLater(repository.start(), throwsStateError);
+
+      expect(await repository.started, failedWith(isA<StoreFailed>()));
+      expect(
+        await install(repository, _text, 1),
+        failedWith(isA<StoreFailed>()),
+      );
+    });
+
     test('lists the installed packs and names one whose manifest is '
         'unreadable', () async {
       final first = await started();
