@@ -22,7 +22,7 @@ const _height = 640.0;
 
 Widget _reader(
   ReaderFixture fixture,
-  Map<QuranAddress, BuiltinCategory> bookmarks,
+  Map<QuranAddress, BuiltinCategory?> bookmarks,
 ) => goldenApp(
   ReadingTheme.paper,
   SizedBox(
@@ -141,6 +141,23 @@ void main() {
     final next = labels.indexOf(l10n.ayahMarkerLabel('٤'));
     expect(ribbon, greaterThan(marker));
     expect(ribbon, lessThan(next));
+    handle.dispose();
+  });
+
+  testWidgets('a bookmark with no known category has a bare ribbon, announced '
+      'as a bookmark with no category', (tester) async {
+    final handle = tester.ensureSemantics();
+    setView(tester);
+    final ayah = fixture.surahs[longSurah]!.addressOf(3);
+    await tester.pumpWidget(_reader(fixture, {ayah: null}));
+    final l10n = lookupAppLocalizations(const Locale('ar'));
+    expect(find.byType(BookmarkRibbon), findsOneWidget);
+    final ribbon = tester.widget<BookmarkRibbon>(find.byType(BookmarkRibbon));
+    expect(ribbon.shape, isNull);
+    expect(ribbon.category, isNull);
+    final node = tester.getSemantics(find.byType(BookmarkRibbon));
+    expect(node.label, l10n.ayahRowBookmark);
+    expect(node.value, isEmpty);
     handle.dispose();
   });
 }
