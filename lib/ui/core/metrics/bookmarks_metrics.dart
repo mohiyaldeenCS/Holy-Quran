@@ -48,17 +48,14 @@ abstract final class BookmarksMetrics {
     vertical: AppSpacing.space5,
   );
 
-  // The undo bar stands under the list in the list's inset. How long it is
-  // shown is not drawn either: it lies well inside `undoWindow`
-  // (lib/domain/models/bookmark.dart), the time the repositories keep a
-  // deletion, so its button never outlives the undo.
+  // The undo bar stands under the list in the list's inset. The identity
+  // draws none; the insets are the list's and spacing tokens.
   static const EdgeInsetsDirectional undoBar = EdgeInsetsDirectional.fromSTEB(
     20,
     AppSpacing.space2,
     20,
     AppSpacing.space3,
   );
-  static const Duration undoShown = Duration(seconds: 8);
 
   // The note sheet keeps its content above the keyboard, as the go-to sheet
   // does.

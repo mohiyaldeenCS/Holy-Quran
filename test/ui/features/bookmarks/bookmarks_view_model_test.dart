@@ -6,12 +6,16 @@ import 'package:holyquran/domain/models/bookmark.dart';
 import 'package:holyquran/domain/models/category.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/pack_integrity.dart';
+import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/ui/features/bookmarks/view_models/bookmarks_view_model.dart';
+
+import 'package:holyquran/utils/result.dart';
 
 import '../../../../testing/fakes/fake_pack_integrity_repository.dart';
 import '../index/index_fixture.dart';
 import 'bookmarks_harness.dart';
+import 'gated_text_repository.dart';
 
 void main() {
   late Directory root;
@@ -31,7 +35,7 @@ void main() {
 
   BookmarksViewModel make({
     bool withPack = true,
-    Duration undoShown = const Duration(minutes: 1),
+    Duration window = const Duration(minutes: 1),
   }) {
     final viewModel = BookmarksViewModel(
       bookmarks: world.bookmarks,
@@ -40,7 +44,7 @@ void main() {
       categories: world.categories,
       text: withPack ? fixture.text : null,
       index: withPack ? fixture.index : null,
-      undoShown: undoShown,
+      window: window,
     );
     addTearDown(viewModel.dispose);
     return viewModel;
@@ -207,7 +211,7 @@ void main() {
 
   test('stops offering the undo once its time is up', () async {
     await world.bookmark(world.ayah(1, 1));
-    final viewModel = make(undoShown: const Duration(milliseconds: 20));
+    final viewModel = make(window: const Duration(milliseconds: 20));
     await settle();
 
     await viewModel.delete(viewModel.entries.single);
@@ -296,5 +300,131 @@ void main() {
     integrity.report('synthetic', const IntegrityOk());
     await settle();
     expect(viewModel.entries.single.surahName, isNotNull);
+  });
+
+  test(
+    'a read begun before the pack changed does not fill the cache',
+    () async {
+      await world.bookmark(world.ayah(1, 3));
+      final gated = GatedTextRepository(fixture.text);
+      final integrity = FakePackIntegrityRepository();
+      final viewModel = BookmarksViewModel(
+        bookmarks: world.bookmarks,
+        notes: world.notes,
+        tags: world.tags,
+        categories: world.categories,
+        text: gated,
+        index: fixture.index,
+        integrity: integrity,
+      );
+      addTearDown(viewModel.dispose);
+      await settle();
+      expect(gated.pending, hasLength(1));
+
+      integrity.report('synthetic', const IntegrityFailed(PackDisabled('x')));
+      await settle();
+      expect(gated.pending, hasLength(2));
+
+      // The new read fails; the old one, begun before the change, ends well.
+      gated.pending[1].complete(Failure<PackText>(Exception('disabled')));
+      gated.pending[0].complete(await fixture.text.ayahText(world.ayah(1, 3)));
+      await settle();
+      expect(viewModel.entries.single.ayahText, isNull);
+
+      // Nothing stale was kept: the next list reads again, and fails again.
+      gated
+        ..open = true
+        ..then = Failure<PackText>(Exception('disabled'));
+      viewModel.search('');
+      await settle();
+      expect(viewModel.entries.single.ayahText, isNull);
+
+      // A failure was not kept either: once the pack serves, the ayah is back.
+      gated.then = null;
+      viewModel.search('');
+      await settle();
+      expect(viewModel.entries.single.ayahText, isNotNull);
+    },
+  );
+
+  test('keeps the undo for the window, then drops it', () async {
+    await world.bookmark(world.ayah(1, 1));
+    final viewModel = make(window: const Duration(milliseconds: 80));
+    await settle();
+    await viewModel.delete(viewModel.entries.single);
+
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    expect(viewModel.canUndo, isTrue);
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    expect(viewModel.canUndo, isFalse);
+  });
+
+  test(
+    'holds the undo past the window, and says so when pressed late',
+    () async {
+      await world.bookmark(world.ayah(1, 1));
+      final viewModel = make(window: const Duration(milliseconds: 20))
+        ..holdUndo = true;
+      await settle();
+      await viewModel.delete(viewModel.entries.single);
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(viewModel.canUndo, isTrue);
+
+      // The ayah has a bookmark again meanwhile, so the old one cannot return.
+      await world.bookmark(world.ayah(1, 1));
+      await viewModel.undo();
+      expect(viewModel.canUndo, isFalse);
+      expect(viewModel.writeFailed, isTrue);
+    },
+  );
+
+  test('the next action takes the undo away', () async {
+    await world.bookmark(world.ayah(1, 1));
+    final viewModel = make();
+    await settle();
+    await viewModel.delete(viewModel.entries.single);
+    expect(viewModel.canUndo, isTrue);
+
+    viewModel.search('x');
+    expect(viewModel.canUndo, isFalse);
+  });
+
+  test('a second delete of an entry does nothing', () async {
+    await world.bookmark(world.ayah(1, 1));
+    final viewModel = make();
+    await settle();
+    final entry = viewModel.entries.single;
+
+    await Future.wait([viewModel.delete(entry), viewModel.delete(entry)]);
+    expect(viewModel.canUndo, isTrue);
+    expect(viewModel.writeFailed, isFalse);
+  });
+
+  test('an entry that is gone already counts as deleted', () async {
+    final made = await world.bookmark(world.ayah(1, 1));
+    final viewModel = make();
+    await settle();
+    final entry = viewModel.entries.single;
+    await world.bookmarks.delete(made.id);
+
+    await viewModel.delete(entry);
+    expect(viewModel.writeFailed, isFalse);
+    expect(viewModel.canUndo, isFalse);
+  });
+
+  test('drops the filter on a tag that is no longer live', () async {
+    final tag = await world.makeTag('وسم تجريبي');
+    await world.bookmark(world.ayah(1, 1));
+    await world.bookmark(world.ayah(1, 2), tagIds: {tag.id});
+    final viewModel = make();
+    await settle();
+    viewModel.toggleTag(tag.id);
+    await settle();
+    expect(viewModel.entries, hasLength(1));
+
+    await world.tags.delete(tag.id);
+    await settle();
+    expect(viewModel.tagId, isNull);
+    expect(viewModel.entries, hasLength(2));
   });
 }

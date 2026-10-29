@@ -15,7 +15,6 @@ import 'package:holyquran/domain/models/note.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/user_tag.dart';
-import 'package:holyquran/ui/core/metrics/bookmarks_metrics.dart';
 import 'package:holyquran/utils/result.dart';
 
 /// The two lists of the screen.
@@ -57,7 +56,8 @@ final class _Deleted {
 /// The state of the bookmarks and notes screen (`UD-03`, `UD-07`, `SR-08`):
 /// the list of the tab chosen, in the order chosen, filtered by category and
 /// tag and by what was typed, each with the ayah's text from the pack. A
-/// deletion can be undone for [undoShown]. The lists are read again whenever
+/// deletion can be undone for the repositories' [undoWindow], from its own
+/// time, or until the next action. The lists are read again whenever
 /// a repository tells of a change or the pack's integrity changes, and a read
 /// that a newer one has replaced is dropped.
 final class BookmarksViewModel extends ChangeNotifier {
@@ -69,10 +69,11 @@ final class BookmarksViewModel extends ChangeNotifier {
     this._text,
     this._index,
     this._integrity,
-    this._undoShown = BookmarksMetrics.undoShown,
+    Duration window = undoWindow,
   }) : _bookmarks = bookmarks,
        _notes = notes,
-       _tags = tags {
+       _tags = tags,
+       _undoFor = window {
     for (final source in [bookmarks, notes, tags]) {
       source.addListener(_changed);
     }
@@ -87,7 +88,7 @@ final class BookmarksViewModel extends ChangeNotifier {
   final QuranTextRepository? _text;
   final QuranIndexRepository? _index;
   final PackIntegrityRepository? _integrity;
-  final Duration _undoShown;
+  final Duration _undoFor;
 
   AnnotationTab _tab = AnnotationTab.bookmarks;
   ListOrder _order = ListOrder.newest;
@@ -105,14 +106,15 @@ final class BookmarksViewModel extends ChangeNotifier {
   Timer? _undoTimer;
   int _reads = 0;
   bool _disposed = false;
-  final _ayahTexts = <QuranAddress, PackText?>{};
+  final _ayahTexts = <QuranAddress, PackText>{};
+  final _deleting = <String>{};
+  int _packGeneration = 0;
   final _expanded = <String>{};
 
   AnnotationTab get tab => _tab;
   ListOrder get order => _order;
   String? get categoryId => _categoryId;
   String? get tagId => _tagId;
-  String get query => _query;
 
   /// The categories to filter by, in the order of [BuiltinCategory].
   List<Category> get categories => _categoryList;
@@ -139,6 +141,12 @@ final class BookmarksViewModel extends ChangeNotifier {
   /// list is not the same as having nothing.
   bool get narrowed =>
       _categoryId != null || _tagId != null || _query.isNotEmpty;
+
+  /// Whether the undo stays after its time, as for a screen-reader or switch
+  /// user who may be slow to reach it. It then leaves on the next action, and
+  /// pressing it once the window has passed says that the change was not
+  /// saved. The screen sets it from the platform's accessibility setting.
+  bool holdUndo = false;
 
   /// Whether a deletion can still be undone.
   bool get canUndo => _deleted != null;
@@ -182,6 +190,7 @@ final class BookmarksViewModel extends ChangeNotifier {
   void _narrow(void Function() change) {
     change();
     _writeFailed = false;
+    _dismissUndo(notify: false);
     notifyListeners();
     unawaited(_load());
   }
@@ -217,14 +226,24 @@ final class BookmarksViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Deletes [entry] of the tab shown. It can be brought back by [undo].
+  /// Deletes [entry] of the tab shown. It can be brought back by [undo]. A
+  /// second delete of an entry already being deleted does nothing, and an
+  /// entry that is gone already counts as deleted.
   Future<void> delete(AnnotationEntry entry) async {
+    if (!_deleting.add(entry.id)) return;
     final tab = _tab;
-    final result = switch (tab) {
-      AnnotationTab.bookmarks => await _bookmarks.delete(entry.id),
-      AnnotationTab.notes => await _notes.delete(entry.id),
-    };
+    final startedAt = DateTime.now();
+    final Result<void> result;
+    try {
+      result = switch (tab) {
+        AnnotationTab.bookmarks => await _bookmarks.delete(entry.id),
+        AnnotationTab.notes => await _notes.delete(entry.id),
+      };
+    } finally {
+      _deleting.remove(entry.id);
+    }
     if (_disposed) return;
+    if (result case Failure(error: ItemNotFound())) return;
     if (result is Failure) {
       _writeFailed = true;
       notifyListeners();
@@ -232,38 +251,45 @@ final class BookmarksViewModel extends ChangeNotifier {
     }
     _writeFailed = false;
     _deleted = _Deleted(tab, entry.id);
+    // The window runs from the write, which came after [startedAt].
+    final left = _undoFor - DateTime.now().difference(startedAt);
     _undoTimer?.cancel();
-    _undoTimer = Timer(_undoShown, dismissUndo);
+    _undoTimer = Timer(left, _undoTimeUp);
     notifyListeners();
   }
 
-  /// Brings back what was deleted last.
+  /// Brings back what was deleted last. It fails, and says so, once the
+  /// repository's window has passed.
   Future<void> undo() async {
     final deleted = _deleted;
     if (deleted == null) return;
-    dismissUndo();
+    _dismissUndo(notify: false);
     final result = switch (deleted.tab) {
       AnnotationTab.bookmarks => await _bookmarks.restore(deleted.id),
       AnnotationTab.notes => await _notes.restore(deleted.id),
     };
-    if (_disposed || result is! Failure) return;
-    _writeFailed = true;
+    if (_disposed) return;
+    _writeFailed = result is Failure;
     notifyListeners();
   }
 
-  /// Stops offering the undo of the last deletion.
-  void dismissUndo() {
+  void _undoTimeUp() {
+    if (!holdUndo) _dismissUndo();
+  }
+
+  void _dismissUndo({bool notify = true}) {
     _undoTimer?.cancel();
     _undoTimer = null;
     if (_deleted == null) return;
     _deleted = null;
-    if (!_disposed) notifyListeners();
+    if (notify && !_disposed) notifyListeners();
   }
 
   void _changed() => unawaited(_load());
 
   // A pack that stops serving, or serves again, changes what the cards show.
   void _packChanged() {
+    _packGeneration++;
     _ayahTexts.clear();
     unawaited(_load());
   }
@@ -272,6 +298,10 @@ final class BookmarksViewModel extends ChangeNotifier {
     final read = ++_reads;
     final categories = await _categories.categories();
     final tags = await _tags.tags();
+    // A filter on a tag that is no longer live would hide everything.
+    if (tags case Ok(:final value) when _tagId != null) {
+      if (value.every((tag) => tag.id != _tagId)) _tagId = null;
+    }
     final tab = _tab;
     final entries = switch (tab) {
       AnnotationTab.bookmarks => await _readBookmarks(),
@@ -342,15 +372,18 @@ final class BookmarksViewModel extends ChangeNotifier {
     surahName: _surahName(address),
   );
 
+  /// The ayah's text, cached when read. A failed read is not cached, so a
+  /// card is not left without its ayah for the session, and a read that began
+  /// before the pack changed does not write into the cache made after it.
   Future<PackText?> _ayahText(QuranAddress address) async {
     final text = _text;
     if (text == null || address.riwaya != text.riwaya) return null;
-    if (_ayahTexts.containsKey(address)) return _ayahTexts[address];
+    if (_ayahTexts[address] case final cached?) return cached;
+    final generation = _packGeneration;
     final read = await text.ayahText(address);
-    return _ayahTexts[address] = switch (read) {
-      Ok(:final value) => value,
-      Failure() => null,
-    };
+    if (read is! Ok<PackText>) return null;
+    if (generation == _packGeneration) _ayahTexts[address] = read.value;
+    return read.value;
   }
 
   PackText? _surahName(QuranAddress address) {
