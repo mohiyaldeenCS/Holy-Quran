@@ -6,7 +6,7 @@ import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/radio_row.dart';
 import 'package:holyquran/ui/core/widgets/tafsir_text.dart';
-import 'package:holyquran/ui/features/tafsir/view_models/tafsir_page.dart';
+import 'package:holyquran/ui/features/tafsir/view_models/tafsir_choice.dart';
 
 /// The list the default tafsir is chosen from (`TF-01`): the downloaded
 /// books as a single-choice list, one of them chosen, apart from the tafsirs
