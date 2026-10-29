@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/domain/models/recitation_download.dart';
 import 'package:holyquran/domain/models/recitation_target.dart';
 import 'package:holyquran/ui/features/resources/view_models/recitation_block_state.dart';
@@ -15,10 +16,15 @@ import '../recitation_downloads_fixtures.dart';
 late FakePackInstallRepository _installs;
 late FakeRecitationDownloadRepository _downloads;
 late FakePackIntegrityRepository _integrity;
+late InMemoryDownloadSettingsRepository _settings;
 
 Future<RecitationSectionViewModel> _viewModel({
   bool installed = true,
   bool withIndex = true,
+
+  /// The quality the user chose before; none leaves the default.
+  int? quality = 64,
+  bool wifiOnly = true,
 }) async {
   final catalogue = syntheticCatalogue();
   _installs = FakePackInstallRepository(
@@ -26,12 +32,17 @@ Future<RecitationSectionViewModel> _viewModel({
   );
   _downloads = FakeRecitationDownloadRepository();
   _integrity = FakePackIntegrityRepository();
+  _settings = InMemoryDownloadSettingsRepository(
+    wifiOnly: wifiOnly,
+    qualities: {recitationId: ?quality},
+  );
   final viewModel = RecitationSectionViewModel(
     recitations: FakeRecitationRepository(catalogue.recitations),
     catalogue: FakeCatalogueRepository(catalogue),
     installs: _installs,
     integrity: _integrity,
     downloads: _downloads,
+    settings: _settings,
     index: withIndex ? FakeQuranIndexRepository.synthetic() : null,
     refreshEvery: Duration.zero,
   );
@@ -192,6 +203,27 @@ void main() {
       expect(_downloads.wifiOnlyOf, [true, false]);
     });
 
+    test('keep Wi-Fi only in the settings', () async {
+      final viewModel = await _viewModel();
+
+      viewModel.wifiOnly = false;
+
+      expect(_settings.wifiOnly, isFalse);
+      expect(viewModel.wifiOnly, isFalse);
+    });
+
+    test('reach the jobs already queued when Wi-Fi only changes', () async {
+      final viewModel = await _viewModel();
+
+      viewModel.wifiOnly = false;
+      viewModel.wifiOnly = true;
+
+      expect(
+        _downloads.calls.where((c) => c.$1 == 'setWifiOnly').map((c) => c.$2),
+        ['false', 'true'],
+      );
+    });
+
     test('install the pack with the same choice', () async {
       final viewModel = await _viewModel(installed: false);
       viewModel.wifiOnly = false;
@@ -297,16 +329,54 @@ void main() {
   });
 
   group('the quality (AU-14)', () {
-    test(
-      'lists the qualities the catalogue offers, the lowest chosen',
-      () async {
-        final block = _block(await _viewModel());
+    test('lists the qualities the catalogue offers', () async {
+      final block = _block(await _viewModel());
 
-        expect(block.qualities, [64, 128]);
-        expect(block.quality, 64);
-        expect(block.choosesQuality, isTrue);
+      expect(block.qualities, [64, 128]);
+      expect(block.choosesQuality, isTrue);
+    });
+
+    test(
+      'is the highest the recitation offers until the user chooses',
+      () async {
+        final viewModel = await _viewModel(quality: null);
+
+        expect(_block(viewModel).quality, 128);
+        viewModel.download(recitationId, _block(viewModel).whole!);
+        await pumpEventQueue();
+        expect(
+          _downloads.calls.where((c) => c.$1 == 'download').single.$2,
+          '$recitationId/128/all',
+        );
       },
     );
+
+    test('keeps the choice in the settings, and reads it back', () async {
+      final viewModel = await _viewModel(quality: null);
+
+      viewModel.selectQuality(recitationId, 64);
+      await pumpEventQueue();
+
+      expect(_settings.qualityOf(recitationId), 64);
+      expect(_block(viewModel).quality, 64);
+      final later = RecitationSectionViewModel(
+        recitations: FakeRecitationRepository(syntheticCatalogue().recitations),
+        catalogue: FakeCatalogueRepository(syntheticCatalogue()),
+        installs: _installs,
+        integrity: _integrity,
+        downloads: _downloads,
+        settings: _settings,
+      );
+      addTearDown(later.dispose);
+      await pumpEventQueue();
+      expect(later.blocks.single.quality, 64);
+    });
+
+    test('ignores a stored quality the catalogue no longer lists', () async {
+      final viewModel = await _viewModel(quality: 320);
+
+      expect(_block(viewModel).quality, 128);
+    });
 
     test(
       'choosing another downloads, counts and deletes at that quality',

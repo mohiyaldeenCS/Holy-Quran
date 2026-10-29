@@ -138,6 +138,9 @@ final class FakeRecitationDownloadRepository extends ChangeNotifier
   }
 
   @override
+  void setWifiOnly(bool wifiOnly) => calls.add(('setWifiOnly', '$wifiOnly'));
+
+  @override
   Future<void> cancel(String key) async => calls.add(('cancel', key));
 
   @override

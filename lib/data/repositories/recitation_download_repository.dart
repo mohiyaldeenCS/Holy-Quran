@@ -41,6 +41,12 @@ abstract interface class RecitationDownloadRepository implements Listenable {
     required bool wifiOnly,
   });
 
+  /// Changes the network every job in the queue may use, and that of the
+  /// jobs queued later until they say otherwise. A job waiting for Wi-Fi
+  /// starts when it is turned off; a file fetching over mobile data when it
+  /// is turned on is stopped, and fetched again over Wi-Fi.
+  void setWifiOnly(bool wifiOnly);
+
   /// Stops the job for [key], or dismisses its failure. What arrived whole
   /// stays.
   Future<void> cancel(String key);
@@ -137,6 +143,20 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
     _notify();
     unawaited(_drain());
     return job.result.future;
+  }
+
+  @override
+  void setWifiOnly(bool wifiOnly) {
+    for (final job in _queue) {
+      if (job.wifiOnly == wifiOnly) continue;
+      job.wifiOnly = wifiOnly;
+      job.wake();
+      final onMobileData = _network != NetworkKind.unmetered;
+      if (job.order case final order? when wifiOnly && onMobileData) {
+        job.restart = true;
+        unawaited(_downloads.cancel(order));
+      }
+    }
   }
 
   @override
@@ -312,6 +332,11 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
         ..order = null
         ..fileReceived = 0;
       if (job.cancelled) return RecitationDownloadCancelled(key);
+      if (job.restart) {
+        // Turned to Wi-Fi only while on mobile data: wait for Wi-Fi.
+        job.restart = false;
+        continue;
+      }
       switch (outcome) {
         case FileDownloaded():
           if (await _store.stagedIsWhole(packId, file)) return null;
@@ -400,7 +425,8 @@ final class _Job {
   _Job(this.target, {required this.wifiOnly});
 
   final RecitationTarget target;
-  final bool wifiOnly;
+  bool wifiOnly;
+  bool restart = false;
   final result = Completer<Result<void>>();
   RecitationDownloadState state = const RecitationQueued();
   bool cancelled = false;

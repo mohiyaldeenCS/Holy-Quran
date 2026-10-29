@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:holyquran/config/dependencies.dart';
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
+import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/data/repositories/in_memory_app_settings_repository.dart';
 import 'package:holyquran/data/services/daos/settings_dao.dart';
 import 'package:holyquran/data/services/user_database.dart';
@@ -11,10 +12,23 @@ import 'package:holyquran/data/services/user_database.dart';
 /// user data, so settings that cannot be read do not stop the start: the app
 /// starts on the defaults, kept in memory only, and the user's file is left
 /// as it is.
-Future<void> settingsProviders(Dependencies dependencies) async =>
-    dependencies.provideListenable<AppSettingsRepository>(
-      await _load(SettingsDao(dependencies.read<UserDatabase>())),
-    );
+Future<void> settingsProviders(Dependencies dependencies) async {
+  final dao = SettingsDao(dependencies.read<UserDatabase>());
+  dependencies
+    ..provideListenable<AppSettingsRepository>(await _load(dao))
+    ..provideListenable<DownloadSettingsRepository>(await _loadDownloads(dao));
+}
+
+/// The download choices (`AU-13`, `AU-14`), on the defaults when unreadable.
+Future<DownloadSettingsRepository> _loadDownloads(SettingsDao dao) async {
+  try {
+    return await LocalDownloadSettingsRepository.load(dao);
+  } on Exception catch (error, stack) {
+    debugPrint('Download settings unreadable, using the defaults: $error');
+    debugPrintStack(stackTrace: stack);
+    return InMemoryDownloadSettingsRepository();
+  }
+}
 
 Future<AppSettingsRepository> _load(SettingsDao dao) async {
   try {

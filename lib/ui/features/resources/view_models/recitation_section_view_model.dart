@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'package:holyquran/data/repositories/catalogue_repository.dart';
+import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/data/repositories/pack_install_repository.dart';
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
@@ -38,12 +39,14 @@ final class RecitationSectionViewModel extends ChangeNotifier {
     required this._installs,
     required this._integrity,
     required this._downloads,
+    required this._settings,
     this._index,
     this._refreshEvery = recitationCountEvery,
   }) {
     for (final source in _sources) {
       source.addListener(_onChange);
     }
+    _appliedWifiOnly = _settings.wifiOnly;
     _syncPacks();
   }
 
@@ -52,6 +55,7 @@ final class RecitationSectionViewModel extends ChangeNotifier {
   final PackInstallRepository _installs;
   final PackIntegrityRepository _integrity;
   final RecitationDownloadRepository _downloads;
+  final DownloadSettingsRepository _settings;
   final QuranIndexRepository? _index;
   final Duration _refreshEvery;
 
@@ -61,9 +65,10 @@ final class RecitationSectionViewModel extends ChangeNotifier {
     _installs,
     _integrity,
     _downloads,
+    _settings,
   ];
 
-  bool _wifiOnly = true;
+  late bool _appliedWifiOnly;
   bool _disposed = false;
   Timer? _refresh;
   int _revisionSeen = 0;
@@ -80,14 +85,11 @@ final class RecitationSectionViewModel extends ChangeNotifier {
   final _refused = <String, RecitationDownloadFailure>{};
   late final List<_Scope> _scopes = _scopesOf(_index);
 
-  /// Whether downloads wait for Wi-Fi. On until the user turns it off.
-  bool get wifiOnly => _wifiOnly;
+  /// Whether downloads wait for Wi-Fi: on until the user turns it off, and
+  /// kept across launches. A change reaches the jobs already queued.
+  bool get wifiOnly => _settings.wifiOnly;
 
-  set wifiOnly(bool value) {
-    if (value == _wifiOnly) return;
-    _wifiOnly = value;
-    notifyListeners();
-  }
+  set wifiOnly(bool value) => unawaited(_settings.setWifiOnly(value));
 
   /// The surah [number]'s name from the base pack; null without an index.
   PackText? surahName(int number) =>
@@ -106,8 +108,13 @@ final class RecitationSectionViewModel extends ChangeNotifier {
   }
 
   void selectQuality(String recitationId, int kbps) {
-    if (_qualityOf[recitationId] == kbps) return;
+    final listed = _recitations.recitations
+        .where((r) => r.id == recitationId)
+        .firstOrNull;
+    if (listed == null || !listed.qualities.contains(kbps)) return;
+    if (_chosenQuality(recitationId) == kbps) return;
     _qualityOf[recitationId] = kbps;
+    unawaited(_settings.setQuality(recitationId, kbps));
     unawaited(_readPresent(recitationId));
     notifyListeners();
   }
@@ -120,7 +127,7 @@ final class RecitationSectionViewModel extends ChangeNotifier {
   /// Installs the recitation's pack, which lists its files and their sizes.
   void downloadPack(String recitationId) {
     if (_entryOf(recitationId) case final entry?) {
-      unawaited(_installs.install(entry.installRequest(wifiOnly: _wifiOnly)));
+      unawaited(_installs.install(entry.installRequest(wifiOnly: wifiOnly)));
     }
   }
 
@@ -156,7 +163,7 @@ final class RecitationSectionViewModel extends ChangeNotifier {
     final target = RecitationTarget(pack.contents, quality, row.selection);
     _refused.remove(row.key);
     unawaited(
-      _downloads.download(target, wifiOnly: _wifiOnly).then((result) {
+      _downloads.download(target, wifiOnly: wifiOnly).then((result) {
         if (result case Failure(error: final RecitationDownloadFailure failure)
             when failure is! RecitationDownloadCancelled &&
                 _downloads.jobs.every((job) => job.key != row.key)) {
@@ -287,10 +294,12 @@ final class RecitationSectionViewModel extends ChangeNotifier {
         .where((r) => r.id == recitationId)
         .firstOrNull;
     if (listed == null) return null;
-    final chosen = _qualityOf[recitationId];
+    final chosen =
+        _qualityOf[recitationId] ?? _settings.qualityOf(recitationId);
+    // Without a choice, the best the recitation offers (owner, 2026-10-29).
     return chosen != null && listed.qualities.contains(chosen)
         ? chosen
-        : listed.qualities.first;
+        : listed.qualities.last;
   }
 
   static Set<int> _qualitiesOf(RecitationContents contents) => {
@@ -298,6 +307,10 @@ final class RecitationSectionViewModel extends ChangeNotifier {
   };
 
   void _onChange() {
+    if (_settings.wifiOnly != _appliedWifiOnly) {
+      _appliedWifiOnly = _settings.wifiOnly;
+      _downloads.setWifiOnly(_appliedWifiOnly);
+    }
     _syncPacks();
     _watchJobs();
     notifyListeners();

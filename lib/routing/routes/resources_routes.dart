@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:holyquran/data/repositories/catalogue_repository.dart';
+import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/data/repositories/pack_install_repository.dart';
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
@@ -43,6 +44,7 @@ Widget _resources(BuildContext context, GoRouterState state) {
   }
   final recitations = context.read<RecitationRepository?>();
   final downloads = context.read<RecitationDownloadRepository?>();
+  final downloadSettings = context.read<DownloadSettingsRepository?>();
   return MultiProvider(
     providers: [
       ChangeNotifierProvider(
@@ -53,7 +55,7 @@ Widget _resources(BuildContext context, GoRouterState state) {
           freeBytes: _freeBytes,
         ),
       ),
-      if (recitations != null && downloads != null)
+      if (recitations != null && downloads != null && downloadSettings != null)
         ChangeNotifierProvider(
           create: (context) => RecitationSectionViewModel(
             recitations: recitations,
@@ -61,13 +63,15 @@ Widget _resources(BuildContext context, GoRouterState state) {
             installs: installs,
             integrity: integrity,
             downloads: downloads,
+            settings: downloadSettings,
             index: context.read<QuranIndexRepository?>(),
           ),
         ),
     ],
     builder: (context, _) => ResourcesScreen(
       viewModel: context.read<ResourcesViewModel>(),
-      recitations: recitations != null && downloads != null
+      recitations:
+          recitations != null && downloads != null && downloadSettings != null
           ? context.read<RecitationSectionViewModel>()
           : null,
     ),

@@ -576,6 +576,75 @@ void main() {
       expect(second, isA<Ok<void>>());
     });
 
+    test(
+      'starts a job waiting for Wi-Fi when Wi-Fi only is turned off',
+      () async {
+        network.kind = NetworkKind.other;
+        final done = repository.download(
+          target(const RecitationSurah(2)),
+          wifiOnly: true,
+        );
+        await pumpEventQueue();
+        expect(downloads.orders, isEmpty);
+
+        repository.setWifiOnly(false);
+
+        expect(await done, isA<Ok<void>>());
+        expect(downloads.orders.every((o) => !o.wifiOnly), isTrue);
+      },
+    );
+
+    test(
+      'stops a file fetching over mobile data when Wi-Fi only is turned on',
+      () async {
+        network.kind = NetworkKind.other;
+        downloads.gates['/synthetic/q64/2_1.mp3'] = Completer();
+        final done = repository.download(
+          target(const RecitationSurah(2)),
+          wifiOnly: false,
+        );
+        await downloads.reached.stream.first;
+
+        repository.setWifiOnly(true);
+        downloads.gates.remove('/synthetic/q64/2_1.mp3');
+        await pumpEventQueue();
+
+        expect(
+          repository.jobs.single.state,
+          isA<RecitationWaitingForNetwork>(),
+        );
+        network.set(NetworkKind.unmetered);
+
+        expect(await done, isA<Ok<void>>());
+        expect(
+          downloads.orders.where((o) => o.url.path.endsWith('2_1.mp3')),
+          hasLength(2),
+        );
+        expect(downloads.orders.last.wifiOnly, isTrue);
+      },
+    );
+
+    test(
+      'leaves a file fetching over Wi-Fi alone when Wi-Fi only is turned on',
+      () async {
+        downloads.gates['/synthetic/q64/2_1.mp3'] = Completer();
+        final done = repository.download(
+          target(const RecitationSurah(2)),
+          wifiOnly: false,
+        );
+        await downloads.reached.stream.first;
+
+        repository.setWifiOnly(true);
+        downloads.gates['/synthetic/q64/2_1.mp3']!.complete();
+
+        expect(await done, isA<Ok<void>>());
+        expect(
+          downloads.orders.where((o) => o.url.path.endsWith('2_1.mp3')),
+          hasLength(1),
+        );
+      },
+    );
+
     test('refuses a download already queued', () async {
       downloads.gates['/synthetic/q64/1_1.mp3'] = Completer();
       unawaited(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' hide IconButton;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/data/models/catalogue_json.dart';
+import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/domain/models/catalogue.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/domain/models/recitation_download.dart';
@@ -34,6 +35,7 @@ late FakeCatalogueRepository _catalogue;
 late FakePackInstallRepository _installs;
 late FakePackIntegrityRepository _integrity;
 late FakeRecitationDownloadRepository _downloads;
+late InMemoryDownloadSettingsRepository _settings;
 
 /// The resource manager over the synthetic recitation, whose pack is
 /// installed unless [installed] is false.
@@ -61,6 +63,7 @@ Future<RecitationSectionViewModel> _pump(
     installs: _installs,
     integrity: _integrity,
     downloads: _downloads,
+    settings: _settings,
     index: FakeQuranIndexRepository.synthetic(),
     refreshEvery: Duration.zero,
   );
@@ -108,6 +111,9 @@ void main() {
     _installs = FakePackInstallRepository();
     _integrity = FakePackIntegrityRepository();
     _downloads = FakeRecitationDownloadRepository();
+    _settings = InMemoryDownloadSettingsRepository(
+      qualities: {recitationId: 64},
+    );
     addTearDown(_integrity.dispose);
   });
 

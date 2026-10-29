@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/domain/models/recitation_download.dart';
 import 'package:holyquran/domain/models/recitation_target.dart';
 import 'package:holyquran/ui/features/resources/view_models/recitation_section_view_model.dart';
@@ -61,6 +62,9 @@ void main() {
       installs: installs,
       integrity: integrity,
       downloads: downloads,
+      settings: InMemoryDownloadSettingsRepository(
+        qualities: {recitationId: 64},
+      ),
       index: FakeQuranIndexRepository.synthetic(),
     );
     addTearDown(resources.dispose);
