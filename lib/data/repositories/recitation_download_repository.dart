@@ -51,9 +51,17 @@ abstract interface class RecitationDownloadRepository implements Listenable {
   /// stays.
   Future<void> cancel(String key);
 
-  /// Removes the files of [target] from the device. A file that other
-  /// selections share goes with it.
+  /// Removes the files of [target] from the device. The files every
+  /// selection needs, the reciter's basmala and isti'adha, go only with the
+  /// whole recitation.
   Future<Result<void>> delete(RecitationTarget target);
+
+  /// The bytes of the pack's audio on the device, at every quality.
+  Future<int> audioBytes(String packId);
+
+  /// Removes all the audio of the pack, at every quality, and what is left
+  /// of a download that was cut short.
+  Future<Result<void>> deleteAudio(String packId);
 }
 
 /// [RecitationDownloadRepository] on the device. Jobs run one at a time, in
@@ -133,10 +141,7 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
       final url = target.contents.urlOf(file);
       if (!_policy.allows(url)) return Failure(RecitationUrlRefused(key, url));
     }
-    // A job that was stopped is on its way out and does not hold the key.
-    if (_jobOf(key) case final queued? when !queued.cancelled) {
-      return Failure(RecitationAlreadyQueued(key));
-    }
+    if (_jobOf(key) != null) return Failure(RecitationAlreadyQueued(key));
     _failed.remove(key);
     final job = _Job(target, wifiOnly: wifiOnly);
     _queue.add(job);
@@ -184,7 +189,7 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
       return Failure(RecitationAlreadyQueued(key));
     }
     try {
-      for (final file in target.files) {
+      for (final file in target.deletable) {
         await _store.delete(packId, file);
       }
       _revision++;
@@ -196,8 +201,44 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
   }
 
   @override
+  Future<int> audioBytes(String packId) async {
+    try {
+      return await _store.bytesOnDevice(packId);
+    } on Exception {
+      return 0;
+    }
+  }
+
+  @override
+  Future<Result<void>> deleteAudio(String packId) async {
+    if (_queue.any((job) => job.target.contents.packId == packId)) {
+      return Failure(RecitationAlreadyQueued(packId));
+    }
+    try {
+      await _store.deleteAll(packId);
+      _revision++;
+      _notify();
+      return const Ok(null);
+    } on Exception catch (e) {
+      return Failure(RecitationStoreFailed(packId, '$e'));
+    }
+  }
+
+  @override
   void dispose() {
     _disposed = true;
+    for (final job in _queue) {
+      job
+        ..cancelled = true
+        ..wake();
+      final order = job.order;
+      if (order != null) unawaited(_downloads.cancel(order));
+      if (job != _current && !job.result.isCompleted) {
+        job.result.complete(
+          Failure(RecitationDownloadCancelled(job.target.key)),
+        );
+      }
+    }
     unawaited(_networkChanges?.cancel());
     super.dispose();
   }
@@ -218,8 +259,11 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
     }
   }
 
-  _Job? _jobOf(String key) =>
-      _queue.where((job) => job.target.key == key).firstOrNull;
+  /// The job for [key] that has not been stopped: one that was stopped is
+  /// on its way out and a new job for the key may follow it.
+  _Job? _jobOf(String key) => _queue
+      .where((job) => job.target.key == key && !job.cancelled)
+      .firstOrNull;
 
   Future<void> _drain() async {
     if (_current != null) return;
@@ -232,9 +276,11 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
         // Nothing may leave the queue stuck behind a job that threw.
         _queue.remove(job);
         _current = null;
-        job.result.complete(
-          Failure(RecitationStoreFailed(job.target.key, '$e')),
-        );
+        if (!job.result.isCompleted) {
+          job.result.complete(
+            Failure(RecitationStoreFailed(job.target.key, '$e')),
+          );
+        }
         _notify();
         continue;
       }
@@ -248,7 +294,7 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
           RecitationDownloadFailed(failure),
         );
       }
-      job.result.complete(result);
+      if (!job.result.isCompleted) job.result.complete(result);
       _notify();
     }
   }
@@ -308,13 +354,21 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
     var rejected = false;
     while (true) {
       if (!await _ready(job)) return RecitationDownloadCancelled(key);
-      switch (await _urlCheck.checkRedirects(url, _policy)) {
-        case Ok():
-          break;
-        case Failure(error: UrlRefused(url: final refused)):
-          return RecitationUrlRefused(key, refused);
-        case Failure():
-          return RecitationFileNotFetched(key, file.path);
+      // Where a host leads is asked once for the job; the network is
+      // checked first, so no request goes out on mobile data when only
+      // Wi-Fi is allowed.
+      if (job.checkedHosts.add(url.host)) {
+        switch (await _urlCheck.checkRedirects(url, _policy)) {
+          case Ok():
+            break;
+          case Failure(error: UrlRefused(url: final refused)):
+            return RecitationUrlRefused(key, refused);
+          case Failure():
+            job.checkedHosts.remove(url.host);
+            // The network went while asking: wait for it, then ask again.
+            if (!await _networkAllows(job.wifiOnly)) continue;
+            return RecitationFileNotFetched(key, file.path);
+        }
       }
       if (job.cancelled) return RecitationDownloadCancelled(key);
       final order = job.order = FileOrder(
@@ -427,6 +481,7 @@ final class _Job {
   final RecitationTarget target;
   bool wifiOnly;
   bool restart = false;
+  final checkedHosts = <String>{};
   final result = Completer<Result<void>>();
   RecitationDownloadState state = const RecitationQueued();
   bool cancelled = false;

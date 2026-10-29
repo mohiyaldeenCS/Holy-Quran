@@ -13,6 +13,11 @@ sealed class RecitationSelection {
 
   /// Names the selection inside a job key.
   String get key;
+
+  /// Whether deleting it also deletes the files that belong to every
+  /// selection. Only the whole does: removing a surah must not take the
+  /// reciter's basmala from the others.
+  bool get ownsSharedFiles => false;
 }
 
 final class WholeRecitation extends RecitationSelection {
@@ -23,6 +28,9 @@ final class WholeRecitation extends RecitationSelection {
 
   @override
   String get key => 'all';
+
+  @override
+  bool get ownsSharedFiles => true;
 }
 
 final class RecitationSurah extends RecitationSelection {
@@ -107,4 +115,11 @@ final class RecitationTarget {
   String get key => keyOf(contents.recitationId, qualityKbps, selection);
 
   int get bytes => files.fold(0, (sum, file) => sum + file.bytes);
+
+  /// The files deleting this target removes: those of its surahs, and the
+  /// files of every selection only when it is the whole recitation.
+  List<RecitationFile> get deletable => [
+    for (final file in files)
+      if (file.surah != null || selection.ownsSharedFiles) file,
+  ];
 }

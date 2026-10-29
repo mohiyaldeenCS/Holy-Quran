@@ -11,6 +11,7 @@ import 'package:holyquran/data/services/catalogue_service.dart';
 import 'package:holyquran/data/services/download_service.dart';
 import 'package:holyquran/data/services/manifest_signature.dart';
 import 'package:holyquran/data/services/pack_file_service.dart';
+import 'package:holyquran/data/services/recitation_file_store.dart';
 
 /// Provides the [CatalogueRepository] once the catalogue is configured;
 /// until then there is nothing to fetch and the area provides nothing.
@@ -58,5 +59,6 @@ PackRecitationRepository recitationRepository({
   report: (pack, state, version) =>
       integrity.report(pack, state, version: version),
   files: const PackFileService(),
-  audioDirectory: () async => '${await applicationSupportPath()}/recitations',
+  audioDirectory: () async =>
+      '${await applicationSupportPath()}/${RecitationFileStore.directoryName}',
 );

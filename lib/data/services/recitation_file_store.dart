@@ -36,8 +36,13 @@ class RecitationFileStore {
   static String stagingRelativePath(String packId, RecitationFile file) =>
       '$directoryName/$packId/staging/${_name(file)}';
 
+  /// Where [file] of [packId] is on the device once it is whole, under the
+  /// audio directory [root]. The player looks here too.
+  static String finalPath(String root, String packId, RecitationFile file) =>
+      '$root/$packId/${_name(file)}';
+
   Future<String> _finalPath(String packId, RecitationFile file) async =>
-      '${await _audioDirectory()}/$packId/${_name(file)}';
+      finalPath(await _audioDirectory(), packId, file);
 
   Future<String> _stagingPath(String packId, RecitationFile file) async =>
       '${await _audioDirectory()}/$packId/staging/${_name(file)}';
@@ -74,6 +79,29 @@ class RecitationFileStore {
 
   Future<void> delete(String packId, RecitationFile file) async =>
       _delete(await _finalPath(packId, file));
+
+  /// The bytes of the audio of [packId] on the device, at every quality; a
+  /// file still in staging is not counted.
+  Future<int> bytesOnDevice(String packId) async {
+    final directory = Directory('${await _audioDirectory()}/$packId');
+    if (!await directory.exists()) return 0;
+    var bytes = 0;
+    await for (final entity in directory.list()) {
+      if (entity is File) bytes += await entity.length();
+    }
+    return bytes;
+  }
+
+  /// Removes everything of [packId]: its audio and what is left in staging.
+  Future<void> deleteAll(String packId) async {
+    try {
+      await Directory(
+        '${await _audioDirectory()}/$packId',
+      ).delete(recursive: true);
+    } on PathNotFoundException {
+      return;
+    }
+  }
 
   /// The directory the audio of every recitation is under.
   Future<String> directory() => _audioDirectory();

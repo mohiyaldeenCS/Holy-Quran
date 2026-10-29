@@ -127,6 +127,21 @@ final class FakeRecitationDownloadRepository extends ChangeNotifier
   @override
   Future<bool> hasAudio(String packId) async => onDevice.isNotEmpty;
 
+  /// What is on the device at every quality, [fileBytes] a file.
+  @override
+  Future<int> audioBytes(String packId) async => bytesOnDevice;
+
+  int get bytesOnDevice => onDevice.length * fileBytes;
+
+  @override
+  Future<Result<void>> deleteAudio(String packId) async {
+    calls.add(('deleteAudio', packId));
+    onDevice = {};
+    _revision++;
+    notifyListeners();
+    return const Ok(null);
+  }
+
   @override
   Future<Result<void>> download(
     RecitationTarget target, {

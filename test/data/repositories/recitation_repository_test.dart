@@ -8,6 +8,7 @@ import 'package:holyquran/data/repositories/local_pack_repository.dart';
 import 'package:holyquran/data/repositories/recitation_repository.dart';
 import 'package:holyquran/data/services/manifest_signature.dart';
 import 'package:holyquran/data/services/pack_file_service.dart';
+import 'package:holyquran/data/services/recitation_file_store.dart';
 import 'package:holyquran/domain/models/catalogue.dart';
 import 'package:holyquran/domain/models/installed_pack.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
@@ -209,6 +210,27 @@ void main() {
       );
       expect(partial.local, isFalse);
       expect(partial.uri.scheme, 'https');
+    });
+
+    test('is where the download store gives a file its final name', () async {
+      final pack = await install();
+      final row = fileOf(pack, 64, 1, 1);
+      final recitations = repository();
+      final contents = switch (await recitations.contents(_listed)) {
+        Ok(:final value) => value,
+        Failure(:final error) => fail('$error'),
+      };
+      final file = contents.files.singleWhere((f) => f.path == row.path);
+      final path = RecitationFileStore.finalPath(audio, _pack, file);
+      await File(path).create(recursive: true);
+      await File(path).writeAsBytes(row.audio);
+
+      final result = audioOf(
+        await recitations.ayahFile(_listed, first, qualityKbps: 64),
+      );
+
+      expect(result.local, isTrue);
+      expect(result.uri, Uri.file(path));
     });
 
     test('is streamed when the device cannot say where files are', () async {

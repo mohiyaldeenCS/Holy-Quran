@@ -16,6 +16,7 @@ import '../../domain/models/verified_pack.dart';
 import '../../utils/result.dart';
 import '../models/pack_manifest_json.dart';
 import '../services/pack_file_service.dart';
+import '../services/recitation_file_store.dart';
 import '../services/recitation_pack_index.dart';
 import 'pack_integrity_repository.dart' show PackCheck;
 
@@ -308,10 +309,7 @@ final class PackRecitationRepository implements RecitationRepository {
   Future<String?> _localPath(String packId, RecitationFile file) async {
     try {
       final root = _audioRoot ??= await _audioDirectory();
-      final name = file.path.split('/').last;
-      final dot = name.lastIndexOf('.');
-      final path =
-          '$root/$packId/${file.sha256}${dot < 0 ? '' : name.substring(dot)}';
+      final path = RecitationFileStore.finalPath(root, packId, file);
       return await _files.sizeOf(path) == file.bytes ? path : null;
     } on Exception {
       return null;

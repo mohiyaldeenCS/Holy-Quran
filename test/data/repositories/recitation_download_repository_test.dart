@@ -147,9 +147,19 @@ final class _Space implements FreeSpaceService {
 }
 
 final class _Urls implements UrlCheck {
+  /// Holds every check until it completes.
+  Completer<void>? gate;
+
+  /// Answers a check in place of the default, which lets the URL through.
+  Result<Uri> Function(Uri url)? answer;
+  final List<Uri> checked = [];
+
   @override
-  Future<Result<Uri>> checkRedirects(Uri url, UrlPolicy policy) async =>
-      Ok(url);
+  Future<Result<Uri>> checkRedirects(Uri url, UrlPolicy policy) async {
+    checked.add(url);
+    await gate?.future;
+    return answer?.call(url) ?? Ok(url);
+  }
 }
 
 void main() {
@@ -159,6 +169,7 @@ void main() {
   late _Downloads downloads;
   late _Network network;
   late _Space space;
+  late _Urls urls;
   late LocalRecitationDownloadRepository repository;
   late RecitationFileStore store;
   var runs = 0;
@@ -195,11 +206,12 @@ void main() {
     });
     network = _Network();
     space = _Space();
+    urls = _Urls();
     store = RecitationFileStore(audioDirectory: () async => audio);
     repository = LocalRecitationDownloadRepository(
       contents: (id) async => Ok(contents),
       downloads: downloads,
-      urlCheck: _Urls(),
+      urlCheck: urls,
       connectivity: network,
       freeSpace: space,
       store: store,
@@ -645,6 +657,102 @@ void main() {
       },
     );
 
+    test('stops the new job, not the one already stopped', () async {
+      urls.gate = Completer();
+      final stopped = repository.download(
+        target(const RecitationSurah(1)),
+        wifiOnly: false,
+      );
+      await pumpEventQueue();
+      await repository.cancel(target(const RecitationSurah(1)).key);
+
+      final again = repository.download(
+        target(const RecitationSurah(1)),
+        wifiOnly: false,
+      );
+      await repository.cancel(target(const RecitationSurah(1)).key);
+
+      expect(
+        await again,
+        isA<Failure<void>>().having(
+          (f) => f.error,
+          'error',
+          isA<RecitationDownloadCancelled>(),
+        ),
+      );
+      urls.gate!.complete();
+      expect(await stopped, isA<Failure<void>>());
+      expect(downloads.orders, isEmpty);
+    });
+
+    test('waits for the network when it goes while a URL is checked', () async {
+      var dropped = false;
+      urls.answer = (url) {
+        if (!dropped) {
+          dropped = true;
+          network.kind = NetworkKind.none;
+          return Failure(UrlUnreachable(url, 'synthetic'));
+        }
+        return Ok(url);
+      };
+      final done = repository.download(
+        target(const RecitationSurah(2)),
+        wifiOnly: true,
+      );
+      await pumpEventQueue();
+
+      expect(repository.jobs.single.state, isA<RecitationWaitingForNetwork>());
+      network.set(NetworkKind.unmetered);
+
+      expect(await done, isA<Ok<void>>());
+      expect(urls.checked, hasLength(2));
+    });
+
+    test(
+      'sends no request on mobile data when only Wi-Fi is allowed',
+      () async {
+        network.kind = NetworkKind.other;
+        final done = repository.download(
+          target(const RecitationSurah(2)),
+          wifiOnly: true,
+        );
+        await pumpEventQueue();
+
+        expect(urls.checked, isEmpty);
+        network.set(NetworkKind.unmetered);
+        await done;
+      },
+    );
+
+    test('asks where a host leads once for the job', () async {
+      await repository.download(
+        target(const WholeRecitation()),
+        wifiOnly: false,
+      );
+
+      expect(urls.checked, hasLength(1));
+      expect(downloads.orders, hasLength(5));
+    });
+
+    test('refuses a redirect the policy does not allow', () async {
+      urls.answer = (url) =>
+          Failure(UrlRefused(Uri.parse('http://example.invalid/'), from: url));
+
+      final result = await repository.download(
+        target(const RecitationSurah(2)),
+        wifiOnly: false,
+      );
+
+      expect(
+        result,
+        isA<Failure<void>>().having(
+          (f) => f.error,
+          'error',
+          isA<RecitationUrlRefused>(),
+        ),
+      );
+    });
+
     test('refuses a download already queued', () async {
       downloads.gates['/synthetic/q64/1_1.mp3'] = Completer();
       unawaited(
@@ -744,6 +852,108 @@ void main() {
         });
       },
     );
+
+    test('stopping the queue completes what waits in it', () async {
+      urls.gate = Completer();
+      final first = repository.download(
+        target(const RecitationSurah(1)),
+        wifiOnly: false,
+      );
+      final second = repository.download(
+        target(const RecitationSurah(2)),
+        wifiOnly: false,
+      );
+      await pumpEventQueue();
+
+      repository.dispose();
+      urls.gate!.complete();
+
+      expect(await second, isA<Failure<void>>());
+      expect(await first, isA<Failure<void>>());
+      repository = LocalRecitationDownloadRepository(
+        contents: (id) async => Ok(contents),
+        downloads: downloads,
+        urlCheck: urls,
+        connectivity: network,
+        freeSpace: space,
+        store: store,
+        policy: _policy,
+      );
+    });
+
+    test('the reciter\'s own files stay when a surah goes', () async {
+      final basmala = RecitationFile(
+        qualityKbps: 64,
+        part: RecitationFilePart.basmala,
+        surah: null,
+        ayah: null,
+        path: 'q64/basmala.mp3',
+        bytes: 40,
+        sha256: sha256.convert(List.filled(40, 7)).toString(),
+        duration: null,
+      );
+      downloads.bodies['/synthetic/q64/basmala.mp3'] = Uint8List.fromList(
+        List.filled(40, 7),
+      );
+      contents = RecitationContents(
+        recitationId: contents.recitationId,
+        packId: _pack,
+        baseUrl: contents.baseUrl,
+        unit: contents.unit,
+        files: [...contents.files, basmala],
+      );
+      await repository.download(
+        target(const WholeRecitation()),
+        wifiOnly: false,
+      );
+      expect(await File(finalPath(basmala)).exists(), isTrue);
+
+      await repository.delete(target(const RecitationSurah(1)));
+      expect(await File(finalPath(basmala)).exists(), isTrue);
+      expect(await File(finalPath(fileOf(64, 1, 1))).exists(), isFalse);
+      expect(await File(finalPath(fileOf(64, 2, 1))).exists(), isTrue);
+
+      await repository.delete(target(const WholeRecitation()));
+      expect(await File(finalPath(basmala)).exists(), isFalse);
+    });
+
+    test('counts the audio at every quality and removes all of it', () async {
+      await repository.download(
+        target(const RecitationSurah(1)),
+        wifiOnly: false,
+      );
+      await repository.download(
+        target(const RecitationSurah(2), quality: 128),
+        wifiOnly: false,
+      );
+      final staged = File('$audio/$_pack/staging/leftover.mp3');
+      await staged.parent.create(recursive: true);
+      await staged.writeAsBytes([1, 2, 3]);
+
+      expect(await repository.audioBytes(_pack), 5 * 40);
+
+      expect(await repository.deleteAudio(_pack), isA<Ok<void>>());
+
+      expect(await repository.audioBytes(_pack), 0);
+      expect(await Directory('$audio/$_pack').exists(), isFalse);
+    });
+
+    test('will not remove the audio of a pack with a job', () async {
+      urls.gate = Completer();
+      final running = repository.download(
+        target(const RecitationSurah(1)),
+        wifiOnly: false,
+      );
+      await pumpEventQueue();
+
+      expect(await repository.deleteAudio(_pack), isA<Failure<void>>());
+      expect(
+        await repository.delete(target(const RecitationSurah(2))),
+        isA<Failure<void>>(),
+      );
+      urls.gate!.complete();
+      await running;
+    });
 
     test('delete leaves the other quality alone', () async {
       await repository.download(
