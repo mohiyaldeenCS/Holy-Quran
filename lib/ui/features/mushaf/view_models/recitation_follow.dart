@@ -30,13 +30,18 @@ final class FollowRequest {
 /// [showReturn] offers the way to the recitation. A scroll the user makes
 /// ([userScrolled]) stops following until [resume]. In stand mode the reader
 /// follows whatever the user does (`SY-05`).
+///
+/// It also gives the floating player bar what it draws (Screens board): the
+/// address of the segment being heard, its reciter, and the actions on the
+/// player.
 final class RecitationFollow extends ChangeNotifier {
   RecitationFollow(this._player) {
     final player = _player;
     if (player == null) return;
     final state = player.state;
     _plan = state.plan;
-    _recited = _heard(state);
+    _recited = _heard(state, ayahOnly: true);
+    _heardNow = _heard(state);
     _following = _recited == null;
     _playing = state.playing;
     player.addListener(_onPlayer);
@@ -49,6 +54,7 @@ final class RecitationFollow extends ChangeNotifier {
   // nothing of the new plan until the player gives another.
   PlaybackSegment? _stale;
   QuranAddress? _recited;
+  QuranAddress? _heardNow;
   bool _following = true;
   bool _stand = false;
   bool _playing = false;
@@ -57,6 +63,13 @@ final class RecitationFollow extends ChangeNotifier {
   /// The ayah being recited, or null when the plan reached none, stopped, or
   /// has no ayah events.
   QuranAddress? get recited => _recited;
+
+  /// The ayah the segment being heard belongs to, a basmala's included, or
+  /// null while there is none: the player bar names it.
+  QuranAddress? get heard => _heardNow;
+
+  /// The reciter of the plan being played.
+  String? get reciter => _plan?.recitation.reciter;
 
   /// Whether the reader scrolls to each ayah as it is recited.
   bool get following => _following || _stand;
@@ -93,13 +106,29 @@ final class RecitationFollow extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Pauses the recitation, or goes on with it.
+  Future<void> playPause() => _run(_playing ? _player!.pause : _player!.resume);
+
+  Future<void> nextAyah() => _run(_player!.nextAyah);
+
+  // The bar's buttons fire without awaiting; a failure is reported.
+  Future<void> _run(Future<void> Function() action) async {
+    try {
+      await action();
+    } on Exception catch (error, stack) {
+      FlutterError.reportError(
+        FlutterErrorDetails(exception: error, stack: stack, library: 'player'),
+      );
+    }
+  }
+
   void _ask() {
     if (_recited case final ayah?) _request = FollowRequest(ayah);
   }
 
   void _onPlayer() {
     final state = _player!.state;
-    final before = (_recited, _following, _playing);
+    final before = (_recited, _heardNow, _plan, _following, _playing);
     if (!identical(state.plan, _plan)) {
       _stale = _plan == null ? null : state.segment;
       _plan = state.plan;
@@ -112,25 +141,29 @@ final class RecitationFollow extends ChangeNotifier {
     if (plan == null || state.stopReason != null || !plan.hasAyahBoundaries) {
       _recited = null;
       _following = true;
-    } else if (_heard(state) case final ayah? when ayah != _recited) {
+    } else if (_heard(state, ayahOnly: true) case final ayah?
+        when ayah != _recited) {
       _recited = ayah;
       if (_following) _ask();
     }
+    _heardNow = _heard(state);
     _playing = state.playing;
-    if (before != (_recited, _following, _playing)) notifyListeners();
+    if (before != (_recited, _heardNow, _plan, _following, _playing)) {
+      notifyListeners();
+    }
   }
 
   // The ayah of the segment being heard, once the plan has one of its own. A
   // basmala or an isti'adha names the ayah it comes before, which is not
-  // heard yet, so the ayah before it stays recited.
-  QuranAddress? _heard(PlayerState state) {
+  // heard yet, so only with [ayahOnly] false does it count.
+  QuranAddress? _heard(PlayerState state, {bool ayahOnly = false}) {
     final plan = state.plan;
     final segment = state.segment;
     if (plan == null ||
         !plan.hasAyahBoundaries ||
         state.stopReason != null ||
         segment == null ||
-        segment.kind != SegmentKind.ayah ||
+        (ayahOnly && segment.kind != SegmentKind.ayah) ||
         identical(segment, _stale)) {
       return null;
     }

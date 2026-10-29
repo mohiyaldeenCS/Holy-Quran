@@ -59,6 +59,12 @@ abstract final class ReaderScreenMetrics {
   /// choice, not a drawn value.
   static const double pinchFocus = 0.5;
 
+  /// The player bar under the reader, `margin: 0 16px 20px`
+  /// (`Screens.dc.html`, the paper reader with tajweed colours, the bar
+  /// `height: 68px`).
+  static const EdgeInsetsDirectional playerBarPadding =
+      EdgeInsetsDirectional.fromSTEB(16, 0, 16, 20);
+
   /// How far down the viewport the ayah being recited is put when following
   /// scrolls to it: a quarter, so that the lines just recited stay above it.
   /// An engineering choice, not a drawn value.

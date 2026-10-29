@@ -163,6 +163,28 @@ final class MushafViewModel extends ChangeNotifier {
   /// it whatever a tap says.
   bool get distractionFree => _distractionFree || _standMode;
 
+  /// The name of the surah being recited, for the player bar; null when
+  /// nothing is recited, as with a plan of whole surahs, or the pack's
+  /// surahs cannot be read.
+  PackText? get playerSurahName {
+    final heard = follow.heard;
+    final names = _index?.surahs;
+    if (heard == null || names == null || heard.surah > names.length) {
+      return null;
+    }
+    return names[heard.surah - 1].name;
+  }
+
+  /// Whether the reader owns the player controls while a recitation plays or
+  /// is paused: it draws the player bar in place of the shell's mini player
+  /// (Screens board, the reader while reciting).
+  bool get hasPlayerBar =>
+      status == ReaderStatus.ready && playerSurahName != null;
+
+  /// Whether the player bar is drawn: the distraction-free state and stand
+  /// mode hide it with the rest of the interface.
+  bool get showPlayerBar => hasPlayerBar && !distractionFree;
+
   /// Whether the reader is on a stand (`SY-05`): the interface hidden, the
   /// recitation followed on its own, the screen kept on.
   bool get standMode => _standMode;

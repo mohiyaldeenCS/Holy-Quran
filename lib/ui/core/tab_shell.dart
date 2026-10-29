@@ -13,7 +13,8 @@ import 'package:provider/provider.dart';
 /// [ShellChrome] above it may hide. Tapping the current tab returns its
 /// branch to the branch's first screen. Above the tab bar, the mini player
 /// of [miniPlayer] shows while a recitation plays or is paused, except on
-/// the listen tab, whose screen is the full player.
+/// the listen tab, whose screen is the full player, and while the
+/// [ShellChrome] hides it for a reader that draws its own player bar.
 class TabShell extends StatefulWidget {
   const TabShell({required this.navigationShell, this.miniPlayer, super.key});
 
@@ -59,7 +60,13 @@ class _TabShellState extends State<TabShell> {
     final tabBarVisible = context.select<ShellChrome, bool>(
       (chrome) => chrome.tabBarVisible,
     );
-    final mini = _shell.currentIndex == ShellTab.listen.index || source == null
+    final miniVisible = context.select<ShellChrome, bool>(
+      (chrome) => chrome.miniPlayerVisible,
+    );
+    final mini =
+        _shell.currentIndex == ShellTab.listen.index ||
+            !miniVisible ||
+            source == null
         ? null
         : source.build(context);
     return Scaffold(
