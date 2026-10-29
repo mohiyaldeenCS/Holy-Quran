@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'android_colors_writer.dart';
 import 'dart_format.dart';
 import 'generator_error.dart';
 import 'icons_reader.dart';
@@ -17,7 +18,8 @@ const iconsOutputPath = 'lib/ui/core/widgets/icon_paths.g.dart';
 const usage =
     'Usage: dart run tools/gen/bin/generate.dart [--check]\n'
     '\n'
-    'Writes $tokensOutputPath, $rampsOutputPath and $iconsOutputPath\n'
+    'Writes $tokensOutputPath, $rampsOutputPath, $iconsOutputPath\n'
+    'and $androidColorsOutputPath\n'
     'from the identity in design/design-system/.\n'
     '\n'
     '  --check   Write nothing; exit 1 and list the files that would change.\n'
@@ -51,6 +53,10 @@ Future<Map<String, String>> generateAll(String root) async {
   return {
     for (final MapEntry(key: path, value: source) in unformatted.entries)
       path: _requireAscii(await formatDart(source, path: '$root/$path'), path),
+    androidColorsOutputPath: _requireAscii(
+      writeAndroidColors(tokens),
+      androidColorsOutputPath,
+    ),
   };
 }
 

@@ -14,7 +14,13 @@ Matcher throwsGeneratorError(String fragment) => throwsA(
 void main() {
   test('literal colours are ramps; theme maps and aliases are semantic', () {
     final tokens = readTokens(encode(syntheticTokens()));
-    expect(tokens.ramps.map((r) => r.name), ['base-100', 'base-900']);
+    expect(tokens.ramps.map((r) => r.name), [
+      'base-100',
+      'base-900',
+      'emerald-700',
+      'gold-400',
+      'paper-100',
+    ]);
     expect(tokens.colors.map((c) => c.name), ['ground', 'ink', 'text-ink']);
   });
 

@@ -43,8 +43,9 @@ read either. Every output must be ASCII, so nothing Arabic can reach it.
 | `lib/ui/core/theme/tokens.g.dart` | `AppColors` and `AppShadows` (theme extensions: one instance per theme, `byId`, `copyWith`, `lerp`), `AppFonts`, `AppTextStyles`, `AppSpacing`, `AppRadius`, `AppSizes` |
 | `lib/ui/core/theme/ramps.g.dart` | `Ramps`: every colour token whose value is a literal, not a theme map or an alias |
 | `lib/ui/core/widgets/icon_paths.g.dart` | `enum IconName` in `ICONS` order and then the project icons, `isIconFilled`, `buildIconPath` (24 grid), `buildMarkBookPath` (120 grid) |
+| `android/app/src/main/res/values/brand_colors.xml` | The ramp colours the launcher icon and the launch screen draw with (`emerald-700`, `gold-400`, `paper-100`) as Android colours named `brand_emerald_700` and so on (D-117). The vector drawables next to it name them and never write a hex |
 
-Each file starts with a header naming its sources and this command. Never edit them;
+Each file starts with a header naming its sources and this command (the XML file holds it in a comment). Never edit them;
 change the source in `design/` (only with the owner's approval) and re-run.
 
 ## Conversions
@@ -105,4 +106,6 @@ Unit tests on synthetic sources (`test/synthetic_sources.dart`) for colours, sha
 alias resolution and its errors, ignored fields, fonts, icon extraction and its errors,
 `--check` and the exit codes; tests on the real sources for the 26 icons, the filled
 pair, determinism and the absence of Arabic text; and a compile check that imports the
-three outputs and uses them.
+three Dart outputs and uses them. `android_colors_test.dart` covers the XML output and
+`android_assets_test.dart` checks the launcher icon and launch screen against the logo
+SVGs: their pinned hashes, shape for shape, and that no native file writes a colour.

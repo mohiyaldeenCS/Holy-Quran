@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GENERATED CODE. DO NOT EDIT BY HAND.
+     Generated from design/design-system/tokens.json
+     by `dart run tools/gen/bin/generate.dart` (see tools/gen/README.md). -->
+<resources>
+    <color name="brand_emerald_700">#0E5A52</color>
+    <color name="brand_gold_400">#D9AE5A</color>
+    <color name="brand_paper_100">#F8F2E4</color>
+</resources>

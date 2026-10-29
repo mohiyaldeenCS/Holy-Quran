@@ -9,7 +9,7 @@
          stay on the device: no cloud backup and no device-to-device transfer
          (docs/ARCHITECTURE.md, "Privacy and security"). -->
     <application
-        android:label="holyquran"
+        android:label="@string/app_name"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"

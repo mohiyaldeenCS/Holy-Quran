@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- design/design-system/assets/Logos/app-icon-mono.svg, without its tile.
+     The system tints the layer for the themed icon; placement as in
+     ic_launcher_foreground. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="135"
+    android:viewportHeight="135">
+    <group
+        android:translateX="7.5"
+        android:translateY="7.5">
+        <path
+            android:pathData="M32 32h56v56h-56z"
+            android:strokeColor="@color/brand_emerald_700"
+            android:strokeLineJoin="round"
+            android:strokeWidth="2.4" />
+        <group
+            android:pivotX="60"
+            android:pivotY="60"
+            android:rotation="45">
+            <path
+                android:pathData="M32 32h56v56h-56z"
+                android:strokeColor="@color/brand_emerald_700"
+                android:strokeLineJoin="round"
+                android:strokeWidth="2.4" />
+        </group>
+        <path
+            android:fillColor="@color/brand_emerald_700"
+            android:pathData="M58 52C52 47.5 44 47 38.5 49.5V72C44 69.8 52 70.3 58 74.5zM62 52C68 47.5 76 47 81.5 49.5V72C76 69.8 68 70.3 62 74.5z" />
+        <path
+            android:fillColor="@color/brand_emerald_700"
+            android:pathData="M57.4 39.5a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0 -5.2 0z" />
+    </group>
+</vector>
