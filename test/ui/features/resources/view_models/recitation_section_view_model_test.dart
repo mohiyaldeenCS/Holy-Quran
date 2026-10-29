@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/domain/models/recitation_download.dart';
@@ -28,6 +30,8 @@ Future<RecitationSectionViewModel> _viewModel({
   bool basmala = false,
   int packBytes = 0,
   DownloadSettingsRepository? settings,
+  Duration refreshEvery = Duration.zero,
+  bool disposeAtEnd = true,
 }) async {
   final catalogue = syntheticCatalogue();
   _installs = FakePackInstallRepository(
@@ -53,9 +57,9 @@ Future<RecitationSectionViewModel> _viewModel({
     downloads: _downloads,
     settings: _settings,
     index: withIndex ? FakeQuranIndexRepository.synthetic() : null,
-    refreshEvery: Duration.zero,
+    refreshEvery: refreshEvery,
   );
-  addTearDown(viewModel.dispose);
+  if (disposeAtEnd) addTearDown(viewModel.dispose);
   addTearDown(_integrity.dispose);
   await pumpEventQueue();
   return viewModel;
@@ -78,6 +82,30 @@ Future<void> _settle() async {
 }
 
 void main() {
+  test('counts nothing and tells nobody once it is disposed', () async {
+    const refreshEvery = Duration(milliseconds: 20);
+    final viewModel = await _viewModel(
+      refreshEvery: refreshEvery,
+      disposeAtEnd: false,
+    );
+    int counts() => _downloads.calls.where((c) => c.$1 == 'present').length;
+    _downloads.arrive({ayahPath(64, 1, 1)});
+    await _settle();
+    final before = counts();
+    var told = 0;
+    viewModel.addListener(() => told++);
+
+    _downloads.arrive({ayahPath(64, 1, 2)});
+    final toldBefore = told;
+    viewModel.dispose();
+    _downloads.arrive({ayahPath(64, 1, 3)});
+    await _settings.setQuality(recitationId, 128);
+    await Future<void>.delayed(refreshEvery * 4);
+
+    expect(counts(), before);
+    expect(told, toldBefore);
+  });
+
   group('the listing', () {
     test('holds the recitations with a complete rights record', () async {
       final viewModel = await _viewModel();
@@ -536,6 +564,24 @@ void main() {
         expect(viewModel.settingNotSaved, isTrue);
       },
     );
+
+    test('reads the files again at the stored quality when the choice is not '
+        'saved', () async {
+      final flaky = FlakyDownloadSettings(qualities: {recitationId: 64});
+      final viewModel = await _viewModel(settings: flaky);
+      final hold = Completer<void>();
+      flaky.hold = hold.future;
+      viewModel.selectQuality(recitationId, 128);
+      await _settle();
+
+      _downloads.arrive({ayahPath(64, 3, 1)});
+      await _settle();
+      hold.complete();
+      await _settle();
+
+      expect(_block(viewModel).quality, 64);
+      expect(_surah(_block(viewModel), 3).status, ScopeStatus.downloaded);
+    });
 
     test('ignores a stored quality the catalogue no longer lists', () async {
       final viewModel = await _viewModel(quality: 320);

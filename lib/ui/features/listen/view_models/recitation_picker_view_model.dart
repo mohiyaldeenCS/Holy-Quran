@@ -64,9 +64,9 @@ final class RecitationPickerViewModel extends ChangeNotifier {
     _settings,
   ]);
 
-  /// How much of each installed recitation is on the device, by pack id, at
-  /// the quality chosen, as last read.
-  Map<String, AudioCoverage> _coverage = const {};
+  /// How much of each installed recitation is on the device, by pack id, as
+  /// last read, with the quality it was read at.
+  Map<String, ({int quality, AudioCoverage coverage})> _coverage = const {};
   int _revisionSeen = 0;
   Object? _installedSeen;
   Set<String> _jobKeys = const {};
@@ -91,8 +91,17 @@ final class RecitationPickerViewModel extends ChangeNotifier {
       state: state,
       partial:
           state is ResourceAvailable &&
-          _coverage[listed.packId] == AudioCoverage.partial,
+          _coverageOf(listed) == AudioCoverage.partial,
     );
+  }
+
+  /// What was read, if it was read at the quality now chosen: a row never
+  /// shows the state of another quality while the new one is counted.
+  AudioCoverage? _coverageOf(CatalogueRecitation listed) {
+    final read = _coverage[listed.packId];
+    return read != null && read.quality == _qualityOf(listed)
+        ? read.coverage
+        : null;
   }
 
   ResourceState? _stateOf(CatalogueRecitation listed) {
@@ -124,9 +133,7 @@ final class RecitationPickerViewModel extends ChangeNotifier {
       RecitationQueued() => const ResourceDownloading(InstallQueued()),
       _ when pack is ResourceDownloading || pack is ResourceUpdateAvailable =>
         pack,
-      _
-          when installed != null &&
-              _coverage[listed.packId] == AudioCoverage.whole =>
+      _ when installed != null && _coverageOf(listed) == AudioCoverage.whole =>
         ResourceDownloaded(installed.version),
       _ => const ResourceAvailable(),
     };
@@ -188,7 +195,17 @@ final class RecitationPickerViewModel extends ChangeNotifier {
     try {
       do {
         _readAgain = false;
-        await _countAudio();
+        try {
+          await _countAudio();
+        } on Exception catch (error, stack) {
+          FlutterError.reportError(
+            FlutterErrorDetails(
+              exception: error,
+              stack: stack,
+              library: 'recitation picker',
+            ),
+          );
+        }
       } while (_readAgain && !_disposed);
     } finally {
       _reading = false;
@@ -198,7 +215,7 @@ final class RecitationPickerViewModel extends ChangeNotifier {
   Future<void> _countAudio() async {
     final downloads = _downloads;
     if (downloads == null) return;
-    final found = <String, AudioCoverage>{};
+    final found = <String, ({int quality, AudioCoverage coverage})>{};
     for (final listed
         in _recitations?.recitations ?? const <CatalogueRecitation>[]) {
       if (_installs?.installed.any((p) => p.id == listed.packId) != true) {
@@ -206,9 +223,12 @@ final class RecitationPickerViewModel extends ChangeNotifier {
       }
       if (await downloads.contents(listed.id) case Ok(:final value)) {
         final quality = _qualityOf(listed);
-        found[listed.packId] = value.coverageAt(
-          quality,
-          await downloads.present(value, quality),
+        found[listed.packId] = (
+          quality: quality,
+          coverage: value.coverageAt(
+            quality,
+            await downloads.present(value, quality),
+          ),
         );
       }
     }

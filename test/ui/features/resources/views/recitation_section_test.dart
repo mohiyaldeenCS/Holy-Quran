@@ -575,6 +575,15 @@ void main() {
       );
     });
 
+    testWidgets('offers no delete of its pack row before it is installed', (
+      tester,
+    ) async {
+      await _pump(tester, installed: false);
+
+      expect(find.text(_l10n.resourceDownload), findsWidgets);
+      expect(find.text(_l10n.resourceDelete), findsNothing);
+    });
+
     testWidgets('shows the space its recitations use', (tester) async {
       await _pump(tester);
 

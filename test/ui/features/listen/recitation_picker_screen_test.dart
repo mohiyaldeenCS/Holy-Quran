@@ -352,6 +352,111 @@ void main() {
       );
     });
 
+    testWidgets('shows no state of another quality while the chosen one is '
+        'counted', (tester) async {
+      final installs = FakePackInstallRepository(
+        installed: [_installed('synthetic-recitation')],
+      );
+      final downloads = FakeRecitationDownloadRepository()
+        ..onDevice = {
+          for (final MapEntry(key: surah, value: ayat) in ayatOfSurah.entries)
+            for (var a = 1; a <= ayat; a++) ayahPath(128, surah, a),
+        };
+      final settings = InMemoryDownloadSettingsRepository(
+        qualities: {'synthetic-listed': 128},
+      );
+      await _pump(
+        tester,
+        _viewModel(
+          installs: installs,
+          downloads: downloads,
+          settings: settings,
+        ),
+      );
+      expect(
+        find.text(_line([_style, _l10n.resourceDownloaded])),
+        findsOneWidget,
+      );
+      final held = Completer<void>();
+      downloads.presentHeld = held.future;
+
+      await settings.setQuality('synthetic-listed', 64);
+      await tester.pump();
+
+      expect(
+        find.text(_line([_style, _l10n.resourceDownloaded])),
+        findsNothing,
+      );
+      expect(
+        find.text(_line([_style, _l10n.resourceAvailable])),
+        findsOneWidget,
+      );
+      downloads.presentHeld = null;
+      held.complete();
+      await tester.pump();
+    });
+
+    testWidgets('reports a count that failed and still makes the one that '
+        'came meanwhile', (tester) async {
+      final installs = FakePackInstallRepository(
+        installed: [_installed('synthetic-recitation')],
+      );
+      final held = Completer<void>();
+      final downloads = FakeRecitationDownloadRepository()
+        ..presentHeld = held.future
+        ..presentFails = Exception('synthetic');
+      final reported = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = reported.add;
+      addTearDown(() => FlutterError.onError = previous);
+      _viewModel(installs: installs, downloads: downloads);
+      await tester.pump();
+      int counts() => downloads.calls.where((c) => c.$1 == 'present').length;
+      expect(counts(), 1);
+      downloads.jobs = [
+        jobFor(
+          RecitationTarget(syntheticContents(), 64, const RecitationSurah(1)),
+          const RecitationQueued(),
+        ),
+      ];
+
+      downloads.presentHeld = null;
+      held.complete();
+      await tester.pump();
+      await tester.pump();
+
+      expect(reported, hasLength(1));
+      expect(counts(), 2);
+    });
+
+    testWidgets('counts nothing and tells nobody once it is disposed', (
+      tester,
+    ) async {
+      final installs = FakePackInstallRepository(
+        installed: [_installed('synthetic-recitation')],
+      );
+      final downloads = FakeRecitationDownloadRepository();
+      final settings = InMemoryDownloadSettingsRepository();
+      final viewModel = RecitationPickerViewModel(
+        recitations: FakeRecitationRepository(_catalogue.recitations),
+        catalogue: FakeCatalogueRepository(_catalogue),
+        installs: installs,
+        downloads: downloads,
+        settings: settings,
+      );
+      await tester.pump();
+      int counts() => downloads.calls.where((c) => c.$1 == 'present').length;
+      downloads.arrive({ayahPath(128, 1, 1)});
+      final before = counts();
+
+      viewModel.dispose();
+      downloads.arrive({ayahPath(128, 1, 2)});
+      await settings.setQuality('synthetic-listed', 64);
+      await tester.pump(recitationCountEvery * 2);
+
+      expect(counts(), before);
+    });
+
     testWidgets('says a download is queued or waits for the network', (
       tester,
     ) async {

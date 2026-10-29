@@ -123,6 +123,9 @@ final class FakeRecitationDownloadRepository extends ChangeNotifier
 
   /// While set, [present] waits for it before it answers.
   Future<void>? presentHeld;
+
+  /// The next count of the files on the device throws this, once.
+  Exception? presentFails;
   int _presentRunning = 0;
 
   /// The most counts of the files on the device that ran at one time.
@@ -158,6 +161,10 @@ final class FakeRecitationDownloadRepository extends ChangeNotifier
     mostPresentRunning = max(mostPresentRunning, ++_presentRunning);
     await presentHeld;
     _presentRunning--;
+    if (presentFails case final failure?) {
+      presentFails = null;
+      throw failure;
+    }
     return {
       for (final file in contents.files)
         if (file.qualityKbps == quality && onDevice.contains(file.path))
@@ -217,6 +224,9 @@ final class FlakyDownloadSettings extends DownloadSettingsRepository {
 
   bool failing = true;
 
+  /// While set, a write waits for it before it succeeds or fails.
+  Future<void>? hold;
+
   @override
   bool wifiOnly;
   final Map<String, int> _qualities;
@@ -226,6 +236,7 @@ final class FlakyDownloadSettings extends DownloadSettingsRepository {
 
   @override
   Future<Result<void>> setWifiOnly(bool wifiOnly) async {
+    await hold;
     if (failing) return Failure(Exception('synthetic'));
     this.wifiOnly = wifiOnly;
     notifyListeners();
@@ -234,6 +245,7 @@ final class FlakyDownloadSettings extends DownloadSettingsRepository {
 
   @override
   Future<Result<void>> setQuality(String recitationId, int kbps) async {
+    await hold;
     if (failing) return Failure(Exception('synthetic'));
     _qualities[recitationId] = kbps;
     notifyListeners();
