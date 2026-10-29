@@ -620,8 +620,6 @@ final class LocalPackInstallRepository extends ChangeNotifier
     }
   }
 
-  /// Reads the installed packs; a [Failure] names the first manifest that
-  /// could not be read, and that pack is left out.
   /// Reads the packs again after the files of [packId] changed, and tells of
   /// the change whether or not the read worked: what was said of the old
   /// files must not outlive them.
@@ -633,6 +631,8 @@ final class LocalPackInstallRepository extends ChangeNotifier
     }
   }
 
+  /// Reads the installed packs; a [Failure] names the first manifest that
+  /// could not be read, and that pack is left out.
   Future<Result<void>> _reload() async {
     final packs = <InstalledPack>[];
     Exception? problem;

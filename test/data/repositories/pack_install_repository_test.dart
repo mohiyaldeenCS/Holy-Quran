@@ -752,6 +752,25 @@ void main() {
       expect(exists('packs/$_text'), isFalse);
     });
 
+    test('tells of an installed pack even when the read of the packs that '
+        'follows fails', () async {
+      final changed = <String>[];
+      final repository = await started(onPackChanged: changed.add);
+      await install(repository, _other, 1);
+      changed.clear();
+      final manifest = File('${support.path}/packs/$_other/1/manifest.json');
+      await manifest.delete();
+      await Directory(manifest.path).create();
+
+      expect(
+        await install(repository, _text, 1),
+        failedWith(isA<StoreFailed>()),
+      );
+
+      expect(changed, [_text]);
+      expect(exists('packs/$_text/1'), isTrue);
+    });
+
     test('does not tell of a delete that failed', () async {
       final changed = <String>[];
       final repository = await started(onPackChanged: changed.add);
