@@ -11,6 +11,7 @@ import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/routing/routes/note_location.dart';
 import 'package:holyquran/routing/routes/sheet_needs.dart';
 import 'package:holyquran/ui/core/metrics/ayah_sheet_metrics.dart';
+import 'package:holyquran/ui/core/metrics/sheet_rows_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/ayah_row.dart';
@@ -18,7 +19,6 @@ import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/core/widgets/copy_sheet.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
 import 'package:holyquran/ui/core/widgets/pressable.dart';
-import 'package:holyquran/ui/core/widgets/surah_name.dart';
 import 'package:holyquran/ui/features/sheets/view_models/ayah_sheet_view_model.dart';
 import 'package:holyquran/ui/features/sheets/views/tafsir_passage_block.dart';
 
@@ -46,7 +46,6 @@ class AyahSheetView extends StatelessWidget {
         return const CopySheetFrame(children: []);
       }
       final l10n = AppLocalizations.of(context);
-      final colors = context.colors;
       final router = GoRouter.maybeOf(context);
       final address = viewModel.address;
       bool hasPage(String location) =>
@@ -62,15 +61,7 @@ class AyahSheetView extends StatelessWidget {
       return CopySheetFrame(
         children: [
           if (surahName != null)
-            Semantics(
-              header: true,
-              child: SurahName(
-                surahName,
-                format: SurahNameFormat.titledWithAyah,
-                ayah: address.ayah,
-                style: AppTextStyles.sectionTitle.copyWith(color: colors.ink),
-              ),
-            ),
+            CopySheetTitle.surahWithAyah(surahName, ayah: address.ayah),
           AyahRow(number: address.ayah, text: ayah),
           if (tafsirShown)
             _Section(
@@ -192,14 +183,14 @@ class _NoteTile extends StatelessWidget {
       hint: AppLocalizations.of(context).noteEdit,
       child: Pressable(
         onPressed: onPressed,
-        focusRadius: ayahSheetNoteRadius,
+        focusRadius: sheetRowsRadius,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: AppSizes.targetMin),
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: colors.surfaceSunk,
               border: Border.all(color: colors.line),
-              borderRadius: ayahSheetNoteRadius,
+              borderRadius: sheetRowsRadius,
             ),
             child: Padding(
               padding: ayahSheetNotePadding,

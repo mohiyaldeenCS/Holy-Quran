@@ -13,6 +13,7 @@ import 'package:holyquran/ui/core/tafsir/source_details_sheet.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/ayah_row.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
+import 'package:holyquran/ui/core/widgets/copy_sheet.dart';
 import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/pressable.dart';
 import 'package:holyquran/ui/core/widgets/source_badge.dart';
@@ -49,6 +50,8 @@ Future<GoRouter> _open(
   QuranAddress? ayah,
   bool tafsirs = true,
   bool userData = true,
+  bool tags = true,
+  bool categories = true,
   bool player = true,
   ReadingTheme theme = ReadingTheme.paper,
   double textScale = 1,
@@ -59,6 +62,8 @@ Future<GoRouter> _open(
     world,
     tafsirs: tafsirs,
     userData: userData,
+    tags: tags,
+    categories: categories,
     player: player,
     theme: theme,
     textScale: textScale,
@@ -86,11 +91,18 @@ void main() {
       );
       expect(row.text, ayah);
       expect(row.number, 2);
+      // The title is the sheet frame's, as the copy and note sheets have it.
+      expect(
+        find.descendant(of: _sheet, matching: find.byType(CopySheetTitle)),
+        findsOneWidget,
+      );
       final title = tester.widget<SurahName>(
         find.descendant(of: _sheet, matching: find.byType(SurahName)),
       );
       expect(title.format, SurahNameFormat.titledWithAyah);
       expect(title.ayah, 2);
+      expect(title.style.fontSize, 19);
+      expect(title.style.fontWeight, FontWeight.w600);
       final surahs = await tester.runAsync(world.fixture.quran.surahs);
       expect(title.name, (surahs! as Ok<List<SurahInfo>>).value.first.name);
     });
@@ -333,6 +345,44 @@ void main() {
 
       expect(_heading(sheetsL10n.bookmarksTabNotes), findsNothing);
       expect(_button(sheetsL10n.noteAdd), findsNothing);
+    });
+
+    for (final (name, tags, categories) in [
+      ('tags', false, true),
+      ('categories', true, false),
+    ]) {
+      sheetsTest('is not shown without the $name, which the note sheet needs', (
+        tester,
+        world,
+      ) async {
+        await world.note(world.ayah(1, 2), 'نص أول');
+        await _open(tester, world, tags: tags, categories: categories);
+
+        expect(_heading(sheetsL10n.bookmarksTabNotes), findsNothing);
+        expect(_button(sheetsL10n.noteAdd), findsNothing);
+        expect(find.text('نص أول'), findsNothing);
+      });
+    }
+
+    sheetsTest('a note is the sunk box of .qk-sheet-rows, 20 round, 18 in, '
+        'with the row padding of 12 inside it', (tester, world) async {
+      await world.note(world.ayah(1, 2), 'نص أول');
+      await _open(tester, world);
+
+      final box = find.descendant(
+        of: tile('نص أول'),
+        matching: find.byType(DecoratedBox),
+      );
+      final decoration =
+          tester.widget<DecoratedBox>(box.first).decoration as BoxDecoration;
+      expect(decoration.borderRadius, BorderRadius.circular(20));
+      final padding = tester.widget<Padding>(
+        find.descendant(of: box.first, matching: find.byType(Padding)).first,
+      );
+      expect(
+        padding.padding,
+        const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      );
     });
 
     sheetsTest('a note is a labelled button of at least 48', (

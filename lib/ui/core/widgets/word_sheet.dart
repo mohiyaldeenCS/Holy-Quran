@@ -8,6 +8,7 @@ import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/word_span.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
+import 'package:holyquran/ui/core/metrics/sheet_rows_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/focus_ring.dart';
@@ -36,10 +37,8 @@ const double _hitOutset = (AppSizes.targetMin - _tabHeight) / 2;
 // further out.
 const double _stripInsetX = 2;
 const double _stripInsetY = AppSpacing.space1;
-// .qk-sheet-rows: border-radius 20px; padding 4px 18px.
-const BorderRadius _rowsRadius = BorderRadius.all(Radius.circular(20));
-const double _rowsInsetX = 18;
-const double _rowsInsetY = AppSpacing.space1;
+// .qk-sheet-rows (sheet_rows_metrics.dart): border-radius 20px; padding 4px
+// 18px.
 // .qk-sheet-row: gap var(--space-4).
 const double _rowGap = AppSpacing.space4;
 
@@ -402,12 +401,9 @@ class _Rows extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surfaceSunk,
         border: Border.all(color: colors.line),
-        borderRadius: _rowsRadius,
+        borderRadius: sheetRowsRadius,
       ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: _rowsInsetX,
-        vertical: _rowsInsetY,
-      ),
+      padding: sheetRowsPadding,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,

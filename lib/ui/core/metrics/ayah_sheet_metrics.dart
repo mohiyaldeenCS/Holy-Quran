@@ -1,5 +1,6 @@
 import 'package:flutter/painting.dart';
 
+import 'package:holyquran/ui/core/metrics/sheet_rows_metrics.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 
 // The mini ayah sheet is not drawn (docs/DESIGN_SYSTEM.md, "Screens";
@@ -19,10 +20,11 @@ const EdgeInsets ayahSheetSectionPadding = EdgeInsets.only(
 const double ayahSheetContentGap = AppSpacing.space3;
 
 /// A note of the user's, drawn as the notes of the bookmarks list are: the
-/// box of `.qk-sheet-rows` (`border-radius: 20px; padding: 4px 18px`) with
-/// the row's `padding: var(--space-3) 0` inside it.
-const BorderRadius ayahSheetNoteRadius = BorderRadius.all(Radius.circular(20));
+/// box of `.qk-sheet-rows` (radius and insets shared in
+/// `sheet_rows_metrics.dart`) with the row's `padding: var(--space-3) 0`
+/// inside it, as `.qk-sheet-row` sits in `.qk-sheet-rows`.
+const double ayahSheetNoteRowInsetY = AppSpacing.space3;
 const EdgeInsets ayahSheetNotePadding = EdgeInsets.symmetric(
-  horizontal: 18,
-  vertical: AppSpacing.space1 + AppSpacing.space3,
+  horizontal: sheetRowsInsetX,
+  vertical: sheetRowsInsetY + ayahSheetNoteRowInsetY,
 );

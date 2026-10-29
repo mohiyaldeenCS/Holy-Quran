@@ -200,6 +200,8 @@ Future<GoRouter> pumpSheetsApp(
   bool text = true,
   bool tafsirs = true,
   bool userData = true,
+  bool tags = true,
+  bool categories = true,
   bool player = true,
   ReadingTheme theme = ReadingTheme.paper,
   double textScale = 1,
@@ -232,8 +234,10 @@ Future<GoRouter> pumpSheetsApp(
           ),
         if (userData) ...[
           ChangeNotifierProvider<NoteRepository>.value(value: world.notes),
-          ChangeNotifierProvider<TagRepository>.value(value: world.tags),
-          Provider<CategoryRepository>.value(value: world.categories),
+          if (tags)
+            ChangeNotifierProvider<TagRepository>.value(value: world.tags),
+          if (categories)
+            Provider<CategoryRepository>.value(value: world.categories),
         ],
         if (player) ...[
           ChangeNotifierProvider<PlayerRepository>.value(value: world.player),
