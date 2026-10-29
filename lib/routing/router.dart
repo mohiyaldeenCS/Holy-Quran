@@ -54,9 +54,10 @@ final List<FeatureRoutes> appFeatures = [
 GoRouter createRouter({List<FeatureRoutes>? features}) {
   final all = features ?? appFeatures;
   late final GoRouter router;
+  final startup = StartupRedirect();
   router = GoRouter(
     initialLocation: Routes.home,
-    redirect: _redirect,
+    redirect: (context, state) => _redirect(context, state, startup),
     // No route matches: go home rather than show go_router's English page.
     onException: (context, state, router) => router.go(Routes.home),
     routes: [
@@ -119,7 +120,11 @@ GoRoute _tabRoute(ShellTab tab, List<FeatureRoutes> features) {
 }
 
 /// A location whose address or surah is malformed is treated as unknown.
-FutureOr<String?> _redirect(BuildContext context, GoRouterState state) {
+FutureOr<String?> _redirect(
+  BuildContext context,
+  GoRouterState state,
+  StartupRedirect startup,
+) {
   final parameters = state.pathParameters;
   if ((parameters.containsKey(Routes.addressParameter) &&
           Routes.addressOf(state) == null) ||
@@ -127,5 +132,5 @@ FutureOr<String?> _redirect(BuildContext context, GoRouterState state) {
           Routes.surahOf(state) == null)) {
     return Routes.home;
   }
-  return startupRedirect(context, state);
+  return startup(context, state);
 }
