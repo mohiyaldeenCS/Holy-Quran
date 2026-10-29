@@ -136,6 +136,14 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
       }
       _focus.keep(layout);
     }
+    // The surahs above the focus change height with the step too, and a jump
+    // to keep the first visible line would move the scroll under the
+    // stepper, which anchors the ayah under the fingers once the focus
+    // surah's plan arrives.
+    if (_stepping) {
+      _loadNextIfNear();
+      return;
+    }
     final pending = _pendingAnchor;
     final target = pending ?? _model.position?.address;
     if (target != null && target.surah == layout.text.surah) {
