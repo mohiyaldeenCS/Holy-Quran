@@ -60,7 +60,7 @@ abstract final class ReaderScreenMetrics {
   static const double pinchFocus = 0.5;
 
   /// The player bar under the reader, `margin: 0 16px 20px`
-  /// (`Screens.dc.html`, the paper reader with tajweed colours, the bar
+  /// (`Screens.dc.html` l.88, the paper reader with tajweed colours, the bar
   /// `height: 68px`).
   static const EdgeInsetsDirectional playerBarPadding =
       EdgeInsetsDirectional.fromSTEB(16, 0, 16, 20);
@@ -70,9 +70,9 @@ abstract final class ReaderScreenMetrics {
   /// An engineering choice, not a drawn value.
   static const double followLead = 0.25;
 
-  /// How many scrolls one ask to follow may take: the extent of the text not
-  /// yet laid out is an estimate, so a far ayah is reached in steps. An
-  /// engineering margin, not a drawn value.
+  /// How many scrolls one ask to follow may take: the scroll's extent can
+  /// fall short of the text's until its blocks are laid out, so a far ayah is
+  /// reached in steps. An engineering margin, not a drawn value.
   static const int followSteps = 8;
 
   /// The message of a reader with no verified pack, inset as a screen's

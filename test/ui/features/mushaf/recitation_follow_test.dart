@@ -148,18 +148,50 @@ void main() {
     expect(follow.request!.address, ayahAt(2, 5));
   });
 
-  test('a new plan follows again', () async {
+  test('a plan that reaches another ayah follows again', () async {
     final plan = recitationPlan();
     player.reach(plan, ayahSegment(2, 5));
     follow.userScrolled();
 
-    await player.play(recitationPlan());
+    final next = recitationPlan();
+    await player.play(next);
+    expect(follow.following, isFalse);
+    player.reach(next, ayahSegment(2, 30));
 
     expect(follow.following, isTrue);
     expect(follow.showReturn, isFalse);
+    expect(follow.request!.address, ayahAt(2, 30));
   });
 
-  test('the ayah the player holds from the plan before is not recited', () {
+  test('a plan rebuilt at the ayah being recited goes on as it was', () async {
+    player.reach(recitationPlan(), ayahSegment(2, 5));
+    follow.userScrolled();
+    final request = follow.request;
+
+    final rebuilt = recitationPlan();
+    await player.play(rebuilt);
+    player.reach(rebuilt, ayahSegment(2, 5));
+
+    expect(follow.following, isFalse);
+    expect(follow.showReturn, isTrue);
+    expect(follow.recited, ayahAt(2, 5));
+    expect(follow.request, same(request));
+  });
+
+  test('a plan after playback stopped follows again', () async {
+    player.reach(recitationPlan(), ayahSegment(2, 5));
+    follow.userScrolled();
+    await player.stop();
+
+    final next = recitationPlan();
+    await player.play(next);
+    player.reach(next, ayahSegment(2, 5));
+
+    expect(follow.following, isTrue);
+    expect(follow.request!.address, ayahAt(2, 5));
+  });
+
+  test('the ayah the player holds from the plan before is not new', () {
     final old = recitationPlan();
     player.reach(old, ayahSegment(2, 40));
     final next = recitationPlan();
@@ -171,13 +203,22 @@ void main() {
       segmentIndex: 0,
       ayah: player.state.ayah,
     );
-    expect(follow.recited, isNull);
+    expect(follow.recited, ayahAt(2, 40));
 
     player.reach(next, basmalaSegment(3));
-    expect(follow.recited, isNull);
+    expect(follow.recited, ayahAt(2, 40));
+    expect(follow.heard, ayahAt(3, 1));
 
     player.reach(next, ayahSegment(3, 1), index: 1);
     expect(follow.recited, ayahAt(3, 1));
+  });
+
+  test('a plan after none starts with no ayah of the one before', () {
+    final next = recitationPlan();
+    player.state = PlayerState(plan: next, segment: basmalaSegment(3));
+
+    expect(follow.recited, isNull);
+    expect(follow.heard, ayahAt(3, 1));
   });
 
   test('a recitation served as whole surahs shows nothing', () {
@@ -198,6 +239,17 @@ void main() {
     player.reach(recitationPlan(boundaries: false), surahSegment(3));
 
     expect(follow.recited, isNull);
+  });
+
+  test('a reader opened during a basmala offers the way to the first ayah', () {
+    final plan = recitationPlan();
+    player.reach(plan, basmalaSegment(3));
+    final late = RecitationFollow(player);
+    addTearDown(late.dispose);
+    expect(late.following, isFalse);
+
+    player.reach(plan, ayahSegment(3, 1), index: 1);
+    expect(late.showReturn, isTrue);
   });
 
   test('a reader opened during a recitation offers the way to it', () {

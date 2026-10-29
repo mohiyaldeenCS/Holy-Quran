@@ -24,10 +24,13 @@ final class FollowRequest {
 /// registry row 6). Nothing is recited once playback stops. Pausing keeps the
 /// ayah, and so does a change of speed, which changes no ayah.
 ///
-/// The reader follows from the start of each recitation: a new plan, or the
-/// state after one stopped. A reader opened while a recitation is already
-/// running does not follow it: it opened on its own position, and
-/// [showReturn] offers the way to the recitation. A scroll the user makes
+/// The reader follows from the start of each recitation: a plan that reaches
+/// another ayah than the one being recited, or any plan after playback
+/// stopped. A plan rebuilt at the ayah being recited, as the repeat and
+/// silence sheets do, goes on as it was: a reader the user scrolled away
+/// from stays away. A reader opened while a recitation is already running
+/// does not follow it: it opened on its own position, and [showReturn]
+/// offers the way to the recitation. A scroll the user makes
 /// ([userScrolled]) stops following until [resume]. In stand mode the reader
 /// follows whatever the user does (`SY-05`).
 ///
@@ -42,7 +45,7 @@ final class RecitationFollow extends ChangeNotifier {
     _plan = state.plan;
     _recited = _heard(state, ayahOnly: true);
     _heardNow = _heard(state);
-    _following = _recited == null;
+    _following = !_running(state);
     _playing = state.playing;
     player.addListener(_onPlayer);
   }
@@ -56,6 +59,10 @@ final class RecitationFollow extends ChangeNotifier {
   QuranAddress? _recited;
   QuranAddress? _heardNow;
   bool _following = true;
+
+  // A plan replaced the one being recited; whether it goes on from the same
+  // ayah is known when it announces its first.
+  bool _carry = false;
   bool _stand = false;
   bool _playing = false;
   FollowRequest? _request;
@@ -132,8 +139,11 @@ final class RecitationFollow extends ChangeNotifier {
     if (!identical(state.plan, _plan)) {
       _stale = _plan == null ? null : state.segment;
       _plan = state.plan;
-      _recited = null;
-      _following = true;
+      _carry = _recited != null;
+      if (!_carry) {
+        _recited = null;
+        _following = true;
+      }
     } else if (!identical(state.segment, _stale)) {
       _stale = null;
     }
@@ -141,17 +151,26 @@ final class RecitationFollow extends ChangeNotifier {
     if (plan == null || state.stopReason != null || !plan.hasAyahBoundaries) {
       _recited = null;
       _following = true;
-    } else if (_heard(state, ayahOnly: true) case final ayah?
-        when ayah != _recited) {
-      _recited = ayah;
-      if (_following) _ask();
+      _carry = false;
+    } else if (_heard(state, ayahOnly: true) case final ayah?) {
+      if (_carry && ayah != _recited) _following = true;
+      _carry = false;
+      if (ayah != _recited) {
+        _recited = ayah;
+        if (_following) _ask();
+      }
     }
-    _heardNow = _heard(state);
+    _heardNow = _heard(state) ?? (_carry ? _heardNow : null);
     _playing = state.playing;
     if (before != (_recited, _heardNow, _plan, _following, _playing)) {
       notifyListeners();
     }
   }
+
+  // Whether the player holds a recitation with ayah events that has not
+  // stopped; a basmala before the first ayah counts.
+  bool _running(PlayerState state) =>
+      (state.plan?.hasAyahBoundaries ?? false) && state.stopReason == null;
 
   // The ayah of the segment being heard, once the plan has one of its own. A
   // basmala or an isti'adha names the ayah it comes before, which is not

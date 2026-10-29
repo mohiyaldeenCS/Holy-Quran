@@ -65,7 +65,8 @@ final class ReaderUnavailable implements Exception {
 /// It also holds what the reader's gestures change: the selected ayah and its
 /// tools (PRD §7.4), the text size step (`RD-07`), the distraction-free state
 /// (`RD-09`), the bookmarks the margin shows (`UD-05`), the recitation it
-/// follows (`SY-01`, `SY-03`, `SY-05`) and the screen kept on (`RD-16`).
+/// follows (`SY-01`, `SY-03`, `SY-05`) and the screen kept on while it is
+/// shown (`RD-16`, which covers a recitation sounding under it).
 final class MushafViewModel extends ChangeNotifier {
   MushafViewModel({
     this._text,
@@ -122,6 +123,7 @@ final class MushafViewModel extends ChangeNotifier {
   bool _opened = false;
   bool _shown = false;
   bool _changedWhileOpening = false;
+  bool _showing = false;
 
   /// The saved position this reader knows of: the one it found when it
   /// opened or the one it saved itself. Another reader's save differs.
@@ -250,13 +252,18 @@ final class MushafViewModel extends ChangeNotifier {
         if (wordSheet && LevelPolicy.shows(LevelTool.wordSheet, _level)) {
           return word;
         }
-        setDistractionFree(!_distractionFree);
+        _toggleInterface();
       case MarginTarget():
-        setDistractionFree(!_distractionFree);
+        _toggleInterface();
       case WaqfMarkTarget():
         break;
     }
     return null;
+  }
+
+  // A stand keeps the interface hidden, whatever a tap says.
+  void _toggleInterface() {
+    if (!_standMode) setDistractionFree(!_distractionFree);
   }
 
   /// A long press on [target] selects the ayah it is in.
@@ -319,7 +326,6 @@ final class MushafViewModel extends ChangeNotifier {
     }
     _shown = true;
     _keepAwake.shown(true);
-    _syncReciting();
     final elsewhere = _savedElsewhere;
     final target = _target(index, elsewhere);
     final kept =
@@ -338,13 +344,42 @@ final class MushafViewModel extends ChangeNotifier {
         _surahs = List.unmodifiable([value]);
         _anchor = QuranAddress(target.riwaya, target.surah, target.ayah);
         _status = ReaderStatus.ready;
-        _syncReciting();
         _position = null;
         showFirstVisible(target);
         notifyListeners();
         return const Ok(null);
       case Failure(:final error):
         return _unavailable(error);
+    }
+  }
+
+  /// Whether [showAt] can show [address]: the reader has its text and the
+  /// address is in the edition.
+  bool canShow(QuranAddress address) {
+    final index = _index;
+    return _status == ReaderStatus.ready &&
+        index != null &&
+        _inEdition(index, address);
+  }
+
+  /// Shows the surah of [address] alone and opens at it, for a recitation in
+  /// a surah the reader does not hold next to the ones it shows. Nothing
+  /// happens while another call is reading.
+  Future<void> showAt(QuranAddress address) async {
+    if (!canShow(address) || _showing) return;
+    _showing = true;
+    final surah = await _readSurah(address.surah);
+    _showing = false;
+    if (_disposed || _status != ReaderStatus.ready) return;
+    switch (surah) {
+      case Ok(:final value):
+        _surahs = List.unmodifiable([value]);
+        _anchor = QuranAddress(address.riwaya, address.surah, address.ayah);
+        _position = null;
+        showFirstVisible(_anchor!);
+        notifyListeners();
+      case Failure(:final error):
+        _unavailable(error);
     }
   }
 
@@ -380,7 +415,6 @@ final class MushafViewModel extends ChangeNotifier {
   Future<void> leave() async {
     _shown = false;
     _keepAwake.shown(false);
-    _syncReciting();
     if (!_moved) return;
     _moved = false;
     await _save();
@@ -481,21 +515,11 @@ final class MushafViewModel extends ChangeNotifier {
     _selected = null;
     _status = ReaderStatus.unavailable;
     _keepAwake.shown(false);
-    _syncReciting();
     notifyListeners();
     return Failure(error);
   }
 
-  // The screen stays on while a recitation sounds under a reader that shows
-  // text (`RD-16`).
-  void _syncReciting() => _keepAwake.reciting(
-    _shown && _status != ReaderStatus.unavailable && follow.playing,
-  );
-
-  void _onFollow() {
-    _syncReciting();
-    notifyListeners();
-  }
+  void _onFollow() => notifyListeners();
 
   void _onIntegrity() {
     if (_status != ReaderStatus.unavailable &&
@@ -508,7 +532,6 @@ final class MushafViewModel extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _keepAwake.shown(false);
-    _keepAwake.reciting(false);
     follow
       ..removeListener(_onFollow)
       ..dispose();

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/domain/models/player_state.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
+import 'package:holyquran/ui/core/reader/gesture_target.dart';
 import 'package:holyquran/ui/core/shell_chrome.dart';
 import 'package:holyquran/ui/core/theme/motion.dart';
 import 'package:holyquran/ui/core/widgets/ayah_marker.dart';
@@ -199,7 +200,7 @@ void main() {
       tester,
     ) async {
       await pumpReader(tester);
-      expect(viewModel.surahs.map((s) => s.info.number), [2]);
+      expect(viewModel.surahs.first.info.number, 2);
 
       player.reach(recitationPlan(), ayahSegment(3, 1));
       await tester.pumpAndSettle();
@@ -351,6 +352,21 @@ void main() {
       expect(marker.dy, inInclusiveRange(0, readerHeight));
     });
 
+    testWidgets('a tap does not bring the interface back, nor change it '
+        'after', (tester) async {
+      await pumpReader(tester);
+      viewModel.setStandMode(true);
+      await tester.pumpAndSettle();
+
+      viewModel.tap(const MarginTarget(), wordSheet: false);
+      await tester.pumpAndSettle();
+      expect(viewModel.distractionFree, isTrue);
+
+      viewModel.setStandMode(false);
+      await tester.pumpAndSettle();
+      expect(viewModel.distractionFree, isFalse);
+    });
+
     testWidgets('leaving it gives the interface back', (tester) async {
       await pumpReader(tester);
       viewModel.setStandMode(true);
@@ -369,71 +385,111 @@ void main() {
 
     setUp(() => keepAwake = FakeKeepAwakeRepository());
 
-    Future<void> settle(WidgetTester tester) => tester.pumpAndSettle();
+    testWidgets('while a recitation sounds under the reader, and after it '
+        'pauses', (tester) async {
+      await pumpReader(tester, keepAwake: keepAwake);
+      player.reach(recitationPlan(), ayahSegment(2, 2));
+      await tester.pumpAndSettle();
+      expect(keepAwake.awake, isTrue);
 
-    testWidgets('while a recitation sounds, and not once it pauses', (
+      await player.pause();
+      await tester.pumpAndSettle();
+      expect(keepAwake.awake, isTrue);
+    });
+
+    testWidgets('not once the reader is left, with the setting on', (
       tester,
     ) async {
       await pumpReader(tester, keepAwake: keepAwake);
-      expect(keepAwake.readerActive, isTrue);
-      expect(keepAwake.playerActive, isFalse);
-
       player.reach(recitationPlan(), ayahSegment(2, 2));
-      await settle(tester);
-      expect(keepAwake.playerActive, isTrue);
-
-      await player.pause();
-      await settle(tester);
-      expect(keepAwake.playerActive, isFalse);
-      expect(keepAwake.readerActive, isTrue);
-
-      await player.resume();
-      await settle(tester);
-      expect(keepAwake.playerActive, isTrue);
-    });
-
-    testWidgets('a recitation of whole surahs keeps it on too', (tester) async {
-      await pumpReader(tester, keepAwake: keepAwake);
-
-      player.reach(recitationPlan(boundaries: false), surahSegment(2));
-      await settle(tester);
-
-      expect(keepAwake.playerActive, isTrue);
-    });
-
-    testWidgets('a reader that is left lets go of it', (tester) async {
-      await pumpReader(tester, keepAwake: keepAwake);
-      player.reach(recitationPlan(), ayahSegment(2, 2));
-      await settle(tester);
+      await tester.pumpAndSettle();
 
       await viewModel.leave();
-      await settle(tester);
+      await tester.pumpAndSettle();
 
-      expect(keepAwake.playerActive, isFalse);
-      expect(keepAwake.readerActive, isFalse);
+      expect(keepAwake.awake, isFalse);
     });
 
-    testWidgets('readers stacked over each other share it', (tester) async {
+    testWidgets('not with the setting off', (tester) async {
+      keepAwake.settingOn = false;
       await pumpReader(tester, keepAwake: keepAwake);
-      final below = viewModel;
-      final above = rig.viewModel(
-        address: ayahAt(2, 1),
-        player: player,
-        keepAwake: keepAwake,
-      );
-      addTearDown(above.dispose);
-      await above.open.execute();
+      viewModel.setStandMode(true);
       player.reach(recitationPlan(), ayahSegment(2, 2));
-      await settle(tester);
-      expect(keepAwake.playerActive, isTrue);
+      await tester.pumpAndSettle();
 
-      await below.leave();
-      await settle(tester);
-      expect(keepAwake.playerActive, isTrue);
+      expect(keepAwake.awake, isFalse);
+    });
+  });
 
-      await above.leave();
-      await settle(tester);
-      expect(keepAwake.playerActive, isFalse);
+  group('a surah the reader does not show', () {
+    testWidgets('after the ones shown opens the reader at the ayah', (
+      tester,
+    ) async {
+      await pumpReader(tester);
+
+      player.reach(recitationPlan(), ayahSegment(6, 1));
+      await tester.pumpAndSettle();
+
+      expect(viewModel.surahs.first.info.number, 6);
+      expect(filled(tester), [1]);
+      expect(returnButton(), findsNothing);
+    });
+
+    testWidgets('before the ones shown opens the reader at the ayah', (
+      tester,
+    ) async {
+      await pumpReader(tester);
+
+      player.reach(recitationPlan(), ayahSegment(1, 1));
+      await tester.pumpAndSettle();
+
+      expect(viewModel.surahs.first.info.number, 1);
+      expect(filled(tester), [1]);
+    });
+
+    testWidgets('is reached by the way back, after the user scrolled', (
+      tester,
+    ) async {
+      await pumpReader(tester);
+      final plan = recitationPlan();
+      player.reach(plan, ayahSegment(2, 2));
+      await tester.pumpAndSettle();
+      await dragText(tester);
+      player.reach(plan, ayahSegment(6, 1), index: 1);
+      await tester.pumpAndSettle();
+      expect(viewModel.surahs.map((s) => s.info.number), isNot(contains(6)));
+      expect(returnButton(), findsOneWidget);
+
+      await tester.tap(returnButton());
+      await tester.pumpAndSettle();
+
+      expect(viewModel.surahs.first.info.number, 6);
+      expect(filled(tester), [1]);
+      expect(returnButton(), findsNothing);
+    });
+  });
+
+  group('a reader that is not shown', () {
+    testWidgets('waits to follow until it is', (tester) async {
+      final shown = ValueNotifier(false);
+      addTearDown(shown.dispose);
+      setReaderView(tester);
+      player = FakePlayerRepository();
+      viewModel = rig.viewModel(address: ayahAt(2, 1), player: player);
+      addTearDown(viewModel.dispose);
+      await tester.pumpWidget(readerApp(viewModel, shown: shown));
+      shown.value = true;
+      await tester.pumpAndSettle();
+      shown.value = false;
+      await tester.pumpAndSettle();
+
+      player.reach(recitationPlan(), ayahSegment(6, 1));
+      await tester.pumpAndSettle();
+      expect(viewModel.surahs.first.info.number, 2);
+
+      shown.value = true;
+      await tester.pumpAndSettle();
+      expect(viewModel.surahs.first.info.number, 6);
     });
   });
 }

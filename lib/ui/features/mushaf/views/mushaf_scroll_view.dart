@@ -34,7 +34,8 @@ import 'package:holyquran/ui/features/mushaf/views/surah_info_text.dart';
 /// first visible, saves it when a scroll ends (`RD-12`), and asks for the
 /// next surah before the reader reaches the end. While not [active] it
 /// neither tracks, saves nor loads. Every scroll it did not make itself
-/// counts as the user's, a screen reader's included.
+/// counts as the user's, a screen reader's included; the scrolls it makes to
+/// follow the recitation move the reading position like any other.
 ///
 /// Its gestures are the reader's (PRD §7.4): a tap or long press reaches the
 /// view model, which selects an ayah or toggles the interface; a pinch steps
@@ -43,8 +44,9 @@ import 'package:holyquran/ui/features/mushaf/views/surah_info_text.dart';
 ///
 /// It also follows the recitation (`SY-03`): when the view model asks, it
 /// brings the ayah being recited into view, unless that ayah is already in
-/// view, and a scroll of the user's stops the following. The scroll animates
-/// unless the platform asks for less motion.
+/// view, and a scroll of the user's stops the following. A recitation in a
+/// surah the reader does not show next to its own reopens the reader there.
+/// The scroll animates unless the platform asks for less motion.
 final class MushafScrollView extends StatefulWidget {
   const MushafScrollView({
     required this.viewModel,
@@ -113,6 +115,14 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(MushafScrollView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.active && !oldWidget.active && _pendingFollow != null) {
+      _scheduleFollow();
+    }
+  }
+
   void _takeAnchor() {
     if (identical(_model.anchor, _handledAnchor)) return;
     _handledAnchor = _pendingAnchor = _model.anchor;
@@ -153,13 +163,20 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
     final request = _pendingFollow;
     // A scroll in flight looks again when it ends.
     if (!mounted || request == null || _followScrolls > 0) return;
+    // A reader that is not shown neither scrolls nor loads; the ask waits.
+    if (!widget.active) return;
     final address = request.address;
     final shown = _surahs.where((s) => s.info.number == address.surah);
     if (shown.isEmpty) {
-      if (_surahs.isNotEmpty && address.surah == _surahs.last.info.number + 1) {
+      if (!_model.canShow(address)) {
+        _pendingFollow = null;
+      } else if (_surahs.isNotEmpty &&
+          address.surah == _surahs.last.info.number + 1) {
         unawaited(_model.loadNext.execute());
       } else {
-        _pendingFollow = null;
+        // A surah apart from the ones shown: the reader opens at it, and the
+        // anchor brings the ayah into view.
+        unawaited(_model.showAt(address));
       }
       return;
     }
@@ -171,7 +188,8 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
         !_controller.hasClients) {
       return;
     }
-    if (address.ayah > layout.text.ayat.length) {
+    if (address.riwaya != layout.text.riwaya ||
+        address.ayah > layout.text.ayat.length) {
       _pendingFollow = null;
       return;
     }
@@ -197,9 +215,10 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
       position.minScrollExtent,
       position.maxScrollExtent,
     );
-    // The extent beyond the blocks laid out is an estimate, so the ask is
-    // kept and looked at again after each scroll, until the ayah is in view,
-    // the scroll stops moving or it has taken too many steps.
+    // The scroll's extent can fall short of the text's until its blocks are
+    // laid out, so the ask is kept and looked at again after each scroll,
+    // until the ayah is in view, the scroll stops moving or it has taken too
+    // many steps.
     if (offset == position.pixels || _followSteps++ >= _maxSteps) {
       _pendingFollow = null;
       return;
@@ -210,7 +229,7 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
   void _scrollTo(double offset) {
     final position = _controller.position;
     _followScrolls++;
-    if (!widget.active || MediaQuery.disableAnimationsOf(context)) {
+    if (MediaQuery.disableAnimationsOf(context)) {
       position.jumpTo(offset);
       _followScrolls--;
       if (_pendingFollow != null) _scheduleFollow();

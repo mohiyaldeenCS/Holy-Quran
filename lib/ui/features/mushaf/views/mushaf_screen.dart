@@ -75,7 +75,9 @@ class _MushafScreenState extends State<MushafScreen> {
     _lifecycle.dispose();
     _model.removeListener(_syncChrome);
     if (_active) unawaited(_model.leave());
-    if (_tabBarHidden || _miniHidden) _showChromeAfterFrame(_chrome);
+    if (_tabBarHidden || _miniHidden) {
+      _giveChromeBack(_chrome, tabBar: _tabBarHidden, mini: _miniHidden);
+    }
     super.dispose();
   }
 
@@ -124,12 +126,14 @@ class _MushafScreenState extends State<MushafScreen> {
     }
   }
 
-  void _showChromeAfterFrame(ShellChrome? chrome) =>
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        chrome
-          ?..tabBarVisible = true
-          ..miniPlayerVisible = true;
-      });
+  void _giveChromeBack(
+    ShellChrome? chrome, {
+    required bool tabBar,
+    required bool mini,
+  }) => WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (tabBar) chrome?.tabBarVisible = true;
+    if (mini) chrome?.miniPlayerVisible = true;
+  });
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -225,7 +229,7 @@ class _Reader extends StatelessWidget {
             padding: ReaderScreenMetrics.footerPadding,
             child: PageMark(page: position.page),
           ),
-        if (viewModel.showPlayerBar && viewModel.playerSurahName != null)
+        if (viewModel.showPlayerBar)
           Padding(
             padding: ReaderScreenMetrics.playerBarPadding,
             child: _PlayerBar(viewModel: viewModel),

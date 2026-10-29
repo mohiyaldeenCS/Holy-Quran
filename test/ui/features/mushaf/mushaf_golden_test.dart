@@ -42,6 +42,8 @@ void main() {
     bool distractionFree = false,
     bool verified = true,
     bool recited = false,
+    bool following = false,
+    bool stand = false,
   }) async {
     setReaderView(tester, _phone);
     final player = FakePlayerRepository();
@@ -54,6 +56,11 @@ void main() {
     );
     await tester.pumpAndSettle();
     viewModel.setDistractionFree(distractionFree);
+    if (following || stand) {
+      player.reach(recitationPlan(), ayahSegment(2, 3));
+      await tester.pumpAndSettle();
+      viewModel.setStandMode(stand);
+    }
     if (recited) {
       player.reach(recitationPlan(), ayahSegment(2, 3));
       await tester.pumpAndSettle();
@@ -79,6 +86,16 @@ void main() {
       tester,
     ) async {
       await expectReader(tester, 'reader_free', theme, distractionFree: true);
+    });
+
+    testWidgets('the reader following a recitation in ${theme.name}', (
+      tester,
+    ) async {
+      await expectReader(tester, 'reader_following', theme, following: true);
+    });
+
+    testWidgets('the reader in stand mode in ${theme.name}', (tester) async {
+      await expectReader(tester, 'reader_stand', theme, stand: true);
     });
 
     for (final scale in [1.0, 2.0]) {
