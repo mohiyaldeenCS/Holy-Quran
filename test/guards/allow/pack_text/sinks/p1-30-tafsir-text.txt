@@ -1,0 +1,3 @@
+lib/ui/core/widgets/tafsir_text.dart
+decision: D-114
+TafsirText draws a passage, or a fact of a tafsir book, from a pack whole and unchanged in the interface font (TF-08).

@@ -7,8 +7,8 @@ import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
-import 'package:holyquran/ui/core/widgets/focus_ring.dart';
 import 'package:holyquran/ui/core/widgets/quran_text.dart';
+import 'package:holyquran/ui/core/widgets/radio_row.dart';
 import 'package:holyquran/ui/core/widgets/surah_name.dart';
 
 /// The copy sheet (Share.dc.html): a handle, «نسخ الآية», the copy forms as
@@ -43,6 +43,7 @@ class CopySheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     assert(forms.contains(selected), 'The selected form is not shown.');
+    final colors = context.colors;
     final l10n = AppLocalizations.of(context);
     final ayah = this.ayah;
     return CopySheetFrame(
@@ -58,10 +59,14 @@ class CopySheet extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (final form in forms)
-                _FormRow(
+                RadioRow(
                   label: _labelOf(form, l10n),
                   selected: form == selected,
                   onTap: () => onSelected(form),
+                  child: Text(
+                    _labelOf(form, l10n),
+                    style: RadioRow.labelStyle.copyWith(color: colors.ink),
+                  ),
                 ),
             ],
           ),
@@ -203,77 +208,6 @@ String _labelOf(CopyForm form, AppLocalizations l10n) => switch (form) {
   CopyForm.withSurahAndNumber => l10n.copyWithSurahAndNumber,
 };
 
-class _FormRow extends StatelessWidget {
-  const _FormRow({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final ring = selected ? colors.primary : colors.lineStrong;
-    final face = ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: AppSizes.targetMin),
-      child: Row(
-        spacing: AppSpacing.space3,
-        children: [
-          Container(
-            width: _radioSize,
-            height: _radioSize,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: ring, width: _radioBorder),
-            ),
-            child: selected
-                ? Container(
-                    width: _dotSize,
-                    height: _dotSize,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: colors.primary,
-                    ),
-                  )
-                : null,
-          ),
-          Expanded(
-            child: Text(label, style: _labelStyle.copyWith(color: colors.ink)),
-          ),
-        ],
-      ),
-    );
-    // A radio, not a button, as ModeChips' chips are.
-    return Semantics(
-      container: true,
-      checked: selected,
-      inMutuallyExclusiveGroup: true,
-      label: label,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: FocusRing(
-          radius: _rowFocusRadius,
-          child: FocusableActionDetector(
-            mouseCursor: SystemMouseCursors.click,
-            actions: {
-              ActivateIntent: CallbackAction<ActivateIntent>(
-                onInvoke: (_) => onTap(),
-              ),
-            },
-            child: ExcludeSemantics(child: face),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 // Share.dc.html, the copy sheet: `padding:18px 22px 22px;gap:6px`, corners
 // `border-radius:28px` (radius-sheet) on #FFFBF2 (surface) with the sheet
 // shadow (shadow-sheet). Docked as a bottom sheet, it takes `.qk-sheet`'s top
@@ -303,28 +237,6 @@ const TextStyle _titleStyle = TextStyle(
   letterSpacing: 0,
   leadingDistribution: TextLeadingDistribution.even,
 );
-
-// Share.dc.html, each form: `<label>` with `gap:12px` (space-3),
-// `min-height:48px` (target-min), `font-size:16px`, no line height set.
-const TextStyle _labelStyle = TextStyle(
-  inherit: false,
-  fontFamily: AppFonts.sans,
-  fontSize: 16,
-  fontWeight: FontWeight.w400,
-  letterSpacing: 0,
-  leadingDistribution: TextLeadingDistribution.even,
-);
-
-// Share.dc.html, the radio: `width:22px;height:22px;border-radius:11px;
-// border:2px solid`, #0E5A52 (primary) when selected with a
-// `width:10px;height:10px` #0E5A52 dot. The unselected ring is #8C9794, which
-// no token holds; line-strong is the token of a control's outline.
-const double _radioSize = 22;
-const double _radioBorder = 2;
-const double _dotSize = 10;
-
-// The board's rows have no corners, so neither has their focus ring.
-const BorderRadius _rowFocusRadius = BorderRadius.zero;
 
 // Share.dc.html l.54, the preview: `margin-top:6px` beyond the column's 6px
 // gap; `border-radius:16px` (radius-button) on #F8F2E4 (ground) with
