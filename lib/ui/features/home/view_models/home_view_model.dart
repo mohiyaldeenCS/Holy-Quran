@@ -17,7 +17,7 @@ import 'package:holyquran/domain/models/playback_rules.dart';
 import 'package:holyquran/domain/models/playback_segment.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/recitation.dart';
-import 'package:holyquran/ui/features/home/view_models/pack_ayah.dart';
+import 'package:holyquran/domain/use_cases/is_ayah_of_pack.dart';
 
 /// Where «أكمل القراءة» leads: the last ayah read, its surah's name from
 /// the pack, and its place in the mushaf.
@@ -96,13 +96,16 @@ final class HomeViewModel extends ChangeNotifier {
     return id != null && _integrity?.stateOf(id) is IntegrityFailed;
   }
 
+  static bool _inPack(QuranIndexRepository index, QuranAddress address) =>
+      isAyahOfPack(address, riwaya: index.riwaya, surahs: index.surahs);
+
   /// The continue-reading card, or null when there is no position yet, no
   /// verified pack serving its surah names, or the position is not an ayah
   /// of that pack.
   ContinueReading? get continueReading {
     final address = _positions?.last;
     final index = _index;
-    if (address == null || index == null || !isAyahOfPack(index, address)) {
+    if (address == null || index == null || !_inPack(index, address)) {
       return null;
     }
     final surahs = index.surahs;
@@ -140,7 +143,7 @@ final class HomeViewModel extends ChangeNotifier {
         index == null ||
         _player == null ||
         _plans == null ||
-        !isAyahOfPack(index, position.address)) {
+        !_inPack(index, position.address)) {
       return null;
     }
     final listed = _recitations?.recitations

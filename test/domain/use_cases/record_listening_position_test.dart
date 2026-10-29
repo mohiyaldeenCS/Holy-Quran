@@ -187,4 +187,37 @@ void main() {
 
     expect(saved, [position(const Duration(seconds: 5))]);
   });
+
+  test('saves nothing while the segment is not of the plan that is set', () {
+    fakeAsync((async) {
+      final other = planOf(builder, AyahSpan(QuranRange(_at(1, 1), _at(1, 3))));
+      recorder.update(
+        PlayerState(
+          plan: other,
+          segment: plan.segments.first,
+          segmentIndex: 0,
+          playing: true,
+        ),
+      );
+      async.elapse(const Duration(seconds: 30));
+
+      expect(saved, isEmpty);
+    });
+  });
+
+  test('saves nothing for a segment index the plan does not reach', () {
+    fakeAsync((async) {
+      recorder.update(
+        PlayerState(
+          plan: plan,
+          segment: plan.segments.first,
+          segmentIndex: 5,
+          playing: true,
+        ),
+      );
+      async.elapse(const Duration(seconds: 10));
+
+      expect(saved, isEmpty);
+    });
+  });
 }

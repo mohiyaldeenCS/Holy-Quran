@@ -111,12 +111,47 @@ void main() {
       expect(router.state.uri.path, Routes.home);
     });
 
+    testWidgets('is a run of each router, not of the settings', (tester) async {
+      final providers = [
+        ChangeNotifierProvider<AppSettingsRepository>.value(
+          value: FakeAppSettingsRepository(openAtLastPosition: true),
+        ),
+        ChangeNotifierProvider<ReadingPositionRepository>.value(
+          value: FakeReadingPositionRepository(last: _at(2, 3)),
+        ),
+        Provider<QuranIndexRepository>.value(
+          value: FakeQuranIndexRepository.synthetic(),
+        ),
+      ];
+      for (var run = 0; run < 2; run++) {
+        final router = createRouter(
+          features: [
+            homeRoutes,
+            _reader,
+            listenRoutes,
+            studyRoutes,
+            moreRoutes,
+          ],
+        );
+        addTearDown(router.dispose);
+        await tester.pumpWidget(
+          MultiProvider(
+            providers: providers,
+            child: QuranApp(router: router),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(router.state.uri.path, Routes.mushafRead(_at(2, 3)));
+      }
+    });
+
     testWidgets('keeps a location that is not home, such as a link', (
       tester,
     ) async {
       final router = GoRouter(
         initialLocation: Routes.more,
-        redirect: startupRedirect,
+        redirect: StartupRedirect().call,
         routes: [
           for (final path in [Routes.home, Routes.more, Routes.mushaf])
             GoRoute(path: path, builder: _stub),
