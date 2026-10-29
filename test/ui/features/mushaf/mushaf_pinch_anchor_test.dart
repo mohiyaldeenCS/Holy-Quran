@@ -30,11 +30,15 @@ void main() {
 
   late MushafViewModel viewModel;
 
-  Future<void> pumpReader(WidgetTester tester, QuranAddress address) async {
+  Future<void> pumpReader(
+    WidgetTester tester,
+    QuranAddress address, {
+    double scale = 1,
+  }) async {
     setReaderView(tester);
     viewModel = rig.viewModel(
       address: address,
-      settings: FakeAppSettingsRepository(),
+      settings: FakeAppSettingsRepository(surahTextScale: scale),
     );
     addTearDown(viewModel.dispose);
     await tester.pumpWidget(readerApp(viewModel));
@@ -43,7 +47,7 @@ void main() {
 
   /// The end-of-ayah markers inside the reading area, in the screen's
   /// coordinates.
-  List<_Marker> visibleMarkers(WidgetTester tester) {
+  List<_Marker> visibleMarkers(WidgetTester tester, {bool anywhere = false}) {
     final markers = <_Marker>[];
     for (final element in find.byType(ReaderBlock).evaluate()) {
       final block = element.widget as ReaderBlock;
@@ -51,10 +55,14 @@ void main() {
       final layout = block.layout;
       for (final ayah in layout.ayat) {
         final center = origin + layout.markerRect(ayah)!.center;
-        if (center.dy > 90 &&
-            center.dy < 540 &&
-            center.dx > 50 &&
-            center.dx < 310) {
+        // Where fingers can be put, or, after a step, anywhere on screen: the
+        // marker of an ayah moves along its line when the line breaks again.
+        if (anywhere
+            ? center.dy > 0 && center.dy < readerHeight
+            : center.dy > 90 &&
+                  center.dy < 540 &&
+                  center.dx > 50 &&
+                  center.dx < 310) {
           markers.add((
             surah: layout.plan.text.surah,
             ayah: ayah,
@@ -68,7 +76,7 @@ void main() {
   }
 
   _Marker? find_(WidgetTester tester, int surah, int ayah) {
-    for (final marker in visibleMarkers(tester)) {
+    for (final marker in visibleMarkers(tester, anywhere: true)) {
       if (marker.surah == surah && marker.ayah == ayah) return marker;
     }
     return null;
@@ -170,4 +178,32 @@ void main() {
     final again = visibleMarkers(tester);
     await pinchKeeps(tester, again.last, from: 130, to: 80);
   });
+
+  // The short surahs after the first are a header, a basmala and a line or
+  // two each: scroll until the top line is in one surah and the last marker
+  // on screen is in the next.
+  Future<_Marker> scrollToBoundary(WidgetTester tester) async {
+    final controller = scrollOf(tester);
+    for (var step = 0; step < 40; step++) {
+      final top = viewModel.position!.address.surah;
+      final markers = visibleMarkers(tester);
+      if (markers.isNotEmpty && markers.last.surah != top) return markers.last;
+      controller.jumpTo(controller.offset + 40);
+      await tester.pumpAndSettle();
+    }
+    fail('no surah boundary on screen');
+  }
+
+  for (final (name, scale, from, to) in [
+    ('out', 1.0, 80.0, 130.0),
+    ('in', 1.5, 130.0, 80.0),
+  ]) {
+    testWidgets('fingers on the lower surah, pinching $name, with the top '
+        'line in the one above', (tester) async {
+      await pumpReader(tester, QuranAddress('hafs', 4, 1), scale: scale);
+      final lower = await scrollToBoundary(tester);
+      expect(lower.surah, greaterThan(viewModel.position!.address.surah));
+      await pinchKeeps(tester, lower, from: from, to: to);
+    });
+  }
 }
