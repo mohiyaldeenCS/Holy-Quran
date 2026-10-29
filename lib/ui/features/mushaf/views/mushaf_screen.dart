@@ -12,9 +12,12 @@ import 'package:holyquran/ui/core/metrics/reader_screen_metrics.dart';
 import 'package:holyquran/ui/core/reader/page_mark.dart';
 import 'package:holyquran/ui/core/reader/position_bar_button.dart';
 import 'package:holyquran/ui/core/shell_chrome.dart';
+import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/ayah_toolbar.dart';
 import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/position_bar.dart';
+import 'package:holyquran/ui/core/widgets/reader_player_bar.dart';
+import 'package:holyquran/ui/core/widgets/small_button.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/mushaf_view_model.dart';
 import 'package:holyquran/ui/features/mushaf/views/mushaf_scroll_view.dart';
 import 'package:provider/provider.dart';
@@ -45,6 +48,7 @@ class _MushafScreenState extends State<MushafScreen> {
   bool _foreground = true;
   bool _active = false;
   bool _tabBarHidden = false;
+  bool _miniHidden = false;
 
   MushafViewModel get _model => widget.viewModel;
 
@@ -71,7 +75,7 @@ class _MushafScreenState extends State<MushafScreen> {
     _lifecycle.dispose();
     _model.removeListener(_syncChrome);
     if (_active) unawaited(_model.leave());
-    if (_tabBarHidden) _showTabBarAfterFrame(_chrome);
+    if (_tabBarHidden || _miniHidden) _letGoOfChromeAfterFrame(_chrome);
     super.dispose();
   }
 
@@ -102,17 +106,33 @@ class _MushafScreenState extends State<MushafScreen> {
     _syncChrome();
   }
 
-  // The tab bar is the shell's; it is hidden only while this reader is shown
-  // in distraction-free mode, and always given back.
+  // The tab bar and the mini player are the shell's, which keeps them hidden
+  // while any holder asks. This reader hides the tab bar only while it is
+  // shown in distraction-free mode, and the mini player while it is shown
+  // with a recitation to control, whose controls it draws itself and hides
+  // with the rest of the interface. It always lets go.
   void _syncChrome() {
+    final chrome = _chrome;
+    if (chrome == null) return;
     final hide = _active && _model.distractionFree;
-    if (hide == _tabBarHidden) return;
-    _tabBarHidden = hide;
-    _chrome?.tabBarVisible = !hide;
+    if (hide != _tabBarHidden) {
+      _tabBarHidden = hide;
+      chrome.holdTabBarHidden(this, hide);
+    }
+    final hideMini = _active && _model.hasPlayerBar;
+    if (hideMini != _miniHidden) {
+      _miniHidden = hideMini;
+      chrome.holdMiniPlayerHidden(this, hideMini);
+    }
   }
 
-  void _showTabBarAfterFrame(ShellChrome? chrome) => WidgetsBinding.instance
-      .addPostFrameCallback((_) => chrome?.tabBarVisible = true);
+  // The shell is built from the same frame as this reader is removed from.
+  void _letGoOfChromeAfterFrame(ShellChrome? chrome) =>
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        chrome
+          ?..holdTabBarHidden(this, false)
+          ..holdMiniPlayerHidden(this, false);
+      });
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -158,6 +178,10 @@ class _Reader extends StatelessWidget {
     final position = viewModel.position;
     final chrome = !viewModel.distractionFree && position != null;
     final router = GoRouter.maybeOf(context);
+    // «عُد إلى موضع التلاوة» is interface: the distraction-free state hides
+    // it with the rest (`RD-09`).
+    final showReturn =
+        viewModel.follow.showReturn && !viewModel.distractionFree;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -174,12 +198,26 @@ class _Reader extends StatelessWidget {
               Positioned.fill(
                 child: MushafScrollView(viewModel: viewModel, active: active),
               ),
-              if (viewModel.selectedAyah case final ayah?)
+              if (viewModel.selectedAyah != null || showReturn)
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Padding(
                     padding: ReaderScreenMetrics.toolbarPadding,
-                    child: _Toolbar(viewModel: viewModel, ayah: ayah),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: AppSpacing.space3,
+                      children: [
+                        if (showReturn)
+                          SmallButton(
+                            label: AppLocalizations.of(
+                              context,
+                            ).returnToRecitation,
+                            onPressed: viewModel.follow.resume,
+                          ),
+                        if (viewModel.selectedAyah case final ayah?)
+                          _Toolbar(viewModel: viewModel, ayah: ayah),
+                      ],
+                    ),
                   ),
                 ),
             ],
@@ -190,7 +228,33 @@ class _Reader extends StatelessWidget {
             padding: ReaderScreenMetrics.footerPadding,
             child: PageMark(page: position.page),
           ),
+        if (viewModel.showPlayerBar)
+          Padding(
+            padding: ReaderScreenMetrics.playerBarPadding,
+            child: _PlayerBar(viewModel: viewModel),
+          ),
       ],
+    );
+  }
+}
+
+/// The floating player bar the Screens board draws under the reader while a
+/// recitation plays or is paused.
+class _PlayerBar extends StatelessWidget {
+  const _PlayerBar({required this.viewModel});
+
+  final MushafViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    final follow = viewModel.follow;
+    return ReaderPlayerBar(
+      surah: viewModel.playerSurahName!,
+      ayah: follow.heard!.ayah,
+      reciter: follow.reciter,
+      playing: follow.playing,
+      onPlayPause: follow.playPause,
+      onNext: follow.nextAyah,
     );
   }
 }

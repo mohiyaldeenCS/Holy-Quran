@@ -10,7 +10,7 @@ corrected first.
 | --- | --- |
 | Updated | 2026-10-28 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **33 merged**: P1-01 to P1-30, P1-38 to P1-40 (P1-12, P1-14, P1-15, P1-17, P1-22, P1-23, P1-24, P1-25, P1-26, P1-27, P1-28, P1-29, P1-30 and P1-40 partial). **In progress**: P1-32, P1-33 (#71), the composition-root wiring (#72). **5 not started**: P1-31, P1-34 to P1-37. The lead merges after an independent review and CI (D-136) |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **34 merged**: P1-01 to P1-30, P1-32, P1-38 to P1-40 (P1-12, P1-14, P1-15, P1-17, P1-22, P1-23, P1-24, P1-25, P1-26, P1-27, P1-28, P1-29, P1-30, P1-32 and P1-40 partial). **In progress**: P1-31, P1-33 (#71), P1-34. **3 not started**: P1-35 to P1-37. The composition root is wired (#72, D-151). The lead merges after an independent review and CI (D-136) |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/p1-*`); worktrees under the session's scratchpad for parallel agents (D-132) |
 | Last session | 2026-10-28, local session on the owner's Windows machine, stopped for the account switch. **Read `HANDOFF.md` first**: it says exactly what was in flight (#53, P1-14, P1-22) and what each needs |
@@ -214,8 +214,7 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   choice (D-127, D-134), the recitation step hidden until a recitation is `Ready` (D-136); the mail send action of «أبلغ عن خطأ» (D-127); a shared
   sheet-frame widget (word, copy, report and player sheets each copy `.qk-sheet`);
   `LevelSwitch` and the theme switch at 320 wide and 200% (P1-35); user-data screens
-  saying when the database is in memory (D-133); `userDataProviders` wiring
-  (bookmarks, notes, keep-awake). Reviewed by `code-reviewer` (once, then fixes) and
+  saying when the database is in memory (D-133). Reviewed by `code-reviewer` (once, then fixes) and
   `identity-auditor`.
 - **P1-25 merged (#52), partial.** Resource manager at `/more/resources` with tafsir
   and riwaya sections, download, delete, re-download and update states, storage bars,
@@ -224,8 +223,8 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   yet); OF-02 partial (no stop or pause; the size, source and version line is met);
   OF-03 partial (bars met; the free and used figures need the new strings); OF-06
   partial (the change summary shows; no update word or action; no rollback); TF-06 as
-  far as the installer allows. Not reachable in the app until the installer is wired
-  into `lib/config`. Follow-ups in D-137. Reviewed by `code-reviewer` and
+  far as the installer allows. The installer is wired into `lib/config` by #72 (D-151). Follow-ups in
+  D-137. Reviewed by `code-reviewer` and
   `identity-auditor` (twice).
 - **P1-38 merged, the second batch of strings.** 83 keys in `lib/l10n/app_ar.arb`: 38 from
   Appendix B as the owner approved them (D-128 (4)), 45 worded by the lead (D-128 (5);
@@ -326,8 +325,24 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   budget. Pending human checks: search on a device in the four themes and at 200%, TalkBack on the
   results and the scope, the 300 ms budget on a mid-range phone. Reviewed by `code-reviewer` (opus),
   `identity-auditor` (sonnet) and two verifications (opus, sonnet).
-- In progress: P1-32, P1-33 (#71), the composition-root wiring (#72).
-  Not started: P1-31, P1-34 (wave 4), P1-35 to P1-37 (wave 5).
+- **Composition-root wiring merged (#72).** `lib/config/` now provides user data (bookmarks,
+  notes, tags, categories, listening position, search history, integrity log, keep-awake), the
+  pack installer (started, Ed25519 verification, the base pack's id reserved), `BasePackGuard`,
+  tafsir, search, address input, recitations and `FreeSpaceService`. The user database is checked
+  once at start and any failure puts every area on one in-memory database, so a damaged file is
+  never written (D-151, extending D-133 (1)). Not wired: tafsir search (TF-07). Pending human
+  check: a start on a device with user data, an installed pack and the keep-awake setting.
+  Reviewed by `code-reviewer` (opus) and three verifications (sonnet).
+- **P1-32 merged, partial.** The reader follows the recitation: the recited ayah highlighted with
+  its marker filled from the plan's ayah events, auto-scroll with «عُد إلى موضع التلاوة» after a
+  user's scroll, the player bar in the reader in place of the mini player, and stand mode (hide the
+  interface, follow, keep awake) (D-152). Partial: page-mode page-turn, SY-02 and surah-file timing
+  (row 6), no entry point for stand mode (identity gap, asked of the owner). Pending human checks:
+  the 250 ms highlight deviation on a device, following and the bar in the four themes and at 200%,
+  stand mode keeping the screen on. Reviewed by `code-reviewer` (opus, twice), `identity-auditor`
+  and two verifications (sonnet).
+- In progress: P1-31, P1-33 (#71), P1-34.
+  Not started: P1-35 to P1-37 (wave 5).
 - The local branches of 2026-10-13 (`fix/bookmark-restore-nullable`,
   `chore/analysis-exclude-platform-dirs`) are not needed on the pinned SDK (analyze is
   clean without them) and are not pushed (D-129). On the owner's machine

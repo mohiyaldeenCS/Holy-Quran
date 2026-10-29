@@ -2,6 +2,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/config/catalogue_config.dart';
 import 'package:holyquran/config/dependencies.dart';
 import 'package:holyquran/config/providers/catalogue_providers.dart';
+import 'package:holyquran/data/repositories/catalogue_repository.dart';
+import 'package:holyquran/data/repositories/pack_install_repository.dart';
+import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
+import 'package:holyquran/data/repositories/recitation_repository.dart';
 import 'package:holyquran/domain/models/catalogue.dart';
 import 'package:holyquran/utils/result.dart';
 
@@ -79,5 +83,65 @@ void main() {
     expect(recitations.recitations, isEmpty);
     await pumpEventQueue();
     expect(messages, isEmpty);
+  });
+
+  group('provideRecitations', () {
+    Future<Dependencies> over({
+      bool catalogue = true,
+      bool installs = true,
+      bool integrity = true,
+    }) async {
+      late Dependencies provided;
+      await buildDependencies(
+        areas: [
+          (dependencies) async {
+            if (catalogue) {
+              final fake = FakeCatalogueRepository(syntheticCatalogue());
+              addTearDown(fake.dispose);
+              dependencies.provideListenable<CatalogueRepository>(fake);
+            }
+            if (installs) {
+              final fake = FakePackInstallRepository();
+              addTearDown(fake.dispose);
+              dependencies.provideListenable<PackInstallRepository>(fake);
+            }
+            if (integrity) {
+              final fake = FakePackIntegrityRepository();
+              addTearDown(fake.dispose);
+              dependencies.provideListenable<PackIntegrityRepository>(fake);
+            }
+          },
+          (dependencies) async => provideRecitations(dependencies),
+          (dependencies) async => provided = dependencies,
+        ],
+      );
+      return provided;
+    }
+
+    test('provides the recitations the catalogue lists', () async {
+      final recitations = (await over()).read<RecitationRepository>();
+
+      expect(
+        [for (final r in recitations.recitations) r.id],
+        ['synthetic-listed'],
+      );
+      expect(messages, isEmpty);
+    });
+
+    test(
+      'provides nothing while the catalogue or the integrity is missing',
+      () async {
+        for (final dependencies in [
+          await over(catalogue: false),
+          await over(integrity: false),
+        ]) {
+          expect(dependencies.tryRead<RecitationRepository>(), isNull);
+        }
+      },
+    );
+
+    test('fails the start when the installer is missing', () async {
+      await expectLater(over(installs: false), throwsStateError);
+    });
   });
 }

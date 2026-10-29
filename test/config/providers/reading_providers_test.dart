@@ -7,12 +7,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/config/dependencies.dart';
 import 'package:holyquran/config/providers/reading_providers.dart';
 import 'package:holyquran/config/providers/settings_providers.dart';
+import 'package:holyquran/config/providers/user_database_providers.dart';
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/data/repositories/in_memory_app_settings_repository.dart';
 import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/data/services/user_database.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/utils/result.dart';
+import 'package:provider/provider.dart';
 
 import '../../../testing/fakes/fake_app_settings_repository.dart';
 
@@ -114,6 +116,25 @@ void main() {
       expect(await positions.save(_at(2, 30)), isA<Ok<void>>());
 
       expect(positions.last, _at(2, 30));
+      expect(file.readAsBytesSync(), bytes);
+    });
+
+    test('the areas after the settings share one database in memory, and '
+        'the tree never holds the unreadable one', () async {
+      late Dependencies provided;
+      final providers = await buildDependencies(
+        areas: [
+          (dependencies) async => dependencies.provide(unreadable),
+          settingsProviders,
+          readingProviders,
+          (dependencies) async => provided = dependencies,
+        ],
+      );
+
+      final replaced = provided.read<UserDatabase>();
+      expect(replaced, isNot(same(unreadable)));
+      expect(useDatabaseInMemory(provided), same(replaced));
+      expect(providers.whereType<Provider<UserDatabase>>(), hasLength(1));
       expect(file.readAsBytesSync(), bytes);
     });
 

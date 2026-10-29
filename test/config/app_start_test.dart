@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:background_downloader/background_downloader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
-import 'package:holyquran/data/repositories/in_memory_app_settings_repository.dart';
 import 'package:holyquran/data/services/user_database.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/main.dart' as app;
@@ -18,8 +18,17 @@ import 'package:provider/single_child_widget.dart';
 
 import '../../testing/application_support.dart';
 import '../../testing/fakes/fake_app_settings_repository.dart';
+import '../../testing/fakes/memory_task_storage.dart';
 
 void main() {
+  // The app starts the pack installer, which creates the downloader plugin.
+  // Its own storage runs an isolate that outlives the test and makes the
+  // engine report a callback into the Dart VM as it shuts down.
+  setUpAll(() {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    FileDownloader(persistentStorage: MemoryTaskStorage());
+  });
+
   testWidgets('shows the splash until the dependencies are built', (
     tester,
   ) async {
@@ -85,7 +94,7 @@ void main() {
     expect(find.byType(Splash), findsNothing);
     final home = tester.element(find.byType(HomeScreen));
     final settings = home.read<AppSettingsRepository>();
-    expect(settings, isA<InMemoryAppSettingsRepository>());
+    expect(settings, isA<LocalAppSettingsRepository>());
     expect(home.colors, same(AppColors.paper));
 
     await settings.setTheme(ReadingTheme.night);

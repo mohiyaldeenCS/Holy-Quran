@@ -75,6 +75,7 @@ Widget _reader(BuildContext context, QuranAddress? address) =>
         bookmarks: context.read<BookmarkRepository?>(),
         categories: context.read<CategoryRepository?>(),
         keepAwake: context.read<KeepAwakeRepository?>(),
+        player: context.read<PlayerRepository?>(),
         tools: _ayahTools(context),
       ),
       // The screen listens to its view model itself.

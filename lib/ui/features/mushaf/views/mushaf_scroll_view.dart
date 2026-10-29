@@ -20,9 +20,11 @@ import 'package:holyquran/ui/core/reader/reader_pinch_stepper.dart';
 import 'package:holyquran/ui/core/reader/reader_text_scale.dart';
 import 'package:holyquran/ui/core/reader/surah_layout.dart';
 import 'package:holyquran/ui/core/reader/target_gestures.dart';
+import 'package:holyquran/ui/core/theme/motion.dart';
 import 'package:holyquran/ui/core/widgets/surah_header.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/mushaf_view_model.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/reader_surah.dart';
+import 'package:holyquran/ui/features/mushaf/view_models/recitation_follow.dart';
 import 'package:holyquran/ui/features/mushaf/views/surah_info_text.dart';
 
 /// The surahs of [viewModel] as one continuous vertical scroll (`RD-11`),
@@ -32,12 +34,19 @@ import 'package:holyquran/ui/features/mushaf/views/surah_info_text.dart';
 /// first visible, saves it when a scroll ends (`RD-12`), and asks for the
 /// next surah before the reader reaches the end. While not [active] it
 /// neither tracks, saves nor loads. Every scroll it did not make itself
-/// counts as the user's, a screen reader's included.
+/// counts as the user's, a screen reader's included; the scrolls it makes to
+/// follow the recitation move the reading position like any other.
 ///
 /// Its gestures are the reader's (PRD §7.4): a tap or long press reaches the
 /// view model, which selects an ayah or toggles the interface; a pinch steps
 /// the text size (`RD-07`) and keeps the ayah under the fingers in place; the
 /// margins show the marks and the ribbons of bookmarks.
+///
+/// It also follows the recitation (`SY-03`): when the view model asks, it
+/// brings the ayah being recited into view, unless that ayah is already in
+/// view, and a scroll of the user's stops the following. A recitation in a
+/// surah the reader does not show next to its own reopens the reader there.
+/// The scroll animates unless the platform asks for less motion.
 final class MushafScrollView extends StatefulWidget {
   const MushafScrollView({
     required this.viewModel,
@@ -53,6 +62,8 @@ final class MushafScrollView extends StatefulWidget {
 }
 
 final class _MushafScrollViewState extends State<MushafScrollView> {
+  static const _maxSteps = ReaderScreenMetrics.followSteps;
+
   final _controller = ScrollController();
   final _headerKeys = <int, GlobalKey>{};
   final _textKeys = <int, GlobalKey>{};
@@ -61,6 +72,15 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
   QuranAddress? _handledAnchor;
   QuranAddress? _pendingAnchor;
   bool _jumping = false;
+
+  // The asks to follow the recitation: the last one met, the one waiting for
+  // its surah, and the scrolls this view is making itself, which are not the
+  // user's.
+  FollowRequest? _handledFollow;
+  FollowRequest? _pendingFollow;
+  bool _followScheduled = false;
+  int _followScrolls = 0;
+  int _followSteps = 0;
 
   // The plan of the surah under the middle of the screen, which a pinch
   // anchors in, and whether a step is waiting for its new plans.
@@ -82,6 +102,7 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
     super.initState();
     _surahs = _model.surahs;
     _takeAnchor();
+    _handledFollow = _model.follow.request;
     _model.addListener(_onModel);
   }
 
@@ -94,12 +115,26 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(MushafScrollView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.active && !oldWidget.active && _pendingFollow != null) {
+      _scheduleFollow();
+    }
+  }
+
   void _takeAnchor() {
     if (identical(_model.anchor, _handledAnchor)) return;
     _handledAnchor = _pendingAnchor = _model.anchor;
   }
 
   void _onModel() {
+    final request = _model.follow.request;
+    if (!identical(request, _handledFollow)) {
+      _handledFollow = _pendingFollow = request;
+      _followSteps = 0;
+      _scheduleFollow();
+    }
     if (identical(_model.surahs, _surahs)) return;
     setState(() {
       _surahs = _model.surahs;
@@ -107,6 +142,107 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
     });
     if (_pendingAnchor != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _retryAnchor());
+    }
+    if (_pendingFollow != null) _scheduleFollow();
+  }
+
+  void _scheduleFollow() {
+    if (_followScheduled) return;
+    _followScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _followScheduled = false;
+      _follow();
+    });
+  }
+
+  // Brings the ayah asked for into view. Its surah may not be laid out yet,
+  // or not appended yet: the ask waits for the layout and for the surah after
+  // the last one shown, which it asks for; it is dropped when its surah can
+  // not be shown without a gap.
+  void _follow() {
+    final request = _pendingFollow;
+    // A scroll in flight looks again when it ends.
+    if (!mounted || request == null || _followScrolls > 0) return;
+    // A reader that is not shown neither scrolls nor loads; the ask waits.
+    if (!widget.active) return;
+    final address = request.address;
+    final shown = _surahs.where((s) => s.info.number == address.surah);
+    if (shown.isEmpty) {
+      if (!_model.canShow(address)) {
+        _pendingFollow = null;
+      } else if (_surahs.isNotEmpty &&
+          address.surah == _surahs.last.info.number + 1) {
+        unawaited(_model.loadNext.execute());
+      } else {
+        // A surah apart from the ones shown: the reader opens at it, and the
+        // anchor brings the ayah into view.
+        unawaited(_model.showAt(address));
+      }
+      return;
+    }
+    final layout = _layouts[address.surah];
+    final sliver = _sliverOf(_textKeys, address.surah);
+    if (layout == null ||
+        sliver == null ||
+        !identical(layout.text, shown.first.text) ||
+        !_controller.hasClients) {
+      return;
+    }
+    if (address.riwaya != layout.text.riwaya ||
+        address.ayah > layout.text.ayat.length) {
+      _pendingFollow = null;
+      return;
+    }
+    final position = _controller.position;
+    final start = sliver.constraints.precedingScrollExtent;
+    final first = address.ayah == 1;
+    final top = first
+        ? _startOf(address.surah)
+        : start + layout.offsetOf(address);
+    final bottom =
+        start +
+        layout.basmalaExtent +
+        (layout.lineOfAyahEnd(address.ayah) + 1) * layout.lineHeight;
+    if (top >= position.pixels &&
+        bottom <= position.pixels + position.viewportDimension) {
+      _pendingFollow = null;
+      return;
+    }
+    final target = first
+        ? top
+        : top - position.viewportDimension * ReaderScreenMetrics.followLead;
+    final offset = target.clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    // The scroll's extent can fall short of the ayah until the blocks above
+    // it are laid out, and at the end of the surahs shown until the next is
+    // appended, so the ask is kept and looked at again after each scroll,
+    // until the ayah is in view, the scroll stops moving or it has taken too
+    // many steps.
+    if (offset == position.pixels || _followSteps++ >= _maxSteps) {
+      _pendingFollow = null;
+      return;
+    }
+    _scrollTo(offset);
+  }
+
+  void _scrollTo(double offset) {
+    final position = _controller.position;
+    _followScrolls++;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      position.jumpTo(offset);
+      _followScrolls--;
+      if (_pendingFollow != null) _scheduleFollow();
+    } else {
+      unawaited(
+        position
+            .animateTo(offset, duration: motionNormal, curve: motionCurve)
+            .whenComplete(() {
+              _followScrolls--;
+              if (mounted && _pendingFollow != null) _scheduleFollow();
+            }),
+      );
     }
   }
 
@@ -127,6 +263,7 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
 
   void _onLayout(SurahLayout layout) {
     _layouts[layout.text.surah] = layout;
+    if (_pendingFollow != null) _scheduleFollow();
     if (_focusSurah == null || layout.text.surah == _focusSurah) {
       _focusSurah = layout.text.surah;
       // A step's new plans are anchored by the pinch stepper, to the ayah
@@ -192,6 +329,11 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
       if (notification is ScrollEndNotification) _moving.value = false;
     }
     if (!widget.active || _jumping || notification.depth != 0) return false;
+    // A stand follows whatever the user does, so a drag leaves its ask be.
+    if (_byUser(notification) && !_model.standMode) {
+      _pendingFollow = null;
+      _model.follow.userScrolled();
+    }
     if (notification is ScrollStartNotification) _pendingAnchor = null;
     if (notification is ScrollUpdateNotification ||
         notification is ScrollEndNotification) {
@@ -203,6 +345,19 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
     }
     _loadNextIfNear(notification.metrics);
     return false;
+  }
+
+  // A drag is the user's even when it interrupts a scroll of this view's
+  // own; any other movement is the user's unless this view is making it.
+  bool _byUser(ScrollNotification notification) {
+    final own = _followScrolls > 0;
+    return switch (notification) {
+      ScrollStartNotification(:final dragDetails) =>
+        dragDetails != null || !own,
+      ScrollUpdateNotification(:final dragDetails) =>
+        dragDetails != null || !own,
+      _ => false,
+    };
   }
 
   bool _onMetrics(ScrollMetricsNotification notification) {
@@ -312,7 +467,10 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
   @override
   Widget build(BuildContext context) {
     final step = readerTextSteps[_model.textStep];
-    final highlights = ReaderHighlights(selectedAyah: _model.selectedAyah);
+    final highlights = ReaderHighlights(
+      selectedAyah: _model.selectedAyah,
+      recitedAyah: _model.follow.recited,
+    );
     return ReaderPinchStepper(
       scrollController: _controller,
       layout: _focus,

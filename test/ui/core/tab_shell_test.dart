@@ -379,6 +379,25 @@ void main() {
       expect(find.byType(MiniPlayer), findsOneWidget);
     });
 
+    testWidgets('is hidden while the shell chrome says so, and back after', (
+      tester,
+    ) async {
+      await _pumpWithPlayer(tester, FakePlayerRepository(state: _playing));
+      final chrome = Provider.of<ShellChrome>(
+        tester.element(find.byType(HomeScreen)),
+        listen: false,
+      );
+
+      chrome.miniPlayerVisible = false;
+      await tester.pump();
+      expect(find.byType(MiniPlayer), findsNothing);
+      expect(find.byType(TabBar), findsOneWidget);
+
+      chrome.miniPlayerVisible = true;
+      await tester.pump();
+      expect(find.byType(MiniPlayer), findsOneWidget);
+    });
+
     testWidgets('its buttons call the player', (tester) async {
       final player = FakePlayerRepository(state: _playing);
       await _pumpWithPlayer(tester, player);
