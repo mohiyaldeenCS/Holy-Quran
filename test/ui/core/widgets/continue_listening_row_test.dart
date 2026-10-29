@@ -52,6 +52,8 @@ Future<void> _pump(
   );
 }
 
+void _noop() {}
+
 Widget _row({String? reciter = _reciter, VoidCallback? onPlay}) =>
     ContinueListeningRow(
       surahName: _packName,
@@ -101,6 +103,24 @@ void main() {
         const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       );
     }
+  });
+
+  testWidgets('names the surah only when the position has no ayah', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const ContinueListeningRow(
+        surahName: _packName,
+        reciter: _reciter,
+        onPlay: _noop,
+      ),
+    );
+
+    final name = tester.widget<SurahName>(find.byType(SurahName));
+    expect(name.format, SurahNameFormat.titled);
+    expect(name.ayah, isNull);
+    expect(find.text(_l10n.surahTitle(_name)), findsOneWidget);
   });
 
   testWidgets('writes the label, the surah and ayah, and the reciter', (
