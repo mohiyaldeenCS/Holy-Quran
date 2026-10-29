@@ -350,4 +350,76 @@ void main() {
       },
     );
   }
+
+  // Scrolls on from 1:1 until the top edge is in the gap above surah 2, so
+  // that its header is on screen just below the top and the first visible
+  // ayah is 2:1: the surah in focus is the one holding the first visible
+  // line, and a pinch on its header or basmala holds no ayah to anchor.
+  Future<({Offset header, Offset basmala})> scrollToHeaderAtTop(
+    WidgetTester tester,
+  ) async {
+    final controller = scrollOf(tester);
+    final edge = tester.getTopLeft(find.byType(CustomScrollView)).dy;
+    for (var step = 0; step < 400; step++) {
+      final headers = [
+        for (final element in find.byType(SurahHeader).evaluate())
+          tester.getCenter(find.byWidget(element.widget)),
+      ].where((h) => h.dy > edge + 30 && h.dy < edge + 140);
+      final basmalas = [
+        for (final element in find.byType(QuranText).evaluate())
+          tester.getCenter(find.byWidget(element.widget)),
+      ];
+      if (headers.isNotEmpty &&
+          viewModel.position!.address == QuranAddress('hafs', 2, 1)) {
+        final header = headers.first;
+        final below = basmalas.where((b) => b.dy > header.dy);
+        if (below.isNotEmpty) {
+          return (header: header, basmala: below.first);
+        }
+      }
+      controller.jumpTo(controller.offset + 20);
+      await tester.pumpAndSettle();
+    }
+    fail('surah 2 never came to the top');
+  }
+
+  for (final (name, onBasmala, scale, from, to) in [
+    ('header, out', false, 1.0, 70.0, 110.0),
+    ('header, in', false, 1.5, 110.0, 70.0),
+    ('basmala, out', true, 1.0, 70.0, 110.0),
+    ('basmala, in', true, 1.5, 110.0, 70.0),
+  ]) {
+    testWidgets('fingers on the $name of the surah at the top keep its header '
+        'at the top', (tester) async {
+      await pumpReader(tester, QuranAddress('hafs', 1, 1), scale: scale);
+      final target = await scrollToHeaderAtTop(tester);
+      final edge = tester.getTopLeft(find.byType(CustomScrollView)).dy;
+      double? headerTop() {
+        final tops = [
+          for (final element in find.byType(SurahHeader).evaluate())
+            tester.getTopLeft(find.byWidget(element.widget)).dy,
+        ]..sort((a, b) => (a - edge).abs().compareTo((b - edge).abs()));
+        return tops.firstOrNull;
+      }
+
+      final before = headerTop();
+      final stepBefore = viewModel.textStep;
+      await pinch(
+        tester,
+        onBasmala ? target.basmala : target.header,
+        from: from,
+        to: to,
+      );
+      expect(viewModel.textStep, isNot(stepBefore));
+      final after = headerTop();
+      expect(after, isNotNull, reason: 'a header is on screen');
+      expect(
+        (after! - edge).abs(),
+        lessThanOrEqualTo(lineHeight(tester)),
+        reason:
+            'the header of surah 2 was at $before and is at $after, the '
+            'top edge at $edge',
+      );
+    });
+  }
 }
