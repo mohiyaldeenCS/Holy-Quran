@@ -13,13 +13,33 @@ import 'package:holyquran/data/services/manifest_signature.dart';
 import 'package:holyquran/data/services/pack_file_service.dart';
 
 /// Provides the [CatalogueRepository] once the catalogue is configured;
-/// until then there is nothing to fetch and the area provides nothing.
+/// until then there is nothing to fetch and the area provides nothing. The
+/// recitations it lists follow.
 Future<void> catalogueProviders(Dependencies dependencies) async {
   if (catalogueUrl case final url?) {
     dependencies.provideListenable<CatalogueRepository>(
       catalogueRepository(url),
     );
   }
+  provideRecitations(dependencies);
+}
+
+/// Provides the [RecitationRepository] over the catalogue, the installer and
+/// the integrity repository earlier areas provided. Recitations are played
+/// from verified packs, so without any of the three, the last of which needs a
+/// base pack, none is provided.
+void provideRecitations(Dependencies dependencies) {
+  final catalogue = dependencies.tryRead<CatalogueRepository>();
+  final installs = dependencies.tryRead<PackInstallRepository>();
+  final integrity = dependencies.tryRead<PackIntegrityRepository>();
+  if (catalogue == null || installs == null || integrity == null) return;
+  dependencies.provideListenable<RecitationRepository>(
+    recitationRepository(
+      catalogue: catalogue,
+      installs: installs,
+      integrity: integrity,
+    ),
+  );
 }
 
 /// The catalogue at [address] on the device's services: `https` only, its
@@ -40,8 +60,7 @@ RemoteCatalogueRepository catalogueRepository(Uri address) =>
 /// The recitations [catalogue] lists, played from the recitation packs
 /// [installs] holds, each verified once per session and reported to
 /// [integrity]; downloaded audio under `recitations/` in application
-/// support. For the area that provides the installer and the integrity
-/// repository, which no area does yet.
+/// support.
 PackRecitationRepository recitationRepository({
   required CatalogueRepository catalogue,
   required PackInstallRepository installs,
