@@ -57,8 +57,12 @@ final class Dependencies {
 
   /// The [T] an earlier area provided. Throws a [StateError] if none did.
   T read<T extends Object>() =>
-      _values[T] as T? ??
+      tryRead<T>() ??
       (throw StateError('$T is not provided by an earlier area'));
+
+  /// The [T] an earlier area provided, or null for what that area leaves out,
+  /// such as everything that needs a verified base pack.
+  T? tryRead<T extends Object>() => _values[T] as T?;
 
   /// Provides [value] as [T]. A [Listenable] goes through [provideListenable].
   void provide<T extends Object>(T value) {

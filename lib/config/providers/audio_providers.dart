@@ -22,9 +22,8 @@ Future<void> provideAudio(
   required AudioEngineService Function() createEngine,
   required RecitationFileLocator locate,
 }) async {
-  final index = _providedOrNull<QuranIndexRepository>(dependencies);
-  if (index == null ||
-      _providedOrNull<PlaybackPlanBuilder>(dependencies) == null) {
+  final index = dependencies.tryRead<QuranIndexRepository>();
+  if (index == null || dependencies.tryRead<PlaybackPlanBuilder>() == null) {
     return;
   }
   dependencies.provideListenable<PlayerRepository>(
@@ -35,13 +34,4 @@ Future<void> provideAudio(
           index.surahs.where((info) => info.number == surah).firstOrNull?.name,
     ),
   );
-}
-
-// The Quran area provides these only once the base pack is verified.
-T? _providedOrNull<T extends Object>(Dependencies dependencies) {
-  try {
-    return dependencies.read<T>();
-  } on StateError {
-    return null;
-  }
 }

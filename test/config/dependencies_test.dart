@@ -129,6 +129,22 @@ void main() {
     );
   });
 
+  test('tryRead gives what an earlier area provided and null for the '
+      'rest', () async {
+    final found = <Object?>[];
+    await buildDependencies(
+      areas: [
+        (dependencies) async =>
+            dependencies.provide(const _Database('synthetic')),
+        (dependencies) async => found
+          ..add(dependencies.tryRead<_Database>())
+          ..add(dependencies.tryRead<_Settings>()),
+      ],
+    );
+
+    expect(found, [isA<_Database>(), isNull]);
+  });
+
   test('providing a type twice throws', () async {
     await expectLater(
       buildDependencies(
