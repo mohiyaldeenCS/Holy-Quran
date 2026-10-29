@@ -1568,6 +1568,75 @@
       }
     }
   },
+  "sourceVersion": "الإصدار {version}",
+  "@sourceVersion": {
+    "description": "Lead, 2026-10-28, D-128 (5). A source's version, made of the approved label versionLabel (TF-05) and the number. version is the pack's version, already written in Arabic-Indic digits.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcePublisher": "الناشر: {publisher}",
+  "@sourcePublisher": {
+    "description": "Lead, 2026-10-28, D-128 (5). A tafsir book's publisher as the source details list it (TF-05). publisher is the publisher from the pack, substituted whole and unchanged.",
+    "placeholders": {
+      "publisher": {
+        "type": "String"
+      }
+    }
+  },
+  "tafsirRange": "من الآية {from} إلى الآية {to}",
+  "@tafsirRange": {
+    "description": "Lead, 2026-10-28, D-128 (5). The ayat a tafsir passage explains together (TF-04), made of the approved words rangeFrom, rangeTo and repeatUnitAyah. from and to are ayah numbers, already written in Arabic-Indic digits.",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "ayahsRangeShort": "{from}–{to}",
+  "@ayahsRangeShort": {
+    "description": "Lead, 2026-10-28, D-128 (5). A run of ayah numbers inside the reference of a copied tafsir passage, with an en dash and no word. from and to are ayah numbers, already written in Arabic-Indic digits.",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "tafsirCopyFormat": "{passage}\n\n{title} · {author}\n[{surah}: {ayahs}]\n{source} · {version}",
+  "@tafsirCopyFormat": {
+    "description": "Pending the owner: credit wording (SOURCES.md, Zaydi Library). A copied tafsir passage with its attribution (TF-10). passage, title, author and surah are text from the pack, substituted whole and unchanged; ayahs is the passage's ayah number or ayahsRangeShort; source is the digitisation source's name from the manifest; version is sourceVersion with the pack's version.",
+    "placeholders": {
+      "passage": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      },
+      "author": {
+        "type": "String"
+      },
+      "surah": {
+        "type": "String"
+      },
+      "ayahs": {
+        "type": "String"
+      },
+      "source": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "bookmarksSearchHint": "ابحث في العلامات والملاحظات",
   "@bookmarksSearchHint": {
     "description": "The bookmarks screen's search field: its hint and spoken name. Wording of SR-08 in docs/prd/PRD.ar.md. P1-24, proposed for the lead to approve under D-128 (5)."
