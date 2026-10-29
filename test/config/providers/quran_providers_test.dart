@@ -138,6 +138,18 @@ void main() {
 
     expect(guard.serving(), isFalse);
     expect(
+      await tester.runAsync(
+        () => context.read<QuranTextRepository>().ayahText(
+          QuranAddress('hafs', 2, 1),
+        ),
+      ),
+      isA<Failure<Object>>().having(
+        (failure) => failure.error,
+        'error',
+        isA<PackDisabled>(),
+      ),
+    );
+    expect(
       integrity.stateOf(_id),
       isA<IntegrityFailed>().having(
         (state) => state.reason,

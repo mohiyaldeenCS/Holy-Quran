@@ -322,6 +322,36 @@ void main() {
       ]);
     });
 
+    test('refuses every read while the pack is not serving, whoever failed '
+        'it', () async {
+      final pack = await buildSyntheticPack(root);
+      final verified = switch (await const LocalPackRepository(
+        files: PackFileService(),
+        signatures: SignatureNotConfigured(),
+      ).verify(pack.directory.path)) {
+        Ok(:final value) => value,
+        Failure(:final error) => fail('$error'),
+      };
+      var serving = true;
+      final reported = <PackFailure>[];
+      final repository = ok(
+        PackQuranTextRepository.open(
+          verified,
+          onDisabled: reported.add,
+          serving: () => serving,
+        ),
+      );
+      addTearDown(repository.close);
+      expect(ok(await repository.ayahText(_at('hafs:2:1'))), isNotNull);
+
+      serving = false;
+
+      expect(await repository.ayahText(_at('hafs:2:1')), fails<PackDisabled>());
+      expect(await repository.surahs(), fails<PackDisabled>());
+      expect(await repository.contains(_at('hafs:2:1')), fails<PackDisabled>());
+      expect(reported, isEmpty);
+    });
+
     for (final (name, read) in [
       ('basmala', (PackQuranTextRepository r) => r.basmala(1)),
       ('words', (PackQuranTextRepository r) => r.words(_at('hafs:1:3'))),

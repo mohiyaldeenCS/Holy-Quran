@@ -78,7 +78,11 @@ Future<void> provideQuran(
   );
 
   final PackQuranTextRepository text;
-  switch (PackQuranTextRepository.open(verified, onDisabled: failed)) {
+  switch (PackQuranTextRepository.open(
+    verified,
+    onDisabled: failed,
+    serving: serving,
+  )) {
     case Ok(:final value):
       text = value;
     case Failure(:final error):
