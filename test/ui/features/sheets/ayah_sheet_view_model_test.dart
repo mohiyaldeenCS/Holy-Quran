@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/domain/models/playback_range.dart';
+import 'package:holyquran/domain/models/player_state.dart';
 import 'package:holyquran/domain/models/surah_info.dart';
 import 'package:holyquran/ui/features/sheets/view_models/ayah_sheet_view_model.dart';
+import 'package:holyquran/ui/features/sheets/view_models/ayah_tafsir.dart';
 import 'package:holyquran/utils/result.dart';
 
 import '../../../../testing/fakes/fake_player_repository.dart';
@@ -145,6 +149,55 @@ void main() {
     });
   });
 
+  group('a read that is overtaken', () {
+    sheetsTest(
+      'shows the book chosen meanwhile, with its passage and badge, when '
+      'the read of the first book ends last',
+      (tester, world) async {
+        await tester.runAsync(
+          () => world.fixture.install(
+            id: 'synthetic-tafsir-b',
+            book: const SyntheticBook(
+              title: 'Synthetic second title',
+              author: 'Synthetic second author',
+            ),
+            passages: const [
+              SyntheticPassage(1, 1, 4, 'Synthetic second book passage'),
+            ],
+          ),
+        );
+        final gated = GatedTafsirRepository(
+          world.fixture.tafsirs,
+          heldPack: 'synthetic-tafsir',
+        );
+        final tafsir = AyahTafsir(ayah: world.ayah(1, 2), tafsirs: gated);
+        addTearDown(tafsir.dispose);
+        unawaited(tafsir.load());
+        // The first book's read has its position and waits at the gate.
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 100)),
+        );
+
+        await tester.runAsync(
+          () => world.fixture.tafsirs.setDefaultTafsir('synthetic-tafsir-b'),
+        );
+        await waitUntil(
+          tester,
+          () => tafsir.page?.packId == 'synthetic-tafsir-b',
+        );
+        gated.gate.complete();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 100)),
+        );
+
+        final page = tafsir.page!;
+        expect(page.packId, 'synthetic-tafsir-b');
+        expect(page.passage!.text.verbatim, 'Synthetic second book passage');
+        expect(page.book.title.verbatim, 'Synthetic second title');
+      },
+    );
+  });
+
   group('the notes section', () {
     sheetsTest('is there where the notes of the user are provided', (
       tester,
@@ -238,6 +291,27 @@ void main() {
       );
 
       expect(model.canPlay, isTrue);
+      expect(heard, 1);
+    });
+
+    sheetsTest('does not notify for the position updates of the player', (
+      tester,
+      world,
+    ) async {
+      final model = open(world, 1, 2);
+      await waitUntil(tester, () => model.loaded);
+
+      var heard = 0;
+      model.addListener(() => heard++);
+      for (var i = 1; i <= 3; i++) {
+        world.player.state = world.player.state.copyWith(
+          position: Duration(seconds: i),
+        );
+      }
+      expect(heard, 0);
+
+      world.player.state = PlayerState.idle;
+      expect(model.canPlay, isFalse);
       expect(heard, 1);
     });
 

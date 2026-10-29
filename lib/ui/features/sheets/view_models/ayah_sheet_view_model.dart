@@ -33,9 +33,10 @@ final class AyahSheetViewModel extends ChangeNotifier {
     this._integrity,
   }) : address = address.ayahAddress,
        tafsir = AyahTafsir(ayah: address.ayahAddress, tafsirs: tafsirs) {
+    _couldPlay = canPlay;
     _integrity?.addListener(_onIntegrity);
     _notes?.addListener(_onNotes);
-    _player?.addListener(notifyListeners);
+    _player?.addListener(_onPlayer);
     tafsir.addListener(notifyListeners);
     unawaited(tafsir.load());
     unawaited(_load());
@@ -55,6 +56,7 @@ final class AyahSheetViewModel extends ChangeNotifier {
   PackText? _ayahText;
   PackText? _surahName;
   List<Note> _noteList = const [];
+  bool _couldPlay = false;
   bool _loaded = false;
   bool _failed = false;
   int _loads = 0;
@@ -81,6 +83,15 @@ final class AyahSheetViewModel extends ChangeNotifier {
   /// Whether the player holds a plan, which the play options need to play
   /// from the ayah with the recitation, repeat and silence in use.
   bool get canPlay => _player?.state.plan != null;
+
+  // The player notifies on every position tick; only a plan appearing or
+  // going changes what the sheet shows.
+  void _onPlayer() {
+    final canPlay = this.canPlay;
+    if (canPlay == _couldPlay) return;
+    _couldPlay = canPlay;
+    notifyListeners();
+  }
 
   void _onIntegrity() => unawaited(_load());
 
@@ -126,7 +137,7 @@ final class AyahSheetViewModel extends ChangeNotifier {
     _disposed = true;
     _integrity?.removeListener(_onIntegrity);
     _notes?.removeListener(_onNotes);
-    _player?.removeListener(notifyListeners);
+    _player?.removeListener(_onPlayer);
     tafsir
       ..removeListener(notifyListeners)
       ..dispose();

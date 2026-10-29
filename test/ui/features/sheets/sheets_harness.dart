@@ -13,6 +13,7 @@ import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/data/repositories/tafsir_repository.dart';
 import 'package:holyquran/data/repositories/tag_repository.dart';
 import 'package:holyquran/domain/models/edition_map.dart';
+import 'package:holyquran/domain/models/installed_pack.dart';
 import 'package:holyquran/domain/models/mark_span.dart';
 import 'package:holyquran/domain/models/note.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
@@ -24,6 +25,8 @@ import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/quran_structure.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/domain/models/surah_info.dart';
+import 'package:holyquran/domain/models/tafsir_book.dart';
+import 'package:holyquran/domain/models/tafsir_position.dart';
 import 'package:holyquran/domain/models/word_span.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/router.dart';
@@ -50,6 +53,10 @@ final class SwitchableText implements QuranTextRepository {
   final QuranTextRepository inner;
   bool failing = false;
 
+  /// When set, the next [ayahText] decides its answer at once and gives it
+  /// only when this completes, so that a later read can overtake it.
+  Completer<void>? gate;
+
   Result<T> _fail<T>() => const Failure(PackDisabled('synthetic-text'));
 
   @override
@@ -63,8 +70,13 @@ final class SwitchableText implements QuranTextRepository {
       failing ? _fail() : inner.surahs();
 
   @override
-  Future<Result<PackText>> ayahText(QuranAddress address) async =>
-      failing ? _fail() : inner.ayahText(address);
+  Future<Result<PackText>> ayahText(QuranAddress address) async {
+    final fail = failing;
+    final held = gate;
+    gate = null;
+    if (held != null) await held.future;
+    return fail ? _fail() : inner.ayahText(address);
+  }
 
   @override
   Future<Result<PackText?>> basmala(int surah) async =>
@@ -286,4 +298,47 @@ Future<Duration> timeUntil(WidgetTester tester, bool Function() done) async {
   }
   expect(done(), isTrue, reason: 'The reads did not end.');
   return watch.elapsed;
+}
+
+/// A [TafsirRepository] over [inner] whose next [positionAt] of [heldPack]
+/// answers only when [gate] completes, so that a later read can overtake it.
+final class GatedTafsirRepository implements TafsirRepository {
+  GatedTafsirRepository(this.inner, {required this.heldPack});
+
+  final TafsirRepository inner;
+  final String heldPack;
+  final gate = Completer<void>();
+  var _held = false;
+
+  @override
+  void addListener(VoidCallback listener) => inner.addListener(listener);
+
+  @override
+  void removeListener(VoidCallback listener) => inner.removeListener(listener);
+
+  @override
+  List<InstalledPack> get installed => inner.installed;
+
+  @override
+  String? get defaultTafsir => inner.defaultTafsir;
+
+  @override
+  Future<Result<void>> setDefaultTafsir(String packId) =>
+      inner.setDefaultTafsir(packId);
+
+  @override
+  Future<Result<TafsirBook>> book(String packId) => inner.book(packId);
+
+  @override
+  Future<Result<TafsirPosition>> positionAt(
+    String packId,
+    QuranAddress ayah,
+  ) async {
+    final result = await inner.positionAt(packId, ayah);
+    if (packId == heldPack && !_held) {
+      _held = true;
+      await gate.future;
+    }
+    return result;
+  }
 }

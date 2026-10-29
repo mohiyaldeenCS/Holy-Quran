@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/pack_integrity.dart';
@@ -142,6 +144,35 @@ void main() {
     await waitUntil(tester, () => model.unavailable);
 
     expect(model.ayahText, isNull);
+  });
+
+  sheetsTest('keeps what the later read found when an earlier one ends '
+      'after it', (tester, world) async {
+    // The first read is told the pack fails and waits at the gate; the pack
+    // then serves again, its integrity is reported, and a second read ends
+    // first. The first, ending last, must not take the sheet down.
+    world.text
+      ..failing = true
+      ..gate = Completer<void>();
+    final held = world.text.gate!;
+    final model = open(tester, world, 1, 1, 1);
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    expect(model.loaded, isFalse);
+
+    world.text.failing = false;
+    world.integrity.report('synthetic-text', const IntegrityOk());
+    await waitUntil(tester, () => model.loaded);
+    expect(model.unavailable, isFalse);
+
+    held.complete();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
+
+    expect(model.unavailable, isFalse);
+    expect(model.ayahText, isNotNull);
   });
 
   // NF-05: a word or ayah sheet opens in 200 ms. What the sheet waits for is
