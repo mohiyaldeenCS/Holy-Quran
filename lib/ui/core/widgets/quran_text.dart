@@ -1,11 +1,13 @@
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/domain/models/pack_text.dart';
+import 'package:holyquran/domain/models/search_match.dart';
 import 'package:holyquran/domain/models/word_span.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/ramps.g.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/match_highlight.dart';
 import 'package:holyquran/ui/core/widgets/surah_name.dart';
 
 /// The sizes of Quran text (`.qk-quran-*`).
@@ -52,6 +54,7 @@ final class QuranText extends StatelessWidget {
     this.size = QuranTextSize.page,
     this.align = QuranTextAlign.justify,
     this.colour = QuranTextColour.quranInk,
+    this.matches = const [],
     super.key,
   }) : cardFontSize = null,
        after = null,
@@ -72,6 +75,7 @@ final class QuranText extends StatelessWidget {
        align = QuranTextAlign.center,
        after = null,
        _word = null,
+       matches = const [],
        _quoted = false;
 
   /// The ayah in the copy sheet's preview (Share.dc.html, l.54): between the
@@ -87,13 +91,15 @@ final class QuranText extends StatelessWidget {
       colour = QuranTextColour.quranInk,
       cardFontSize = null,
       _word = null,
+      matches = const [],
       _quoted = true;
 
   /// One word of the ayah [text], cut at the offsets [span] stores for it: the
   /// selected word of `WordSheet`. [text] is still the whole ayah, as the
   /// pack gave it; only the slice between the stored offsets is drawn, as the
   /// surah-mode engine slices its ayat. A span that does not lie on character
-  /// boundaries of [text] draws nothing rather than a wrong word.
+  /// boundaries of [text] draws nothing rather than a wrong word. It takes no
+  /// matches: their offsets are relative to the whole ayah.
   const QuranText.word(
     this.text,
     WordSpan span, {
@@ -104,6 +110,7 @@ final class QuranText extends StatelessWidget {
   }) : cardFontSize = null,
        after = null,
        _word = span,
+       matches = const [],
        _quoted = false;
 
   /// The font size of [QuranTextSize.compact] before the text scale, for
@@ -114,6 +121,10 @@ final class QuranText extends StatelessWidget {
   final QuranTextSize size;
   final QuranTextAlign align;
   final QuranTextColour colour;
+
+  /// Where a search matched in [text], offsets into it: each is painted behind
+  /// the glyphs (`MatchHighlight`), and the text itself is unchanged.
+  final List<SearchMatch> matches;
 
   /// The card form's font size; null for the sized forms.
   final double? cardFontSize;
@@ -134,7 +145,7 @@ final class QuranText extends StatelessWidget {
       (null, true) => _quranQuoted,
       (null, false) => _styleOf(size),
     };
-    return RichText(
+    final paragraph = RichText(
       // RichText rather than Text: Text merges the ambient style and the
       // system's bold-text setting into its style, and neither may reach here.
       text: TextSpan(
@@ -157,6 +168,9 @@ final class QuranText extends StatelessWidget {
           ? MediaQuery.textScalerOf(context)
           : TextScaler.noScaling,
     );
+    return matches.isEmpty
+        ? paragraph
+        : MatchHighlight(matches: matches, paragraph: paragraph);
   }
 
   /// The string to draw: the text whole, or the slice of the word; null for a

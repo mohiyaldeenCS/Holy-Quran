@@ -884,7 +884,7 @@
   },
   "changeNotSaved": "تعذّر حفظ التغيير.",
   "@changeNotSaved": {
-    "description": "Lead, D-128 (5): a single change the store refused or a read that failed, such as a bookmark that could not be made, removed or restored, or a note that could not be deleted. Not the in-memory sentence of D-133 (userDataNotSaved)."
+    "description": "Lead, D-128 (5): a single change the store refused or a read that failed, such as a bookmark that could not be made, removed or restored, a note that could not be deleted, or a search history that could not be cleared or read. Not the in-memory sentence of D-133 (userDataNotSaved)."
   },
   "toolbarBookmark": "علامة",
   "@toolbarBookmark": {
@@ -1708,5 +1708,33 @@
   "noteEdit": "عدّل الملاحظة",
   "@noteEdit": {
     "description": "Lead, 2026-10-29, D-128 (5). Spoken name of the button on a note's card that opens that note in its editor (UD-04); noteAdd is the editor's new-note button."
+  },
+  "searchScopeLabel": "نطاق البحث",
+  "@searchScopeLabel": {
+    "description": "P1-29, for the lead's approval under D-128 (5). The name of the group of chips that choose where a search looks (SR-06). Wording from docs/prd/PRD.ar.md (SR-06)."
+  },
+  "searchResultCount": "{places} في {ayat}",
+  "@searchResultCount": {
+    "description": "P1-29, for the lead's approval under D-128 (5). The count line of the search summary, as the Search board writes it: places is searchPlaces and ayat is ayahCount, each already written. Source: design/identity-boards/Search.dc.html.",
+    "placeholders": {
+      "places": {
+        "type": "String"
+      },
+      "ayat": {
+        "type": "String"
+      }
+    }
+  },
+  "searchHistoryClear": "مسح السجل",
+  "@searchHistoryClear": {
+    "description": "P1-29, approved by the owner. The button that clears the search history (SR-10)."
+  },
+  "searchScopeSurahNumber": "رقم السورة",
+  "@searchScopeSurahNumber": {
+    "description": "P1-29, for the lead's approval under D-128 (5). The hint and spoken name of the field for the number of the surah a search is limited to; the Go to sheet's «سورة» with the word a number is expected (SR-06)."
+  },
+  "searchScopeJuzNumber": "رقم الجزء",
+  "@searchScopeJuzNumber": {
+    "description": "P1-29, for the lead's approval under D-128 (5). The hint and spoken name of the field for the number of the juz a search is limited to (SR-06)."
   }
 }
