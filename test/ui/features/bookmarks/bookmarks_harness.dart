@@ -19,6 +19,7 @@ import 'package:holyquran/domain/models/user_tag.dart';
 import 'package:holyquran/routing/router.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/app.dart';
+import 'package:holyquran/ui/features/bookmarks/view_models/note_drafts.dart';
 import 'package:holyquran/utils/result.dart';
 import 'package:provider/provider.dart';
 
@@ -94,6 +95,8 @@ Future<GoRouter> pumpBookmarksApp(
   tester.platformDispatcher.textScaleFactorTestValue = textScale;
   addTearDown(tester.view.reset);
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+  // The session's unsaved notes outlive a sheet, and so would reach a test.
+  NoteDrafts.session.clear();
   world.settings.themePreference = ThemePreference(theme: theme);
   final router = createRouter(features: appFeatures);
   addTearDown(router.dispose);

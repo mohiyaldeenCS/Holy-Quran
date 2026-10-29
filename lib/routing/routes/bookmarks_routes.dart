@@ -12,6 +12,7 @@ import 'package:holyquran/routing/routes/feature_routes.dart';
 import 'package:holyquran/routing/routes/note_location.dart';
 import 'package:holyquran/routing/routes/sheet_needs.dart';
 import 'package:holyquran/ui/features/bookmarks/view_models/bookmarks_view_model.dart';
+import 'package:holyquran/ui/features/bookmarks/view_models/note_drafts.dart';
 import 'package:holyquran/ui/features/bookmarks/view_models/note_sheet_view_model.dart';
 import 'package:holyquran/ui/features/bookmarks/views/bookmarks_screen.dart';
 import 'package:holyquran/ui/features/bookmarks/views/note_sheet_view.dart';
@@ -75,6 +76,8 @@ Widget _note(BuildContext context, GoRouterState state) {
         tags: context.read<TagRepository>(),
         categories: context.read<CategoryRepository>(),
         index: context.read<QuranIndexRepository?>(),
+        integrity: context.read<PackIntegrityRepository?>(),
+        drafts: context.read<NoteDrafts?>(),
         initialNoteId: noteId,
       ),
       builder: (context, _) => NoteSheetView(viewModel: context.read()),

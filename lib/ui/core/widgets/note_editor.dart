@@ -35,6 +35,7 @@ class NoteEditor extends StatelessWidget {
     this.selectedExisting,
     this.onExistingSelected,
     this.onNew,
+    this.canSwitch = true,
     super.key,
   });
 
@@ -66,6 +67,10 @@ class NoteEditor extends StatelessWidget {
   /// Starts another note; shown while the editor holds a saved one.
   final VoidCallback? onNew;
 
+  /// Whether another note can be chosen or started. While the text typed
+  /// would be lost they are shown but cannot be pressed.
+  final bool canSwitch;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -84,7 +89,9 @@ class NoteEditor extends StatelessWidget {
                 _ExistingNote(
                   text: text,
                   selected: index == selectedExisting,
-                  onPressed: () => onExistingSelected?.call(index),
+                  onPressed: canSwitch && onExistingSelected != null
+                      ? () => onExistingSelected!(index)
+                      : null,
                 ),
             ],
           ),
@@ -93,7 +100,7 @@ class NoteEditor extends StatelessWidget {
             label: l10n.noteAdd,
             variant: ButtonVariant.tonal,
             icon: IconName.plus,
-            onPressed: onNew,
+            onPressed: canSwitch ? onNew : null,
           ),
         TextBox(controller: controller, hint: l10n.noteHint, multiline: true),
         TagPicker(
@@ -121,7 +128,9 @@ class NoteEditor extends StatelessWidget {
 
 /// A note the ayah has already, pressed to edit it. The one in the editor
 /// fills with `primary-soft` and carries the check mark of `ModeChips`, so it
-/// is not told by colour alone.
+/// is not told by colour alone. The identity draws no such row; it is
+/// assembled from tokens, in the shape of the chips, for a sheet it does not
+/// draw (PRD §7.6). It cannot be pressed while [onPressed] is null.
 class _ExistingNote extends StatelessWidget {
   const _ExistingNote({
     required this.text,
@@ -131,7 +140,7 @@ class _ExistingNote extends StatelessWidget {
 
   final String text;
   final bool selected;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   static final BorderRadius _radius = BorderRadius.circular(
     AppRadius.radiusButton,

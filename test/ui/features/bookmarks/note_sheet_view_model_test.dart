@@ -2,7 +2,10 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/data/repositories/tag_repository.dart';
 import 'package:holyquran/domain/models/note.dart';
+import 'package:holyquran/domain/models/user_tag.dart';
+import 'package:holyquran/ui/features/bookmarks/view_models/note_drafts.dart';
 import 'package:holyquran/ui/features/bookmarks/view_models/note_sheet_view_model.dart';
 import 'package:holyquran/utils/result.dart';
 
@@ -23,7 +26,11 @@ void main() {
   });
 
   late BookmarksWorld world;
-  setUp(() => world = BookmarksWorld(fixture));
+  late NoteDrafts drafts;
+  setUp(() {
+    world = BookmarksWorld(fixture);
+    drafts = NoteDrafts();
+  });
 
   NoteSheetViewModel make({String? initialNoteId, bool withIndex = true}) {
     final viewModel = NoteSheetViewModel(
@@ -33,7 +40,8 @@ void main() {
       categories: world.categories,
       index: withIndex ? fixture.index : null,
       initialNoteId: initialNoteId,
-      undoShown: const Duration(minutes: 1),
+      window: const Duration(minutes: 1),
+      drafts: drafts,
     );
     addTearDown(viewModel.dispose);
     return viewModel;
@@ -51,7 +59,6 @@ void main() {
     final viewModel = make();
     await settle();
 
-    expect(viewModel.loaded, isTrue);
     expect(viewModel.notes.map((note) => note.id), [first.id]);
     expect(viewModel.categories, hasLength(4));
     expect(viewModel.tags.single.name, 'وسم تجريبي');
@@ -221,7 +228,6 @@ void main() {
       final viewModel = make(initialNoteId: 'absent');
       await settle();
 
-      expect(viewModel.loaded, isTrue);
       expect(viewModel.editing, isNull);
       expect(viewModel.categories, hasLength(4));
       expect(viewModel.tags, hasLength(1));
@@ -261,4 +267,164 @@ void main() {
     await viewModel.save();
     expect((await stored()).single.body, ' نص تجريبي ');
   });
+
+  test('knows a tag it made at once, even when tags cannot be read', () async {
+    final tags = _TagsThatCannotBeRead();
+    final viewModel = NoteSheetViewModel(
+      address: world.ayah(1, 2),
+      notes: world.notes,
+      tags: tags,
+      categories: world.categories,
+      drafts: drafts,
+    );
+    addTearDown(viewModel.dispose);
+    await settle();
+
+    await viewModel.addTag('وسم تجريبي');
+    expect(viewModel.tags.single.name, 'وسم تجريبي');
+    viewModel.setBody('نص تجريبي');
+    expect(await viewModel.save(), isTrue);
+    expect((await stored()).single.tagIds, {viewModel.tags.single.id});
+  });
+
+  test('cannot switch notes while the text would be lost', () async {
+    final first = await world.note(world.ayah(1, 2), 'نص أول');
+    final second = await world.note(world.ayah(1, 2), 'نص ثان');
+    final viewModel = make(initialNoteId: first.id);
+    await settle();
+    expect(viewModel.canSwitch, isTrue);
+
+    viewModel.setBody('نص معدل');
+    expect(viewModel.dirty, isTrue);
+    expect(viewModel.canSwitch, isFalse);
+    viewModel
+      ..select(viewModel.notes.last)
+      ..startNew();
+    expect(viewModel.editing?.id, first.id);
+    expect(viewModel.body, 'نص معدل');
+
+    viewModel.setBody('نص أول');
+    expect(viewModel.canSwitch, isTrue);
+    viewModel.select(viewModel.notes.last);
+    expect(viewModel.editing?.id, second.id);
+  });
+
+  test('cannot leave a new note that has text', () async {
+    await world.note(world.ayah(1, 2), 'نص أول');
+    final viewModel = make();
+    await settle();
+    expect(viewModel.canSwitch, isTrue);
+
+    viewModel.setBody('نص جديد');
+    expect(viewModel.canSwitch, isFalse);
+    viewModel.select(viewModel.notes.single);
+    expect(viewModel.editing, isNull);
+  });
+
+  test('keeps the unsaved text for the ayah and brings it back', () async {
+    final first = make();
+    await settle();
+    first
+      ..setBody('نص غير محفوظ')
+      ..setCategory(BookmarksWorld.category('study'))
+      ..dispose();
+    expect(await stored(), isEmpty);
+
+    final second = make();
+    await settle();
+    expect(second.body, 'نص غير محفوظ');
+    expect(second.categoryId, BookmarksWorld.category('study'));
+    expect(second.dirty, isTrue);
+
+    expect(await second.save(), isTrue);
+    second.dispose();
+    final third = make();
+    await settle();
+    expect(third.body, isEmpty);
+    expect((await stored()).single.body, 'نص غير محفوظ');
+  });
+
+  test('keeps the unsaved text of one note apart from a new note', () async {
+    final made = await world.note(world.ayah(1, 2), 'نص أول');
+    final first = make(initialNoteId: made.id);
+    await settle();
+    first
+      ..setBody('نص معدل')
+      ..dispose();
+
+    final again = make(initialNoteId: made.id);
+    await settle();
+    expect(again.body, 'نص معدل');
+    expect((await stored()).single.body, 'نص أول');
+
+    final blank = make();
+    await settle();
+    expect(blank.body, isEmpty);
+  });
+
+  test('forgets the text once it is back to the stored note', () async {
+    final made = await world.note(world.ayah(1, 2), 'نص أول');
+    final first = make(initialNoteId: made.id);
+    await settle();
+    first
+      ..setBody('نص معدل')
+      ..setBody('نص أول')
+      ..dispose();
+
+    expect(drafts.of(world.ayah(1, 2), made.id), isNull);
+  });
+
+  test(
+    'holds the undo past the window, and the next action drops it',
+    () async {
+      final made = await world.note(world.ayah(1, 2), 'نص تجريبي');
+      final viewModel = NoteSheetViewModel(
+        address: world.ayah(1, 2),
+        notes: world.notes,
+        tags: world.tags,
+        categories: world.categories,
+        window: const Duration(milliseconds: 20),
+        drafts: drafts,
+        initialNoteId: made.id,
+      )..holdUndo = true;
+      addTearDown(viewModel.dispose);
+      await settle();
+      await viewModel.delete();
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(viewModel.canUndo, isTrue);
+
+      viewModel.startNew();
+      expect(viewModel.canUndo, isFalse);
+    },
+  );
+}
+
+/// A tag repository that makes tags but cannot list them.
+final class _TagsThatCannotBeRead extends TagRepository {
+  final _made = <String, UserTag>{};
+
+  @override
+  Future<Result<List<UserTag>>> tags() async =>
+      Failure(Exception('unreadable'));
+
+  @override
+  Future<Result<UserTag>> create(String name) async {
+    final tag = UserTag(
+      id: 'tag-${_made.length}',
+      name: name,
+      createdAt: DateTime.utc(2026),
+    );
+    _made[tag.id] = tag;
+    notifyListeners();
+    return Ok(tag);
+  }
+
+  @override
+  Future<Result<void>> rename(String id, String name) async => const Ok(null);
+
+  @override
+  Future<Result<void>> delete(String id) async => const Ok(null);
+
+  @override
+  Future<Result<void>> restore(String id) async => const Ok(null);
 }

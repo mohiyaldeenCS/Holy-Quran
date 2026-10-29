@@ -12,6 +12,7 @@ import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/routing/routes/note_location.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/core/widgets/note_editor.dart';
+import 'package:holyquran/ui/core/widgets/pressable.dart';
 import 'package:holyquran/ui/core/widgets/tag.dart';
 import 'package:holyquran/ui/core/widgets/undo_bar.dart';
 import 'package:holyquran/ui/features/bookmarks/views/note_sheet_view.dart';
@@ -228,7 +229,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(NoteSheetView), findsOneWidget);
-    expect(find.text(_l10n.userDataNotSaved), findsOneWidget);
+    expect(find.text(_l10n.changeNotSaved), findsOneWidget);
     expect(tester.widget<TextField>(field(0)).controller!.text, 'نص تجريبي');
   });
 
@@ -315,6 +316,46 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('another note cannot be chosen while the text is unsaved', (
+    tester,
+  ) async {
+    await world.note(world.ayah(1, 2), 'نص أول');
+    final second = await world.note(world.ayah(1, 2), 'نص ثان');
+    final router = await pumpBookmarksApp(tester, world, size: tallSheet);
+    await openSheet(tester, router, noteId: second.id);
+
+    Pressable row(String text) => tester.widget<Pressable>(
+      find
+          .ancestor(of: find.text(text), matching: find.byType(Pressable))
+          .first,
+    );
+    expect(row('نص أول').onPressed, isNotNull);
+
+    await tester.enterText(field(0), 'نص معدل');
+    await tester.pump();
+    expect(row('نص أول').onPressed, isNull);
+    expect(tester.widget<Button>(button(_l10n.noteAdd)).onPressed, isNull);
+    await tester.tap(find.text('نص أول'));
+    await tester.pump();
+    expect(tester.widget<TextField>(field(0)).controller!.text, 'نص معدل');
+  });
+
+  testWidgets('the unsaved text comes back when the sheet is opened again', (
+    tester,
+  ) async {
+    final router = await pumpBookmarksApp(tester, world, size: tallSheet);
+    await openSheet(tester, router);
+    await tester.enterText(field(0), 'نص غير محفوظ');
+    await tester.pump();
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(await stored(), isEmpty);
+
+    await openSheet(tester, router);
+    expect(tester.widget<TextField>(field(0)).controller!.text, 'نص غير محفوظ');
+    expect(tester.widget<Button>(button(_l10n.noteSave)).onPressed, isNotNull);
+  });
 }
 
 /// Tall enough for the whole sheet, so that every control is on the screen.

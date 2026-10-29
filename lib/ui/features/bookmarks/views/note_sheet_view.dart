@@ -43,6 +43,12 @@ class _NoteSheetViewState extends State<NoteSheetView> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _viewModel.holdUndo = MediaQuery.accessibleNavigationOf(context);
+  }
+
+  @override
   void dispose() {
     _viewModel.removeListener(_copyBody);
     _body.dispose();
@@ -95,13 +101,18 @@ class _NoteSheetViewState extends State<NoteSheetView> {
                   ),
                 ),
               if (_viewModel.writeFailed)
-                IntegrityAlert(title: l10n.userDataNotSaved),
+                Semantics(
+                  container: true,
+                  liveRegion: true,
+                  child: IntegrityAlert(title: l10n.changeNotSaved),
+                ),
               NoteEditor(
                 controller: _body,
                 existing: [for (final note in notes) note.body],
                 selectedExisting: selected,
                 onExistingSelected: (index) => _viewModel.select(notes[index]),
                 onNew: _viewModel.startNew,
+                canSwitch: _viewModel.canSwitch,
                 categories: _viewModel.categories,
                 selectedCategoryId: _viewModel.categoryId,
                 onCategoryChanged: _viewModel.setCategory,
