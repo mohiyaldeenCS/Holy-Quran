@@ -40,7 +40,7 @@ Future<void> provideAudio(
         index.surahs.where((info) => info.number == surah).firstOrNull?.name,
   );
   dependencies.provideListenable<PlayerRepository>(player);
-  if (_providedOrNull<ListeningPositionRepository>(dependencies)
+  if (dependencies.tryRead<ListeningPositionRepository>()
       case final positions?) {
     _recordListening(player, positions);
   }
