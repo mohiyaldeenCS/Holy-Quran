@@ -4,11 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/data/repositories/tag_repository.dart';
 import 'package:holyquran/domain/models/note.dart';
+import 'package:holyquran/domain/models/pack_failure.dart';
+import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/domain/models/user_tag.dart';
 import 'package:holyquran/ui/features/bookmarks/view_models/note_drafts.dart';
 import 'package:holyquran/ui/features/bookmarks/view_models/note_sheet_view_model.dart';
 import 'package:holyquran/utils/result.dart';
 
+import '../../../../testing/fakes/fake_pack_integrity_repository.dart';
 import '../index/index_fixture.dart';
 import 'bookmarks_harness.dart';
 
@@ -397,6 +400,48 @@ void main() {
       expect(viewModel.canUndo, isFalse);
     },
   );
+
+  test('whitespace alone in a new note is not an unsaved note', () async {
+    final first = await world.note(world.ayah(1, 2), 'نص أول');
+    final viewModel = make();
+    await settle();
+
+    viewModel.setBody(' ');
+    expect(viewModel.canSave, isFalse);
+    expect(viewModel.dirty, isFalse);
+    expect(viewModel.canSwitch, isTrue);
+    viewModel.select(viewModel.notes.single);
+    expect(viewModel.editing?.id, first.id);
+
+    // A stored note whose text was changed is unsaved, spaces included.
+    viewModel.setBody('نص أول ');
+    expect(viewModel.dirty, isTrue);
+  });
+
+  test('hears the pack stop serving', () async {
+    final integrity = FakePackIntegrityRepository();
+    final viewModel = NoteSheetViewModel(
+      address: world.ayah(1, 2),
+      notes: world.notes,
+      tags: world.tags,
+      categories: world.categories,
+      index: fixture.index,
+      integrity: integrity,
+      drafts: drafts,
+    );
+    addTearDown(viewModel.dispose);
+    addTearDown(() => fixture.serving = true);
+    await settle();
+    expect(viewModel.surahName, isNotNull);
+    var heard = 0;
+    viewModel.addListener(() => heard++);
+
+    fixture.serving = false;
+    integrity.report('synthetic', const IntegrityFailed(PackDisabled('x')));
+
+    expect(heard, 1);
+    expect(viewModel.surahName, isNull);
+  });
 }
 
 /// A tag repository that makes tags but cannot list them.

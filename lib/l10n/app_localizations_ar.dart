@@ -1184,4 +1184,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get changeNotSaved => 'تعذّر حفظ التغيير.';
+
+  @override
+  String get noteEdit => 'عدّل الملاحظة';
 }

@@ -102,7 +102,7 @@ class AnnotationCard extends StatelessWidget {
       if (onEdit != null)
         IconButton(
           icon: IconName.note,
-          label: '${l10n.noteAdd}${l10n.dataSeparator}$ayah',
+          label: '${l10n.noteEdit}${l10n.dataSeparator}$ayah',
           iconSize: SearchResult.actionIconSize,
           onPressed: onEdit,
         ),

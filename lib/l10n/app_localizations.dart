@@ -2099,6 +2099,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تعذّر حفظ التغيير.'**
   String get changeNotSaved;
+
+  /// Lead, 2026-10-29, D-128 (5). Spoken name of the button on a note's card that opens that note in its editor (UD-04); noteAdd is the editor's new-note button.
+  ///
+  /// In ar, this message translates to:
+  /// **'عدّل الملاحظة'**
+  String get noteEdit;
 }
 
 class _AppLocalizationsDelegate

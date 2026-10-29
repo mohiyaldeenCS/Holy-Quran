@@ -137,7 +137,7 @@ void main() {
     expect(find.byType(Wrap), findsNothing);
     expect(_button(_l10n.searchResultContext), findsNothing);
     expect(_button(_l10n.searchResultOpen), findsNothing);
-    expect(_button(_l10n.noteAdd), findsNothing);
+    expect(_button(_l10n.noteEdit), findsNothing);
     expect(_button(_l10n.bookmarkDelete), findsOneWidget);
   });
 
@@ -175,7 +175,7 @@ void main() {
     for (final label in [
       _l10n.searchResultContext,
       _l10n.searchResultOpen,
-      _l10n.noteAdd,
+      _l10n.noteEdit,
       _l10n.bookmarkDelete,
     ]) {
       await tester.tap(_button(label));
@@ -193,6 +193,24 @@ void main() {
       expect(size.height, greaterThanOrEqualTo(48), reason: button.label);
       expect(button.label, isNotEmpty);
     }
+  });
+
+  testWidgets('the buttons are named for their act and their ayah', (
+    tester,
+  ) async {
+    await _pump(tester, _card(onEdit: () {}));
+    final ayah = _l10n.surahTitleAyahReference('٢', '٥');
+    final labels = [
+      for (final button in tester.widgetList<IconButton>(
+        find.byType(IconButton),
+      ))
+        button.label,
+    ];
+    expect(labels, [
+      _l10n.noteEdit + _l10n.dataSeparator + ayah,
+      _l10n.bookmarkDelete + _l10n.dataSeparator + ayah,
+    ]);
+    expect(_l10n.noteEdit, isNot(_l10n.noteAdd));
   });
 
   for (final theme in ReadingTheme.values) {

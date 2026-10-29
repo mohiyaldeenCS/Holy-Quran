@@ -1704,5 +1704,9 @@
   "changeNotSaved": "تعذّر حفظ التغيير.",
   "@changeNotSaved": {
     "description": "Lead, 2026-10-29, D-128 (5). One change, a deletion, an undo or a read, that could not be stored or read. Not the in-memory sentence of D-133 (userDataNotSaved). The P1-23 branch adds the same key and value."
+  },
+  "noteEdit": "عدّل الملاحظة",
+  "@noteEdit": {
+    "description": "Lead, 2026-10-29, D-128 (5). Spoken name of the button on a note's card that opens that note in its editor (UD-04); noteAdd is the editor's new-note button."
   }
 }

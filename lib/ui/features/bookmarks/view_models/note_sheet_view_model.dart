@@ -114,7 +114,11 @@ final class NoteSheetViewModel extends ChangeNotifier {
   /// it holds a new one.
   bool get dirty {
     final note = editing;
-    return _body != (note?.body ?? '') ||
+    // Whitespace alone is no new note, as it cannot be saved either.
+    final bodyDiffers = note == null
+        ? _body.trim().isNotEmpty
+        : _body != note.body;
+    return bodyDiffers ||
         _categoryId != note?.categoryId ||
         !sameIds(_tagIds, note?.tagIds ?? const {});
   }

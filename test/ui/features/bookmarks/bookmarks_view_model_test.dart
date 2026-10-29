@@ -396,6 +396,7 @@ void main() {
     final entry = viewModel.entries.single;
 
     await Future.wait([viewModel.delete(entry), viewModel.delete(entry)]);
+    expect(world.bookmarks.deleteCalls, 1);
     expect(viewModel.canUndo, isTrue);
     expect(viewModel.writeFailed, isFalse);
   });
