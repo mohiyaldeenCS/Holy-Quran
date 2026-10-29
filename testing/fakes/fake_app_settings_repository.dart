@@ -4,7 +4,8 @@ import 'package:holyquran/domain/models/ui_level.dart';
 import 'package:holyquran/utils/result.dart';
 
 /// An in-memory [AppSettingsRepository] for view and widget tests. Starts
-/// from the given values and notifies on every set.
+/// from the given values and notifies on every set, after [writeDelay] when
+/// it is given, as the stored settings do once the write is done.
 final class FakeAppSettingsRepository extends AppSettingsRepository {
   FakeAppSettingsRepository({
     this.themePreference = const ThemePreference(),
@@ -13,7 +14,10 @@ final class FakeAppSettingsRepository extends AppSettingsRepository {
     this.openAtLastPosition = AppSettingsRepository.openAtLastPositionDefault,
     this.keepScreenAwake = AppSettingsRepository.keepScreenAwakeDefault,
     this.surahTextScale = AppSettingsRepository.surahTextScaleDefault,
+    this.writeDelay,
   });
+
+  final Duration? writeDelay;
 
   @override
   ThemePreference themePreference;
@@ -58,6 +62,7 @@ final class FakeAppSettingsRepository extends AppSettingsRepository {
       _set(() => surahTextScale = scale);
 
   Future<Result<void>> _set(void Function() change) async {
+    if (writeDelay case final delay?) await Future<void>.delayed(delay);
     change();
     notifyListeners();
     return const Ok(null);

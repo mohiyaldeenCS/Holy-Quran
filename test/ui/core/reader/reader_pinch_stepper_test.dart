@@ -60,7 +60,7 @@ final class _HostState extends State<_Host> {
     scrollController: widget.controller,
     layout: layout,
     step: step,
-    leadingExtent: widget.leading,
+    leadingExtent: () => widget.leading,
     onStep: (next) {
       widget.steps.add(next);
       if (widget.takesSteps) setState(() => step = next);

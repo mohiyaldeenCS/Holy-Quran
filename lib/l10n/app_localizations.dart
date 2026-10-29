@@ -1138,6 +1138,12 @@ abstract class AppLocalizations {
   /// **'تشغيل من هذه الآية'**
   String get contextPlayFromAyah;
 
+  /// Lead, D-128 (5): a single change the store refused or a read that failed, such as a bookmark that could not be made, removed or restored, or a note that could not be deleted. Not the in-memory sentence of D-133 (userDataNotSaved).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر حفظ التغيير.'**
+  String get changeNotSaved;
+
   /// The selected ayah's toolbar: bookmark it. Source: docs/prd/PRD.ar.md (§7.4).
   ///
   /// In ar, this message translates to:
@@ -2093,12 +2099,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'غيّر التصنيف والوسوم'**
   String get tagsEditHint;
-
-  /// Lead, 2026-10-29, D-128 (5). One change, a deletion, an undo or a read, that could not be stored or read. Not the in-memory sentence of D-133 (userDataNotSaved). The P1-23 branch adds the same key and value.
-  ///
-  /// In ar, this message translates to:
-  /// **'تعذّر حفظ التغيير.'**
-  String get changeNotSaved;
 
   /// Lead, 2026-10-29, D-128 (5). Spoken name of the button on a note's card that opens that note in its editor (UD-04); noteAdd is the editor's new-note button.
   ///

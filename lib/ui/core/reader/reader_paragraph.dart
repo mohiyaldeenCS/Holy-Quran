@@ -199,12 +199,22 @@ double basmalaHeight(PackText basmala, ReaderStyle style, double width) {
 }
 
 /// What a screen reader reads for an ayah: its stored text, at [order]
-/// among the block's text, markers and page marks.
-Widget ayahSemantics(AyahText ayah, double order) => Semantics(
+/// among the block's text, markers and page marks. With [onActivate] a
+/// screen reader can activate it, and [selected] true says it is the chosen
+/// ayah; null leaves the state out, as for every other ayah.
+Widget ayahSemantics(
+  AyahText ayah,
+  double order, {
+  bool? selected,
+  VoidCallback? onActivate,
+}) => Semantics(
   container: true,
   label: ayah.text.verbatim,
   textDirection: TextDirection.rtl,
   sortKey: OrdinalSortKey(order),
+  button: onActivate != null,
+  selected: selected,
+  onTap: onActivate,
   child: const SizedBox.expand(),
 );
 

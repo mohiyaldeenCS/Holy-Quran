@@ -882,6 +882,10 @@
   "@contextPlayFromAyah": {
     "description": "Reference aria-label, index.jsx ContextSheet"
   },
+  "changeNotSaved": "تعذّر حفظ التغيير.",
+  "@changeNotSaved": {
+    "description": "Lead, D-128 (5): a single change the store refused or a read that failed, such as a bookmark that could not be made, removed or restored, or a note that could not be deleted. Not the in-memory sentence of D-133 (userDataNotSaved)."
+  },
   "toolbarBookmark": "علامة",
   "@toolbarBookmark": {
     "description": "The selected ayah's toolbar: bookmark it. Source: docs/prd/PRD.ar.md (§7.4)."
@@ -1700,10 +1704,6 @@
   "tagsEditHint": "غيّر التصنيف والوسوم",
   "@tagsEditHint": {
     "description": "The spoken hint of a tag on a bookmark's or note's card, whose press opens the editor of its category and tags. Wording of UD-03 in docs/prd/PRD.ar.md. P1-24, proposed for the lead to approve under D-128 (5)."
-  },
-  "changeNotSaved": "تعذّر حفظ التغيير.",
-  "@changeNotSaved": {
-    "description": "Lead, 2026-10-29, D-128 (5). One change, a deletion, an undo or a read, that could not be stored or read. Not the in-memory sentence of D-133 (userDataNotSaved). The P1-23 branch adds the same key and value."
   },
   "noteEdit": "عدّل الملاحظة",
   "@noteEdit": {

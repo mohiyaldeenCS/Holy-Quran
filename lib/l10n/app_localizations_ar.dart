@@ -610,6 +610,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get contextPlayFromAyah => 'تشغيل من هذه الآية';
 
   @override
+  String get changeNotSaved => 'تعذّر حفظ التغيير.';
+
+  @override
   String get toolbarBookmark => 'علامة';
 
   @override
@@ -1181,9 +1184,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get tagsEditHint => 'غيّر التصنيف والوسوم';
-
-  @override
-  String get changeNotSaved => 'تعذّر حفظ التغيير.';
 
   @override
   String get noteEdit => 'عدّل الملاحظة';
