@@ -22,8 +22,9 @@ LocalRecitationDownloadRepository recitationDownloadRepository({
   required PackRecitationRepository recitations,
   required DownloadService downloads,
   required DownloadSettingsRepository settings,
-}) {
-  final repository = LocalRecitationDownloadRepository(
+}) => downloadsOnSettings(
+  settings,
+  ({required wifiOnly}) => LocalRecitationDownloadRepository(
     contents: recitations.contents,
     downloads: downloads,
     urlCheck: const HttpUrlCheck(),
@@ -34,14 +35,25 @@ LocalRecitationDownloadRepository recitationDownloadRepository({
           '${await applicationSupportPath()}/${RecitationFileStore.directoryName}',
     ),
     policy: UrlPolicy.httpsOnly,
-    wifiOnly: settings.wifiOnly,
-  );
-  followWifiOnly(repository, settings);
-  return repository;
+    wifiOnly: wifiOnly,
+  ),
+);
+
+/// The downloads [create] makes, started on the Wi-Fi-only choice in
+/// [settings] and following it from then on.
+T downloadsOnSettings<T extends RecitationDownloadRepository>(
+  DownloadSettingsRepository settings,
+  T Function({required bool wifiOnly}) create,
+) {
+  final downloads = create(wifiOnly: settings.wifiOnly);
+  followWifiOnly(downloads, settings);
+  return downloads;
 }
 
 /// Passes each change of the Wi-Fi-only choice in [settings] to [downloads].
-/// The listener lasts as long as [settings], which the app keeps.
+/// It is called once, for the repository the composition root keeps for the
+/// app's lifetime, and its listener lasts as long as [settings], which the
+/// app keeps too.
 void followWifiOnly(
   RecitationDownloadRepository downloads,
   DownloadSettingsRepository settings,

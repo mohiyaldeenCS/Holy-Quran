@@ -63,6 +63,7 @@ final class _Downloads implements DownloadService {
   /// What the server holds, by URL path.
   final Map<String, Uint8List> bodies;
   final List<FileOrder> orders = [];
+  final List<FileOrder> cancels = [];
 
   /// How many more downloads of a URL path arrive with one byte inverted.
   final Map<String, int> corrupt = {};
@@ -73,6 +74,10 @@ final class _Downloads implements DownloadService {
   /// URL paths whose download finishes whole when it is told to stop, as one
   /// that was already done when the stop reached it.
   final Set<String> finishDespiteCancel = {};
+
+  /// URL paths whose file lands whole as the stop reaches the download,
+  /// which still reports the stop.
+  final Set<String> landOnCancel = {};
   final StreamController<String> reached = StreamController.broadcast();
 
   /// A download of a URL path that waits for Wi-Fi, as an order that
@@ -126,7 +131,7 @@ final class _Downloads implements DownloadService {
     if (body == null) return const FileDownloadFailed('gone', statusCode: 404);
     onUpdate((status: FileTaskStatus.running, progress: null));
     await _write(order);
-    return const FileDownloaded();
+    return FileDownloaded(attempt: order.attempt);
   }
 
   Future<void> _write(FileOrder order) async {
@@ -136,7 +141,7 @@ final class _Downloads implements DownloadService {
       corrupt[path] = corrupt[path]! - 1;
       bytes[bytes.length ~/ 2] ^= 0xFF;
     }
-    final target = File('$root/${order.path}');
+    final target = File('$root/${order.target}');
     await target.parent.create(recursive: true);
     await target.writeAsBytes(bytes);
   }
@@ -149,11 +154,15 @@ final class _Downloads implements DownloadService {
 
   @override
   Future<void> cancel(FileOrder order) async {
+    cancels.add(order);
     final ended = _ends[order.url.path];
     if (ended == null || ended.isCompleted) return;
     if (finishDespiteCancel.contains(order.url.path)) {
       await _write(order);
-      ended.complete(const FileDownloaded());
+      ended.complete(FileDownloaded(attempt: order.attempt));
+    } else if (landOnCancel.contains(order.url.path)) {
+      await _write(order);
+      ended.complete(const FileDownloadCanceled());
     } else {
       ended.complete(const FileDownloadCanceled());
     }
@@ -761,6 +770,62 @@ void main() {
         hasLength(1),
       );
       expect(await File(finalPath(fileOf(64, 2, 1))).exists(), isTrue);
+    });
+
+    test('keeps a file that landed as the stop arrived', () async {
+      network.kind = NetworkKind.other;
+      downloads.gates['/synthetic/q64/2_1.mp3'] = Completer();
+      downloads.landOnCancel.add('/synthetic/q64/2_1.mp3');
+      final done = repository.download(target(const RecitationSurah(2)));
+      await downloads.reached.stream.first;
+
+      repository.setWifiOnly(true);
+      await until(waiting);
+      network.set(NetworkKind.unmetered);
+
+      expect(await done, isA<Ok<void>>());
+      expect(
+        downloads.orders.where((o) => o.url.path.endsWith('2_1.mp3')),
+        hasLength(1),
+      );
+      expect(await File(finalPath(fileOf(64, 2, 1))).exists(), isTrue);
+    });
+
+    test(
+      'keeps a whole copy another attempt left while the app was away',
+      () async {
+        final first = fileOf(64, 2, 1);
+        final left = File('$audio/$_pack/staging/${first.sha256}.a2.mp3');
+        await left.parent.create(recursive: true);
+        await left.writeAsBytes(downloads.bodies['/synthetic/${first.path}']!);
+
+        await repository.download(target(const RecitationSurah(2)));
+
+        expect(downloads.orders.map((o) => o.url.path), [
+          '/synthetic/q64/2_2.mp3',
+        ]);
+        expect(await File(finalPath(first)).exists(), isTrue);
+        expect(await left.exists(), isFalse);
+      },
+    );
+
+    test('keeps the bytes of an order when the network goes, and decides '
+        'when one returns', () async {
+      downloads.gates['/synthetic/q64/2_1.mp3'] = Completer();
+      final done = repository.download(target(const RecitationSurah(2)));
+      await downloads.reached.stream.first;
+      network.set(NetworkKind.none);
+
+      repository.setWifiOnly(true);
+      await pumpEventQueue();
+      expect(downloads.cancels, isEmpty);
+
+      downloads.gates.remove('/synthetic/q64/2_1.mp3');
+      network.set(NetworkKind.other);
+      await pumpEventQueue();
+      expect(downloads.cancels, hasLength(1));
+      network.set(NetworkKind.unmetered);
+      expect(await done, isA<Ok<void>>());
     });
 
     test('does not fetch a finished file again when Wi-Fi only is toggled '

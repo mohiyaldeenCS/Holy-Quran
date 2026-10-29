@@ -265,9 +265,10 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
   /// not on Wi-Fi: pending when it requires Wi-Fi, running on mobile data
   /// when it does not. It is stopped and made again for the job's network.
   void _reissueIfStale(_Job job) {
+    // Without a network the order keeps the bytes it has; what to do with
+    // it is decided when a network returns.
     if (job.order case final order?
-        when _network != NetworkKind.unmetered &&
-            order.wifiOnly != job.wifiOnly) {
+        when _network == NetworkKind.other && order.wifiOnly != job.wifiOnly) {
       job.restart = true;
       job.attempt++;
       unawaited(_downloads.cancel(order));
@@ -352,7 +353,8 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
     if (await _lackOfSpace(job) case final failure?) return failure;
     for (final file in missing) {
       if (job.cancelled) return RecitationDownloadCancelled(target.key);
-      if (!await _store.stagedIsWhole(packId, file)) {
+      // A copy that landed whole while the app was away is kept.
+      if (!await _store.claimWhole(packId, file)) {
         if (await _fetch(job, file) case final failure?) return failure;
       }
       await _store.activate(packId, file);
@@ -374,7 +376,8 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
     );
   }
 
-  /// Fetches [file] to staging and checks it; null once it is whole there.
+  /// Fetches [file] to staging and checks it; null once a whole copy is
+  /// there, claimed for [RecitationFileStore.activate].
   Future<RecitationDownloadFailure?> _fetch(
     _Job job,
     RecitationFile file,
@@ -409,6 +412,7 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
         path: RecitationFileStore.stagingRelativePath(packId, file),
         wifiOnly: job.wifiOnly,
         attempt: job.attempt,
+        separateAttempts: true,
       );
       job.fileReceived = 0;
       _set(job, RecitationDownloading(job.progress));
@@ -423,13 +427,20 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
       if (job.restart) {
         job.restart = false;
         // A file that finished before the order was stopped is kept.
-        if (outcome is! FileDownloaded) continue;
+        if (outcome is! FileDownloaded) {
+          if (await _store.claimWhole(packId, file)) return null;
+          continue;
+        }
       }
       switch (outcome) {
-        case FileDownloaded():
-          if (await _store.stagedIsWhole(packId, file)) return null;
-          await _store.discardStaged(packId, file);
-          if (rejected) return RecitationFileRejected(key, file.path);
+        case FileDownloaded(:final attempt):
+          if (await _store.claimWhole(packId, file, attempt: attempt)) {
+            return null;
+          }
+          if (rejected) {
+            await _store.discardStaged(packId, file);
+            return RecitationFileRejected(key, file.path);
+          }
           rejected = true;
         case FileDownloadNoSpace():
           return RecitationNoSpace(

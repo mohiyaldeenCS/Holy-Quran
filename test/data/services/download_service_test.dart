@@ -579,5 +579,115 @@ void main() {
       );
       expect([for (final r in server.requests) r.status], [HttpStatus.ok]);
     });
+
+    group('with an order made again', () {
+      FileOrder again(
+        String path, {
+        required bool wifiOnly,
+        required int attempt,
+      }) => FileOrder(
+        url: server.uri('/large.bin'),
+        path: path,
+        wifiOnly: wifiOnly,
+        attempt: attempt,
+        separateAttempts: true,
+      );
+
+      /// Starts the order on a service of its own and returns when it runs.
+      Future<void> startRunning(FileOrder target) async {
+        final first = BackgroundDownloadService.under(
+          plugin,
+          '${temp.path}/root',
+        );
+        await first.start();
+        final running = Completer<void>();
+        unawaited(
+          first.download(target, (u) {
+            if ((u.progress?.receivedBytes ?? 0) > 0 && !running.isCompleted) {
+              running.complete();
+            }
+          }),
+        );
+        await running.future;
+      }
+
+      Future<BackgroundDownloadService> relaunch() async {
+        final relaunched = BackgroundDownloadService.under(
+          plugin,
+          '${temp.path}/root',
+        );
+        await relaunched.start();
+        return relaunched;
+      }
+
+      Future<void> noTasksLeft() async {
+        for (var i = 0; i < 100; i++) {
+          if ((await plugin.allTasks(group: 'packs')).isEmpty) return;
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+        fail('the plugin still holds a task');
+      }
+
+      test(
+        'a live task of a later attempt is attached to, with one GET',
+        () async {
+          server.bytesPerSecond['/large.bin'] = 2 << 20;
+          await startRunning(
+            again('staging/live.bin', wifiOnly: true, attempt: 1),
+          );
+
+          final outcome = await (await relaunch()).download(
+            again('staging/live.bin', wifiOnly: true, attempt: 0),
+            (_) {},
+          );
+
+          expect(
+            outcome,
+            isA<FileDownloaded>().having((o) => o.attempt, 'attempt', 1),
+          );
+          expect(await landed('staging/live.a1.bin').readAsBytes(), _large);
+          expect(await landed('staging/live.bin').exists(), isFalse);
+          expect([for (final r in server.requests) r.method], ['GET']);
+        },
+      );
+
+      test('a live task that needs the other network is stopped and the file '
+          'ordered again under a later attempt', () async {
+        server.bytesPerSecond['/large.bin'] = 2 << 20;
+        await startRunning(
+          again('staging/other.bin', wifiOnly: true, attempt: 0),
+        );
+        server.bytesPerSecond.remove('/large.bin');
+
+        final outcome = await (await relaunch()).download(
+          again('staging/other.bin', wifiOnly: false, attempt: 0),
+          (_) {},
+        );
+
+        expect(
+          outcome,
+          isA<FileDownloaded>().having((o) => o.attempt, 'attempt', 1),
+        );
+        expect(await landed('staging/other.a1.bin').readAsBytes(), _large);
+        expect([for (final r in server.requests) r.method], ['GET', 'GET']);
+        await noTasksLeft();
+        expect(await landed('staging/other.bin').exists(), isFalse);
+      });
+
+      test(
+        'a stop after a relaunch stops the task the relaunch found',
+        () async {
+          server.bytesPerSecond['/large.bin'] = 1 << 20;
+          final target = again('staging/stop.bin', wifiOnly: true, attempt: 1);
+          await startRunning(target);
+
+          await (await relaunch()).cancel(target);
+
+          await noTasksLeft();
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+          expect(await landed('staging/stop.a1.bin').exists(), isFalse);
+        },
+      );
+    });
   });
 }
