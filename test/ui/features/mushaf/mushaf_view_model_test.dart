@@ -14,16 +14,19 @@ import 'package:holyquran/domain/models/word_span.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/mushaf_view_model.dart';
 import 'package:holyquran/utils/result.dart';
 
+import '../../../../testing/fakes/fake_keep_awake_repository.dart';
 import '../../../../testing/fakes/fake_reading_position_repository.dart';
 import 'mushaf_harness.dart';
 
-/// The rig's text, with the ayat of one surah held back until [gate] opens.
+/// The rig's text, with the ayat of one surah held back until [gate] opens,
+/// and every ayah failing while [failure] is set.
 final class _GatedText implements QuranTextRepository {
   _GatedText(this._inner, this.surah);
 
   final QuranTextRepository _inner;
   final int surah;
   final gate = Completer<void>();
+  Exception? failure;
 
   @override
   String get riwaya => _inner.riwaya;
@@ -31,6 +34,7 @@ final class _GatedText implements QuranTextRepository {
   @override
   Future<Result<PackText>> ayahText(QuranAddress address) async {
     if (address.surah == surah) await gate.future;
+    if (failure case final failure?) return Failure(failure);
     return _inner.ayahText(address);
   }
 
@@ -181,6 +185,135 @@ void main() {
         expect(viewModel.anchor, at(5, 1));
       },
     );
+  });
+
+  group('the screen claims', () {
+    late FakeKeepAwakeRepository keepAwake;
+    late FakeReadingPositionRepository positions;
+
+    MushafViewModel reader(QuranTextRepository source, {bool dispose = true}) {
+      final viewModel = MushafViewModel(
+        text: source,
+        index: rig.index,
+        positions: positions,
+        integrity: rig.integrity,
+        keepAwake: keepAwake,
+      );
+      if (dispose) addTearDown(viewModel.dispose);
+      return viewModel;
+    }
+
+    setUp(() {
+      keepAwake = FakeKeepAwakeRepository(settingOn: false);
+      positions = FakeReadingPositionRepository();
+    });
+
+    Future<void> settle() => pumpEventQueue();
+
+    test('are not taken again by an open that was left while it waited for a '
+        'surah being shown', () async {
+      final text = _GatedText(rig.text, 6);
+      final viewModel = reader(text);
+      await viewModel.open.execute();
+      viewModel.setStandMode(true);
+      final showing = viewModel.showAt(at(6, 1));
+      await settle();
+      final reopening = viewModel.open.execute();
+      await settle();
+
+      await viewModel.leave();
+      text.gate.complete();
+      await showing;
+      await reopening;
+      await settle();
+
+      expect(keepAwake.readerActive, isFalse);
+      expect(keepAwake.standActive, isFalse);
+    });
+
+    test(
+      'are not taken by an open that was disposed while it waited',
+      () async {
+        final text = _GatedText(rig.text, 6);
+        final viewModel = reader(text, dispose: false);
+        await viewModel.open.execute();
+        viewModel.setStandMode(true);
+        final showing = viewModel.showAt(at(6, 1));
+        await settle();
+        // The open's command notifies once it is over, which a disposed one
+        // refuses; the claims are what this test is about.
+        unawaited(
+          runZonedGuarded(() => viewModel.open.execute(), (error, _) {}) ??
+              Future<void>.value(),
+        );
+        await settle();
+
+        viewModel.dispose();
+        text.gate.complete();
+        await showing;
+        await settle();
+
+        expect(keepAwake.readerActive, isFalse);
+        expect(keepAwake.standActive, isFalse);
+      },
+    );
+
+    test(
+      'the stand claim is let go when the reader is disposed shown',
+      () async {
+        final viewModel = reader(rig.text, dispose: false);
+        await viewModel.open.execute();
+        viewModel.setStandMode(true);
+        await settle();
+        expect(keepAwake.standActive, isTrue);
+
+        viewModel.dispose();
+        await settle();
+
+        expect(keepAwake.standActive, isFalse);
+        expect(keepAwake.readerActive, isFalse);
+      },
+    );
+
+    test(
+      'the stand claim is let go when the pack becomes unavailable',
+      () async {
+        final text = _GatedText(rig.text, 99);
+        final viewModel = reader(text);
+        await viewModel.open.execute();
+        viewModel.setStandMode(true);
+        await settle();
+        expect(keepAwake.standActive, isTrue);
+
+        text.failure = const ReaderUnavailable();
+        await viewModel.loadNext.execute();
+        await settle();
+
+        expect(viewModel.status, ReaderStatus.unavailable);
+        expect(keepAwake.standActive, isFalse);
+        expect(keepAwake.readerActive, isFalse);
+      },
+    );
+
+    test('the stand claim is taken once a reader that was unavailable opens '
+        'again', () async {
+      final text = _GatedText(rig.text, 99)
+        ..failure = const ReaderUnavailable();
+      final viewModel = reader(text);
+      await viewModel.open.execute();
+      expect(viewModel.status, ReaderStatus.unavailable);
+      viewModel.setStandMode(true);
+      await settle();
+      expect(keepAwake.standActive, isFalse);
+      await viewModel.leave();
+
+      text.failure = null;
+      await viewModel.open.execute();
+      await settle();
+
+      expect(viewModel.status, ReaderStatus.ready);
+      expect(keepAwake.standActive, isTrue);
+    });
   });
 
   test(

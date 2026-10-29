@@ -126,6 +126,9 @@ final class MushafViewModel extends ChangeNotifier {
   bool _changedWhileOpening = false;
   Future<void>? _showingAt;
   bool _opening = false;
+
+  // How many times the reader was left, to tell an open begun before one.
+  int _leaves = 0;
   QuranAddress? _showAfterOpen;
 
   /// The saved position this reader knows of: the one it found when it
@@ -316,8 +319,11 @@ final class MushafViewModel extends ChangeNotifier {
   }
 
   Future<Result<void>> _open() async {
-    // A surah being shown for the recitation lands before this opens.
+    // A surah being shown for the recitation lands before this opens. If the
+    // reader was left or disposed meanwhile, this open has nothing to claim.
+    final left = _leaves;
     await _showingAt;
+    if (_disposed || left != _leaves) return const Ok(null);
     _opening = true;
     Result<void> result;
     do {
@@ -358,6 +364,7 @@ final class MushafViewModel extends ChangeNotifier {
         _surahs = List.unmodifiable([value]);
         _anchor = QuranAddress(target.riwaya, target.surah, target.ayah);
         _status = ReaderStatus.ready;
+        _syncStand();
         _position = null;
         showFirstVisible(target);
         notifyListeners();
@@ -436,6 +443,7 @@ final class MushafViewModel extends ChangeNotifier {
   /// The reader is no longer shown: the user's position is saved. One that
   /// was only opened leaves the saved position as it is.
   Future<void> leave() async {
+    _leaves++;
     _shown = false;
     _keepAwake.shown(false);
     _syncStand();

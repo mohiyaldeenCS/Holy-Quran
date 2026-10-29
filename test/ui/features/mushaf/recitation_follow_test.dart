@@ -178,6 +178,18 @@ void main() {
     expect(follow.request, same(request));
   });
 
+  test('the way back is not offered while no ayah is recited', () async {
+    player.reach(recitationPlan(), ayahSegment(2, 5));
+    follow.userScrolled();
+    expect(follow.showReturn, isTrue);
+
+    await player.play(recitationPlan());
+
+    expect(follow.following, isFalse);
+    expect(follow.recited, isNull);
+    expect(follow.showReturn, isFalse);
+  });
+
   test('a plan after playback stopped follows again', () async {
     player.reach(recitationPlan(), ayahSegment(2, 5));
     follow.userScrolled();
