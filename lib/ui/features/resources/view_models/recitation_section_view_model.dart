@@ -65,6 +65,7 @@ final class RecitationSectionViewModel extends ChangeNotifier {
   ];
 
   bool _disposed = false;
+  bool _settingNotSaved = false;
   Timer? _refresh;
   int _revisionSeen = 0;
   Set<String> _jobKeys = const {};
@@ -85,7 +86,12 @@ final class RecitationSectionViewModel extends ChangeNotifier {
   /// kept across launches. The downloads follow the setting themselves.
   bool get wifiOnly => _settings.wifiOnly;
 
-  set wifiOnly(bool value) => unawaited(_settings.setWifiOnly(value));
+  set wifiOnly(bool value) =>
+      unawaited(_saved(() => _settings.setWifiOnly(value)));
+
+  /// The last change of Wi-Fi only or of a quality could not be stored; what
+  /// is shown is the value that is stored.
+  bool get settingNotSaved => _settingNotSaved;
 
   /// What the listed recitations use on the device: their installed packs
   /// and their audio at every quality (`OF-03`).
@@ -96,7 +102,7 @@ final class RecitationSectionViewModel extends ChangeNotifier {
           .where((pack) => pack.id == listed.packId)
           .firstOrNull;
       if (installed == null) continue;
-      bytes += installed.manifest.files.fold(0, (sum, f) => sum + f.bytes);
+      bytes += _packBytes(installed);
       bytes += _audioBytes[listed.packId] ?? 0;
     }
     return bytes;
@@ -125,9 +131,31 @@ final class RecitationSectionViewModel extends ChangeNotifier {
     if (listed == null || !listed.qualities.contains(kbps)) return;
     if (_chosenQuality(recitationId) == kbps) return;
     _qualityOf[recitationId] = kbps;
-    unawaited(_settings.setQuality(recitationId, kbps));
+    unawaited(_saveQuality(recitationId, kbps));
     unawaited(_readPresent(recitationId));
     notifyListeners();
+  }
+
+  /// The choice shows at once; once the write ends, the stored value is the
+  /// one that shows, which differs from it only when the write failed.
+  Future<void> _saveQuality(String recitationId, int kbps) async {
+    final saved = await _saved(() => _settings.setQuality(recitationId, kbps));
+    if (_disposed) return;
+    if (_qualityOf[recitationId] == kbps) _qualityOf.remove(recitationId);
+    if (!saved) {
+      unawaited(_readPresent(recitationId));
+      notifyListeners();
+    }
+  }
+
+  Future<bool> _saved(Future<Result<void>> Function() write) async {
+    final result = await write();
+    final saved = result is Ok<void>;
+    if (!_disposed && _settingNotSaved == saved) {
+      _settingNotSaved = !saved;
+      notifyListeners();
+    }
+    return saved;
   }
 
   void selectTab(String recitationId, ScopeTab tab) {
@@ -143,12 +171,19 @@ final class RecitationSectionViewModel extends ChangeNotifier {
   }
 
   /// What deleting the recitation frees: its audio at every quality and
-  /// its pack.
+  /// its pack as installed on the device.
   Future<int> sizeToDelete(String recitationId) async {
     final entry = _entryOf(recitationId);
     if (entry == null) return 0;
-    return await _downloads.audioBytes(entry.id) + entry.bytes;
+    final installed = _installs.installed
+        .where((pack) => pack.id == entry.id)
+        .firstOrNull;
+    return await _downloads.audioBytes(entry.id) +
+        (installed == null ? 0 : _packBytes(installed));
   }
+
+  static int _packBytes(InstalledPack installed) =>
+      installed.manifest.files.fold(0, (sum, f) => sum + f.bytes);
 
   /// Deletes all the recitation's audio, at every quality, and then its
   /// pack. A recitation with a job running is not deleted; its row offers no
@@ -228,7 +263,9 @@ final class RecitationSectionViewModel extends ChangeNotifier {
           installed != null && _integrity.stateOf(entry.id) is IntegrityFailed,
     );
     final hasJob = jobs.values.any(
-      (job) => job.target.contents.packId == entry.id,
+      (job) =>
+          job.target.contents.packId == entry.id &&
+          job.state is! RecitationDownloadFailed,
     );
     final quality = _chosenQuality(id);
     final tally = quality == null ? null : _tallies[(id, quality)];

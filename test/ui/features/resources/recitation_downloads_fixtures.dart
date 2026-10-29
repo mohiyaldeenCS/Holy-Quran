@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/data/repositories/recitation_download_repository.dart';
 import 'package:holyquran/domain/models/download_progress.dart';
 import 'package:holyquran/domain/models/installed_pack.dart';
@@ -71,23 +72,32 @@ String basmalaPath(int quality) => 'q$quality/basmala.mp3';
 String ayahPath(int quality, int surah, int ayah) =>
     'q$quality/${surah}_$ayah.mp3';
 
-/// The recitation pack installed, at the catalogue's version.
-InstalledPack installedRecitationPack({int version = 1}) => InstalledPack(
-  manifest: PackManifest(
-    formatVersion: 2,
-    id: recitationPackId,
-    kind: PackKind.recitation,
-    version: version,
-    changelog: const [],
-    riwaya: 'hafs',
-    sources: const [],
-    files: const [],
-    counts: const RecitationCounts(files: 1),
-    reviews: const [],
-  ),
-  directory: '/synthetic/$recitationPackId/$version',
-  previousVersion: null,
-);
+/// The recitation pack installed, at the catalogue's version, its files
+/// taking [packBytes] on the device.
+InstalledPack installedRecitationPack({int version = 1, int packBytes = 0}) =>
+    InstalledPack(
+      manifest: PackManifest(
+        formatVersion: 2,
+        id: recitationPackId,
+        kind: PackKind.recitation,
+        version: version,
+        changelog: const [],
+        riwaya: 'hafs',
+        sources: const [],
+        files: [
+          if (packBytes > 0)
+            PackFile(
+              name: 'recitation.json',
+              sha256: syntheticHash(),
+              bytes: packBytes,
+            ),
+        ],
+        counts: const RecitationCounts(files: 1),
+        reviews: const [],
+      ),
+      directory: '/synthetic/$recitationPackId/$version',
+      previousVersion: null,
+    );
 
 /// A [RecitationDownloadRepository] in memory, for view-model tests. A test
 /// sets [jobs], which notifies listeners, and [onDevice], the paths whose
@@ -183,6 +193,39 @@ final class FakeRecitationDownloadRepository extends ChangeNotifier
       for (final file in target.files) file.path,
     });
     _revision++;
+    notifyListeners();
+    return const Ok(null);
+  }
+}
+
+/// Download settings whose writes fail while [failing], as a user database
+/// that cannot be written does: nothing is stored and nobody is told of a
+/// change.
+final class FlakyDownloadSettings extends DownloadSettingsRepository {
+  FlakyDownloadSettings({this.wifiOnly = true, Map<String, int>? qualities})
+    : _qualities = {...?qualities};
+
+  bool failing = true;
+
+  @override
+  bool wifiOnly;
+  final Map<String, int> _qualities;
+
+  @override
+  int? qualityOf(String recitationId) => _qualities[recitationId];
+
+  @override
+  Future<Result<void>> setWifiOnly(bool wifiOnly) async {
+    if (failing) return Failure(Exception('synthetic'));
+    this.wifiOnly = wifiOnly;
+    notifyListeners();
+    return const Ok(null);
+  }
+
+  @override
+  Future<Result<void>> setQuality(String recitationId, int kbps) async {
+    if (failing) return Failure(Exception('synthetic'));
+    _qualities[recitationId] = kbps;
     notifyListeners();
     return const Ok(null);
   }

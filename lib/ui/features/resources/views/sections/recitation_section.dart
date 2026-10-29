@@ -4,6 +4,7 @@ import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/metrics/resources_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/storage_bar.dart';
 import 'package:holyquran/ui/core/widgets/switch.dart';
 import 'package:holyquran/ui/features/resources/view_models/recitation_section_view_model.dart';
@@ -54,6 +55,8 @@ class RecitationSection extends StatelessWidget {
               value: viewModel.wifiOnly,
               onChanged: (value) => viewModel.wifiOnly = value,
             ),
+            if (viewModel.settingNotSaved)
+              IntegrityAlert(title: l10n.downloadNotSaved),
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               spacing: resourcesBlockGap,

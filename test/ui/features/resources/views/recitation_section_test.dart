@@ -39,13 +39,14 @@ late FakeCatalogueRepository _catalogue;
 late FakePackInstallRepository _installs;
 late FakePackIntegrityRepository _integrity;
 late FakeRecitationDownloadRepository _downloads;
-late InMemoryDownloadSettingsRepository _settings;
+late DownloadSettingsRepository _settings;
 
 /// The resource manager over the synthetic recitation, whose pack is
 /// installed unless [installed] is false.
 Future<RecitationSectionViewModel> _pump(
   WidgetTester tester, {
   bool installed = true,
+  int packBytes = 0,
   ReadingTheme theme = ReadingTheme.paper,
   double textScale = 1,
   Size size = const Size(400, 2400),
@@ -54,7 +55,9 @@ Future<RecitationSectionViewModel> _pump(
     ..physicalSize = size
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  _installs.installed = installed ? [installedRecitationPack()] : const [];
+  _installs.installed = installed
+      ? [installedRecitationPack(packBytes: packBytes)]
+      : const [];
   final resources = ResourcesViewModel(
     catalogue: _catalogue,
     installs: _installs,
@@ -398,6 +401,35 @@ void main() {
     );
   });
 
+  testWidgets('a file that could not be saved says so', (tester) async {
+    await _pump(tester);
+    _downloads.jobs = [
+      jobFor(
+        _target(64, const RecitationSurah(3)),
+        const RecitationDownloadFailed(RecitationStoreFailed('k', 'synthetic')),
+      ),
+    ];
+    await tester.pump();
+
+    final row = _scope('64/surah-3');
+    expect(_in(row, find.text(_l10n.downloadNotSaved)), findsOneWidget);
+    expect(_in(row, find.text(_l10n.connectionFailed)), findsNothing);
+  });
+
+  testWidgets('says a choice was not saved and shows the stored one', (
+    tester,
+  ) async {
+    _settings = FlakyDownloadSettings(qualities: {recitationId: 64});
+    await _pump(tester);
+    expect(find.text(_l10n.downloadNotSaved), findsNothing);
+
+    await tester.tap(find.text(_l10n.wifiOnly));
+    await _settle(tester);
+
+    expect(find.text(_l10n.downloadNotSaved), findsOneWidget);
+    expect(tester.widget<qk.Switch>(find.byType(qk.Switch)).value, isTrue);
+  });
+
   testWidgets('a refused start is shown on its row', (tester) async {
     await _pump(tester);
     _downloads.downloads = (target, _) => Failure(
@@ -449,7 +481,7 @@ void main() {
     testWidgets('is deleted only after the user confirms, stating the size', (
       tester,
     ) async {
-      await _pump(tester);
+      await _pump(tester, packBytes: 700000);
       _downloads.arrive({ayahPath(64, 1, 1), ayahPath(128, 1, 1)});
       await _settle(tester);
 
@@ -458,11 +490,8 @@ void main() {
 
       expect(find.byType(DeleteRecitationSheet), findsOneWidget);
       expect(find.text(_l10n.deleteRecitationTitle), findsOneWidget);
-      final pack = _catalogue.catalogue!.pack(recitationPackId)!;
       expect(
-        find.text(
-          _l10n.downloadSize(megabytes(_l10n, 2 * fileBytes + pack.bytes)),
-        ),
+        find.text(_l10n.downloadSize(megabytes(_l10n, 2 * fileBytes + 700000))),
         findsOneWidget,
       );
       expect(
@@ -513,6 +542,27 @@ void main() {
           matching: find.text(_l10n.resourceDelete),
         ),
         findsNothing,
+      );
+    });
+
+    testWidgets('can still be deleted after a download failed', (tester) async {
+      await _pump(tester);
+      _downloads.arrive(everyFileAt64());
+      _downloads.jobs = [
+        jobFor(
+          _target(64, const RecitationSurah(1)),
+          const RecitationDownloadFailed(RecitationFileNotFetched('k', 'p')),
+        ),
+      ];
+      await _settle(tester);
+
+      expect(inHeader(find.text(_l10n.resourceDelete)), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(ScopeRow),
+          matching: find.text(_l10n.resourceDelete),
+        ),
+        findsWidgets,
       );
     });
 

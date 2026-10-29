@@ -64,7 +64,6 @@ class RecitationBlock extends StatelessWidget {
             row: block.pack,
             title: title,
             onDownload: () => viewModel.downloadPack(id),
-            onDelete: () {},
             onRedownload: () => unawaited(viewModel.redownloadPack(id)),
             divider: false,
           ),

@@ -17,7 +17,7 @@ class PackRow extends StatelessWidget {
   const PackRow({
     required this.row,
     required this.onDownload,
-    required this.onDelete,
+    this.onDelete,
     required this.onRedownload,
     this.title,
     this.divider = true,
@@ -26,7 +26,9 @@ class PackRow extends StatelessWidget {
 
   final PackRowState row;
   final VoidCallback onDownload;
-  final VoidCallback onDelete;
+
+  /// Null for a row whose pack cannot be installed already.
+  final VoidCallback? onDelete;
   final VoidCallback onRedownload;
 
   /// The row's name when it is not the pack's own: a recitation is named by

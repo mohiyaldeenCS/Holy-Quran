@@ -16,7 +16,7 @@ import '../recitation_downloads_fixtures.dart';
 late FakePackInstallRepository _installs;
 late FakeRecitationDownloadRepository _downloads;
 late FakePackIntegrityRepository _integrity;
-late InMemoryDownloadSettingsRepository _settings;
+late DownloadSettingsRepository _settings;
 
 Future<RecitationSectionViewModel> _viewModel({
   bool installed = true,
@@ -26,19 +26,25 @@ Future<RecitationSectionViewModel> _viewModel({
   int? quality = 64,
   bool wifiOnly = true,
   bool basmala = false,
+  int packBytes = 0,
+  DownloadSettingsRepository? settings,
 }) async {
   final catalogue = syntheticCatalogue();
   _installs = FakePackInstallRepository(
-    installed: installed ? [installedRecitationPack()] : const [],
+    installed: installed
+        ? [installedRecitationPack(packBytes: packBytes)]
+        : const [],
   );
   _downloads = FakeRecitationDownloadRepository(
     contents: syntheticContents(withBasmala: basmala),
   );
   _integrity = FakePackIntegrityRepository();
-  _settings = InMemoryDownloadSettingsRepository(
-    wifiOnly: wifiOnly,
-    qualities: {recitationId: ?quality},
-  );
+  _settings =
+      settings ??
+      InMemoryDownloadSettingsRepository(
+        wifiOnly: wifiOnly,
+        qualities: {recitationId: ?quality},
+      );
   final viewModel = RecitationSectionViewModel(
     recitations: FakeRecitationRepository(catalogue.recitations),
     catalogue: FakeCatalogueRepository(catalogue),
@@ -220,6 +226,29 @@ void main() {
       expect(_surah(_block(viewModel), 2).status, ScopeStatus.available);
     });
 
+    test('a failed job does not stop the recitation being deleted', () async {
+      final viewModel = await _viewModel();
+
+      _downloads.jobs = [
+        jobFor(
+          _target(64, const RecitationSurah(1)),
+          const RecitationDownloadFailed(RecitationFileNotFetched('k', 'p')),
+        ),
+      ];
+
+      expect(_block(viewModel).hasJob, isFalse);
+
+      _downloads.jobs = [
+        jobFor(
+          _target(64, const RecitationSurah(1)),
+          const RecitationDownloadFailed(RecitationFileNotFetched('k', 'p')),
+        ),
+        jobFor(_target(64, const RecitationSurah(2)), const RecitationQueued()),
+      ];
+
+      expect(_block(viewModel).hasJob, isTrue);
+    });
+
     test('a job of its pack is told, so that it cannot be deleted', () async {
       final viewModel = await _viewModel();
       expect(_block(viewModel).hasJob, isFalse);
@@ -294,6 +323,28 @@ void main() {
       expect(_settings.wifiOnly, isFalse);
       expect(viewModel.wifiOnly, isFalse);
     });
+
+    test(
+      'show the stored Wi-Fi only, and say so when it was not saved',
+      () async {
+        final flaky = FlakyDownloadSettings(qualities: {recitationId: 64});
+        final viewModel = await _viewModel(settings: flaky);
+        expect(viewModel.settingNotSaved, isFalse);
+
+        viewModel.wifiOnly = false;
+        await _settle();
+
+        expect(viewModel.wifiOnly, isTrue);
+        expect(viewModel.settingNotSaved, isTrue);
+
+        flaky.failing = false;
+        viewModel.wifiOnly = false;
+        await _settle();
+
+        expect(viewModel.wifiOnly, isFalse);
+        expect(viewModel.settingNotSaved, isFalse);
+      },
+    );
 
     test('install the pack with the same choice', () async {
       final viewModel = await _viewModel(installed: false);
@@ -395,14 +446,18 @@ void main() {
       },
     );
 
-    test('the size to delete counts every quality and the pack', () async {
-      final viewModel = await _viewModel();
+    test('the size to delete counts every quality and the pack on the '
+        'device, not the latest of the catalogue', () async {
+      final viewModel = await _viewModel(packBytes: 12345);
       _downloads.arrive({ayahPath(64, 1, 1), ayahPath(128, 1, 1)});
 
       final size = await viewModel.sizeToDelete(recitationId);
 
       final pack = syntheticCatalogue().pack(recitationPackId)!;
-      expect(size, 2 * fileBytes + pack.bytes);
+      expect(pack.bytes, isNot(12345));
+      await _settle();
+      expect(size, 2 * fileBytes + 12345);
+      expect(size, viewModel.usedBytes);
     });
 
     test('a delete that fails is shown on its row', () async {
@@ -464,6 +519,22 @@ void main() {
       await pumpEventQueue();
       expect(later.blocks.single.quality, 64);
     });
+
+    test(
+      'goes back to the stored quality when the choice is not saved',
+      () async {
+        final flaky = FlakyDownloadSettings(qualities: {recitationId: 64});
+        final viewModel = await _viewModel(settings: flaky);
+        _downloads.arrive({ayahPath(128, 3, 1)});
+
+        viewModel.selectQuality(recitationId, 128);
+        await _settle();
+
+        expect(_block(viewModel).quality, 64);
+        expect(_surah(_block(viewModel), 3).status, ScopeStatus.available);
+        expect(viewModel.settingNotSaved, isTrue);
+      },
+    );
 
     test('ignores a stored quality the catalogue no longer lists', () async {
       final viewModel = await _viewModel(quality: 320);
