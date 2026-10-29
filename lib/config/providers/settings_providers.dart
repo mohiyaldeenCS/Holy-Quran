@@ -14,9 +14,16 @@ import 'package:holyquran/data/services/user_database.dart';
 /// as it is.
 Future<void> settingsProviders(Dependencies dependencies) async {
   final dao = SettingsDao(dependencies.read<UserDatabase>());
+  final settings = await _load(dao);
   dependencies
-    ..provideListenable<AppSettingsRepository>(await _load(dao))
-    ..provideListenable<DownloadSettingsRepository>(await _loadDownloads(dao));
+    ..provideListenable<AppSettingsRepository>(settings)
+    // The file is suspect when the settings could not be read (D-133), so
+    // nothing more is read from it.
+    ..provideListenable<DownloadSettingsRepository>(
+      settings is InMemoryAppSettingsRepository
+          ? InMemoryDownloadSettingsRepository()
+          : await _loadDownloads(dao),
+    );
 }
 
 /// The download choices (`AU-13`, `AU-14`), on the defaults when unreadable.

@@ -1,6 +1,7 @@
 import 'dart:io';
 
-import 'package:drift/drift.dart' show driftRuntimeOptions;
+import 'package:drift/drift.dart'
+    show ApplyInterceptor, QueryExecutor, QueryInterceptor, driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -10,6 +11,7 @@ import 'package:holyquran/config/dependencies.dart';
 import 'package:holyquran/config/providers/settings_providers.dart';
 import 'package:holyquran/config/providers/user_database_providers.dart';
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
+import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/data/repositories/in_memory_app_settings_repository.dart';
 import 'package:holyquran/data/services/user_database.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
@@ -31,6 +33,25 @@ import '../../../testing/application_support.dart';
 final _l10n = lookupAppLocalizations(const Locale('ar'));
 
 const _pathProvider = MethodChannel('plugins.flutter.io/path_provider');
+
+/// Fails the first read of the settings table, as a file that is damaged for
+/// the settings and for nothing else would.
+final class _FailsFirstRead extends QueryInterceptor {
+  bool failed = false;
+
+  @override
+  Future<List<Map<String, Object?>>> runSelect(
+    QueryExecutor executor,
+    String statement,
+    List<Object?> args,
+  ) {
+    if (!failed && statement.contains('"settings"')) {
+      failed = true;
+      throw Exception('synthetic');
+    }
+    return super.runSelect(executor, statement, args);
+  }
+}
 
 Future<Dependencies> _settingsOver(UserDatabase database) async {
   late Dependencies provided;
@@ -93,6 +114,43 @@ void main() {
       expect(notified, 1);
       expect(file.readAsBytesSync(), bytes);
     });
+
+    test(
+      'reads no download setting from a file whose settings failed',
+      () async {
+        final unreadable = UserDatabase(
+          NativeDatabase.memory().interceptWith(_FailsFirstRead()),
+        );
+        addTearDown(unreadable.close);
+
+        final provided = await _settingsOver(unreadable);
+
+        expect(
+          provided.read<AppSettingsRepository>(),
+          isA<InMemoryAppSettingsRepository>(),
+        );
+        final downloads = provided.read<DownloadSettingsRepository>();
+        expect(downloads, isA<InMemoryDownloadSettingsRepository>());
+        expect(downloads.wifiOnly, DownloadSettingsRepository.wifiOnlyDefault);
+      },
+    );
+
+    test(
+      'provides the download settings stored in the user database',
+      () async {
+        final first = (await _settingsOver(
+          db,
+        )).read<DownloadSettingsRepository>();
+        expect(first, isA<LocalDownloadSettingsRepository>());
+
+        await first.setWifiOnly(false);
+        final second = (await _settingsOver(
+          db,
+        )).read<DownloadSettingsRepository>();
+
+        expect(second.wifiOnly, isFalse);
+      },
+    );
 
     test('starts on the defaults, writing nothing to disk, when application '
         'support cannot be found', () async {
