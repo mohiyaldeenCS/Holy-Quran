@@ -38,6 +38,8 @@ void readerTest(String name, Future<void> Function(WidgetTester tester) body) =>
       semantics.dispose();
     });
 
+const _writeTime = Duration(milliseconds: 10);
+
 const _allTools = AyahTools(play: true, copy: true, share: true);
 
 void main() {
@@ -510,19 +512,36 @@ void main() {
     readerTest('a reader under another follows the size chosen over it', (
       tester,
     ) async {
-      await pumpReader(tester);
-      final over = rig.viewModel(address: at(2, 1), settings: settings);
+      final slow = FakeAppSettingsRepository(writeDelay: _writeTime);
+      final under = rig.viewModel(address: at(2, 1), settings: slow);
+      final over = rig.viewModel(address: at(2, 1), settings: slow);
+      addTearDown(under.dispose);
       addTearDown(over.dispose);
+
       over.setTextStep(5);
-      await tester.pumpAndSettle();
+      await tester.pump(_writeTime);
       expect(over.textStep, 5);
-      expect(viewModel.textStep, 5);
-      expect(settings.surahTextScale, readerTextSteps[5]);
+      expect(under.textStep, 5);
+      expect(slow.surahTextScale, readerTextSteps[5]);
+    });
+
+    readerTest('a size still being written is not heard back as the size', (
+      tester,
+    ) async {
+      final slow = FakeAppSettingsRepository(writeDelay: _writeTime);
+      final over = rig.viewModel(address: at(2, 1), settings: slow);
+      addTearDown(over.dispose);
+
       over.setTextStep(1);
+      await tester.pump(const Duration(milliseconds: 5));
       over.setTextStep(6);
-      await tester.pumpAndSettle();
-      expect(over.textStep, 6, reason: 'its own write is not heard again');
-      expect(viewModel.textStep, 6);
+      // The first write completes and notifies while the second is pending.
+      await tester.pump(const Duration(milliseconds: 7));
+      expect(slow.surahTextScale, readerTextSteps[1]);
+      expect(over.textStep, 6, reason: 'not back to the first');
+      await tester.pump(_writeTime);
+      expect(over.textStep, 6);
+      expect(slow.surahTextScale, readerTextSteps[6]);
     });
   });
 }
