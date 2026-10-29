@@ -10,11 +10,15 @@ import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/mushaf_view_model.dart';
 
+import '../../../../testing/fakes/fake_player_repository.dart';
 import 'mushaf_harness.dart';
+import 'recitation_fixture.dart';
 
 // The reader on the phone of the Screens board (390 wide), opened in the long
 // synthetic surah, in each theme: as drawn, at 200% system text, with
-// everything but the text hidden, and without a verified pack.
+// everything but the text hidden, without a verified pack, and following a
+// recitation that the user scrolled away from: the ayah recited, with its
+// marker filled, and «عُد إلى موضع التلاوة».
 const _phone = Size(390, 844);
 
 void main() {
@@ -37,10 +41,12 @@ void main() {
     double textScale = 1,
     bool distractionFree = false,
     bool verified = true,
+    bool recited = false,
   }) async {
     setReaderView(tester, _phone);
+    final player = FakePlayerRepository();
     final viewModel = verified
-        ? rig.viewModel(address: QuranAddress('hafs', 2, 1))
+        ? rig.viewModel(address: QuranAddress('hafs', 2, 1), player: player)
         : MushafViewModel();
     addTearDown(viewModel.dispose);
     await tester.pumpWidget(
@@ -48,6 +54,11 @@ void main() {
     );
     await tester.pumpAndSettle();
     viewModel.setDistractionFree(distractionFree);
+    if (recited) {
+      player.reach(recitationPlan(), ayahSegment(2, 3));
+      await tester.pumpAndSettle();
+      viewModel.follow.userScrolled();
+    }
     await tester.pumpAndSettle();
     await expectLater(
       find.byType(WidgetsApp),
@@ -69,6 +80,19 @@ void main() {
     ) async {
       await expectReader(tester, 'reader_free', theme, distractionFree: true);
     });
+
+    for (final scale in [1.0, 2.0]) {
+      testWidgets('the reader following a recitation at ${scale * 100}% in '
+          '${theme.name}', (tester) async {
+        await expectReader(
+          tester,
+          scale == 1 ? 'reader_recited' : 'reader_recited_200',
+          theme,
+          textScale: scale,
+          recited: true,
+        );
+      });
+    }
 
     testWidgets('the reader without a verified pack in ${theme.name}', (
       tester,
