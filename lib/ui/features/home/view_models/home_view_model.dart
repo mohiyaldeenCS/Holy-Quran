@@ -13,6 +13,7 @@ import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/playback_plan.dart';
 import 'package:holyquran/domain/models/playback_plan_builder.dart';
 import 'package:holyquran/domain/models/playback_range.dart';
+import 'package:holyquran/domain/models/playback_rules.dart';
 import 'package:holyquran/domain/models/playback_segment.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/recitation.dart';
@@ -39,16 +40,18 @@ final class ContinueReading {
 }
 
 /// Where «أكمل الاستماع» leads: the ayah where listening stopped, its
-/// surah's name from the pack, and the reciter.
+/// surah's name from the pack, and the reciter. A null [ayah] says that the
+/// position names none: a recitation served by whole surahs has the surah's
+/// first ayah, whatever was heard.
 final class ContinueListening {
   const ContinueListening({
     required this.surahName,
-    required this.ayah,
     required this.reciter,
+    this.ayah,
   });
 
   final PackText surahName;
-  final int ayah;
+  final int? ayah;
   final String reciter;
 }
 
@@ -123,7 +126,9 @@ final class HomeViewModel extends ChangeNotifier {
     final (:position, :recitation) = target;
     return ContinueListening(
       surahName: index.surahs[position.address.surah - 1].name,
-      ayah: position.address.ayah,
+      ayah: recitation.unit == RecitationUnit.surah
+          ? null
+          : position.address.ayah,
       reciter: recitation.reciter,
     );
   }
@@ -150,19 +155,34 @@ final class HomeViewModel extends ChangeNotifier {
     return (position: position, recitation: recitation);
   }
 
-  /// Plays from where listening stopped, to the end of the mushaf, with the
-  /// recitation it stopped in. A failure of the player is reported, as the
-  /// player screens report theirs.
+  /// Goes on with the plan the player holds, when it is the saved
+  /// recitation's and did not end, so that its range, repeat and silence stay
+  /// and a plan that is playing is not moved. Otherwise plays from where
+  /// listening stopped, to the end of the mushaf, with the recitation it
+  /// stopped in. A failure of the player is reported, as the player screens
+  /// report theirs.
   Future<void> resumeListening() async {
     final target = _listeningTarget;
     final player = _player;
     if (target == null || player == null) return;
     final (:position, :recitation) = target;
     try {
+      final held = player.state;
+      if (held.plan?.recitation.id == recitation.id &&
+          held.stopReason != StopReason.endOfPlan) {
+        await player.resume();
+        return;
+      }
       final plan = _planFrom(recitation, position.address);
       if (plan == null) return;
-      await player.play(plan, startAt: _firstHeard(plan));
-      if (position.offset > Duration.zero) await player.seek(position.offset);
+      final first = _firstHeard(plan);
+      await player.play(plan, startAt: first);
+      // A plan that starts elsewhere, as a whole surah does, has no use for
+      // an offset measured in the ayah.
+      if (position.offset > Duration.zero &&
+          plan.segments.elementAt(first).address == position.address) {
+        await player.seek(position.offset);
+      }
     } on Exception catch (error, stack) {
       FlutterError.reportError(
         FlutterErrorDetails(

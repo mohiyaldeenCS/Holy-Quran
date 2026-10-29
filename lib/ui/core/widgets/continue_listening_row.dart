@@ -10,19 +10,21 @@ import 'package:holyquran/ui/core/widgets/surah_name.dart';
 
 /// The home screen's «أكمل الاستماع» row (Screens.dc.html, the home board):
 /// the surah and ayah where listening stopped, the [reciter] under them when
-/// known, and a play button.
+/// known, and a play button. A listening position that cannot name an ayah,
+/// as in a whole-surah recording, has a null [ayah] and names the surah only.
 final class ContinueListeningRow extends StatelessWidget {
   const ContinueListeningRow({
     required this.surahName,
-    required this.ayah,
     required this.onPlay,
+    this.ayah,
     this.reciter,
     super.key,
   });
 
-  /// The pack's surah name, written «سورة name · الآية n» as the board does.
+  /// The pack's surah name, written «سورة name · الآية n» as the board does,
+  /// or «سورة name» without an [ayah].
   final PackText surahName;
-  final int ayah;
+  final int? ayah;
   final String? reciter;
   final VoidCallback onPlay;
 
@@ -58,7 +60,9 @@ final class ContinueListeningRow extends StatelessWidget {
                   ),
                   SurahName(
                     surahName,
-                    format: SurahNameFormat.titledWithAyah,
+                    format: ayah == null
+                        ? SurahNameFormat.titled
+                        : SurahNameFormat.titledWithAyah,
                     ayah: ayah,
                     style: _titleStyle.copyWith(color: colors.ink),
                   ),

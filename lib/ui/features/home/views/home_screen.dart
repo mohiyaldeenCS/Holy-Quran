@@ -62,9 +62,13 @@ class HomeScreen extends StatelessWidget {
                   spacing: HomeMetrics.sectionGap,
                   children: [
                     if (viewModel.baseFailed)
-                      IntegrityAlert(
-                        title: l10n.integrityBaseTitle,
-                        body: l10n.integrityBaseBody,
+                      Semantics(
+                        container: true,
+                        liveRegion: true,
+                        child: IntegrityAlert(
+                          title: l10n.integrityBaseTitle,
+                          body: l10n.integrityBaseBody,
+                        ),
                       )
                     else ...[
                       const _Greeting(),

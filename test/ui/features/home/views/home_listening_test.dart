@@ -1,14 +1,17 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/data/repositories/listening_position_repository.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/domain/models/playback_range.dart';
+import 'package:holyquran/domain/models/playback_rules.dart';
 import 'package:holyquran/domain/models/playback_segment.dart';
+import 'package:holyquran/domain/models/player_state.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/domain/models/recitation.dart';
+import 'package:holyquran/domain/models/repeat_mode.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/widgets/continue_card.dart';
@@ -21,7 +24,8 @@ import 'package:provider/provider.dart';
 import '../../../../../testing/fakes/fake_pack_integrity_repository.dart';
 import '../../../../../testing/fakes/fake_player_repository.dart';
 import '../../../../../testing/fakes/fake_reading_position_repository.dart';
-import '../../listen/controls/controls_harness.dart' show syntheticRecitation;
+import '../../listen/controls/controls_harness.dart'
+    show planOf, syntheticBuilder, syntheticIndex, syntheticRecitation;
 import '../home_harness.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
@@ -240,7 +244,11 @@ void main() {
       final player = FakePlayerRepository();
       await pumpHome(
         tester,
-        listened: listenedAt(_at(2, 2), recitation: recitation),
+        listened: listenedAt(
+          _at(2, 2),
+          offset: const Duration(seconds: 30),
+          recitation: recitation,
+        ),
         recitations: [listedRecitation(recitation)],
         player: player,
       );
@@ -248,10 +256,118 @@ void main() {
       await tester.tap(_play);
       await tester.pump();
 
-      expect(player.commands, ['play 0']);
+      expect(player.commands, ['play 0'], reason: 'no seek into another ayah');
       expect(player.state.plan!.range, isA<WholeSurah>());
       expect(player.state.plan!.continuesToNextSurah, isTrue);
       expect(player.state.plan!.segments.first.address, _at(2, 1));
+    });
+
+    testWidgets('names the surah only for a recitation served by surahs', (
+      tester,
+    ) async {
+      final recitation = syntheticRecitation(unit: RecitationUnit.surah);
+      await pumpHome(
+        tester,
+        listened: listenedAt(_at(2, 1), recitation: recitation),
+        recitations: [listedRecitation(recitation)],
+        player: FakePlayerRepository(),
+      );
+
+      expect(tester.widget<ContinueListeningRow>(_row).ayah, isNull);
+    });
+
+    group('with a plan the player holds', () {
+      final builder = syntheticBuilder(syntheticIndex());
+
+      PlayerState holding(Recitation recitation, {StopReason? stopped}) =>
+          PlayerState(
+            plan: planOf(
+              builder,
+              recitation.unit == RecitationUnit.surah
+                  ? WholeSurah(1)
+                  : SingleAyah(_at(1, 4)),
+              recitation: recitation,
+              repeat: RepeatMode(RepeatUnit.range, 3),
+            ),
+            playing: stopped == null,
+            stopReason: stopped,
+          );
+
+      testWidgets('goes on with it and does not move it', (tester) async {
+        final held = holding(syntheticRecitation());
+        final player = FakePlayerRepository(state: held);
+        await pumpHome(
+          tester,
+          listened: listenedAt(_at(1, 3), offset: const Duration(seconds: 4)),
+          recitations: [listedRecitation()],
+          player: player,
+        );
+
+        await tester.tap(_play);
+        await tester.pump();
+
+        expect(player.commands, ['resume']);
+        expect(player.state.plan, same(held.plan));
+      });
+
+      testWidgets('goes on with one that was stopped before its end', (
+        tester,
+      ) async {
+        final player = FakePlayerRepository(
+          state: holding(syntheticRecitation(), stopped: StopReason.user),
+        );
+        await pumpHome(
+          tester,
+          listened: listenedAt(_at(1, 3)),
+          recitations: [listedRecitation()],
+          player: player,
+        );
+
+        await tester.tap(_play);
+        await tester.pump();
+
+        expect(player.commands, ['resume']);
+      });
+
+      testWidgets('plays from the saved ayah when the plan has ended', (
+        tester,
+      ) async {
+        final player = FakePlayerRepository(
+          state: holding(syntheticRecitation(), stopped: StopReason.endOfPlan),
+        );
+        await pumpHome(
+          tester,
+          listened: listenedAt(_at(1, 3)),
+          recitations: [listedRecitation()],
+          player: player,
+        );
+
+        await tester.tap(_play);
+        await tester.pump();
+
+        expect(player.commands, ['play 0']);
+        expect(player.state.plan!.segments.first.address, _at(1, 3));
+      });
+
+      testWidgets(
+        'plays from the saved ayah when the held plan is of another recitation',
+        (tester) async {
+          final player = FakePlayerRepository(
+            state: holding(syntheticRecitation(unit: RecitationUnit.surah)),
+          );
+          await pumpHome(
+            tester,
+            listened: listenedAt(_at(1, 3)),
+            recitations: [listedRecitation()],
+            player: player,
+          );
+
+          await tester.tap(_play);
+          await tester.pump();
+
+          expect(player.commands, ['play 0']);
+        },
+      );
     });
 
     testWidgets('reports a player that refuses and stays', (tester) async {
@@ -306,6 +422,35 @@ void main() {
   });
 
   group('the bookmarks door', () {
+    for (final theme in ReadingTheme.values) {
+      testWidgets('keeps both labels whole in ${theme.name} at 200%', (
+        tester,
+      ) async {
+        await pumpHome(
+          tester,
+          theme: theme,
+          textScale: 2,
+          size: const Size(360, 640),
+          bookmarks: true,
+        );
+
+        expect(tester.takeException(), isNull);
+        final index = find.text(_l10n.homeDoorIndex);
+        final bookmarks = find.text(_l10n.homeDoorBookmarks);
+        final doors = find.byType(HomeDoor);
+        final width = tester.getSize(doors.first).width;
+        // One line each: a word broken mid-way would be taller.
+        expect(
+          tester.getSize(bookmarks).height,
+          tester.getSize(index).height,
+          reason: '${tester.getSize(bookmarks)} of $width',
+        );
+        for (final label in [index, bookmarks]) {
+          expect(tester.getSize(label).width, lessThanOrEqualTo(width));
+        }
+      });
+    }
+
     testWidgets('is hidden until the bookmarks screen has a route', (
       tester,
     ) async {
@@ -340,8 +485,11 @@ void main() {
       'base': const IntegrityFailed(PackInconsistent('base', 'synthetic')),
     });
 
+    // The pack's index and a position are there, as they are when the pack
+    // fails after it was read: only the failure keeps its text off home.
     HomeViewModel model({String? basePackId = 'base'}) => HomeViewModel(
       positions: FakeReadingPositionRepository(last: syntheticAyah()),
+      index: syntheticIndex(),
       integrity: failed,
       basePackId: basePackId,
     );
@@ -351,6 +499,16 @@ void main() {
       await pumpHomeScreen(tester, model());
 
       expect(find.byType(IntegrityAlert), findsOneWidget);
+      expect(
+        find.ancestor(
+          of: find.byType(IntegrityAlert),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Semantics && widget.properties.liveRegion == true,
+          ),
+        ),
+        findsOneWidget,
+      );
       expect(find.text(_l10n.integrityBaseTitle), findsOneWidget);
       expect(find.text(_l10n.integrityBaseBody), findsOneWidget);
       expect(find.byType(ContinueCard), findsNothing);

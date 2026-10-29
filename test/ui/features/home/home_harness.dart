@@ -32,7 +32,6 @@ import '../../../../testing/fakes/fake_listening_position_repository.dart';
 import '../../../../testing/fakes/fake_quran_index_repository.dart';
 import '../../../../testing/fakes/fake_reading_position_repository.dart';
 import '../../../../testing/fakes/fake_recitation_repository.dart';
-import '../../../../testing/test_app.dart';
 import '../listen/controls/controls_harness.dart'
     show syntheticBuilder, syntheticRecitation;
 
@@ -83,7 +82,8 @@ Widget _target(BuildContext context, GoRouterState state) =>
 /// a reading position at [last], or none. With [listened] it also has a
 /// listening position, with [recitations] listed and a [player] over the
 /// synthetic edition's plans. [bookmarks] gives the bookmarks door its
-/// screen. Returns the router.
+/// screen. [viewModel] replaces the one the home route builds, for what the
+/// route cannot give it: a base pack that failed. Returns the router.
 Future<GoRouter> pumpHome(
   WidgetTester tester, {
   QuranAddress? last,
@@ -95,6 +95,7 @@ Future<GoRouter> pumpHome(
   List<CatalogueRecitation> recitations = const [],
   PlayerRepository? player,
   bool bookmarks = false,
+  HomeViewModel? viewModel,
 }) async {
   tester.view
     ..physicalSize = size
@@ -104,7 +105,15 @@ Future<GoRouter> pumpHome(
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
   final router = createRouter(
     features: [
-      homeRoutes,
+      if (viewModel == null)
+        homeRoutes
+      else
+        FeatureRoutes(
+          tabRoot: TabRoot(
+            ShellTab.home,
+            (context, state) => HomeScreen(viewModel: viewModel),
+          ),
+        ),
       mushafRoutes,
       listenRoutes,
       studyRoutes,
@@ -151,33 +160,20 @@ Future<GoRouter> pumpHome(
   return router;
 }
 
-/// Pumps [HomeScreen] alone over [viewModel], phone sized, for what the app's
-/// routes cannot give it: a base pack that failed.
+/// [pumpHome] over [viewModel]: the app's shell and theme around the home
+/// screen.
 Future<void> pumpHomeScreen(
   WidgetTester tester,
   HomeViewModel viewModel, {
   ReadingTheme theme = ReadingTheme.paper,
+  double textScale = 1,
+  Size size = const Size(390, 844),
 }) async {
-  tester.view
-    ..physicalSize = const Size(390, 844)
-    ..devicePixelRatio = 1;
-  addTearDown(tester.view.reset);
-  final router = GoRouter(
-    routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => HomeScreen(viewModel: viewModel),
-      ),
-    ],
+  await pumpHome(
+    tester,
+    viewModel: viewModel,
+    theme: theme,
+    textScale: textScale,
+    size: size,
   );
-  addTearDown(router.dispose);
-  await tester.pumpWidget(
-    testApp(
-      router,
-      settings: FakeAppSettingsRepository(
-        themePreference: ThemePreference(theme: theme),
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
 }
