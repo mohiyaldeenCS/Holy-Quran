@@ -207,6 +207,34 @@ void main() {
       expect(find.byType(PositionBar), findsOneWidget);
     });
 
+    readerTest('the touch that stops a fling is no tap', (tester) async {
+      await pumpReader(tester);
+      await longPress(tester, wordPoint(tester));
+      expect(viewModel.selectedAyah, isNotNull);
+      await tester.fling(
+        find.byType(CustomScrollView),
+        const Offset(0, -300),
+        2000,
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tapAt(const Offset(6, 300));
+      await tester.pumpAndSettle();
+      expect(viewModel.selectedAyah, isNotNull, reason: 'not dismissed');
+      expect(viewModel.distractionFree, isFalse);
+      // At rest, the same touch is a tap.
+      await tester.tapAt(const Offset(6, 300));
+      await tester.pumpAndSettle();
+      expect(viewModel.selectedAyah, isNull);
+    });
+
+    readerTest('a long hold on the margin is no tap', (tester) async {
+      await pumpReader(tester);
+      await tester.longPressAt(const Offset(6, 300));
+      await tester.pumpAndSettle();
+      expect(viewModel.distractionFree, isFalse);
+      expect(viewModel.selectedAyah, isNull);
+    });
+
     readerTest('on a word toggle the interface at the simple level', (
       tester,
     ) async {

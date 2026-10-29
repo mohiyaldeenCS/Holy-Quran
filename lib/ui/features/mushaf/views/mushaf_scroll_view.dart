@@ -68,6 +68,10 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
   int? _focusSurah;
   bool _stepping = false;
 
+  // Whether the text is scrolling. The scroll view ignores a touch that stops
+  // a fling, so a tap that does must not reach the layer around it either.
+  final _moving = ValueNotifier<bool>(false);
+
   MushafViewModel get _model => widget.viewModel;
 
   @override
@@ -82,6 +86,7 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
   void dispose() {
     _model.removeListener(_onModel);
     _focus.dispose();
+    _moving.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -169,6 +174,10 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
   }
 
   bool _onScroll(ScrollNotification notification) {
+    if (notification.depth == 0) {
+      if (notification is ScrollStartNotification) _moving.value = true;
+      if (notification is ScrollEndNotification) _moving.value = false;
+    }
     if (!widget.active || _jumping || notification.depth != 0) return false;
     if (notification is ScrollStartNotification) _pendingAnchor = null;
     if (notification is ScrollUpdateNotification ||
@@ -303,10 +312,16 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
         child: NotificationListener<ScrollNotification>(
           onNotification: _onScroll,
           // The text column's sides and what lies between blocks belong to no
-          // block; a tap there is a tap on the margin (PRD §7.4).
-          child: TargetGestures(
-            targetAt: (_) => const MarginTarget(),
-            onTap: _tapped,
+          // block; a tap there is a tap on the margin (PRD §7.4). A long hold
+          // is not a tap, and neither is the touch that stops a fling.
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _moving,
+            builder: (context, moving, child) => TargetGestures(
+              targetAt: (_) => const MarginTarget(),
+              onTap: moving ? null : _tapped,
+              onLongPress: _model.longPress,
+              child: child!,
+            ),
             child: CustomScrollView(
               controller: _controller,
               slivers: [
