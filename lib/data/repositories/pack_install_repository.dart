@@ -67,6 +67,7 @@ final class LocalPackInstallRepository extends ChangeNotifier
     required this._verifier,
     required this._policy,
     required this._acceptUnchecked,
+    this._onPackChanged,
   });
 
   static const _manifest = 'manifest.json';
@@ -84,6 +85,11 @@ final class LocalPackInstallRepository extends ChangeNotifier
   /// Whether a pack whose signature was not checked may be activated: only
   /// outside release builds (D-108).
   final bool _acceptUnchecked;
+
+  /// Called with the id of a pack whose files were replaced, rolled back or
+  /// deleted, so that what was said of the old files is not kept for the
+  /// new ones.
+  final void Function(String packId)? _onPackChanged;
 
   final _started = Completer<Result<void>>();
   final _queue = <_Job>[];
@@ -228,6 +234,7 @@ final class LocalPackInstallRepository extends ChangeNotifier
           return Failure(error);
         case Ok(:final value):
           await _reload();
+          _onPackChanged?.call(packId);
           return switch (_installed
               .where((pack) => pack.id == packId)
               .firstOrNull) {
@@ -256,6 +263,7 @@ final class LocalPackInstallRepository extends ChangeNotifier
     try {
       final result = await _store!.delete(packId);
       await _reload();
+      if (result is Ok) _onPackChanged?.call(packId);
       return result;
     } on Exception catch (e) {
       return Failure(StoreFailed(packId, '$e'));
@@ -432,6 +440,7 @@ final class LocalPackInstallRepository extends ChangeNotifier
       switch (await _store!.activate(id, request.version)) {
         case Ok(:final value):
           await _reload();
+          _onPackChanged?.call(id);
           return Ok(
             InstalledPack(
               manifest: pack.manifest,

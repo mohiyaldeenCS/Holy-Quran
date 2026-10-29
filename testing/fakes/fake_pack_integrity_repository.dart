@@ -24,6 +24,11 @@ final class FakePackIntegrityRepository extends ChangeNotifier
   Stream<PackIntegrityEvent> get events => _events.stream;
 
   @override
+  void forget(String pack) {
+    if (_states.remove(pack) != null) notifyListeners();
+  }
+
+  @override
   void report(String pack, PackIntegrity state, {int? version}) {
     final event = PackIntegrityEvent(
       pack: pack,

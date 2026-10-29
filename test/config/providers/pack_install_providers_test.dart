@@ -78,6 +78,7 @@ void main() {
 
     expect(await installs.started, isA<Failure<void>>());
     expect(messages, contains('plugins.flutter.io/path_provider'));
+    expect(provided.read<FreeSpaceService>(), isA<DiskFreeSpaceService>());
   });
 
   group('provideInstaller', () {

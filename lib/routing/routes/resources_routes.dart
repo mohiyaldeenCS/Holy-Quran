@@ -34,6 +34,7 @@ Widget _resources(BuildContext context, GoRouterState state) {
   final catalogue = context.read<CatalogueRepository?>();
   final installs = context.read<PackInstallRepository?>();
   final integrity = context.read<PackIntegrityRepository?>();
+  final freeSpace = context.read<FreeSpaceService?>();
   if (catalogue == null || installs == null || integrity == null) {
     return const ResourcesScreen(viewModel: null);
   }
@@ -42,7 +43,7 @@ Widget _resources(BuildContext context, GoRouterState state) {
       catalogue: catalogue,
       installs: installs,
       integrity: integrity,
-      freeBytes: _freeBytes,
+      freeBytes: () => _freeBytes(freeSpace),
     ),
     builder: (context, _) => ResourcesScreen(viewModel: context.read()),
   );
@@ -60,12 +61,10 @@ Widget _firstUseTafsir(BuildContext context, GoRouterState state) {
 }
 
 /// The free space of the volume the packs are installed on; null when the
-/// directory cannot be found.
-Future<int?> _freeBytes() async {
+/// app provides no service or the directory cannot be found.
+Future<int?> _freeBytes(FreeSpaceService? freeSpace) async {
   try {
-    return await const DiskFreeSpaceService().freeBytesAt(
-      await applicationSupportPath(),
-    );
+    return await freeSpace?.freeBytesAt(await applicationSupportPath());
   } on Exception {
     return null;
   }

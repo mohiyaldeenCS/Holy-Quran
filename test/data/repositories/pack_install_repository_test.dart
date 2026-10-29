@@ -335,6 +335,7 @@ void main() {
     ManifestSignatureVerifier signatures = const SignatureNotConfigured(),
     bool acceptUnchecked = true,
     UrlPolicy policy = _http,
+    void Function(String packId)? onPackChanged,
   }) async {
     final repository = LocalPackInstallRepository(
       openStore: () async => InstalledPacksStore(support),
@@ -349,6 +350,7 @@ void main() {
       ),
       policy: policy,
       acceptUnchecked: acceptUnchecked,
+      onPackChanged: onPackChanged,
     );
     addTearDown(repository.dispose);
     expect(await repository.start(), isA<Ok<void>>());
@@ -710,6 +712,22 @@ void main() {
         await repository.rollback(_other),
         failedWith(isA<NoPreviousVersion>()),
       );
+    });
+
+    test('tells of a pack installed, rolled back or deleted, and of no '
+        'other', () async {
+      final changed = <String>[];
+      final repository = await started(onPackChanged: changed.add);
+
+      await install(repository, _text, 1);
+      await install(repository, _text, 1);
+      expect(changed, [_text]);
+      await install(repository, _text, 2);
+      await repository.rollback(_text);
+      await repository.rollback(_other);
+      await repository.delete(_text);
+
+      expect(changed, [_text, _text, _text, _text]);
     });
 
     test('an installed version, active or previous, is refused', () async {
