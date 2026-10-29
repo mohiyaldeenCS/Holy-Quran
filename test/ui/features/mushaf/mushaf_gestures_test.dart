@@ -274,11 +274,22 @@ void main() {
       tester,
     ) async {
       await pumpReader(tester);
-      expect(
-        tester.getSize(find.bySemanticsLabel('اذهب إلى')).height,
-        greaterThanOrEqualTo(48),
-      );
+      final bar = find.bySemanticsLabel(RegExp('^اذهب إلى'));
+      expect(bar, findsOneWidget);
+      final node = tester.getSemantics(bar);
+      // The bar keeps its own text for a screen reader: the juz and hizb.
+      expect(node.label, contains('الجزء'));
+      expect(node.label, contains('الحزب'));
+      expect(node.getSemanticsData().flagsCollection.isButton, isTrue);
+      expect(tester.getSize(bar).height, greaterThanOrEqualTo(48));
       await tester.tap(find.byType(PositionBar));
+      await tester.pumpAndSettle();
+      expect(sheets.opened, [Routes.goToSheet]);
+    });
+
+    readerTest('a screen reader activates the position bar', (tester) async {
+      await pumpReader(tester);
+      tester.semantics.tap(find.semantics.byLabel(RegExp('^اذهب إلى')));
       await tester.pumpAndSettle();
       expect(sheets.opened, [Routes.goToSheet]);
     });

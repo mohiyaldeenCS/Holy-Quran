@@ -2,14 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
+import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
+import 'package:holyquran/domain/models/quran_position.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/route_table.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/metrics/reader_screen_metrics.dart';
 import 'package:holyquran/ui/core/reader/page_mark.dart';
+import 'package:holyquran/ui/core/reader/position_bar_button.dart';
 import 'package:holyquran/ui/core/shell_chrome.dart';
-import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/ayah_toolbar.dart';
 import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/position_bar.dart';
@@ -131,6 +133,25 @@ class _Reader extends StatelessWidget {
   final MushafViewModel viewModel;
   final bool active;
 
+  Widget _positionBar(
+    BuildContext context,
+    GoRouter? router,
+    PackText name,
+    QuranPosition position,
+  ) {
+    final bar = PositionBar(
+      surahName: name,
+      juz: position.juz,
+      hizb: position.hizb,
+    );
+    if (router == null || !hasRoute(router, Routes.goToSheet)) return bar;
+    return PositionBarButton(
+      label: AppLocalizations.of(context).goToTitle,
+      onPressed: () => unawaited(context.push<Object?>(Routes.goToSheet)),
+      child: bar,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final name = viewModel.positionSurahName;
@@ -143,14 +164,9 @@ class _Reader extends StatelessWidget {
         if (chrome && name != null)
           Padding(
             padding: ReaderScreenMetrics.barPadding,
-            child: _GoToTap(
-              enabled: router != null && hasRoute(router, Routes.goToSheet),
-              child: PositionBar(
-                surahName: name,
-                juz: position.juz,
-                hizb: position.hizb,
-              ),
-            ),
+            // The bar opens «اذهب إلى» (D-140, 11) where that sheet has a
+            // route.
+            child: _positionBar(context, router, name, position),
           ),
         Expanded(
           child: Stack(
@@ -175,34 +191,6 @@ class _Reader extends StatelessWidget {
             child: PageMark(page: position.page),
           ),
       ],
-    );
-  }
-}
-
-/// The position bar opens «اذهب إلى» (D-140, 11) where that sheet has a
-/// route.
-class _GoToTap extends StatelessWidget {
-  const _GoToTap({required this.enabled, required this.child});
-
-  final bool enabled;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!enabled) return child;
-    return Semantics(
-      container: true,
-      button: true,
-      label: AppLocalizations.of(context).goToTitle,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        excludeFromSemantics: true,
-        onTap: () => unawaited(context.push<Object?>(Routes.goToSheet)),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: AppSizes.targetMin),
-          child: Align(child: ExcludeSemantics(child: child)),
-        ),
-      ),
     );
   }
 }
