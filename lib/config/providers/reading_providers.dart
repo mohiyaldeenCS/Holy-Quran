@@ -1,8 +1,6 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:holyquran/config/dependencies.dart';
-import 'package:holyquran/data/repositories/app_settings_repository.dart';
-import 'package:holyquran/data/repositories/in_memory_app_settings_repository.dart';
 import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/data/services/daos/reading_position_dao.dart';
 import 'package:holyquran/data/services/user_database.dart';
@@ -17,13 +15,8 @@ import 'package:holyquran/utils/result.dart';
 /// the position is kept in an in-memory database instead, so nothing is ever
 /// written to it.
 Future<void> readingProviders(Dependencies dependencies) async {
-  final database =
-      dependencies.read<AppSettingsRepository>()
-          is InMemoryAppSettingsRepository
-      ? UserDatabase.inMemory()
-      : dependencies.read<UserDatabase>();
   switch (await LocalReadingPositionRepository.load(
-    ReadingPositionDao(database),
+    ReadingPositionDao(dependencies.read<UserDatabase>()),
   )) {
     case Ok(:final value):
       dependencies.provideListenable<ReadingPositionRepository>(value);

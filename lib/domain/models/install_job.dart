@@ -115,6 +115,15 @@ final class InvalidPackId extends InstallFailure {
   String toString() => 'InvalidPackId($packId)';
 }
 
+/// The id is the bundled base pack's, whose files live in the same folder
+/// and which no catalogue entry may replace, roll back or delete.
+final class ReservedPackId extends InstallFailure {
+  const ReservedPackId(super.packId);
+
+  @override
+  String toString() => 'ReservedPackId($packId)';
+}
+
 /// The URL is not one the download policy allows.
 final class UrlNotAllowed extends InstallFailure {
   const UrlNotAllowed(super.packId, this.url);

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/config/dependencies.dart';
+import 'package:holyquran/config/providers/base_pack_guard.dart';
 import 'package:holyquran/config/providers/search_providers.dart';
 import 'package:holyquran/data/models/pack_manifest_json.dart';
 import 'package:holyquran/data/repositories/search_repository.dart';
@@ -49,8 +50,84 @@ void main() {
     return value;
   }
 
-  test('the search area alone provides nothing', () async {
-    expect(await buildDependencies(areas: [searchProviders]), isEmpty);
+  group('the area', () {
+    Future<Dependencies> over({
+      required Directory pack,
+      required BasePackGuard? guard,
+      bool structure = true,
+    }) async {
+      late Dependencies provided;
+      await buildDependencies(
+        areas: [
+          (d) async {
+            d.provide<VerifiedPack>(_verified(pack, 'synthetic-text'));
+            if (guard != null) d.provide<BasePackGuard>(guard);
+            if (structure) {
+              d.provide<QuranStructure>(FakeQuranIndexRepository.synthetic());
+            }
+          },
+          searchProviders,
+          (d) async => provided = d,
+        ],
+      );
+      return provided;
+    }
+
+    test('provides nothing without a base pack', () async {
+      expect(await buildDependencies(areas: [searchProviders]), isEmpty);
+    });
+
+    test('provides nothing while the text and index did not open', () async {
+      final pack = await buildSyntheticPack(root, formatVersion: 2);
+
+      final dependencies = await over(
+        pack: pack.directory,
+        guard: BasePackGuard(serving: () => true, failed: (_) {}),
+        structure: false,
+      );
+
+      expect(dependencies.tryRead<SearchRepository>(), isNull);
+    });
+
+    test(
+      'fails the start when a verified pack came without its guard',
+      () async {
+        final pack = await buildSyntheticPack(root, formatVersion: 2);
+
+        await expectLater(
+          over(pack: pack.directory, guard: null),
+          throwsStateError,
+        );
+      },
+    );
+
+    test('follows the guard: serving, and failing the pack', () async {
+      final pack = await buildSyntheticPack(
+        root,
+        formatVersion: 2,
+        searchFormFault: SyntheticSearchFormFault.missing,
+      );
+      var serving = true;
+      final failures = <Exception>[];
+      final dependencies = await over(
+        pack: pack.directory,
+        guard: BasePackGuard(serving: () => serving, failed: failures.add),
+      );
+      final repository = dependencies.read<SearchRepository>();
+
+      expect(await repository.formKinds(), isA<Failure<List<String>>>());
+      expect(failures.single, isA<PackInconsistent>());
+
+      serving = false;
+      expect(
+        await repository.formKinds(),
+        isA<Failure<List<String>>>().having(
+          (f) => f.error,
+          'error',
+          isA<PackDisabled>(),
+        ),
+      );
+    });
   });
 
   test('provides the search of the base pack', () async {

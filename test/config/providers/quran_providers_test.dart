@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/config/dependencies.dart';
+import 'package:holyquran/config/providers/base_pack_guard.dart';
 import 'package:holyquran/config/providers/quran_providers.dart';
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/pack_quran_text_repository.dart';
@@ -120,6 +121,48 @@ void main() {
     expect(
       await tester.runAsync(() => text.ayahText(QuranAddress('hafs', 2, 1))),
       isA<Ok<Object>>(),
+    );
+  });
+
+  testWidgets('the guard follows the integrity and fails the base pack once', (
+    tester,
+  ) async {
+    final (context, _) = await setUpArea(tester);
+    closeTextAfterTest(context);
+    final integrity = context.read<PackIntegrityRepository>();
+    final guard = context.read<BasePackGuard>();
+    expect(guard.serving(), isTrue);
+    final events = <PackIntegrityEvent>[];
+    integrity.events.listen(events.add);
+
+    guard.failed(const FormatException('synthetic failure'));
+    guard.failed(const FormatException('again'));
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+
+    expect(guard.serving(), isFalse);
+    expect(
+      [for (final e in events) '${e.state}'.split(':').first],
+      ['ok', 'failed'],
+    );
+    expect(
+      await tester.runAsync(
+        () => context.read<QuranTextRepository>().ayahText(
+          QuranAddress('hafs', 2, 1),
+        ),
+      ),
+      isA<Failure<Object>>().having(
+        (failure) => failure.error,
+        'error',
+        isA<PackDisabled>(),
+      ),
+    );
+    expect(
+      integrity.stateOf(_id),
+      isA<IntegrityFailed>().having(
+        (state) => state.reason,
+        'reason',
+        isA<ManifestUnreadable>(),
+      ),
     );
   });
 
