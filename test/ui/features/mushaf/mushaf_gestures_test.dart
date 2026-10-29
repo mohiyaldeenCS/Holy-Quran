@@ -491,5 +491,23 @@ void main() {
       addTearDown(model.dispose);
       expect(readerTextSteps[model.textStep], 1.5);
     });
+
+    readerTest('a reader under another follows the size chosen over it', (
+      tester,
+    ) async {
+      await pumpReader(tester);
+      final over = rig.viewModel(address: at(2, 1), settings: settings);
+      addTearDown(over.dispose);
+      over.setTextStep(5);
+      await tester.pumpAndSettle();
+      expect(over.textStep, 5);
+      expect(viewModel.textStep, 5);
+      expect(settings.surahTextScale, readerTextSteps[5]);
+      over.setTextStep(1);
+      over.setTextStep(6);
+      await tester.pumpAndSettle();
+      expect(over.textStep, 6, reason: 'its own write is not heard again');
+      expect(viewModel.textStep, 6);
+    });
   });
 }

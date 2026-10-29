@@ -85,6 +85,7 @@ final class MushafViewModel extends ChangeNotifier {
        _textStep = _stepOf(settings) {
     _integrity?.addListener(_onIntegrity);
     _positions?.addListener(_onPositions);
+    _settings?.addListener(_onSettings);
     this.bookmarks.addListener(notifyListeners);
     unawaited(this.bookmarks.load());
   }
@@ -132,6 +133,7 @@ final class MushafViewModel extends ChangeNotifier {
   bool _distractionFree = false;
   QuranAddress? _selected;
   int _textStep;
+  int _writes = 0;
 
   ReaderStatus get status => _status;
 
@@ -163,14 +165,31 @@ final class MushafViewModel extends ChangeNotifier {
   /// The index into `readerTextSteps` the text is set at (`RD-07`).
   int get textStep => _textStep;
 
-  /// Sets the text size step; the new size is kept as the setting.
+  /// Sets the text size step; the new size is kept as the setting, which
+  /// every other reader follows.
   void setTextStep(int step) {
     if (step == _textStep) return;
     _textStep = step;
     notifyListeners();
     if (_settings != null) {
-      unawaited(_settings.setSurahTextScale(readerTextSteps[step]));
+      _writes++;
+      unawaited(
+        _settings
+            .setSurahTextScale(readerTextSteps[step])
+            .whenComplete(() => _writes--),
+      );
     }
+  }
+
+  // The size another reader chose. This reader's own writes are not heard:
+  // it already shows what it wrote, and one still on its way is older.
+  void _onSettings() {
+    final settings = _settings;
+    if (settings == null || _writes > 0 || _disposed) return;
+    final step = nearestReaderTextStep(settings.surahTextScale);
+    if (step == _textStep) return;
+    _textStep = step;
+    notifyListeners();
   }
 
   /// A tap on [target] (PRD §7.4). A tap on a marker selects its ayah; any
@@ -433,6 +452,7 @@ final class MushafViewModel extends ChangeNotifier {
     bookmarks.dispose();
     _integrity?.removeListener(_onIntegrity);
     _positions?.removeListener(_onPositions);
+    _settings?.removeListener(_onSettings);
     open.dispose();
     loadNext.dispose();
     super.dispose();
