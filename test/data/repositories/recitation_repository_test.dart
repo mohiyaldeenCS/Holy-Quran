@@ -8,13 +8,16 @@ import 'package:holyquran/data/repositories/local_pack_repository.dart';
 import 'package:holyquran/data/repositories/recitation_repository.dart';
 import 'package:holyquran/data/services/manifest_signature.dart';
 import 'package:holyquran/data/services/pack_file_service.dart';
+import 'package:holyquran/data/services/recitation_file_store.dart';
 import 'package:holyquran/domain/models/catalogue.dart';
 import 'package:holyquran/domain/models/installed_pack.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/domain/models/pack_manifest.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
+import 'package:holyquran/domain/models/recitation.dart';
 import 'package:holyquran/domain/models/recitation_file.dart';
+import 'package:holyquran/domain/models/recitation_target.dart';
 import 'package:holyquran/utils/result.dart';
 
 import '../../../testing/fakes/fake_catalogue_repository.dart';
@@ -209,6 +212,27 @@ void main() {
       expect(partial.uri.scheme, 'https');
     });
 
+    test('is where the download store gives a file its final name', () async {
+      final pack = await install();
+      final row = fileOf(pack, 64, 1, 1);
+      final recitations = repository();
+      final contents = switch (await recitations.contents(_listed)) {
+        Ok(:final value) => value,
+        Failure(:final error) => fail('$error'),
+      };
+      final file = contents.files.singleWhere((f) => f.path == row.path);
+      final path = RecitationFileStore.finalPath(audio, _pack, file);
+      await File(path).create(recursive: true);
+      await File(path).writeAsBytes(row.audio);
+
+      final result = audioOf(
+        await recitations.ayahFile(_listed, first, qualityKbps: 64),
+      );
+
+      expect(result.local, isTrue);
+      expect(result.uri, Uri.file(path));
+    });
+
     test('is streamed when the device cannot say where files are', () async {
       await install();
       audioDirectory = () async =>
@@ -280,6 +304,49 @@ void main() {
       expect(
         '${(result as Failure).error}',
         'RecitationPackNotInstalled($_listed): $_pack',
+      );
+    });
+  });
+
+  group('the contents', () {
+    test('are every file of the installed pack at every quality', () async {
+      final pack = await install();
+
+      final contents = switch (await repository().contents(_listed)) {
+        Ok(:final value) => value,
+        Failure(:final error) => fail('$error'),
+      };
+
+      expect(contents.packId, _pack);
+      expect(contents.unit, RecitationUnit.ayah);
+      expect(contents.baseUrl, Uri.parse(pack.baseUrl));
+      expect(contents.files.map((f) => f.path).toSet(), {
+        for (final f in pack.files) f.path,
+      });
+      expect(contents.files.map((f) => f.qualityKbps).toSet(), {64, 128});
+    });
+
+    test('need the recitation pack installed', () async {
+      expect(
+        await repository().contents(_listed),
+        isA<Failure<RecitationContents>>().having(
+          (f) => f.error,
+          'error',
+          isA<RecitationPackNotInstalled>(),
+        ),
+      );
+    });
+
+    test('are refused for a recitation without a complete record', () async {
+      await install(id: 'synthetic-unlisted');
+
+      expect(
+        await repository().contents(_pending),
+        isA<Failure<RecitationContents>>().having(
+          (f) => f.error,
+          'error',
+          isA<RecitationNotListed>(),
+        ),
       );
     });
   });

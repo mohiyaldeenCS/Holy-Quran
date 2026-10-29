@@ -731,6 +731,58 @@ class AppLocalizationsAr extends AppLocalizations {
   String get resourceRedownload => 'إعادة التنزيل';
 
   @override
+  String get resourceStop => 'إيقاف';
+
+  @override
+  String get recitationDownloadWhole => 'المصحف كاملًا';
+
+  @override
+  String recitationQualityKbps(String kbps) {
+    return '$kbps كيلوبت/ث';
+  }
+
+  @override
+  String get resourceCancel => 'إلغاء';
+
+  @override
+  String get deleteRecitationTitle => 'حذف التلاوة';
+
+  @override
+  String get recitationScopeLabel => 'نطاق التنزيل';
+
+  @override
+  String get waitingForNetwork => 'بانتظار الشبكة';
+
+  @override
+  String get resourceResume => 'استئناف';
+
+  @override
+  String get resourceQueued => 'في قائمة الانتظار';
+
+  @override
+  String get recitationPartial => 'تنزيل جزئي';
+
+  @override
+  String resourceDownloadNamed(String title) {
+    return 'تنزيل $title';
+  }
+
+  @override
+  String resourceResumeNamed(String title) {
+    return 'استئناف تنزيل $title';
+  }
+
+  @override
+  String resourceStopNamed(String title) {
+    return 'إيقاف تنزيل $title';
+  }
+
+  @override
+  String resourceDeleteNamed(String title) {
+    return 'حذف $title';
+  }
+
+  @override
   String get settingsTitle => 'الإعدادات';
 
   @override

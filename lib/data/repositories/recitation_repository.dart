@@ -11,10 +11,12 @@ import '../../domain/models/pack_manifest.dart';
 import '../../domain/models/quran_address.dart';
 import '../../domain/models/recitation.dart';
 import '../../domain/models/recitation_file.dart';
+import '../../domain/models/recitation_target.dart';
 import '../../domain/models/verified_pack.dart';
 import '../../utils/result.dart';
 import '../models/pack_manifest_json.dart';
 import '../services/pack_file_service.dart';
+import '../services/recitation_file_store.dart';
 import '../services/recitation_pack_index.dart';
 import 'pack_integrity_repository.dart' show PackCheck;
 
@@ -188,6 +190,63 @@ final class PackRecitationRepository implements RecitationRepository {
     _FileKey key, {
     QuranAddress? address,
   }) async {
+    final _PackFiles files;
+    final String packId;
+    switch (await _servingPack(recitationId, address: address)) {
+      case Ok(value: (final id, final found)):
+        (packId, files) = (id, found);
+      case Failure(:final error):
+        return Failure(error);
+    }
+    final file = files.byKey[key];
+    if (file == null) {
+      final (quality, _, surah, ayah) = key;
+      return Failure(
+        RecitationFileNotInPack(
+          recitationId,
+          qualityKbps: quality,
+          surah: surah!,
+          ayah: ayah,
+        ),
+      );
+    }
+    final path = await _localPath(packId, file);
+    return Ok(
+      path == null
+          ? RecitationAudio(
+              file: file,
+              uri: files.baseUrl.resolve(file.path),
+              local: false,
+            )
+          : RecitationAudio(file: file, uri: Uri.file(path), local: true),
+    );
+  }
+
+  /// The files of the recitation's installed pack, at every quality, for
+  /// the downloads of `AU-13`. It is refused for the reasons a file is.
+  Future<Result<RecitationContents>> contents(String recitationId) async {
+    switch (await _servingPack(recitationId)) {
+      case Ok(value: (final packId, final files)):
+        return Ok(
+          RecitationContents(
+            recitationId: recitationId,
+            packId: packId,
+            baseUrl: files.baseUrl,
+            unit: files.unit,
+            files: files.byKey.values.toList(),
+          ),
+        );
+      case Failure(:final error):
+        return Failure(error);
+    }
+  }
+
+  /// The id and files of the installed, verified pack that serves
+  /// [recitationId] as the catalogue describes it.
+  Future<Result<(String, _PackFiles)>> _servingPack(
+    String recitationId, {
+    QuranAddress? address,
+  }) async {
     final listed = recitations.where((r) => r.id == recitationId).firstOrNull;
     if (listed == null) return Failure(RecitationNotListed(recitationId));
     final packId = listed.packId;
@@ -219,28 +278,7 @@ final class PackRecitationRepository implements RecitationRepository {
     if (_difference(listed, pack, files) case final reason?) {
       return Failure(RecitationDiffersFromCatalogue(recitationId, reason));
     }
-    final file = files.byKey[key];
-    if (file == null) {
-      final (quality, _, surah, ayah) = key;
-      return Failure(
-        RecitationFileNotInPack(
-          recitationId,
-          qualityKbps: quality,
-          surah: surah!,
-          ayah: ayah,
-        ),
-      );
-    }
-    final path = await _localPath(packId, file);
-    return Ok(
-      path == null
-          ? RecitationAudio(
-              file: file,
-              uri: files.baseUrl.resolve(file.path),
-              local: false,
-            )
-          : RecitationAudio(file: file, uri: Uri.file(path), local: true),
-    );
+    return Ok((packId, files));
   }
 
   /// How [pack] differs from what the catalogue says of [listed]: its
@@ -271,10 +309,7 @@ final class PackRecitationRepository implements RecitationRepository {
   Future<String?> _localPath(String packId, RecitationFile file) async {
     try {
       final root = _audioRoot ??= await _audioDirectory();
-      final name = file.path.split('/').last;
-      final dot = name.lastIndexOf('.');
-      final path =
-          '$root/$packId/${file.sha256}${dot < 0 ? '' : name.substring(dot)}';
+      final path = RecitationFileStore.finalPath(root, packId, file);
       return await _files.sizeOf(path) == file.bytes ? path : null;
     } on Exception {
       return null;

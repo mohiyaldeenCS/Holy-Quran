@@ -1,0 +1,142 @@
+import 'quran_range.dart';
+import 'recitation.dart';
+import 'recitation_file.dart';
+
+/// What of a recitation is downloaded together (`AU-13`): all of it, a
+/// surah, or the ayat of a range such as a juz.
+sealed class RecitationSelection {
+  const RecitationSelection();
+
+  /// Whether [file] belongs to it. The reciter's own basmala and isti'adha
+  /// belong to every selection, since playing needs them (`AU-24`).
+  bool includes(RecitationFile file);
+
+  /// Names the selection inside a job key.
+  String get key;
+
+  /// Whether deleting it also deletes the files that belong to every
+  /// selection. Only the whole does: removing a surah must not take the
+  /// reciter's basmala from the others.
+  bool get ownsSharedFiles => false;
+}
+
+final class WholeRecitation extends RecitationSelection {
+  const WholeRecitation();
+
+  @override
+  bool includes(RecitationFile file) => true;
+
+  @override
+  String get key => 'all';
+
+  @override
+  bool get ownsSharedFiles => true;
+}
+
+final class RecitationSurah extends RecitationSelection {
+  const RecitationSurah(this.surah);
+
+  final int surah;
+
+  @override
+  bool includes(RecitationFile file) =>
+      file.surah == null || file.surah == surah;
+
+  @override
+  String get key => 'surah-$surah';
+}
+
+/// The ayat of [range]. A recitation cut by surah cannot be cut inside a
+/// surah, so it takes every surah the range touches.
+final class RecitationSpan extends RecitationSelection {
+  const RecitationSpan(this.range);
+
+  final QuranRange range;
+
+  @override
+  bool includes(RecitationFile file) {
+    final surah = file.surah;
+    if (surah == null) return true;
+    final (start, end) = (range.start, range.end);
+    if (surah < start.surah || surah > end.surah) return false;
+    return switch (file.ayah) {
+      null => true,
+      final ayah =>
+        (surah > start.surah || ayah >= start.ayah) &&
+            (surah < end.surah || ayah <= end.ayah),
+    };
+  }
+
+  @override
+  String get key =>
+      'span-${range.start.surah}:${range.start.ayah}-'
+      '${range.end.surah}:${range.end.ayah}';
+}
+
+/// The files an installed recitation pack indexes, at every quality.
+final class RecitationContents {
+  RecitationContents({
+    required this.recitationId,
+    required this.packId,
+    required this.baseUrl,
+    required this.unit,
+    required List<RecitationFile> files,
+  }) : files = List.unmodifiable(files);
+
+  final String recitationId;
+  final String packId;
+  final Uri baseUrl;
+  final RecitationUnit unit;
+  final List<RecitationFile> files;
+
+  Uri urlOf(RecitationFile file) => baseUrl.resolve(file.path);
+
+  /// How much of the recitation at [qualityKbps] is among the [present]
+  /// paths: all of its files, some, or none.
+  AudioCoverage coverageAt(int qualityKbps, Set<String> present) {
+    var total = 0;
+    var here = 0;
+    for (final file in files) {
+      if (file.qualityKbps != qualityKbps) continue;
+      total++;
+      if (present.contains(file.path)) here++;
+    }
+    if (total == 0 || here == 0) return AudioCoverage.none;
+    return here == total ? AudioCoverage.whole : AudioCoverage.partial;
+  }
+}
+
+/// How much of a recitation is on the device.
+enum AudioCoverage { none, partial, whole }
+
+/// One download: [selection] of the recitation at [qualityKbps].
+final class RecitationTarget {
+  RecitationTarget(this.contents, this.qualityKbps, this.selection)
+    : files = List.unmodifiable([
+        for (final file in contents.files)
+          if (file.qualityKbps == qualityKbps && selection.includes(file)) file,
+      ]);
+
+  final RecitationContents contents;
+  final int qualityKbps;
+  final RecitationSelection selection;
+  final List<RecitationFile> files;
+
+  /// The key of the job for [selection] of [recitationId] at [qualityKbps].
+  static String keyOf(
+    String recitationId,
+    int qualityKbps,
+    RecitationSelection selection,
+  ) => '$recitationId/$qualityKbps/${selection.key}';
+
+  String get key => keyOf(contents.recitationId, qualityKbps, selection);
+
+  int get bytes => files.fold(0, (sum, file) => sum + file.bytes);
+
+  /// The files deleting this target removes: those of its surahs, and the
+  /// files of every selection only when it is the whole recitation.
+  List<RecitationFile> get deletable => [
+    for (final file in files)
+      if (file.surah != null || selection.ownsSharedFiles) file,
+  ];
+}

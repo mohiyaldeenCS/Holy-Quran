@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:holyquran/config/dependencies.dart';
 import 'package:holyquran/config/providers/user_database_providers.dart';
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
+import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/data/repositories/in_memory_app_settings_repository.dart';
 import 'package:holyquran/data/services/daos/settings_dao.dart';
 import 'package:holyquran/data/services/user_database.dart';
@@ -21,9 +22,28 @@ Future<void> settingsProviders(Dependencies dependencies) async {
     final memory = useDatabaseInMemory(dependencies);
     if (!identical(memory, database)) await releaseDatabase(database);
   }
-  dependencies.provideListenable<AppSettingsRepository>(
-    loaded ?? InMemoryAppSettingsRepository(),
-  );
+  dependencies
+    ..provideListenable<AppSettingsRepository>(
+      loaded ?? InMemoryAppSettingsRepository(),
+    )
+    // The file is suspect when the settings could not be read (D-133), and
+    // the database may be released, so nothing more is read from it.
+    ..provideListenable<DownloadSettingsRepository>(
+      loaded == null
+          ? InMemoryDownloadSettingsRepository()
+          : await _loadDownloads(SettingsDao(database)),
+    );
+}
+
+/// The download choices (`AU-13`, `AU-14`), on the defaults when unreadable.
+Future<DownloadSettingsRepository> _loadDownloads(SettingsDao dao) async {
+  try {
+    return await LocalDownloadSettingsRepository.load(dao);
+  } on Exception catch (error, stack) {
+    debugPrint('Download settings unreadable, using the defaults: $error');
+    debugPrintStack(stackTrace: stack);
+    return InMemoryDownloadSettingsRepository();
+  }
 }
 
 Future<AppSettingsRepository?> _load(SettingsDao dao) async {

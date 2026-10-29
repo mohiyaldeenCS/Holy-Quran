@@ -61,3 +61,62 @@ const BorderRadius resourcesSheetHandleRadius = BorderRadius.all(
 /// `ResourceRow`, as `ResourceRow` keeps it under its own lines.
 const EdgeInsetsDirectional resourcesRowFootPadding =
     EdgeInsetsDirectional.only(bottom: 14);
+
+// A recitation's scope rows (P1-33) are `ResourceRow`'s own layout with a
+// widget for the title, so that a surah's name reaches the screen through
+// `SurahName` only. The values below are `ResourceRow`'s (index.jsx and
+// `.qk-resource`), which keeps them private.
+
+/// `.qk-resource`: `padding: 14px 0`.
+const double scopeRowPaddingVertical = 14;
+
+/// `.qk-resource-main`: `gap: 6px`.
+const double scopeRowMainGap = 6;
+
+/// `ResourceRow` in index.jsx: `<Icon name="check" size={16} />`.
+const double scopeRowCheckSize = 16;
+
+/// `.qk-resource-title`: `font-size:17px; font-weight:600`, the body's IBM
+/// Plex Sans Arabic with its `normal` line height.
+const TextStyle scopeRowTitleStyle = TextStyle(
+  inherit: false,
+  fontFamily: AppFonts.sans,
+  fontSize: 17,
+  fontWeight: FontWeight.w600,
+  letterSpacing: 0,
+  leadingDistribution: TextLeadingDistribution.even,
+);
+
+/// `.qk-resource-meta`: `font-size:14px`.
+final TextStyle scopeRowMetaStyle = scopeRowTitleStyle.copyWith(
+  fontSize: 14,
+  fontWeight: FontWeight.w400,
+);
+
+/// `.qk-resource-meta.is-done`: `font-weight:500`.
+final TextStyle scopeRowDoneMetaStyle = scopeRowMetaStyle.copyWith(
+  fontWeight: FontWeight.w500,
+);
+
+/// `.qk-resource-pct`: `font-size:15px; font-weight:600`.
+final TextStyle scopeRowPercentStyle = scopeRowTitleStyle.copyWith(
+  fontSize: 15,
+);
+
+/// The gap between the blocks of a recitation's panel: the strip of
+/// qualities, the strip of lists and the rows. The identity draws no such
+/// panel; the gap is the sections' own (`resourcesBlockGap`).
+const double recitationPanelGap = resourcesBlockGap;
+
+/// A scope row's vertical padding as `ResourceRow` pads it.
+const EdgeInsetsDirectional scopeRowPadding = EdgeInsetsDirectional.symmetric(
+  vertical: scopeRowPaddingVertical,
+);
+
+/// A fraction of a download as the whole percent `ResourceRow` writes.
+int percentOf(double fraction) => (fraction.clamp(0.0, 1.0) * 100).round();
+
+/// How often the files of a recitation on the device are counted again while
+/// a download adds to them: a count looks at every file, so it is not made at
+/// each tick of the progress.
+const Duration recitationCountEvery = Duration(seconds: 2);
