@@ -1187,4 +1187,21 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get noteEdit => 'عدّل الملاحظة';
+
+  @override
+  String get searchScopeLabel => 'نطاق البحث';
+
+  @override
+  String searchResultCount(String places, String ayat) {
+    return '$places في $ayat';
+  }
+
+  @override
+  String get searchHistoryClear => 'مسح السجل';
+
+  @override
+  String get searchScopeSurahNumber => 'رقم السورة';
+
+  @override
+  String get searchScopeJuzNumber => 'رقم الجزء';
 }

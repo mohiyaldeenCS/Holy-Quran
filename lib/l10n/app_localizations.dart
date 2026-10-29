@@ -1138,7 +1138,7 @@ abstract class AppLocalizations {
   /// **'تشغيل من هذه الآية'**
   String get contextPlayFromAyah;
 
-  /// Lead, D-128 (5): a single change the store refused or a read that failed, such as a bookmark that could not be made, removed or restored, or a note that could not be deleted. Not the in-memory sentence of D-133 (userDataNotSaved).
+  /// Lead, D-128 (5): a single change the store refused or a read that failed, such as a bookmark that could not be made, removed or restored, a note that could not be deleted, or a search history that could not be cleared or read. Not the in-memory sentence of D-133 (userDataNotSaved).
   ///
   /// In ar, this message translates to:
   /// **'تعذّر حفظ التغيير.'**
@@ -2105,6 +2105,36 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'عدّل الملاحظة'**
   String get noteEdit;
+
+  /// P1-29, for the lead's approval under D-128 (5). The name of the group of chips that choose where a search looks (SR-06). Wording from docs/prd/PRD.ar.md (SR-06).
+  ///
+  /// In ar, this message translates to:
+  /// **'نطاق البحث'**
+  String get searchScopeLabel;
+
+  /// P1-29, for the lead's approval under D-128 (5). The count line of the search summary, as the Search board writes it: places is searchPlaces and ayat is ayahCount, each already written. Source: design/identity-boards/Search.dc.html.
+  ///
+  /// In ar, this message translates to:
+  /// **'{places} في {ayat}'**
+  String searchResultCount(String places, String ayat);
+
+  /// P1-29, approved by the owner. The button that clears the search history (SR-10).
+  ///
+  /// In ar, this message translates to:
+  /// **'مسح السجل'**
+  String get searchHistoryClear;
+
+  /// P1-29, for the lead's approval under D-128 (5). The hint and spoken name of the field for the number of the surah a search is limited to; the Go to sheet's «سورة» with the word a number is expected (SR-06).
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم السورة'**
+  String get searchScopeSurahNumber;
+
+  /// P1-29, for the lead's approval under D-128 (5). The hint and spoken name of the field for the number of the juz a search is limited to (SR-06).
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم الجزء'**
+  String get searchScopeJuzNumber;
 }
 
 class _AppLocalizationsDelegate

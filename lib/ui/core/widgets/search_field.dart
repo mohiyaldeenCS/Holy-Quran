@@ -57,6 +57,7 @@ class SearchField extends StatefulWidget {
     required this.controller,
     required this.onChanged,
     required this.onSubmitted,
+    this.enabled = true,
     this.hint,
     super.key,
   });
@@ -64,6 +65,10 @@ class SearchField extends StatefulWidget {
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final ValueChanged<String> onSubmitted;
+
+  /// Whether text can be typed. A field that cannot yet search is disabled
+  /// rather than left to do nothing.
+  final bool enabled;
 
   /// The hint and spoken name, «ابحث في القرآن» when null. The bookmarks
   /// screen, which searches the user's own marks, names what it searches.
@@ -96,6 +101,7 @@ class _SearchFieldState extends State<SearchField> {
       type: MaterialType.transparency,
       child: TextField(
         controller: widget.controller,
+        enabled: widget.enabled,
         onChanged: widget.onChanged,
         onSubmitted: widget.onSubmitted,
         textDirection: TextDirection.rtl,
