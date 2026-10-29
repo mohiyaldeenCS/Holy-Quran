@@ -15,6 +15,7 @@ import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/ayah_row.dart';
 import 'package:holyquran/ui/core/widgets/ayah_toolbar.dart';
 import 'package:holyquran/ui/core/widgets/bookmark_ribbon.dart';
+import 'package:holyquran/ui/core/widgets/small_button.dart';
 import 'package:holyquran/ui/core/widgets/surah_list_item.dart';
 import 'package:holyquran/ui/core/widgets/tag.dart';
 
@@ -162,6 +163,9 @@ final class _Highlights extends StatelessWidget {
               ),
             ),
           ),
+        Center(
+          child: SmallButton(label: l10n.returnToRecitation, onPressed: _none),
+        ),
         const Center(
           child: AyahToolbar(
             onPlay: _none,
