@@ -94,7 +94,7 @@ What stream A does while stream B is still working:
 ### M0.1 Repository and tooling
 
 The repository holds the output of `flutter create` (package `holyquran`, Dart SDK
-`^3.12.2`, placeholder id `com.example.holyquran`).
+`^3.13.7`, placeholder id `com.example.holyquran`).
 
 - [ ] Record the environment in `docs/PROJECT_STATUS.md`: host OS, `flutter --version`,
       `flutter doctor`, Android SDK, device or emulator, whether macOS is available,

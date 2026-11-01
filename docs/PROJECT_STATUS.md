@@ -8,19 +8,21 @@ corrected first.
 
 | | |
 | --- | --- |
-| Updated | 2026-10-28 |
+| Updated | 2026-11-02 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **35 merged**: P1-01 to P1-32, P1-38 to P1-40 (P1-12, P1-14, P1-15, P1-17, P1-22, P1-23, P1-24, P1-25, P1-26, P1-27, P1-28, P1-29, P1-30, P1-31, P1-32 and P1-40 partial). **In progress**: P1-33 (#71), P1-34. **3 not started**: P1-35 to P1-37. The composition root is wired (#72, D-151). The lead merges after an independent review and CI (D-136) |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **35 merged**: P1-01 to P1-32, P1-38 to P1-40, of which 16 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-32, P1-40). **Open**: P1-33 (#71), P1-34, P1-36 and P1-37 on their branches, P1-35 not started. The composition root is wired (#72, D-151). **No APK has been run on a device since the spike of 2026-10-12, and no real content is in the app** |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | One branch per task (`agent/p1-*`); worktrees under the session's scratchpad for parallel agents (D-132) |
-| Last session | 2026-10-28, local session on the owner's Windows machine, stopped for the account switch. **Read `HANDOFF.md` first**: it says exactly what was in flight (#53, P1-14, P1-22) and what each needs |
+| Working branch | `chore/upgrade-flutter-3.47.9` (#75) until it merges; then one branch per task (`agent/p1-*`), with worktrees under the session's scratchpad for parallel agents (D-132) |
+| Last session | 2026-11-02, local session on the owner's Windows machine. **Read `HANDOFF.md` first** |
 
 ## What is in the repository
 
-- The Flutter app (package `holyquran`, Flutter 3.44.7 pinned, placeholder id
+- The Flutter app (package `holyquran`, Flutter 3.47.9 pinned, D-154, placeholder id
   `com.example.holyquran`, six platform folders of which only Android and iOS are
-  built): an Arabic, right-to-left shell with five tabs and placeholder screens, on
-  the design system. `lib/ui/core/theme/` (generated tokens and ramps, the four
+  built): an Arabic, right-to-left app whose Phase 1 screens are built on the
+  design system and tested on synthetic packs. **It ships no Quran text, recitation or
+  tafsir yet:** `assets/` holds fonts and licences, `bundledBasePack` is null, and there
+  are no manifest keys, catalogue address or recitation locator. `lib/ui/core/theme/` (generated tokens and ramps, the four
   themes, follow-system dark), `lib/ui/core/widgets/` (the 13 widgets of M0.2, the 19 of M0.5,
   `SurahName`, `Pressable`, `PlayerButton`, `AppIconTile`, `RevealOnFocus`, and the
   generated icon paths), `lib/ui/core/tab_shell.dart` with the identity's
@@ -349,15 +351,17 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   checks: the owner's look at the mini ayah sheet and the «مركز الدراسة» label, both sheets on a
   device in the four themes and at 200%, NF-05's 200 ms on a device. Reviewed by `code-reviewer`
   (opus) and `identity-auditor` (sonnet).
-- In progress: P1-33 (#71), P1-34.
-  Not started: P1-35 to P1-37 (wave 5).
-- The local branches of 2026-10-13 (`fix/bookmark-restore-nullable`,
-  `chore/analysis-exclude-platform-dirs`) are not needed on the pinned SDK (analyze is
-  clean without them) and are not pushed (D-129). On the owner's machine
-  `analysis_options.yaml` keeps being rewritten with that branch's platform-folder
-  excludes, most likely by an editor tab with unsaved edits; it is never committed.
-- Local checks use `C:/SDK/flutter-3.44.7` (D-129). With it, on Windows, the full
-  non-golden suite passes (3,228 on the P1-12 branch).
+- **The session of 2026-10-29 stopped on an authentication failure** (403, 08:57 on the
+  owner's clock), which ended the agents of P1-34's review, P1-35, P1-36 and P1-37 in
+  mid-work. Their worktrees were in the temp folder and are gone; every commit of those
+  two days is on `main` or on a pushed branch (checked 2026-11-02). See `HANDOFF.md`.
+- Open: **P1-33** (#71): CI green on the old SDK, not wired (`recitationDownloadRepository()`
+  has no caller, `locate` still returns null), no decision entry, no final review on
+  record. **P1-34**: flow tests on its branch, review interrupted, no pull request.
+  **P1-37**: launcher icon, launch screen and privacy guard on its branch, review fixes
+  interrupted, the rest of the task not done, no pull request. **P1-36**: see `HANDOFF.md`.
+  **P1-35**: not started; its audit was interrupted.
+- Local checks use `C:/SDK/flutter`, Flutter 3.47.9 (D-154); no second SDK is kept.
 
 Agent runs so far (estimates from the SDK): about $160 across both keys for M0.4
 part 2 and B0.11, plus the Phase 1 runs until the credit ran out.
@@ -372,27 +376,31 @@ task to the agent its task text names, reviews, commits, pushes, opens the task'
 request and merges it when review and CI pass. Decision numbers: take the number after
 the highest on `main` and every open pull request (D-076).
 
-1. Finish the open pull requests in PHASE1.md §2's order: #50 (P1-28, before P1-23),
-   #51, #52, #53. For each: update from `main`, check with the pinned SDK, push, run
-   the `goldens` task on the branch, pull the image commit, `code-reviewer` (and
-   `identity-auditor` for UI), apply findings, update this file in the branch, merge.
-2. The rest of wave 2: P1-14, P1-17, P1-22; then P1-29, P1-38 (Appendix B approved,
-   Appendix C worded by the lead, D-128; add the two remaining copy formats) and P1-39
-   (icons approved, D-128).
-3. Give SH-01's several-ayat copy a task (with the ayah selection of P1-23 or the
-   toolbar of P1-31), and the share sheet's gallery states.
-4. Waves 3 to 5 in table order, each task when its "Needs" are merged.
-5. Golden images: after a push that adds or changes a golden test, start CI by hand
+1. Finish #75 (toolchain upgrade): CI, golden review, independent review, merge.
+2. Bring #71, P1-34, P1-36 and P1-37 up to the new `main` and fix what the upgrade
+   breaks in them.
+3. Finish P1-33 (#71): wire the locator and the download repository, decision entry,
+   review, merge. Then P1-34: finish its review, pull request, merge.
+4. First real run: an unapproved test pack on the owner's phone only, marked in the app
+   as unapproved, never uploaded or released; signing key on his machine (D-140 (8));
+   an APK for him with install steps and a short check list.
+5. Close the gaps that have no task: failed start stuck on the splash, first-run setup
+   (LV-01), the report sheet's send action (D-127), sleep timer and stop-after (AU-07,
+   AU-08), copy forms and several-ayat copy (SH-01), search modes (SR-02), tafsir search
+   (TF-07), unlimited repeat (AU-09), add to queue (AU-17).
+6. P1-35, P1-36, the rest of P1-37, on the finished screens.
+7. Golden images: after a push that adds or changes a golden test, start CI by hand
    on the branch with the task `goldens`, pull the commit it pushes, and push again
    (D-056, D-059). Off `ubuntu-24.04` run `flutter test --exclude-tags golden test
    tools/gen/test`.
+8. Reorder after the owner's device results.
 
 ## Next actions — stream B (planning session and the owner)
 
 1. Owner: finish extracting book 466 and upload the result.
-2. Owner: obtain the honorific glyph table from the site owner (O-07). It has
-   sixteen codes; the table with their counts is in
-   `docs/content/ZIYDIA_LIBRARY.md`, "Known issues".
+2. Lead: derive the honorific table of sixteen codes from the site's font (D-140 (7));
+   the owner or the religious reviewer approves it, with the drawn images. The codes
+   and their counts are in `docs/content/ZIYDIA_LIBRARY.md`, "Known issues".
 3. Owner: choose the Phase 1 recitations (O-04), decide on the general tafsirs
    (O-06), name the proofreader of the Hafs text (O-16) and decide who keeps the
    pack-signing key (O-03). All four are needed inside Phase 0.
@@ -448,7 +456,7 @@ Open decisions that come later (full list in `docs/DECISIONS.md`):
 | O-06 | «هل تبقى التفاسير السبعة العامة (الميسر، المختصر، السعدي، الجلالين، البغوي، ابن كثير، الطبري) بجانب كتب المكتبة الزيدية؟» | Answered 2026-10-12: the first release ships the Zaydi-library books only; the seven general tafsirs are deferred (D-119). |
 | O-03 | «حزم المحتوى تُوقَّع بمفتاح خاص. من يحتفظ بالمفتاح، وأين يجري التوقيع؟» | Answered 2026-10-12 (D-119), amended 2026-10-28: the key is generated and kept on the owner's machine and packs are signed locally, when the first real pack exists (D-140 (8)). |
 | O-16 | «من يدقّق نص حفص قبل اعتماده؟ الوثيقة تطلب حافظًا متقنًا. هل يتولاه القارئ المُجاز الذي ذكرتَه أم شخص آخر؟» | Answered 2026-10-12: the licensed reciter the owner named proofreads the Hafs text against the Madinah mushaf and signs it off (recommended) (D-119). |
-| O-07 | «نحتاج من صاحب المكتبة الزيدية جدول رموز خط الموقع: ما العبارة التي يرسمها كل رمز من الرموز الستة عشر؟ وهي ÷ # ø @ ~ $ ª À ¥ ® & ¤ ¦ ^ ¿ والخط العمودي، وجدولها بأعدادها في ملف المكتبة الزيدية في المستودع.» | Answered 2026-10-28: the table will not be provided; the lead derives it from the site's font and context, and the owner or the religious reviewer approves it before any book is shown (D-140 (7)). |
+| O-07 | Answered 2026-10-28 (D-140 (7)): the site owner will not provide the table; the lead derives it and the owner or the reviewer approves it | Answered |
 | O-17 | «في الوثيقة توصيتان لم تعتمدهما بعد ونراهما لازمتين للإصدار الأول: «أبلغ عن خطأ» من أي آية أو مادة، وإعداد أولي من ثلاث خطوات (وضع العرض، المستوى، التلاوة). هل تعتمدهما؟» | Answered 2026-10-12: both adopted (recommended): a three-step first-run setup (display mode, level, recitation; the recitation step activates when recitations are Ready) and «أبلغ عن خطأ» from any ayah or entry (D-119). |
 | O-08 | «أين تُستضاف حزم المحتوى للتجربة ثم للإطلاق؟ يكفي أي استضافة ملفات ثابتة عبر HTTPS.» | Answered 2026-10-12: GitHub Releases of this repository host the packs for testing (recommended); the launch host is chosen before the end of Phase 1 (D-119). |
 | O-11 | «هل لديك حساب مطوّر في Google Play وفي App Store؟ ومن يحتفظ بمفتاح توقيع التطبيق؟» | M1.11 |
@@ -474,11 +482,13 @@ Permission conditions to confirm with him when each is first needed are listed i
 | P1-12 | The owner's look at three choices the lead made where the identity disagrees with itself or gives no token: the unselected radio ring on `line-strong` (the board draws `#8C9794`), the copy sheet docked with `.qk-sheet`'s top border (the board floats it), «مشاركة» on the share button. Where the identity is silent: a long ayah in the copy preview is shown whole and pushes «انسخ» below the fold (the sheet scrolls); the reference may wrap inside its brackets | Owner | The `copy_sheet_*` and `gallery_home_share_*` images on `main` |
 | P1-15 | The four themes on screen for More, onboarding and the report sheet (only settings has goldens); TalkBack and VoiceOver (settings headings are read twice); the focus ring with a keyboard; 320 wide at 200% | Owner, on his phone | An APK built from `main` with the CI `apk` task |
 | P1-15 | The owner sees the report sheet before «أبلغ عن خطأ» ships (D-127), including the Latin pack id on the « · » line; the More hub's outlined buttons until a navigation row is drawn | Owner | The report sheet in an APK, once something opens it |
-| P1-15 | An APK builds with the backup attributes: locally `flutter build apk --debug` failed in Kotlin incremental caches of other plugins (project on D:, pub cache on C:); the merged manifest and resources compiled | CI `apk` task | Run the `apk` task on `main` after the merge |
+| P1-15 | The APK's backup attributes on a device. It builds since 2026-11-02: the earlier local failure was the Pub cache and the project being on different drives (D-154 (7)) | Owner, on his phone | With the first APK |
 | P1-28 | The owner's look where the identity draws nothing: queue rows straight on `surface` with a hairline (the word sheet sets its rows in a sunk card); the sheet title at `sectionTitle` 20/600 (the context sheet's title is 700); an empty queue showing only its title (no sentence yet) | Owner | The `test/ui/features/listen/controls/goldens/*` images on `main` |
 | P1-28 | TalkBack and VoiceOver on the five sheets (the range title and its chip group both read «محدد النطاق»); keyboard focus order; the queue reorder with the system's reduce-motion setting on | Owner, on his phone | An APK built from `main`, once a screen opens the sheets |
 | P1-27 | The 1px `line-strong` border of the mini player, the player panel and the reciter badge in night and contrast (D-140 (2)): the owner's look at the images | Owner | `test/ui/core/goldens/tab_shell_mini_player_{night,contrast}.png` and `test/ui/features/listen/goldens/player_screen_{night,contrast}.png` on `main` |
 | P1-27 | TalkBack and VoiceOver on the player, the mini player and the picker (the track moves in 5-second steps); 200% text on a device | Owner, on his phone | An APK built from `main`, once a recitation can play (P1-33) |
+
+Pending human checks of P1-14 and later beyond this table are under each task in "In progress"; the first device session gathers them.
 
 ## Environment
 
@@ -486,6 +496,7 @@ Permission conditions to confirm with him when each is first needed are listed i
 | --- | --- |
 | Planning session (cloud) | No Flutter SDK. Network policy blocks `pub.dev`, `storage.googleapis.com`, `dl.google.com` and Maven, so Flutter cannot be installed or run there. Public GitHub repositories are readable with `git`. `gh` works through the REST API only. The artifact asset store is unreachable. Nothing in this repository was compiled or run by that session. |
 | Implementing session, 2026-10-07 (cloud) | Ubuntu 24.04.5 LTS, x86_64, 4 cores, 15 GB. No Flutter preinstalled: Flutter **3.44.7** stable (framework `84fc5cbb22`, engine `69c8c61792`, Dart 3.12.2) installed from `storage.googleapis.com` into `~/sdk/flutter` and linked into `/usr/local/bin`; this is the pinned version (D-040). `pub.dev`, `storage.googleapis.com`, Maven Central and Google Maven are reachable; `dl.google.com` is blocked, so there is **no Android SDK**, no emulator and no device: the app cannot be built or launched for Android here, only analysed and tested (CI builds the APK). `flutter doctor`: Flutter OK; Android toolchain missing; Chrome missing; Linux toolchain lacks GTK. No macOS. Java 21 present. `git` 2.43 works; `gh` 2.89 is installed: `gh auth status` reports the token as invalid, but `gh api` calls work through the session proxy; the session's GitHub tools also work. The Dart MCP server failed to connect at session start (`dart` was not on the PATH); it is not waiting for approval. The SessionStart hook (D-048) puts `dart` on the PATH for later sessions. iOS could not be tried: no macOS, and iOS builds are deferred (D-042). |
+| Local session, 2026-11-02 (owner's machine) | Windows 11 Pro, Git Bash and PowerShell. Flutter 3.47.9 (Dart 3.13.7) in `C:/SDK/flutter`, the pinned version (D-154). Android SDK in `C:/SDK/Android_SDK`, platform 36, build-tools 36.0.0, NDK 28.2.13676358; cmdline-tools copied into `cmdline-tools/latest`, where Flutter looks for them. JDK 21 from Android Studio. `kotlin.incremental=false` in `~/.gradle/gradle.properties` (D-154 (7)). `flutter doctor` keeps two warnings that do not affect builds: a second `adb` from scrcpy on the PATH, and the unaccepted licence of the microXR emulator image, which this project does not use. |
 | Local session, 2026-10-28 (owner's machine) | Windows 11 Pro, Git Bash and PowerShell. Flutter 3.47.6 (Dart 3.13.5) in `C:/SDK/flutter`; the pinned 3.44.7 installed beside it in `C:/SDK/flutter-3.44.7` for checks (D-129). Android SDK in `C:/SDK/Android_SDK`. `gh` authenticated. `core.autocrlf=true`. The Dart MCP server timed out at session start. |
 
 ## Risks being watched
@@ -502,19 +513,17 @@ Permission conditions to confirm with him when each is first needed are listed i
   results for book 514). The religious reviewer says why, and what the app shows when
   a commentary quotes an ayah otherwise than the Hafs text displayed above it.
 - Rendering fidelity of the Quran fonts in Flutter is unproven until spikes S1 and S2.
-- Eight icons are still to be drawn and approved before M1.6 (D-051).
 - No pack can ship until a real signature verifier and key exist (D-065, O-03).
 - iOS builds are deferred to near the end of Phase 1 (D-042), while Gate 0 asks for
   measurements on both systems. Closing Gate 0 on Android measurements alone needs
   the owner's explicit decision (`docs/IMPLEMENTATION_PLAN.md`, "Gate 0 and iOS").
 - Left from the M0.1 review, for the milestone named:
-  - The router has no `errorBuilder`, so an unknown location shows go_router's
-    default English page. Nothing reaches it yet; handle it with in-app addresses
-    (`NV-06`, M1.3).
+  - The router sends an unknown location to the home tab through `onException`;
+    in-app addresses (`NV-06`) stay to be handled where they reach it.
   - Branch-stack tests are weak until a branch has a child route. Strengthen them
     when the first child route arrives.
-  - Flutter 3.44.7 is written in two places, the CI workflow and the setup hook; an
-    upgrade changes both (D-040).
+  - Flutter's version is written in three places, `ci.yml`, `agent.yml` and the setup
+    hook; an upgrade changes all three (D-154).
 - Left from the M0.2 reviews, for the milestone named:
   - The context sheet justifies compact Quran text at 23 px (`.qk-ctx
     .qk-quran-compact`); `QuranText` renders compact start-aligned everywhere
@@ -554,6 +563,8 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-11-02 | Local session (owner's Windows machine) | Audited the real state from the code; on the owner's approval upgraded Flutter to 3.47.9 and every direct package, with Gradle, AGP, Kotlin and the iOS target (D-154); pushed the local-only branches; pruned the dead worktree records; found why the session of 2026-10-29 stopped | #75 |
+| 2026-10-29 | Local session, continued (team lead with agents) | Merged P1-23, P1-26, P1-29 to P1-32, P1-40 and the composition root (#72) up to #74. Stopped at 08:57 on an authentication failure with P1-33 to P1-37 in flight; the status file was not updated | `main` 9fc6895 |
 | 2026-10-28 | Local session, continued (team lead with agents) | Merged #56, #57 (P1-39), #58 (P1-38), #52 (P1-25), #59 (player sheets reachable, D-138). #53 (P1-27) fixed after two code reviews and an identity audit, its last should-fix items in progress. P1-14 (three of six plan steps pushed) and P1-22 started in worktrees. Stopped for the owner's account switch; `HANDOFF.md` and `docs/plans/handoff/P1-14-architect-plan.md` written | `docs/handoff-2026-10-28`, #53, `agent/p1-14-reader-surah-screen`, `agent/p1-22-reader-targets` |
 | 2026-10-28 | Local session (owner's Windows machine) | Recovered the state from Git after the Actions runs stopped on 2026-10-12 for lack of API credit; corrected this file; ran analyze and the non-golden tests locally (48 Windows-only failures); took the owner's decisions (D-128) and settled resumption (D-129). | `docs/resume-2026-10-28` |
 | 2026-10-11 | Implementing session (second account), continued | On the owner's instruction, set up implementation by agents in GitHub Actions on his two API accounts: `agent.yml` and `agent.mjs` (Claude Agent SDK 0.3.296, option names read from its type definitions), the `check` task in CI, D-092, the workflow section. Linted with actionlint and shellcheck; the script was smoke-tested locally with an invalid key. After the merge: M0.4 part 2 planned as agent waves (D-093 to D-095) and step 0 done; the trial runs and every other Actions run since 17:13 UTC end in `startup_failure`, a setting the owner must check (M0.4-6). | Pull request #13; `claude/great-hamilton-9n23mt` |

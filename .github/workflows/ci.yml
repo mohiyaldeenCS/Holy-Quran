@@ -27,7 +27,7 @@ permissions:
   contents: read
 
 env:
-  # Pinned by D-040; also in agent.yml and .claude/hooks/session-start.sh.
+  # Pinned by D-154; also in agent.yml and .claude/hooks/session-start.sh.
   FLUTTER_VERSION: 3.47.9
 
 jobs:
