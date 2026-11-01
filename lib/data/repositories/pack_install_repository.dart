@@ -530,7 +530,7 @@ final class LocalPackInstallRepository extends ChangeNotifier
           if (await _waitForSpace(job) case final failure?) return failure;
         case FileDownloadFailed(statusCode: null)
             when !await _networkAllows(request.wifiOnly):
-          // The network went for longer than the downloader retries: wait
+          // The file failed before the downloader saw the network go: wait
           // for it, then ask for the file again.
           continue;
         case FileDownloadCanceled():

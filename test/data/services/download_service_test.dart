@@ -296,6 +296,30 @@ void main() {
       );
     });
 
+    test('a drop while offline stays pending, spends no request, and cancel '
+        'ends it', () async {
+      server.bytesPerSecond['/large.bin'] = 2 << 20;
+      server.dropAfter['/large.bin'] = 3 << 19;
+      addTearDown(() => plugin.isConnected = true);
+      final target = order('/large.bin', 'staging/held.bin');
+      final held = Completer<void>();
+      var ended = false;
+      final outcome = service.download(target, (u) {
+        if ((u.progress?.receivedBytes ?? 0) > 0) plugin.isConnected = false;
+        if (u.status == FileTaskStatus.retrying && !held.isCompleted) {
+          held.complete();
+        }
+      });
+      unawaited(outcome.whenComplete(() => ended = true));
+      await held.future;
+      // Longer than the plugin's first wait between retries when online.
+      await Future<void>.delayed(const Duration(seconds: 3));
+      expect(ended, isFalse);
+      expect(server.requests, hasLength(1));
+      await service.cancel(target);
+      expect(await outcome, isA<FileDownloadCanceled>());
+    });
+
     test(
       'pause holds the download and resume continues it with Range',
       () async {

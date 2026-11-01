@@ -32,8 +32,8 @@ record it. After each step send him two lines: what was done, what is next.
 
 ## 2. In flight
 
-- **#75, `chore/upgrade-flutter-3.47.9`:** toolchain upgrade. Needs green CI, a review of
-  every golden difference and an independent review before it merges.
+- **#75, `chore/upgrade-flutter-3.47.9`:** toolchain upgrade. CI green, goldens reviewed,
+  `code-reviewer`'s findings applied. Needs the `apk` task on CI, then it merges.
 - **#71, `agent/p1-33-recitation-downloads`:** recovered review fixes on top (`f573aa6`),
   not yet compiled; see `docs/PROJECT_STATUS.md`.
 - **`agent/p1-34-critical-path-tests`:** flow tests, review interrupted, no pull request.

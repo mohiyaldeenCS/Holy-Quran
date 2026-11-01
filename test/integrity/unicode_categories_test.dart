@@ -40,9 +40,10 @@ void main() {
   test('no code point the table leaves out of the covered blocks is \\p{L}, '
       'but those Unicode assigned after 15.1', () {
     // U+10EC2..U+10EC4 are Lo since Unicode 16.0, U+088F and U+10EC6..U+10EC7
-    // Lo and U+10EC5 Lm since 17.0, which Dart 3.13's RegExp knows. U+0897
-    // ARABIC PEPET and U+10EFC ARABIC COMBINING ALEF OVERLAY are also new in
-    // 16.0, as Mn, so they need no entry: the check is about letters only.
+    // Lo and U+10EC5 Lm since 17.0, which RegExp under `flutter test` knows.
+    // U+0897 ARABIC PEPET and U+10EFC ARABIC COMBINING ALEF OVERLAY are also
+    // new in 16.0, as Mn, so they need no entry: the check is about letters
+    // only.
     const assignedLater = {
       0x088F,
       0x10EC2,
@@ -63,6 +64,11 @@ void main() {
     expect(missing, isEmpty);
     for (final c in assignedLater) {
       expect(generalCategory(c), isNull, reason: codePointName(c));
+      expect(
+        letter.hasMatch(String.fromCharCode(c)),
+        isTrue,
+        reason: codePointName(c),
+      );
     }
   });
 

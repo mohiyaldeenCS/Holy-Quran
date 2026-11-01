@@ -382,7 +382,7 @@ task to the agent its task text names, reviews, commits, pushes, opens the task'
 request and merges it when review and CI pass. Decision numbers: take the number after
 the highest on `main` and every open pull request (D-076).
 
-1. Finish #75 (toolchain upgrade): CI, golden review, independent review, merge.
+1. Finish #75 (toolchain upgrade): the `apk` task on CI, merge.
 2. Bring #71, P1-34, P1-36 and P1-37 up to the new `main` and fix what the upgrade
    breaks in them.
 3. Finish P1-33 (#71): wire the locator and the download repository, decision entry,
@@ -462,7 +462,7 @@ Open decisions that come later (full list in `docs/DECISIONS.md`):
 | O-06 | «هل تبقى التفاسير السبعة العامة (الميسر، المختصر، السعدي، الجلالين، البغوي، ابن كثير، الطبري) بجانب كتب المكتبة الزيدية؟» | Answered 2026-10-12: the first release ships the Zaydi-library books only; the seven general tafsirs are deferred (D-119). |
 | O-03 | «حزم المحتوى تُوقَّع بمفتاح خاص. من يحتفظ بالمفتاح، وأين يجري التوقيع؟» | Answered 2026-10-12 (D-119), amended 2026-10-28: the key is generated and kept on the owner's machine and packs are signed locally, when the first real pack exists (D-140 (8)). |
 | O-16 | «من يدقّق نص حفص قبل اعتماده؟ الوثيقة تطلب حافظًا متقنًا. هل يتولاه القارئ المُجاز الذي ذكرتَه أم شخص آخر؟» | Answered 2026-10-12: the licensed reciter the owner named proofreads the Hafs text against the Madinah mushaf and signs it off (recommended) (D-119). |
-| O-07 | Answered 2026-10-28 (D-140 (7)): the site owner will not provide the table; the lead derives it and the owner or the reviewer approves it | Answered |
+| O-07 | «نحتاج من صاحب المكتبة الزيدية جدول رموز خط الموقع: ما العبارة التي يرسمها كل رمز من الرموز الستة عشر؟ وهي ÷ # ø @ ~ $ ª À ¥ ® & ¤ ¦ ^ ¿ والخط العمودي، وجدولها بأعدادها في ملف المكتبة الزيدية في المستودع.» | Answered 2026-10-28: the table will not be provided; the lead derives it from the site's font and context, and the owner or the religious reviewer approves it before any book is shown (D-140 (7)). |
 | O-17 | «في الوثيقة توصيتان لم تعتمدهما بعد ونراهما لازمتين للإصدار الأول: «أبلغ عن خطأ» من أي آية أو مادة، وإعداد أولي من ثلاث خطوات (وضع العرض، المستوى، التلاوة). هل تعتمدهما؟» | Answered 2026-10-12: both adopted (recommended): a three-step first-run setup (display mode, level, recitation; the recitation step activates when recitations are Ready) and «أبلغ عن خطأ» from any ayah or entry (D-119). |
 | O-08 | «أين تُستضاف حزم المحتوى للتجربة ثم للإطلاق؟ يكفي أي استضافة ملفات ثابتة عبر HTTPS.» | Answered 2026-10-12: GitHub Releases of this repository host the packs for testing (recommended); the launch host is chosen before the end of Phase 1 (D-119). |
 | O-11 | «هل لديك حساب مطوّر في Google Play وفي App Store؟ ومن يحتفظ بمفتاح توقيع التطبيق؟» | M1.11 |
@@ -493,6 +493,8 @@ Permission conditions to confirm with him when each is first needed are listed i
 | P1-28 | TalkBack and VoiceOver on the five sheets (the range title and its chip group both read «محدد النطاق»); keyboard focus order; the queue reorder with the system's reduce-motion setting on | Owner, on his phone | An APK built from `main`, once a screen opens the sheets |
 | P1-27 | The 1px `line-strong` border of the mini player, the player panel and the reciter badge in night and contrast (D-140 (2)): the owner's look at the images | Owner | `test/ui/core/goldens/tab_shell_mini_player_{night,contrast}.png` and `test/ui/features/listen/goldens/player_screen_{night,contrast}.png` on `main` |
 | P1-27 | TalkBack and VoiceOver on the player, the mini player and the picker (the track moves in 5-second steps); 200% text on a device | Owner, on his phone | An APK built from `main`, once a recitation can play (P1-33) |
+
+| OF-04 | Downloads on `background_downloader` 9.6.5 (D-154 (6)): Wi-Fi-only on a metered hotspot, the network dropping and returning in mid-file, and the app killed while offline, then opened again | Owner, on his phone | With the first real recitation or pack download |
 
 Pending human checks of P1-14 and later beyond this table are under each task in "In progress"; the first device session gathers them.
 
