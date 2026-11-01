@@ -355,11 +355,17 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   owner's clock), which ended the agents of P1-34's review, P1-35, P1-36 and P1-37 in
   mid-work. Their worktrees were in the temp folder and are gone; every commit of those
   two days is on `main` or on a pushed branch (checked 2026-11-02). See `HANDOFF.md`.
+- Work those agents had not committed was replayed from their transcripts on 2026-11-02
+  and pushed as `wip` commits, not yet compiled or run: P1-33 `f573aa6`, P1-36 `475188b`
+  (the whole harness, 21 files), P1-37 `1032347`. P1-34 lost nothing; P1-35 had written
+  nothing. 27 unreachable commits of 2026-10-27 to 2026-10-29, stashes of finished work,
+  are kept on GitHub under `refs/archive/2026-10-orphans/`.
 - Open: **P1-33** (#71): CI green on the old SDK, not wired (`recitationDownloadRepository()`
   has no caller, `locate` still returns null), no decision entry, no final review on
   record. **P1-34**: flow tests on its branch, review interrupted, no pull request.
   **P1-37**: launcher icon, launch screen and privacy guard on its branch, review fixes
-  interrupted, the rest of the task not done, no pull request. **P1-36**: see `HANDOFF.md`.
+  interrupted, the rest of the task not done, no pull request. **P1-36**: harness recovered,
+  device protocol and records unfinished, no pull request.
   **P1-35**: not started; its audit was interrupted.
 - Local checks use `C:/SDK/flutter`, Flutter 3.47.9 (D-154); no second SDK is kept.
 

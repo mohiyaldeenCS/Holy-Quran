@@ -34,10 +34,13 @@ record it. After each step send him two lines: what was done, what is next.
 
 - **#75, `chore/upgrade-flutter-3.47.9`:** toolchain upgrade. Needs green CI, a review of
   every golden difference and an independent review before it merges.
-- **#71, `agent/p1-33-recitation-downloads`:** see `docs/PROJECT_STATUS.md`.
+- **#71, `agent/p1-33-recitation-downloads`:** recovered review fixes on top (`f573aa6`),
+  not yet compiled; see `docs/PROJECT_STATUS.md`.
 - **`agent/p1-34-critical-path-tests`:** flow tests, review interrupted, no pull request.
-- **`agent/p1-36-performance-budgets`:** only the dependency commit so far.
-- **`agent/p1-37-release-readiness`:** two commits, review fixes interrupted.
+- **`agent/p1-36-performance-budgets`:** the harness, recovered (`475188b`), not yet
+  compiled; device protocol and records unfinished.
+- **`agent/p1-37-release-readiness`:** two commits and the recovered review fixes
+  (`1032347`), not yet run.
 - **`agent/p1-35-accessibility-pass`:** equal to the old `main`, nothing written.
 - Other branches pushed on 2026-11-02 so that nothing is local only:
   `fix/bookmark-restore-nullable` (its commit is on #75) and
@@ -52,6 +55,12 @@ mid-work, and the status file was never updated. Their worktrees lived under the
 folder, which has since been emptied. Every commit of 2026-10-28 and 2026-10-29 is on
 `main` or on a pushed branch. The session's transcripts survive under
 `~/.claude/projects/d--projects-Holy-Quran/1ccb67d8-0f86-4a0e-b93d-150b49ce6c2c/`.
+
+On 2026-11-02 what the agents had written but not committed was replayed from those
+transcripts and pushed as `wip` commits on P1-33, P1-36 and P1-37. P1-34 lost nothing,
+and P1-35 had written nothing. P1-35's read-only audit died unfinished and must be run
+again. 27 unreachable commits, stashes taken during reviews of work that was then merged,
+are kept on GitHub under `refs/archive/2026-10-orphans/`, in case one is ever wanted.
 
 ## 4. Rules of the lead (the owner's words, still in force)
 
@@ -88,7 +97,8 @@ flutter test --exclude-tags golden test tools/gen/test
 ```
 
 On 2026-11-02 with Flutter 3.47.9 on Windows, on #75: analyze clean, 4941 passed,
-4 skipped. Goldens run only on `ubuntu-24.04` in CI.
+4 skipped. Goldens run only on `ubuntu-24.04` in CI. A push cancels the CI run in progress
+on the same branch.
 
 An APK builds locally with `flutter build apk --debug`. This machine needs
 `kotlin.incremental=false` in `~/.gradle/gradle.properties` (D-154 (7)).
