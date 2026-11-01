@@ -5,11 +5,11 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="135"
-    android:viewportHeight="135">
+    android:viewportWidth="180"
+    android:viewportHeight="180">
     <group
-        android:translateX="7.5"
-        android:translateY="7.5">
+        android:translateX="30"
+        android:translateY="30">
         <path
             android:pathData="M32 32h56v56h-56z"
             android:strokeColor="@color/brand_emerald_700"

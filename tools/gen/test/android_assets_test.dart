@@ -17,6 +17,7 @@ typedef _Shape = ({
   String? fillAlpha,
   String? stroke,
   String? strokeWidth,
+  String? strokeLineJoin,
 });
 
 String _read(String path) => File(path).readAsStringSync();
@@ -77,7 +78,7 @@ List<_Shape> _svgShapes(String svg) {
     // The star is drawn in a group whose paint the rects inherit.
     final group = RegExp(
       r'<g fill="([^"]+)"( fill-opacity="([^"]+)")? stroke="([^"]+)" '
-      r'stroke-width="([^"]+)"',
+      r'stroke-width="([^"]+)" stroke-linejoin="([^"]+)"',
     ).allMatches(body.substring(0, match.start)).lastOrNull;
     final inStar = a.containsKey('x');
     if (a.containsKey('width') && !inStar) continue;
@@ -93,6 +94,7 @@ List<_Shape> _svgShapes(String svg) {
         fillAlpha: group?[3],
         stroke: _hexToToken(group![4]!),
         strokeWidth: group[5],
+        strokeLineJoin: group[6],
       ),
       'circle' => (
         pathData: _circle(
@@ -104,6 +106,7 @@ List<_Shape> _svgShapes(String svg) {
         fillAlpha: null,
         stroke: null,
         strokeWidth: null,
+        strokeLineJoin: null,
       ),
       _ => (
         pathData: a['d']!,
@@ -111,6 +114,7 @@ List<_Shape> _svgShapes(String svg) {
         fillAlpha: null,
         stroke: null,
         strokeWidth: null,
+        strokeLineJoin: null,
       ),
     });
   }
@@ -141,6 +145,7 @@ List<_Shape> _drawableShapes(String xml) {
           fillAlpha: a['android:fillAlpha'],
           stroke: token(a['android:strokeColor']),
           strokeWidth: a['android:strokeWidth'],
+          strokeLineJoin: a['android:strokeLineJoin'],
         ),
   ];
 }
@@ -150,6 +155,23 @@ List<Map<String, String>> _groups(String xml) => [
   for (final match in RegExp(r'<group\b[^>]*>').allMatches(xml))
     _attributes(match[0]!),
 ];
+
+/// Asserts that the star's second square is the only path inside a group
+/// rotated 45 degrees about the logo's centre, as the SVGs draw it.
+void _expectRotatedSquare(String xml) {
+  final rotated = RegExp(
+    r'<group\b[^>]*android:rotation="45"[^>]*>(.*?)</group>',
+    dotAll: true,
+  ).firstMatch(xml);
+  expect(rotated, isNotNull);
+  final group = _attributes(RegExp(r'<group\b[^>]*>').firstMatch(rotated![0]!)![0]!);
+  expect(group['android:pivotX'], '60');
+  expect(group['android:pivotY'], '60');
+  expect(
+    [for (final path in _drawableShapes(rotated[1]!)) path.pathData],
+    ['M32 32h56v56h-56z'],
+  );
+}
 
 /// The shapes of the app icon without its background rectangle.
 List<_Shape> _iconShapes(String svg) =>
@@ -260,9 +282,11 @@ void main() {
         // half the stroke at a round join.
         final reach = (56 * 1.41421356 / 2 + 2.4 / 2) * canvas / viewport;
         expect(reach, lessThanOrEqualTo(66 / 2));
-        expect(_groups(xml)[1]['android:rotation'], '45');
-        expect(_groups(xml)[1]['android:pivotX'], '60');
-        expect(_groups(xml)[1]['android:pivotY'], '60');
+        expect(
+          double.parse(place['android:translateY']!),
+          (viewport - 120) / 2,
+        );
+        _expectRotatedSquare(xml);
       });
     }
 
@@ -318,7 +342,8 @@ void main() {
       ).firstMatch(svg)!;
       final shapes = _svgShapes(svg);
       final drawn = _drawableShapes(xml);
-      expect(drawn.take(drawn.length - 1), shapes.take(shapes.length));
+      expect(drawn.take(drawn.length - 1), shapes);
+      _expectRotatedSquare(xml);
       expect(drawn.last.pathData, name[4]);
       expect(drawn.last.fill, _hexToToken(name[3]!));
 
@@ -332,6 +357,9 @@ void main() {
       );
       expect(groups[0]['android:scaleX'], mark[2]);
       expect(groups[0]['android:scaleY'], mark[2]);
+      expect(groups[0]['android:translateY'], isNull);
+      expect(groups[0]['android:pivotX'], isNull);
+      expect(groups[0]['android:pivotY'], isNull);
       final text = groups.last;
       expect(double.parse(text['android:translateX']!), double.parse(name[1]!));
       expect(double.parse(text['android:translateY']!), double.parse(name[2]!));
@@ -348,6 +376,24 @@ void main() {
       final width = double.parse(vector['android:width']!.replaceAll('dp', ''));
       expect(height, 64);
       expect(width / height, closeTo(702 / 187.2, 0.01));
+    });
+
+    test('the system bars are emerald-700 until the first frame', () {
+      for (final folder in [
+        'values',
+        'values-night',
+        'values-v31',
+        'values-night-v31',
+      ]) {
+        final styles = _read('$_res/$folder/styles.xml');
+        for (final bar in ['statusBarColor', 'navigationBarColor']) {
+          expect(
+            styles,
+            contains('android:$bar">@color/brand_emerald_700'),
+            reason: '$folder $bar',
+          );
+        }
+      }
     });
 
     test('Android 12 and later show the mark on emerald-700, day and night', () {

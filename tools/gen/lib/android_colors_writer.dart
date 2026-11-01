@@ -9,9 +9,9 @@ const androidColorsOutputPath =
     'android/app/src/main/res/values/brand_colors.xml';
 
 /// The ramp tokens the launcher icon and the launch screen draw with. They
-/// are the colours of `app-icon.svg`, `app-icon-mono.svg` and
-/// `lockup-horizontal-emerald.svg`; a native file names a colour here, never
-/// by its hex.
+/// are the colours of `app-icon-fullbleed.svg`, `app-icon-mono.svg` (its
+/// shapes) and `lockup-horizontal-emerald.svg`; a native file names a colour
+/// here, never by its hex.
 const androidBrandRamps = ['emerald-700', 'gold-400', 'paper-100'];
 
 /// `emerald-700` → `brand_emerald_700`.

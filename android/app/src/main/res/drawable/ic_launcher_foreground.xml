@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- design/design-system/assets/Logos/app-icon-fullbleed.svg, without its
      background rectangle (the adaptive icon's background layer is
-     @color/brand_emerald_700). The 120-unit logo frame is centred at 96 dp
-     in the 108 dp canvas (135 units), so the star's points stay inside the
-     66 dp safe zone. -->
+     @color/brand_emerald_700). The 120-unit logo frame fills the 72 dp the
+     mask leaves visible of the 108 dp canvas (180 units), as the tile fills
+     the approved icon; the star's points stay inside the 66 dp safe zone. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="135"
-    android:viewportHeight="135">
+    android:viewportWidth="180"
+    android:viewportHeight="180">
     <group
-        android:translateX="7.5"
-        android:translateY="7.5">
+        android:translateX="30"
+        android:translateY="30">
         <path
             android:fillAlpha="0.14"
             android:fillColor="@color/brand_gold_400"
