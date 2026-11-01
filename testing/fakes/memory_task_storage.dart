@@ -9,6 +9,10 @@ final class MemoryTaskStorage implements PersistentStorage {
   final Map<String, Task> _paused = {};
   final Map<String, ResumeData> _resume = {};
 
+  /// How long a read of a task record takes; the record it answers with is
+  /// the one there was when the read began.
+  Duration? lag;
+
   @override
   (String, int) get currentDatabaseVersion => ('memory', 1);
 
@@ -23,8 +27,11 @@ final class MemoryTaskStorage implements PersistentStorage {
       _records[record.taskId] = record;
 
   @override
-  Future<TaskRecord?> retrieveTaskRecord(String taskId) async =>
-      _records[taskId];
+  Future<TaskRecord?> retrieveTaskRecord(String taskId) async {
+    final record = _records[taskId];
+    if (lag case final lag?) await Future<void>.delayed(lag);
+    return record;
+  }
 
   @override
   Future<List<TaskRecord>> retrieveAllTaskRecords() async => [

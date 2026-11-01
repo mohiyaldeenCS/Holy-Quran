@@ -318,9 +318,8 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
       }
       _queue.remove(job);
       _current = null;
-      if (result case Failure(
-        error: final RecitationDownloadFailure failure,
-      ) when failure is! RecitationDownloadCancelled) {
+      if (result case Failure(error: final RecitationDownloadFailure failure)
+          when failure is! RecitationDownloadCancelled) {
         _failed[job.target.key] = RecitationDownloadJob(
           job.target,
           RecitationDownloadFailed(failure),
@@ -346,6 +345,7 @@ final class LocalRecitationDownloadRepository extends ChangeNotifier
     final packId = target.contents.packId;
     final missing = <RecitationFile>[];
     await Future.wait(_removals[packId] ?? const <Future<void>>{});
+    await _store.removeStale(packId);
     for (final file in target.files) {
       if (!await _store.isPresent(packId, file)) missing.add(file);
     }

@@ -138,6 +138,25 @@ class RecitationFileStore {
     await discardStaged(packId, file);
   }
 
+  /// Removes the copies in staging of files that are on the device whole
+  /// under their final name: what is left when the app stopped between a
+  /// file's activation and the clean-up, or a stopped task landed after it.
+  Future<void> removeStale(String packId) async {
+    final staging = Directory(await _stagingDirectory(packId));
+    if (!await staging.exists()) return;
+    final audio = '${await _audioDirectory()}/$packId';
+    await for (final entity in staging.list()) {
+      if (entity is! File) continue;
+      final name = entity.uri.pathSegments.last;
+      final dot = name.indexOf('.');
+      if (dot <= 0) continue;
+      final extension = name.substring(name.lastIndexOf('.'));
+      if (await File('$audio/${name.substring(0, dot)}$extension').exists()) {
+        await _delete(entity.path);
+      }
+    }
+  }
+
   /// Removes every copy of [file] from staging, the claimed one too.
   Future<void> discardStaged(String packId, RecitationFile file) async {
     for (final copy in await _copies(packId, file, null)) {
@@ -164,9 +183,8 @@ class RecitationFileStore {
   /// Removes everything of [packId]: its audio and what is left in staging.
   Future<void> deleteAll(String packId) async {
     try {
-      await Directory(
-        '${await _audioDirectory()}/$packId',
-      ).delete(recursive: true);
+      await Directory('${await _audioDirectory()}/$packId')
+          .delete(recursive: true);
     } on PathNotFoundException {
       return;
     }

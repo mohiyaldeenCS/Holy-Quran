@@ -155,6 +155,9 @@ final class BackgroundDownloadService implements DownloadService {
   final Map<String, _Pending> _pending = {};
   final Map<String, _Pending> _byFile = {};
 
+  /// The highest attempt this service has issued or attached to, by file.
+  final Map<String, int> _issued = {};
+
   /// Ids of tasks this service asked the plugin to stop: they are never
   /// attached to, whatever the plugin still lists.
   final Set<String> _stopping = {};
@@ -195,33 +198,57 @@ final class BackgroundDownloadService implements DownloadService {
     final downloader = _started;
     final key = _fileKey(order);
     if (_byFile[key] case final pending?) return pending.done.future;
-    final pending = _byFile[key] = _Pending(key, onUpdate);
+    final pending = _byFile[key] = _Pending(key, order, onUpdate);
     try {
       final found = await _tasksOfFile(downloader, order);
       // Tasks of the file the plugin kept, from before a relaunch or from an
       // order since replaced: at most one that needs the network now asked
-      // for is attached to, the rest are stopped, so that no second
-      // download of the file runs beside it.
-      final alive = [
-        for (final task in found)
-          if (!_stopping.contains(task.task.taskId)) task,
-      ];
-      final keep = alive
-          .where((task) => task.task.requiresWiFi == order.wifiOnly)
+      // for is attached to, a running one before a paused one, and the rest
+      // are stopped, so that no second download of the file runs beside it.
+      final keep =
+          (found
+                  .where(
+                    (task) =>
+                        !_stopping.contains(task.task.taskId) &&
+                        task.task.requiresWiFi == order.wifiOnly,
+                  )
+                  .toList()
+                ..sort(
+                  (a, b) => a.paused == b.paused ? 0 : (a.paused ? 1 : -1),
+                ))
+              .firstOrNull;
+      // A task that finished while the lookup went on is the answer, listed
+      // or not.
+      final finished = pending.early
+          .where(
+            (update) =>
+                update.status == TaskStatus.complete &&
+                !_stopping.contains(update.task.taskId),
+          )
           .firstOrNull;
       await _stop([
         for (final task in found)
-          if (task != keep && !_stopping.contains(task.task.taskId))
+          if (task.task.taskId != (finished?.task ?? keep?.task)?.taskId &&
+              !_stopping.contains(task.task.taskId))
             task.task.taskId,
       ]);
       if (pending.canceled) {
         _end(pending, const FileDownloadCanceled());
+      } else if (finished != null) {
+        final attempt = _attemptOf(finished.task as DownloadTask, order) ?? 0;
+        _end(pending, FileDownloaded(attempt: attempt));
       } else if (keep != null) {
         _attach(pending, keep.task, keep.attempt);
-        if (keep.paused) await _resumeOrRestart(downloader, keep.task);
+        final seen = _replay(pending);
+        if (!pending.done.isCompleted &&
+            (pending.paused || (!seen && keep.paused))) {
+          await _resumePaused(pending);
+        }
       } else {
+        // Above every attempt this file has had, also one the plugin no
+        // longer lists because it is being stopped.
         final next = found.fold(
-          order.attempt,
+          max(order.attempt, (_issued[key] ?? -1) + 1),
           (n, task) => max(n, task.attempt + 1),
         );
         final task = _taskFor(order, next);
@@ -268,7 +295,12 @@ final class BackgroundDownloadService implements DownloadService {
   Future<void> _resumePaused(_Pending pending) async {
     pending.paused = false;
     try {
-      await _resumeOrRestart(_started, pending.task!);
+      if (!await _resumeOrRestart(_started, pending.task!)) {
+        _end(
+          pending,
+          const FileDownloadFailed('the downloader refused the task'),
+        );
+      }
     } on Exception catch (e) {
       _end(pending, FileDownloadFailed('$e'));
     }
@@ -348,22 +380,41 @@ final class BackgroundDownloadService implements DownloadService {
       ..task = task
       ..attempt = attempt;
     _pending[task.taskId] = pending;
+    _issued[pending.key] = max(_issued[pending.key] ?? 0, attempt);
+  }
+
+  /// Handles what the plugin reported for the chosen task while the lookup
+  /// went on; tells whether it reported anything.
+  bool _replay(_Pending pending) {
+    final id = pending.task!.taskId;
+    final seen = [
+      for (final update in pending.early)
+        if (update.task.taskId == id) update,
+    ];
+    pending.early.clear();
+    seen.forEach(_onStatus);
+    return seen.isNotEmpty;
+  }
+
+  /// The call that is still looking for the file [task] belongs to.
+  _Pending? _lookingFor(Task task) {
+    if (task is! DownloadTask) return null;
+    for (final pending in _byFile.values) {
+      if (pending.task == null &&
+          task.url == pending.order.url.toString() &&
+          _attemptOf(task, pending.order) != null) {
+        return pending;
+      }
+    }
+    return null;
   }
 
   /// Resumes [task] from its received bytes, or starts it again when the
-  /// plugin kept none.
-  Future<void> _resumeOrRestart(
+  /// plugin kept none; false when the plugin refused to start it.
+  Future<bool> _resumeOrRestart(
     FileDownloader downloader,
     DownloadTask task,
-  ) async {
-    if (await downloader.resume(task)) return;
-    if (!await downloader.enqueue(task)) {
-      _end(
-        _pending[task.taskId]!,
-        const FileDownloadFailed('the downloader refused the task'),
-      );
-    }
-  }
+  ) async => await downloader.resume(task) || await downloader.enqueue(task);
 
   DownloadTask _taskFor(FileOrder order, int attempt) {
     final target = order.targetAt(attempt);
@@ -386,8 +437,12 @@ final class BackgroundDownloadService implements DownloadService {
 
   void _onStatus(TaskStatusUpdate update) {
     final id = update.task.taskId;
+    if (_stopping.contains(id)) return;
     final pending = _pending[id];
-    if (pending == null) return;
+    if (pending == null) {
+      _lookingFor(update.task)?.early.add(update);
+      return;
+    }
     switch (update.status) {
       case TaskStatus.enqueued:
         pending.report(FileTaskStatus.enqueued);
@@ -455,9 +510,14 @@ final class BackgroundDownloadService implements DownloadService {
 }
 
 final class _Pending {
-  _Pending(this.key, this.onUpdate);
+  _Pending(this.key, this.order, this.onUpdate);
 
   final String key;
+  final FileOrder order;
+
+  /// What the plugin reported, before a task was chosen, for tasks of the
+  /// file.
+  final List<TaskStatusUpdate> early = [];
   final void Function(FileTaskUpdate update) onUpdate;
   final Completer<FileDownloadOutcome> done = Completer();
 

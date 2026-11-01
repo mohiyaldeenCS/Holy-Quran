@@ -153,6 +153,7 @@ void main() {
   late Directory temp;
   late _Server server;
   late FileDownloader plugin;
+  late MemoryTaskStorage storage;
   late BackgroundDownloadService service;
   final httpOverrides = HttpOverrides.current;
 
@@ -160,7 +161,8 @@ void main() {
     HttpOverrides.global = null;
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
     temp = await Directory.systemTemp.createTemp('download_service_test');
-    plugin = FileDownloader(persistentStorage: MemoryTaskStorage());
+    storage = MemoryTaskStorage();
+    plugin = FileDownloader(persistentStorage: storage);
     await plugin.ready;
     await plugin.configure(
       globalConfig: (Config.tempFilePath, '${temp.path}/partial'),
