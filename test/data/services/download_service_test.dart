@@ -157,10 +157,10 @@ void main() {
   final httpOverrides = HttpOverrides.current;
 
   setUpAll(() async {
-    HttpOverrides.global = null;
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    plugin = memoryFileDownloader();
+    HttpOverrides.global = null;
     temp = await Directory.systemTemp.createTemp('download_service_test');
-    plugin = FileDownloader(persistentStorage: MemoryTaskStorage());
     await plugin.ready;
     await plugin.configure(
       globalConfig: (Config.tempFilePath, '${temp.path}/partial'),

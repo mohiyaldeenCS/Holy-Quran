@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:background_downloader/background_downloader.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/config/dependencies.dart';
@@ -26,7 +25,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   // The areas start the pack installer, which creates the downloader plugin.
-  setUpAll(() => FileDownloader(persistentStorage: MemoryTaskStorage()));
+  setUpAll(memoryFileDownloader);
 
   final tables = [
     for (final table in UserDatabase.inMemory().allTables)
