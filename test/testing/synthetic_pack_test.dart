@@ -953,9 +953,8 @@ List<(int, int, int, int)> _rawMarks(SyntheticPack pack, int surah, int ayah) {
 
 bool _startsWith(List<int> bytes, List<int> prefix) =>
     bytes.length >= prefix.length &&
-    [
-      for (var i = 0; i < prefix.length; i++) bytes[i] == prefix[i],
-    ].every((same) => same);
+    [for (var i = 0; i < prefix.length; i++) bytes[i] == prefix[i]]
+        .every((same) => same);
 
 /// The JSON paths at which [a] and [b] differ.
 List<String> _diff(Object? a, Object? b, [String at = '']) {

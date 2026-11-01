@@ -41,13 +41,10 @@ void main() {
   /// The repository over [pack] without verifying its files, so that a
   /// defect the file hash would catch reaches the reading checks.
   PackQuranTextRepository unverified(SyntheticPack pack) {
-    final manifest =
-        (parsePackManifest(
-                  pack.manifestFile.readAsBytesSync(),
-                  pack: pack.directory.path,
-                )
-                as Ok<PackManifest>)
-            .value;
+    final manifest = (parsePackManifest(
+      pack.manifestFile.readAsBytesSync(),
+      pack: pack.directory.path,
+    ) as Ok<PackManifest>).value;
     final database = PackDatabase.open(pack.textFile.path, formatVersion: 1);
     addTearDown(database.close);
     return PackQuranTextRepository(
@@ -138,9 +135,8 @@ void main() {
         WordSpan(number: 2, start: 15, end: 21),
       ]);
       expect(
-        ok(
-          await repository.words(_at('hafs:1:4')),
-        ).map((w) => (w.start, w.end)),
+        ok(await repository.words(_at('hafs:1:4')))
+            .map((w) => (w.start, w.end)),
         pack.surahs[0].ayat[3].spans,
       );
     });
@@ -158,14 +154,10 @@ void main() {
         MarkSpan(number: 1, afterWord: 1, start: 3, end: 5),
       ]);
       expect(ok(await repository.marks(_at('hafs:1:1'))), isEmpty);
-      expect(
-        ok(await repository.words(_at('hafs:2:2'))),
-        const [
-          WordSpan(number: 1, start: 0, end: 2),
-          WordSpan(number: 2, start: 6, end: 8),
-        ],
-        reason: 'a mark is not a word',
-      );
+      expect(ok(await repository.words(_at('hafs:2:2'))), const [
+        WordSpan(number: 1, start: 0, end: 2),
+        WordSpan(number: 2, start: 6, end: 8),
+      ], reason: 'a mark is not a word');
     });
 
     test('builds the edition map in its riwaya', () async {
@@ -731,10 +723,10 @@ void main() {
 
   test('a pack with no riwaya cannot be read as text', () async {
     final pack = await buildSyntheticPack(root);
-    final manifest =
-        (parsePackManifest(pack.manifestFile.readAsBytesSync(), pack: 'p')
-                as Ok<PackManifest>)
-            .value;
+    final manifest = (parsePackManifest(
+      pack.manifestFile.readAsBytesSync(),
+      pack: 'p',
+    ) as Ok<PackManifest>).value;
     final database = PackDatabase.open(pack.textFile.path, formatVersion: 1);
     addTearDown(database.close);
     expect(
@@ -766,10 +758,10 @@ void main() {
 
   group('open', () {
     VerifiedPack verifiedFrom(SyntheticPack pack, {String? riwaya = 'hafs'}) {
-      final manifest =
-          (parsePackManifest(pack.manifestFile.readAsBytesSync(), pack: 'p')
-                  as Ok<PackManifest>)
-              .value;
+      final manifest = (parsePackManifest(
+        pack.manifestFile.readAsBytesSync(),
+        pack: 'p',
+      ) as Ok<PackManifest>).value;
       return VerifiedPack(
         directory: pack.directory.path,
         manifest: riwaya != null

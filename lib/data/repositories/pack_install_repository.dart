@@ -309,9 +309,8 @@ final class LocalPackInstallRepository extends ChangeNotifier
       final result = await _run(job);
       _queue.remove(job);
       _current = null;
-      if (result case Failure(
-        error: final InstallFailure failure,
-      ) when failure is! InstallCancelled) {
+      if (result case Failure(error: final InstallFailure failure)
+          when failure is! InstallCancelled) {
         _failed[job.request.packId] = InstallJob(
           job.request,
           InstallFailed(failure),

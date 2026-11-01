@@ -34,9 +34,8 @@ Widget _reader(
   theme,
   Builder(
     builder: (context) => MediaQuery(
-      data: MediaQuery.of(
-        context,
-      ).copyWith(textScaler: TextScaler.linear(systemScale)),
+      data: MediaQuery.of(context)
+          .copyWith(textScaler: TextScaler.linear(systemScale)),
       child: SizedBox(
         width: _width,
         height: _height,

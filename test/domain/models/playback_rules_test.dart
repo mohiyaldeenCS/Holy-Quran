@@ -385,11 +385,9 @@ void main() {
 
     test('the ayah, the page, the surah', () {
       expect(_Run(plan, stopAfter: StopAfter.ayah).toEnd().followed, ['1:2']);
-      expect(
-        _Run(plan, stopAfter: StopAfter.page).toEnd().followed,
-        ['1:2'],
-        reason: '1:2 ends page 1',
-      );
+      expect(_Run(plan, stopAfter: StopAfter.page).toEnd().followed, [
+        '1:2',
+      ], reason: '1:2 ends page 1');
       expect(
         _Run(
           _plan(ToEndOfMushaf(_a('1:3'))),

@@ -74,16 +74,13 @@ PlaybackPlan planOf(
   RepeatMode repeat = RepeatMode.once,
   Duration silence = Duration.zero,
   bool continueToNextSurah = false,
-}) =>
-    (builder.build(
-              recitation ?? syntheticRecitation(),
-              range,
-              repeat: repeat,
-              silence: silence,
-              continueToNextSurah: continueToNextSurah,
-            )
-            as PlanReady)
-        .plan;
+}) => (builder.build(
+  recitation ?? syntheticRecitation(),
+  range,
+  repeat: repeat,
+  silence: silence,
+  continueToNextSurah: continueToNextSurah,
+) as PlanReady).plan;
 
 /// A player that has played [plan] and is hearing its segment [segment].
 /// [ayah] is the ayah the reader follows, which a whole surah does not set
@@ -178,9 +175,8 @@ final class ControlsApp {
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(textScale)),
             child: child!,
           ),
         ),

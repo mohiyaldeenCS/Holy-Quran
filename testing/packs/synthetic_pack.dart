@@ -378,9 +378,8 @@ Future<SyntheticPack> buildSyntheticPack(
     ),
     _ => surahs,
   };
-  final directory = await Directory(
-    '${root.path}/$id/$version',
-  ).create(recursive: true);
+  final directory = await Directory('${root.path}/$id/$version')
+      .create(recursive: true);
   final textFile = File('${directory.path}/$textFileName');
 
   final searchForms = syntheticSearchForms(stored, [

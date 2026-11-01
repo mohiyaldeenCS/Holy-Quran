@@ -13,9 +13,8 @@ import 'package:holyquran/ui/core/widgets/tafsir_text.dart';
 /// (`TF-05`): a sheet, as PRD §7.7 has the source badge open.
 Future<void> showSourceDetails(BuildContext context, TafsirPage page) =>
     Navigator.of(context, rootNavigator: true).push<void>(
-      SheetPage<void>(
-        child: SourceDetailsSheet(page: page),
-      ).createRoute(context),
+      SheetPage<void>(child: SourceDetailsSheet(page: page))
+          .createRoute(context),
     );
 
 /// The facts of a tafsir book (`TF-05`): its title, then its author, its

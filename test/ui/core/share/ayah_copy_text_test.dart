@@ -28,9 +28,9 @@ import 'share_test_pack.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
 
-final _templates =
-    jsonDecode(File('lib/l10n/app_ar.arb').readAsStringSync())
-        as Map<String, Object?>;
+final _templates = jsonDecode(
+  File('lib/l10n/app_ar.arb').readAsStringSync(),
+) as Map<String, Object?>;
 
 final _placeholder = RegExp(r'\{(\w+)\}');
 

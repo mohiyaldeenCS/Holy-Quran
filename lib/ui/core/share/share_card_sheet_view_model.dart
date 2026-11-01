@@ -10,8 +10,10 @@ import 'package:holyquran/utils/result.dart';
 
 /// Hands a PNG image to the system share sheet; the composition root gives
 /// the share service's.
-typedef ShareImage =
-    Future<Result<void>> Function(Uint8List png, {required String fileName});
+typedef ShareImage = Future<Result<void>> Function(
+  Uint8List png, {
+  required String fileName,
+});
 
 /// Paints the chosen card; the view gives it, as painting needs the screen.
 typedef PaintCard = Future<Uint8List> Function();

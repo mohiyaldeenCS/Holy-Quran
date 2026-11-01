@@ -284,9 +284,9 @@ void main() {
 
   test('the checks name no stored text of a pack with another font', () async {
     final pack = await buildSyntheticPack(root, id: 'fault-${builds++}');
-    final manifest =
-        jsonDecode(await pack.manifestFile.readAsString())
-            as Map<String, Object?>;
+    final manifest = jsonDecode(
+      await pack.manifestFile.readAsString(),
+    ) as Map<String, Object?>;
     manifest['font'] = {
       'family': 'Synthetic Font',
       'version': '9.999',

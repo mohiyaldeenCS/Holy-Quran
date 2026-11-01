@@ -16,6 +16,7 @@ import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/level_switch.dart';
 import 'package:holyquran/ui/core/widgets/switch.dart';
 import 'package:holyquran/ui/core/widgets/tab_bar.dart';
+
 import '../../../../testing/test_app.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));
