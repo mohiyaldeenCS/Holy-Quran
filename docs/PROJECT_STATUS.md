@@ -493,7 +493,6 @@ Permission conditions to confirm with him when each is first needed are listed i
 | P1-28 | TalkBack and VoiceOver on the five sheets (the range title and its chip group both read «محدد النطاق»); keyboard focus order; the queue reorder with the system's reduce-motion setting on | Owner, on his phone | An APK built from `main`, once a screen opens the sheets |
 | P1-27 | The 1px `line-strong` border of the mini player, the player panel and the reciter badge in night and contrast (D-140 (2)): the owner's look at the images | Owner | `test/ui/core/goldens/tab_shell_mini_player_{night,contrast}.png` and `test/ui/features/listen/goldens/player_screen_{night,contrast}.png` on `main` |
 | P1-27 | TalkBack and VoiceOver on the player, the mini player and the picker (the track moves in 5-second steps); 200% text on a device | Owner, on his phone | An APK built from `main`, once a recitation can play (P1-33) |
-
 | OF-04 | Downloads on `background_downloader` 9.6.5 (D-154 (6)): Wi-Fi-only on a metered hotspot, the network dropping and returning in mid-file, and the app killed while offline, then opened again | Owner, on his phone | With the first real recitation or pack download |
 
 Pending human checks of P1-14 and later beyond this table are under each task in "In progress"; the first device session gathers them.

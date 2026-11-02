@@ -298,7 +298,6 @@ void main() {
 
     test('a drop while offline stays pending, spends no request, and cancel '
         'ends it', () async {
-      server.bytesPerSecond['/large.bin'] = 2 << 20;
       server.dropAfter['/large.bin'] = 3 << 19;
       addTearDown(() => plugin.isConnected = true);
       final target = order('/large.bin', 'staging/held.bin');
