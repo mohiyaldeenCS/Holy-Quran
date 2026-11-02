@@ -87,10 +87,8 @@ void main() {
   });
 
   group('providePackInstall', () {
-    LocalPackInstallRepository dummy({
-      void Function(String packId)? onPackChanged,
-      Set<String> reservedPackIds = const {},
-    }) => packInstallRepository();
+    LocalPackInstallRepository dummy(DownloadService downloads) =>
+        packInstallRepository(downloads: downloads);
 
     Future<(void Function(String)?, Set<String>)> told({
       FakePackIntegrityRepository? integrity,
@@ -106,13 +104,18 @@ void main() {
           (d) => providePackInstall(
             d,
             basePack: basePack,
-            create: ({onPackChanged, reservedPackIds = const {}}) {
-              forget = onPackChanged;
-              reserved = reservedPackIds;
-              final installer = dummy();
-              addTearDown(installer.dispose);
-              return installer;
-            },
+            create:
+                ({
+                  required downloads,
+                  onPackChanged,
+                  reservedPackIds = const {},
+                }) {
+                  forget = onPackChanged;
+                  reserved = reservedPackIds;
+                  final installer = dummy(downloads);
+                  addTearDown(installer.dispose);
+                  return installer;
+                },
           ),
         ],
       );
@@ -142,6 +145,36 @@ void main() {
       );
 
       expect(reserved, {'synthetic-text'});
+    });
+
+    test('gives the installer the one downloader it provides, for the '
+        'recitation downloads to share', () async {
+      final downloads = _Downloads();
+      late DownloadService given;
+      late Dependencies provided;
+      await buildDependencies(
+        areas: [
+          (d) => providePackInstall(
+            d,
+            downloads: downloads,
+            create:
+                ({
+                  required downloads,
+                  onPackChanged,
+                  reservedPackIds = const {},
+                }) {
+                  given = downloads;
+                  final installer = dummy(downloads);
+                  addTearDown(installer.dispose);
+                  return installer;
+                },
+          ),
+          (d) async => provided = d,
+        ],
+      );
+
+      expect(given, same(downloads));
+      expect(provided.read<DownloadService>(), same(downloads));
     });
 
     test('has nothing to tell without an integrity repository, and reserves '
@@ -203,7 +236,7 @@ void main() {
   });
 
   test('the installer builds without touching a plugin', () async {
-    final repository = packInstallRepository();
+    final repository = packInstallRepository(downloads: _Downloads());
     addTearDown(repository.dispose);
     await pumpEventQueue();
     expect(messages, isEmpty);
@@ -212,7 +245,7 @@ void main() {
   });
 
   test('the installer accepts https URLs only', () async {
-    final repository = packInstallRepository();
+    final repository = packInstallRepository(downloads: _Downloads());
     addTearDown(repository.dispose);
     final url = Uri.parse('http://example.invalid/synthetic/manifest.json');
     final result = await repository.install(

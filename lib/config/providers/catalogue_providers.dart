@@ -1,11 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:holyquran/config/catalogue_config.dart';
 import 'package:holyquran/config/dependencies.dart';
+import 'package:holyquran/config/providers/recitation_download_providers.dart';
 import 'package:holyquran/config/signing_keys.dart';
 import 'package:holyquran/data/repositories/catalogue_repository.dart';
+import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/data/repositories/local_pack_repository.dart';
 import 'package:holyquran/data/repositories/pack_install_repository.dart';
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
+import 'package:holyquran/data/repositories/recitation_download_repository.dart';
 import 'package:holyquran/data/repositories/recitation_repository.dart';
 import 'package:holyquran/data/services/catalogue_service.dart';
 import 'package:holyquran/data/services/download_service.dart';
@@ -28,16 +31,27 @@ Future<void> catalogueProviders(Dependencies dependencies) async {
 /// Provides the [RecitationRepository] over the catalogue, the installer and
 /// the integrity repository earlier areas provided. Recitations are played
 /// from verified packs, so without the catalogue or the integrity repository,
-/// which needs a base pack, none is provided.
+/// which needs a base pack, none is provided. The downloads of their audio
+/// are provided with them, over the downloader the installer uses and the
+/// download settings, when the settings area provided those.
 void provideRecitations(Dependencies dependencies) {
   final catalogue = dependencies.tryRead<CatalogueRepository>();
   final integrity = dependencies.tryRead<PackIntegrityRepository>();
   if (catalogue == null || integrity == null) return;
-  dependencies.provideListenable<RecitationRepository>(
-    recitationRepository(
-      catalogue: catalogue,
-      installs: dependencies.read<PackInstallRepository>(),
-      integrity: integrity,
+  final recitations = recitationRepository(
+    catalogue: catalogue,
+    installs: dependencies.read<PackInstallRepository>(),
+    integrity: integrity,
+  );
+  dependencies.provideListenable<RecitationRepository>(recitations);
+  final downloads = dependencies.tryRead<DownloadService>();
+  final settings = dependencies.tryRead<DownloadSettingsRepository>();
+  if (downloads == null || settings == null) return;
+  dependencies.provideListenable<RecitationDownloadRepository>(
+    recitationDownloadRepository(
+      recitations: recitations,
+      downloads: downloads,
+      settings: settings,
     ),
   );
 }

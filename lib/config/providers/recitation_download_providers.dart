@@ -16,8 +16,7 @@ import 'package:holyquran/data/services/recitation_file_store.dart';
 ///
 /// [downloads] is the service the pack installer uses: the plugin keeps one
 /// callback for its group, so a second service would take the installer's
-/// events from it. For the area that provides the installer and the
-/// recitations, which no area does yet.
+/// events from it. [provideRecitations] calls this with it.
 LocalRecitationDownloadRepository recitationDownloadRepository({
   required PackRecitationRepository recitations,
   required DownloadService downloads,
