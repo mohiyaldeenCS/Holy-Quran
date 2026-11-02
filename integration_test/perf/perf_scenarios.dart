@@ -90,7 +90,16 @@ Future<PerfResult> scroll(
     ),
   );
   if (isLiveBinding(tester)) {
-    await tester.pump(span);
+    // By default the live binding draws only the frames a pump asks for, which
+    // would leave the scroll's animation to a handful of them.
+    final binding = tester.binding as LiveTestWidgetsFlutterBinding;
+    final policy = binding.framePolicy;
+    binding.framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
+    try {
+      await tester.pump(span);
+    } finally {
+      binding.framePolicy = policy;
+    }
   } else {
     const frame = Duration(microseconds: 16667);
     for (var at = Duration.zero; at < span; at += frame) {
