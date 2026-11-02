@@ -115,8 +115,11 @@ abstract interface class RecitationRepository implements Listenable {
 }
 
 /// Reports a pack's integrity in this session: its id, state and version.
-typedef IntegrityReport =
-    void Function(String pack, PackIntegrity state, int version);
+typedef IntegrityReport = void Function(
+  String pack,
+  PackIntegrity state,
+  int version,
+);
 
 /// [RecitationRepository] over the recitation packs on the device
 /// (docs/PACK_CATALOGUE.md, "A recitation at playback"). On its first use in

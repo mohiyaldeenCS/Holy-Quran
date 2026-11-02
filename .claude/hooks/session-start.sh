@@ -1,5 +1,5 @@
 #!/bin/bash
-# Installs the pinned Flutter SDK (D-040) in Claude Code cloud sessions, which start
+# Installs the pinned Flutter SDK (D-154) in Claude Code cloud sessions, which start
 # without one, so that format, analyze and test can run and the Dart MCP server finds
 # `dart` on the PATH.
 set -euo pipefail
@@ -8,8 +8,8 @@ if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
 fi
 
-# Pinned by D-040; also in .github/workflows/ci.yml and agent.yml.
-FLUTTER_VERSION="3.44.7"
+# Pinned by D-154; also in .github/workflows/ci.yml and agent.yml.
+FLUTTER_VERSION="3.47.9"
 SDK_DIR="$HOME/sdk/flutter"
 ARCHIVE="https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
 

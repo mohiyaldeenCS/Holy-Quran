@@ -19,9 +19,8 @@ Directory _root({void Function(Directory root)? change}) {
   addTearDown(() => root.deleteSync(recursive: true));
   Directory('${root.path}/$projectIconsDirectory').createSync(recursive: true);
   for (final name in projectIconNames) {
-    File(
-      '${root.path}/$projectIconsDirectory/$name.svg',
-    ).writeAsStringSync(syntheticProjectIcon());
+    File('${root.path}/$projectIconsDirectory/$name.svg')
+        .writeAsStringSync(syntheticProjectIcon());
   }
   change?.call(root);
   return root;
@@ -99,27 +98,27 @@ void main() {
 
     test('a file that is not approved stops the generator', () {
       final root = _root(
-        change: (r) => File(
-          '${r.path}/$projectIconsDirectory/extra.svg',
-        ).writeAsStringSync(syntheticProjectIcon()),
+        change: (r) =>
+            File('${r.path}/$projectIconsDirectory/extra.svg')
+                .writeAsStringSync(syntheticProjectIcon()),
       );
       expect(() => readProjectIcons(root.path), throwsGeneratorError('extra'));
     });
 
     test('a file with another frame stops the generator', () {
       final root = _root(
-        change: (r) => File(
-          '${r.path}/$projectIconsDirectory/copy.svg',
-        ).writeAsStringSync('<svg><path d="M0 0h1v1z"/></svg>\n'),
+        change: (r) =>
+            File('${r.path}/$projectIconsDirectory/copy.svg')
+                .writeAsStringSync('<svg><path d="M0 0h1v1z"/></svg>\n'),
       );
       expect(() => readProjectIcons(root.path), throwsGeneratorError('framed'));
     });
 
     test('an element the generator cannot read stops it', () {
       final root = _root(
-        change: (r) => File(
-          '${r.path}/$projectIconsDirectory/copy.svg',
-        ).writeAsStringSync(syntheticProjectIcon(shapes: '<g/>')),
+        change: (r) =>
+            File('${r.path}/$projectIconsDirectory/copy.svg')
+                .writeAsStringSync(syntheticProjectIcon(shapes: '<g/>')),
       );
       expect(() => readProjectIcons(root.path), throwsGeneratorError('<g>'));
     });

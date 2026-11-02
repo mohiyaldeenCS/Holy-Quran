@@ -67,9 +67,8 @@ class UserDatabase extends _$UserDatabase {
           String.fromCharCodes(header.take(magic.length)) != magic) {
         return false;
       }
-      final version = ByteData.sublistView(
-        Uint8List.fromList(header),
-      ).getUint32(versionOffset);
+      final version = ByteData.sublistView(Uint8List.fromList(header))
+          .getUint32(versionOffset);
       return version >= 1 && version <= latestSchemaVersion;
     } on FileSystemException {
       return false;

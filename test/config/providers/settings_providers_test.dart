@@ -186,9 +186,8 @@ void main() {
       final unreadable = UserDatabase(NativeDatabase(file));
       addTearDown(unreadable.close);
 
-      final settings = (await _settingsOver(
-        unreadable,
-      )).read<AppSettingsRepository>();
+      final settings = (await _settingsOver(unreadable))
+          .read<AppSettingsRepository>();
 
       expect(settings, isA<InMemoryAppSettingsRepository>());
       expect(settings.themePreference, const ThemePreference());
@@ -225,15 +224,13 @@ void main() {
     test(
       'provides the download settings stored in the user database',
       () async {
-        final first = (await _settingsOver(
-          db,
-        )).read<DownloadSettingsRepository>();
+        final first = (await _settingsOver(db))
+            .read<DownloadSettingsRepository>();
         expect(first, isA<LocalDownloadSettingsRepository>());
 
         await first.setWifiOnly(false);
-        final second = (await _settingsOver(
-          db,
-        )).read<DownloadSettingsRepository>();
+        final second = (await _settingsOver(db))
+            .read<DownloadSettingsRepository>();
 
         expect(second.wifiOnly, isFalse);
       },

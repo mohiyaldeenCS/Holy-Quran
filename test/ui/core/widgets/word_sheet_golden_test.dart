@@ -43,9 +43,8 @@ void main() {
       tester,
       'word_sheet_long_word',
       (context) => MediaQuery(
-        data: MediaQuery.of(
-          context,
-        ).copyWith(textScaler: const TextScaler.linear(2)),
+        data: MediaQuery.of(context)
+            .copyWith(textScaler: const TextScaler.linear(2)),
         child: SizedBox(
           width: 390,
           child: WordSheet(

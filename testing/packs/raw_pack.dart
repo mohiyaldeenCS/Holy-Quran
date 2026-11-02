@@ -124,9 +124,8 @@ final class RawPack {
   RawPack._(this._db);
 
   factory RawPack.open(File file) {
-    final uri = Uri.file(
-      file.absolute.path,
-    ).replace(queryParameters: {'mode': 'ro', 'immutable': '1'});
+    final uri = Uri.file(file.absolute.path)
+        .replace(queryParameters: {'mode': 'ro', 'immutable': '1'});
     return RawPack._(
       sqlite3.open(uri.toString(), mode: OpenMode.readOnly, uri: true),
     );

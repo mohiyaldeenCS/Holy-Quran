@@ -627,9 +627,9 @@ void main() {
 
     test('a manifest font other than the pinned file', () async {
       final pack = await buildSyntheticPack(root, id: 'other-font');
-      final manifest =
-          jsonDecode(await pack.manifestFile.readAsString())
-              as Map<String, Object?>;
+      final manifest = jsonDecode(
+        await pack.manifestFile.readAsString(),
+      ) as Map<String, Object?>;
       manifest['font'] = {
         'family': 'Synthetic Font',
         'version': '9.999',

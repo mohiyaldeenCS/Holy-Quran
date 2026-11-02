@@ -347,8 +347,7 @@ void main() {
             'm0-d.txt':
                 'text: ink on line\ndecision: D-114\n'
                 'exception: paper 1.50\npinned: paper 1.50\n',
-            'm0-e.txt':
-                'text: ink on line-strong\ndecision: D-114\npinned: paper 5.2\n',
+            'm0-e.txt': 'text: ink on line-strong\ndecision: D-114\npinned: paper 5.2\n',
             'm0-f.txt':
                 'card text: x on y\ndecision: D-089\npinned: paper 4.90\n',
             'm0-g.txt': 'text: x on y\ndecision: D-089\npinned: card 4.90\n',

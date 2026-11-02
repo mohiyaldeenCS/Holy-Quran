@@ -309,9 +309,8 @@ void main() {
         await pack.manifestFile.readAsBytes(),
         keyPair: key,
       );
-      await File(
-        '${pack.directory.path}/manifest.json.sig',
-      ).writeAsBytes(signature.bytes);
+      await File('${pack.directory.path}/manifest.json.sig')
+          .writeAsBytes(signature.bytes);
     }
     server = await _PackServer.start(served);
   });
@@ -368,9 +367,8 @@ void main() {
     Map<String, Uri>? files,
   }) async {
     final base = '/$id/$version';
-    final manifest = await File(
-      '${served.path}$base/manifest.json',
-    ).readAsBytes();
+    final manifest = await File('${served.path}$base/manifest.json')
+        .readAsBytes();
     final signed = await File('${served.path}$base/manifest.json.sig').exists();
     return InstallRequest(
       packId: id,
@@ -788,9 +786,8 @@ void main() {
       final first = await started();
       await install(first, _text, 1);
       await install(first, _text, 2);
-      final before = File(
-        '${support.path}/packs/$_text/active.json',
-      ).readAsStringSync();
+      final before = File('${support.path}/packs/$_text/active.json')
+          .readAsStringSync();
       final requests = server.requests.length;
       final changed = <String>[];
       final guarded = await started(
@@ -846,15 +843,13 @@ void main() {
         await install(repository, _text, 1);
         await install(repository, _text, 2);
         await install(repository, _other, 1);
-        await File(
-          '${support.path}/user.sqlite',
-        ).writeAsBytes(List.generate(4096, (i) => i * 7 & 0xFF));
+        await File('${support.path}/user.sqlite')
+            .writeAsBytes(List.generate(4096, (i) => i * 7 & 0xFF));
         final foreign = File('${support.path}/packs/synthetic-foreign/1/x.bin');
         await foreign.create(recursive: true);
         await foreign.writeAsBytes([1, 2, 3]);
-        await Directory(
-          '${support.path}/pack-staging/$_text/9',
-        ).create(recursive: true);
+        await Directory('${support.path}/pack-staging/$_text/9')
+            .create(recursive: true);
 
         // A file's URI separates its segments with `/` on every platform.
         Future<Map<String, List<int>>> others() async => {
@@ -1035,9 +1030,8 @@ void main() {
         () => stateOf(repository, _text) is InstallStoppedLowSpace,
       );
       final stopped = stateOf(repository, _text)! as InstallStoppedLowSpace;
-      final textBytes = await File(
-        '${served.path}/$_text/1/text.sqlite',
-      ).length();
+      final textBytes = await File('${served.path}/$_text/1/text.sqlite')
+          .length();
       expect(stopped.neededBytes, textBytes + packSpaceReserveBytes);
       expect(stopped.freeBytes, 1000);
       expect(stateOf(repository, _other), isA<InstallQueued>());
@@ -1274,9 +1268,8 @@ void main() {
       final first = await started();
       await install(first, _text, 1);
       await install(first, _other, 1);
-      await File(
-        '${support.path}/packs/$_other/1/manifest.json',
-      ).writeAsString('synthetic, not a manifest');
+      await File('${support.path}/packs/$_other/1/manifest.json')
+          .writeAsString('synthetic, not a manifest');
 
       final repository = LocalPackInstallRepository(
         openStore: () async => InstalledPacksStore(support),

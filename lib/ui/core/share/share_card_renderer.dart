@@ -170,9 +170,8 @@ final class _Offscreen {
 
   void dispose() {
     if (_root case final root?) {
-      RenderObjectToWidgetAdapter<RenderBox>(
-        container: boundary,
-      ).attachToRenderTree(_build, root);
+      RenderObjectToWidgetAdapter<RenderBox>(container: boundary)
+          .attachToRenderTree(_build, root);
     }
     _build
       ..finalizeTree()

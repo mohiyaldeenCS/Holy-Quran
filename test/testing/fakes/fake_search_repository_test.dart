@@ -30,9 +30,9 @@ void main() {
         'alpha beta': [_hit],
       },
     );
-    final found =
-        (await fake.search(_query(' alpha \u064E beta')) as Ok<SearchResults>)
-            .value;
+    final found = (await fake.search(
+      _query(' alpha \u064E beta'),
+    ) as Ok<SearchResults>).value;
     expect(found.hits, [_hit]);
     expect(found.occurrences, 1);
     final none = await fake.search(_query('gamma')) as Ok<SearchResults>;

@@ -82,9 +82,8 @@ void main() {
     ('hafs:2:5', -1),
   ]) {
     test('reads "$address" at $offset ms as no position', () async {
-      await ListeningPositionDao(
-        db,
-      ).write(address, 'synthetic-reciter', offset, updatedAt: 1);
+      await ListeningPositionDao(db)
+          .write(address, 'synthetic-reciter', offset, updatedAt: 1);
 
       expect((await _load(ListeningPositionDao(db))).last, isNull);
     });
@@ -115,9 +114,8 @@ void main() {
     final file = File('${directory.path}/${UserDatabase.fileName}');
 
     final first = UserDatabase(NativeDatabase(file));
-    await (await _load(
-      ListeningPositionDao(first),
-    )).save(_position('hafs:18:10', 4200));
+    await (await _load(ListeningPositionDao(first)))
+        .save(_position('hafs:18:10', 4200));
     await first.close();
 
     final second = UserDatabase(NativeDatabase(file));

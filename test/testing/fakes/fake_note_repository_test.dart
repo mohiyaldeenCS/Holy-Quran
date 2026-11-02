@@ -21,10 +21,9 @@ void main() {
 
     expect((await notes.notesAt(ayah) as Ok<List<Note>>).value, hasLength(2));
     expect(
-      (await notes.list(categoryId: 'category-a') as Ok<List<Note>>)
-          .value
-          .single
-          .body,
+      (await notes.list(
+        categoryId: 'category-a',
+      ) as Ok<List<Note>>).value.single.body,
       'edited synthetic body',
     );
     expect(await notes.add(ayah, ''), isA<Failure<Note>>());

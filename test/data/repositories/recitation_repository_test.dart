@@ -88,9 +88,8 @@ void main() {
       unit: unit,
       fault: fault,
     );
-    final manifest = await File(
-      '${pack.directory.path}/manifest.json',
-    ).readAsBytes();
+    final manifest = await File('${pack.directory.path}/manifest.json')
+        .readAsBytes();
     installed = [
       ...installed.where((p) => p.id != id),
       InstalledPack(
@@ -500,14 +499,14 @@ void main() {
         Directory('${root.path}/packs'),
         id: _pack,
       );
-      final manifest = await File(
-        '${tafsir.directory.path}/manifest.json',
-      ).readAsBytes();
+      final manifest = await File('${tafsir.directory.path}/manifest.json')
+          .readAsBytes();
       installed = [
         InstalledPack(
-          manifest:
-              (parsePackManifest(manifest, pack: _pack) as Ok<PackManifest>)
-                  .value,
+          manifest: (parsePackManifest(
+            manifest,
+            pack: _pack,
+          ) as Ok<PackManifest>).value,
           directory: tafsir.directory.path,
           previousVersion: null,
         ),

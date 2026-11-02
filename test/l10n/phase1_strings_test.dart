@@ -104,9 +104,9 @@ final _emoji = RegExp(
 );
 
 void main() {
-  final arb =
-      jsonDecode(File('lib/l10n/app_ar.arb').readAsStringSync())
-          as Map<String, dynamic>;
+  final arb = jsonDecode(
+    File('lib/l10n/app_ar.arb').readAsStringSync(),
+  ) as Map<String, dynamic>;
   final generated = File('lib/l10n/app_localizations.dart').readAsStringSync();
 
   test('the key list has no duplicates', () {
@@ -149,9 +149,10 @@ void main() {
       });
 
       test('types every placeholder as an already formatted String', () {
-        final used = RegExp(
-          r'\{(\w+)\}',
-        ).allMatches(message as String).map((m) => m[1]).toSet();
+        final used = RegExp(r'\{(\w+)\}')
+            .allMatches(message as String)
+            .map((m) => m[1])
+            .toSet();
         final declared =
             (meta?['placeholders'] as Map<String, dynamic>?) ?? const {};
         expect(declared.keys.toSet(), used);

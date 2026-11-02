@@ -118,10 +118,8 @@ Future<List<String>> tafsirRangeProblems(PackFileUnderTest pack) async {
     if (last < first) {
       problems.add('passage $number ends at $surah:$last, before $first');
     }
-    if (previousEnd case (
-      final s,
-      final a,
-    ) when surah < s || (surah == s && first <= a)) {
+    if (previousEnd case (final s, final a)
+        when surah < s || (surah == s && first <= a)) {
       problems.add('passage $number starts at $surah:$first, not after $s:$a');
     }
     previousEnd = (surah, last);

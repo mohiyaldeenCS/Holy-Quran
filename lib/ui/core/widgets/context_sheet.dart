@@ -419,9 +419,8 @@ final class _ContextBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return MediaQuery(
-      data: MediaQuery.of(
-        context,
-      ).copyWith(textScaler: layout.plan.style.scaler),
+      data: MediaQuery.of(context)
+          .copyWith(textScaler: layout.plan.style.scaler),
       child: SizedBox(
         width: layout.width,
         height: layout.height,

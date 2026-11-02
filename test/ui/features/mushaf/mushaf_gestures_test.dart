@@ -98,9 +98,8 @@ void main() {
   Offset wordPoint(WidgetTester tester) {
     final layout = firstBlock(tester);
     final origin = tester.getTopLeft(find.byType(ReaderBlock).first);
-    final rect = TargetGeometry.of(layout).words.values.firstWhere(
-      (r) => (origin + r.center).dy < readerHeight - 160,
-    );
+    final rect = TargetGeometry.of(layout).words.values
+        .firstWhere((r) => (origin + r.center).dy < readerHeight - 160);
     return origin + rect.center;
   }
 
