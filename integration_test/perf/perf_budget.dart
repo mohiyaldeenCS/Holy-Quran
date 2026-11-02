@@ -100,7 +100,7 @@ const List<PerfCheck> perfChecks = [
     limit: 0.95,
     unit: 'of the span',
     source:
-        'The harness: frames are only those of a scroll if the list moved '
+        'NF-02, harness validity: frames are only those of a scroll if the list moved '
         'for the whole span',
     measures:
         'The distance the list moved, over the distance 1500 px/s asks for. '
