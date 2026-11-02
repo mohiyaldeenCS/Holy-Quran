@@ -20,13 +20,15 @@ final _forbiddenPackages = RegExp(
   r'appcenter.*|amplitude.*|mixpanel.*|posthog.*|segment.*|appsflyer.*|'
   r'adjust_sdk|branch_sdk|flutter_branch_sdk|singular.*|kochava.*|matomo.*|'
   r'countly.*|smartlook.*|clarity.*|flutter_facebook.*|facebook_app_events|'
-  r'onesignal.*|usercentrics.*|google_analytics.*|'
+  r'onesignal.*|usercentrics.*|google_analytics.*|amplify_analytics.*|'
+  r'braze.*|clevertap.*|moengage.*|webengage.*|uxcam|logrocket|fullstory|'
+  r'bugfender|rollbar|raygun.*|newrelic.*|flutter_sentry|'
   // Advertising.
   r'google_mobile_ads|admob.*|applovin.*|unity_ads.*|ironsource.*|'
   r'facebook_audience_network|appodeal.*|startapp.*|pangle.*|mintegral.*|'
   // Purchases and subscriptions.
   r'in_app_purchase.*|flutter_inapp_purchase|purchases_.*|adapty.*|'
-  r'qonversion.*|flutter_stripe|stripe_.*|'
+  r'qonversion.*|flutter_stripe|stripe_.*|apphud|superwall|'
   // Tracking identifiers.
   r'app_tracking_transparency|advertising_id|flutter_advertising_id'
   r')$',
@@ -107,15 +109,20 @@ final _surfaces = <_Surface>[
   (
     name: 'a platform channel',
     importUri: null,
-    code: RegExp(r'\b(?:MethodChannel|EventChannel|BasicMessageChannel)\b'),
-    allowed: [_services],
+    code: RegExp(
+      r'\b(?:MethodChannel|EventChannel|BasicMessageChannel|DynamicLibrary|'
+      r'defaultBinaryMessenger)\b',
+    ),
+    allowed: [_audioEngine],
   ),
   (
     name: 'a package that makes HTTP, socket or web-view calls',
     importUri: RegExp(
       r'^package:(?:http|dio|web_socket_channel|web_socket|webview_\w+|'
       r'flutter_inappwebview\w*|cronet_http|cupertino_http|chopper|retrofit|'
-      r'grpc|graphql\w*|socket_io_client)/',
+      r'grpc|graphql\w*|socket_io_client|cached_network_image|'
+      r'flutter_cache_manager|extended_image|mailer|mqtt_client|'
+      r'supabase\w*|appwrite|pocketbase|amplify_\w+)/',
     ),
     code: null,
     allowed: [],
@@ -185,7 +192,10 @@ const _userData = [
 bool _covers(String entry, String path) =>
     entry.endsWith('/') ? path.startsWith(entry) : path == entry;
 
-final _directive = RegExp(r'^\s*(?:import|export)\s+([^;]+);', multiLine: true);
+final _directive = RegExp(
+  r'^\s*(?:import|export|part)\s+([^;]+);',
+  multiLine: true,
+);
 final _quoted = RegExp('''['"]([^'"]+)['"]''');
 
 /// The URIs a source imports or exports, as written.
@@ -242,6 +252,76 @@ List<String> _userDataReach(Map<String, String> sources) => [
       if (file != service && _userData.any((entry) => _covers(entry, file)))
         '$service -> $file',
 ];
+
+/// The user-data files whose import closure reaches a network service, as
+/// `file -> service`: user data must not pass through one as a primitive
+/// either.
+List<String> _userDataReachesOut(Map<String, String> sources) => [
+  for (final path in sources.keys)
+    if (_userData.any((entry) => _covers(entry, path)))
+      for (final file in _closure(path, sources))
+        if (_networkServices.contains(file)) '$path -> $file',
+];
+
+final _userModelName = RegExp(
+  r'bookmark|note|categor|tag_|history|khatma|goal|memoris|highlight|'
+  r'collection|streak|statistic|reading_position|listening_position',
+);
+
+/// Repositories that read the user's database for one setting only (the
+/// chosen tafsir book) and hold nothing the user wrote or read; they may sit
+/// beside the installer.
+const _settingsOnly = ['lib/data/repositories/tafsir_repository.dart'];
+
+/// Files that read the user's database, or whose name says they hold what the
+/// user wrote or read, but that `_userData` does not list. A new one must be
+/// listed, so that the network rules cover it.
+List<String> _unlistedUserData(Map<String, String> sources) => [
+  for (final path in sources.keys)
+    if (!path.endsWith('.g.dart') &&
+        !_settingsOnly.contains(path) &&
+        !_userData.any((entry) => _covers(entry, path)))
+      if ((path.startsWith('lib/data/repositories/') ||
+              path.startsWith('${_services}daos/')) &&
+          _closure(path, sources).any(
+            (file) =>
+                file == '${_services}user_database.dart' ||
+                file == '${_services}user_tables.dart',
+          ))
+        path
+      else if (path.startsWith('lib/domain/models/') &&
+          _userModelName.hasMatch(path.split('/').last))
+        path,
+];
+
+/// The native build files of an app that carry an SDK of the forbidden kinds.
+final _forbiddenNative = RegExp(
+  r'google-services|firebase|crashlytics|play-services-(?:ads|analytics|'
+  r'measurement)|gms\.ads|permission\.AD_ID|appsflyer|sentry|billingclient|'
+  r'admob|NSUserTrackingUsageDescription|SKAdNetwork|GoogleAnalytics',
+  caseSensitive: false,
+);
+
+bool _isNativeBuildFile(String path) =>
+    RegExp(r'^android/(?!.*/build/)(?!\.gradle/).*\.(?:gradle|kts|properties)$')
+        .hasMatch(path) ||
+    RegExp(r'^android/app/src/\w+/AndroidManifest\.xml$').hasMatch(path) ||
+    path == 'ios/Podfile' ||
+    path == 'ios/Runner/Info.plist';
+
+/// Each native build file of [files] (path to content) that names a forbidden
+/// SDK.
+List<String> _nativeViolations(Map<String, String> files) => [
+  for (final MapEntry(key: path, value: content) in files.entries)
+    if (_isNativeBuildFile(path) && _forbiddenNative.hasMatch(content)) path,
+];
+
+Map<String, String> _nativeFiles() => {
+  for (final root in ['android', 'ios'])
+    for (final file in Directory(root).listSync(recursive: true))
+      if (file is File && _isNativeBuildFile(file.path.replaceAll(r'\', '/')))
+        file.path.replaceAll(r'\', '/'): file.readAsStringSync(),
+};
 
 /// A forbidden package in either file, as `file: package`.
 List<String> _packageViolations({
@@ -302,6 +382,21 @@ void main() {
 
     test('no user-database type reaches a network service', () {
       expect(_userDataReach(lib), isEmpty);
+    });
+
+    test('no user-data file reaches a network service', () {
+      expect(_userDataReachesOut(lib), isEmpty);
+    });
+
+    test('every file that holds user data is listed as such', () {
+      expect(_unlistedUserData(lib), isEmpty);
+    });
+
+    test('no native build file carries an analytics, crash, ad or purchase '
+        'SDK', () {
+      final files = _nativeFiles();
+      expect(files, isNotEmpty);
+      expect(_nativeViolations(files), isEmpty);
     });
 
     test('every user-data entry names a file or folder that exists', () {
@@ -382,7 +477,7 @@ void main() {
     });
 
     test(
-      'a network image, a child process, a channel outside the services',
+      'a network image, a child process, a channel outside the audio engine',
       () {
         final sources = {
           'lib/ui/a.dart': 'final i = Image.network(u);',
@@ -394,6 +489,7 @@ void main() {
           'lib/ui/a.dart: a network image or asset bundle',
           'lib/ui/b.dart: a child process',
           'lib/ui/c.dart: a platform channel',
+          '${_services}d.dart: a platform channel',
         ]);
       },
     );
@@ -436,6 +532,64 @@ void main() {
       };
       expect(_userDataReach(sources), [
         '$_share -> lib/data/repositories/bookmark_repository.dart',
+      ]);
+    });
+
+    test('a user-data file importing a network service', () {
+      final sources = {
+        ...clean,
+        'lib/data/repositories/note_repository.dart':
+            "import '../services/catalogue_service.dart';",
+      };
+      expect(_userDataReachesOut(sources), [
+        'lib/data/repositories/note_repository.dart -> $_catalogue',
+      ]);
+    });
+
+    test('a new repository over the user database, or a new user model', () {
+      final sources = {
+        ...clean,
+        '${_services}user_database.dart': '',
+        'lib/data/repositories/khatma_repository.dart':
+            "import '../services/user_database.dart';",
+        'lib/domain/models/highlight.dart': '',
+        'lib/domain/models/playback_plan.dart': '',
+        'lib/data/repositories/note_repository.dart':
+            "import '../services/user_database.dart';",
+      };
+      expect(_unlistedUserData(sources), [
+        'lib/data/repositories/khatma_repository.dart',
+        'lib/domain/models/highlight.dart',
+      ]);
+    });
+
+    test('a part file that holds a user type', () {
+      final sources = {
+        ...clean,
+        _download: "part 'download_service.part.dart';",
+        '${_services}download_service.part.dart': "import 'user_tables.dart';",
+        '${_services}user_tables.dart': '',
+      };
+      expect(_userDataReach(sources), [
+        '$_download -> ${_services}user_tables.dart',
+      ]);
+    });
+
+    test('a native SDK in a gradle file, a manifest or a Podfile', () {
+      final files = {
+        'android/app/build.gradle.kts': 'implementation("x.y:z:1")',
+        'android/app/src/main/AndroidManifest.xml':
+            '<meta-data android:name="com.google.android.gms.ads.APP_ID"/>',
+        'android/build.gradle.kts':
+            'classpath("com.google.gms:google-services")',
+        'ios/Podfile': "pod 'Firebase/Analytics'",
+        'android/app/build/generated/x.gradle': 'firebase',
+        'android/app/src/main/res/values/styles.xml': 'firebase',
+      };
+      expect(_nativeViolations(files), [
+        'android/app/src/main/AndroidManifest.xml',
+        'android/build.gradle.kts',
+        'ios/Podfile',
       ]);
     });
 
