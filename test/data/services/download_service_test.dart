@@ -671,18 +671,23 @@ void main() {
 
     test('a running task is attached to before a paused one, which is '
         'stopped', () async {
-      server.bytesPerSecond['/large.bin'] = 2 << 20;
+      server.bytesPerSecond['/large.bin'] = 1 << 20;
       final target = order('/large.bin', 'staging/two.bin');
+      final first = BackgroundDownloadService.under(
+        plugin,
+        '${temp.path}/root',
+      );
+      await first.start();
       final paused = Completer<void>();
       var pausing = false;
       unawaited(
-        service.download(target, (u) {
+        first.download(target, (u) {
           if (u.status == FileTaskStatus.paused && !paused.isCompleted) {
             paused.complete();
           }
-          if (!pausing && (u.progress?.receivedBytes ?? 0) > (5 << 18)) {
+          if (!pausing && (u.progress?.receivedBytes ?? 0) > (1 << 18)) {
             pausing = true;
-            unawaited(service.pause(target));
+            unawaited(first.pause(target));
           }
         }),
       );
