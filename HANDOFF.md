@@ -7,7 +7,7 @@ Update this file after every finished step. Delete it, with the owner's permissi
 
 ## 1. The plan the owner approved on 2026-11-02
 
-1. Toolchain: move to the latest stable Flutter and packages (#75, D-154).
+1. Toolchain: moved to the latest stable Flutter and packages (#75 merged, D-154).
 2. Correct the records (done with #75).
 3. Finish what is open: #71 (P1-33), then P1-34.
 4. First real run on the owner's phone (below).
@@ -32,8 +32,9 @@ record it. After each step send him two lines: what was done, what is next.
 
 ## 2. In flight
 
-- **#75, `chore/upgrade-flutter-3.47.9`:** toolchain upgrade. CI green, goldens reviewed,
-  `code-reviewer`'s findings applied. Needs the `apk` task on CI, then it merges.
+- **Worktrees:** the four open branches are checked out under `D:/projects/hq-wt/p1-3x`,
+  outside the temp folder. Reserved decision numbers: D-155 (P1-33), D-156 (P1-34),
+  D-157 (P1-36), D-158 (P1-37). Remove each worktree after its branch merges.
 - **#71, `agent/p1-33-recitation-downloads`:** recovered review fixes on top (`f573aa6`),
   not yet compiled; see `docs/PROJECT_STATUS.md`.
 - **`agent/p1-34-critical-path-tests`:** flow tests, review interrupted, no pull request.

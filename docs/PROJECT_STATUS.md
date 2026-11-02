@@ -12,7 +12,7 @@ corrected first.
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
 | Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **35 merged**: P1-01 to P1-32, P1-38 to P1-40, of which 16 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-32, P1-40). **Open**: P1-33 (#71), P1-34, P1-36 and P1-37 on their branches, P1-35 not started. The composition root is wired (#72, D-151). **No APK has been run on a device since the spike of 2026-10-12, and no real content is in the app** |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | `chore/upgrade-flutter-3.47.9` (#75) until it merges; then one branch per task (`agent/p1-*`), with worktrees under the session's scratchpad for parallel agents (D-132) |
+| Working branch | One branch per task (`agent/p1-*`), with worktrees under `D:/projects/hq-wt` for parallel agents (D-132); never the temp folder, which was emptied after the session of 2026-10-29 |
 | Last session | 2026-11-02, local session on the owner's Windows machine. **Read `HANDOFF.md` first** |
 
 ## What is in the repository
@@ -382,24 +382,23 @@ task to the agent its task text names, reviews, commits, pushes, opens the task'
 request and merges it when review and CI pass. Decision numbers: take the number after
 the highest on `main` and every open pull request (D-076).
 
-1. Finish #75 (toolchain upgrade): the `apk` task on CI, merge.
-2. Bring #71, P1-34, P1-36 and P1-37 up to the new `main` and fix what the upgrade
+1. Bring #71, P1-34, P1-36 and P1-37 up to the new `main` and fix what the upgrade
    breaks in them.
-3. Finish P1-33 (#71): wire the locator and the download repository, decision entry,
+2. Finish P1-33 (#71): wire the locator and the download repository, decision entry,
    review, merge. Then P1-34: finish its review, pull request, merge.
-4. First real run: an unapproved test pack on the owner's phone only, marked in the app
+3. First real run: an unapproved test pack on the owner's phone only, marked in the app
    as unapproved, never uploaded or released; signing key on his machine (D-140 (8));
    an APK for him with install steps and a short check list.
-5. Close the gaps that have no task: failed start stuck on the splash, first-run setup
+4. Close the gaps that have no task: failed start stuck on the splash, first-run setup
    (LV-01), the report sheet's send action (D-127), sleep timer and stop-after (AU-07,
    AU-08), copy forms and several-ayat copy (SH-01), search modes (SR-02), tafsir search
    (TF-07), unlimited repeat (AU-09), add to queue (AU-17).
-6. P1-35, P1-36, the rest of P1-37, on the finished screens.
-7. Golden images: after a push that adds or changes a golden test, start CI by hand
+5. P1-35, P1-36, the rest of P1-37, on the finished screens.
+6. Golden images: after a push that adds or changes a golden test, start CI by hand
    on the branch with the task `goldens`, pull the commit it pushes, and push again
    (D-056, D-059). Off `ubuntu-24.04` run `flutter test --exclude-tags golden test
    tools/gen/test`.
-8. Reorder after the owner's device results.
+7. Reorder after the owner's device results.
 
 ## Next actions — stream B (planning session and the owner)
 
