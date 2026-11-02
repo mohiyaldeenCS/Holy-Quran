@@ -24,9 +24,8 @@ class SearchHistoryDao extends DatabaseAccessor<UserDatabase>
   /// Stores [query] as the newest, removing its older rows.
   Future<void> record(String query, {required int at}) => transaction(() async {
     await (delete(searchHistory)..where((h) => h.query.equals(query))).go();
-    await into(
-      searchHistory,
-    ).insert(SearchHistoryCompanion.insert(query: query, searchedAt: at));
+    await into(searchHistory)
+        .insert(SearchHistoryCompanion.insert(query: query, searchedAt: at));
   });
 
   Future<void> clear() => delete(searchHistory).go();

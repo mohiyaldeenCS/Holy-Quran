@@ -309,9 +309,8 @@ final class LocalPackInstallRepository extends ChangeNotifier
       final result = await _run(job);
       _queue.remove(job);
       _current = null;
-      if (result case Failure(
-        error: final InstallFailure failure,
-      ) when failure is! InstallCancelled) {
+      if (result case Failure(error: final InstallFailure failure)
+          when failure is! InstallCancelled) {
         _failed[job.request.packId] = InstallJob(
           job.request,
           InstallFailed(failure),
@@ -531,7 +530,7 @@ final class LocalPackInstallRepository extends ChangeNotifier
           if (await _waitForSpace(job) case final failure?) return failure;
         case FileDownloadFailed(statusCode: null)
             when !await _networkAllows(request.wifiOnly):
-          // The network went for longer than the downloader retries: wait
+          // The file failed before the downloader saw the network go: wait
           // for it, then ask for the file again.
           continue;
         case FileDownloadCanceled():

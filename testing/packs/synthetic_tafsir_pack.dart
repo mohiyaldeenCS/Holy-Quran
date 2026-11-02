@@ -153,9 +153,8 @@ Future<SyntheticTafsirPack> buildSyntheticTafsirPack(
         )
       : book;
 
-  final directory = await Directory(
-    '${root.path}/$id/$version',
-  ).create(recursive: true);
+  final directory = await Directory('${root.path}/$id/$version')
+      .create(recursive: true);
   final file = File('${directory.path}/$tafsirFileName');
   writePackFile(
     file,

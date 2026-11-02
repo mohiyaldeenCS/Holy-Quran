@@ -175,9 +175,9 @@ final _packagePrefix = RegExp(r'^package:([a-z0-9_]+)/$');
 /// must resolve, through `.dart_tool/package_config.json`.
 Set<String> loadPackageAllowList(String folder) {
   final entries = readAllowEntries(folder);
-  final config =
-      jsonDecode(File('.dart_tool/package_config.json').readAsStringSync())
-          as Map<String, Object?>;
+  final config = jsonDecode(
+    File('.dart_tool/package_config.json').readAsStringSync(),
+  ) as Map<String, Object?>;
   final known = {
     for (final package in config['packages']! as List<Object?>)
       (package! as Map<String, Object?>)['name'],

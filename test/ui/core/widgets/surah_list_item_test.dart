@@ -34,9 +34,8 @@ Future<void> _pump(
       ReadingTheme.paper,
       Builder(
         builder: (context) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: textScaler ?? TextScaler.linear(textScale)),
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: textScaler ?? TextScaler.linear(textScale)),
           child: child,
         ),
       ),

@@ -66,9 +66,8 @@ class BasePackService {
       if (await (await _stamp).readAsString() != _stampOf(manifest)) {
         return false;
       }
-      final copied = await File(
-        '${await directory()}/manifest.json',
-      ).readAsBytes();
+      final copied = await File('${await directory()}/manifest.json')
+          .readAsBytes();
       return listEquals(copied, manifest);
     } on FileSystemException {
       return false;

@@ -8,6 +8,7 @@ import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/routing/routes/sheet_page.dart';
 import 'package:holyquran/ui/core/theme/motion.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+
 import '../../testing/fakes/fake_app_settings_repository.dart';
 import '../../testing/test_app.dart';
 

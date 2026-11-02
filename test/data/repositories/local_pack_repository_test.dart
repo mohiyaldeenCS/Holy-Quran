@@ -117,9 +117,8 @@ void main() {
         fault: SyntheticFault.unsupportedFormatVersion,
       );
       expect(
-        await repository(
-          signatures: _Verifier(SignatureCheck.invalid),
-        ).verify(pack.directory.path),
+        await repository(signatures: _Verifier(SignatureCheck.invalid))
+            .verify(pack.directory.path),
         fails<SignatureRejected>((f) => f.pack, pack.directory.path),
       );
     });
@@ -131,9 +130,8 @@ void main() {
         final verifier = _Verifier(SignatureCheck.notChecked);
         await repository(signatures: verifier).verify(pack.directory.path);
         final signature = Uint8List.fromList(List.generate(64, (i) => i));
-        await File(
-          '${pack.directory.path}/manifest.json.sig',
-        ).writeAsBytes(signature);
+        await File('${pack.directory.path}/manifest.json.sig')
+            .writeAsBytes(signature);
         await repository(signatures: verifier).verify(pack.directory.path);
         final manifest = await pack.manifestFile.readAsBytes();
         expect(verifier.calls.map((c) => c.$1), [manifest, manifest]);
@@ -196,9 +194,8 @@ void main() {
     test('a manifest that cannot be read', () async {
       final pack = await buildSyntheticPack(root);
       expect(
-        await repository(
-          files: const _FailingFiles('manifest.json'),
-        ).verify(pack.directory.path),
+        await repository(files: const _FailingFiles('manifest.json'))
+            .verify(pack.directory.path),
         fails<ManifestUnreadable>(),
       );
     });
@@ -230,9 +227,8 @@ void main() {
     test('a data file that cannot be read', () async {
       final pack = await buildSyntheticPack(root);
       expect(
-        await repository(
-          files: const _FailingFiles(textFileName),
-        ).verify(pack.directory.path),
+        await repository(files: const _FailingFiles(textFileName))
+            .verify(pack.directory.path),
         fileMismatch,
       );
     });

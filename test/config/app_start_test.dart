@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:background_downloader/background_downloader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -24,10 +23,7 @@ void main() {
   // The app starts the pack installer, which creates the downloader plugin.
   // Its own storage runs an isolate that outlives the test and makes the
   // engine report a callback into the Dart VM as it shuts down.
-  setUpAll(() {
-    TestWidgetsFlutterBinding.ensureInitialized();
-    FileDownloader(persistentStorage: MemoryTaskStorage());
-  });
+  setUpAll(memoryFileDownloader);
 
   testWidgets('shows the splash until the dependencies are built', (
     tester,

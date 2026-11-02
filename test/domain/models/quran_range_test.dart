@@ -159,9 +159,9 @@ void main() {
 
     test('throws across riwayat', () {
       expect(
-        () => QuranRange.parse(
-          'hafs:1:1-1:2',
-        ).compareTo(QuranRange.parse('warsh:1:1-1:2')),
+        () =>
+            QuranRange.parse('hafs:1:1-1:2')
+                .compareTo(QuranRange.parse('warsh:1:1-1:2')),
         throwsArgumentError,
       );
     });

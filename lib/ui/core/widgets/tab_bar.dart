@@ -120,9 +120,8 @@ class TabBar extends StatelessWidget {
       painter.dispose();
     }
     final fit = widest == 0 ? double.infinity : tabWidth / widest;
-    return MediaQuery.textScalerOf(
-      context,
-    ).clamp(maxScaleFactor: math.max(1, fit));
+    return MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: math.max(1, fit));
   }
 }
 

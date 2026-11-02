@@ -50,10 +50,10 @@ void main() {
     final manifest = File('${pack.directory.path}/$manifestFileName');
     return VerifiedPack(
       directory: pack.directory.path,
-      manifest:
-          (parsePackManifest(manifest.readAsBytesSync(), pack: id)
-                  as Ok<PackManifest>)
-              .value,
+      manifest: (parsePackManifest(
+        manifest.readAsBytesSync(),
+        pack: id,
+      ) as Ok<PackManifest>).value,
       signatureChecked: false,
     );
   }

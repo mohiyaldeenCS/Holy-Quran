@@ -24,9 +24,9 @@ const _words = [
 ];
 
 // Ayat of a surah differ in length, so no two are the same text.
-String _ayah(int seed, int count) => [
-  for (var k = 0; k < count; k++) _words[(seed * 5 + k * 3) % _words.length],
-].join(' ');
+String _ayah(int seed, int count) =>
+    [for (var k = 0; k < count; k++) _words[(seed * 5 + k * 3) % _words.length]]
+        .join(' ');
 
 SyntheticSurah _surah(int number, int ayat, {String? place}) => SyntheticSurah(
   name: 'Synthetic surah $number',

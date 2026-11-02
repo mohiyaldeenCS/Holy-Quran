@@ -44,9 +44,8 @@ class ProgressBar extends StatelessWidget {
         colors.playerAccent,
       ),
     };
-    final percent = AppLocalizations.of(
-      context,
-    ).percentValue(arabicDigits((fraction * 100).round()));
+    final percent = AppLocalizations.of(context)
+        .percentValue(arabicDigits((fraction * 100).round()));
     // No progress-bar role: Flutter's check for it parses the value as a
     // Western number, and the value is read in Arabic-Indic digits.
     return Semantics(

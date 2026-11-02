@@ -73,9 +73,8 @@ void main() {
     });
 
     test('tells its listeners of a save', () async {
-      final positions = (await _readingOver(
-        db,
-      )).read<ReadingPositionRepository>();
+      final positions = (await _readingOver(db))
+          .read<ReadingPositionRepository>();
       var heard = 0;
       positions.addListener(() => heard++);
 
