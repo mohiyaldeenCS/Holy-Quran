@@ -669,6 +669,53 @@ void main() {
       expect([for (final r in server.requests) r.status], [HttpStatus.ok]);
     });
 
+    test('a running task is attached to before a paused one, which is '
+        'stopped', () async {
+      server.bytesPerSecond['/large.bin'] = 2 << 20;
+      final target = order('/large.bin', 'staging/two.bin');
+      final paused = Completer<void>();
+      var pausing = false;
+      unawaited(
+        service.download(target, (u) {
+          if (u.status == FileTaskStatus.paused && !paused.isCompleted) {
+            paused.complete();
+          }
+          if (!pausing && (u.progress?.receivedBytes ?? 0) > (5 << 18)) {
+            pausing = true;
+            unawaited(service.pause(target));
+          }
+        }),
+      );
+      await paused.future;
+      final later = DownloadTask(
+        taskId: BackgroundDownloadService.taskIdFor(target.url, target.path, 1),
+        url: target.url.toString(),
+        baseDirectory: BaseDirectory.root,
+        directory: '${temp.path}/root/staging',
+        filename: 'two.a1.bin',
+        group: 'packs',
+        updates: Updates.statusAndProgress,
+        requiresWiFi: true,
+        allowPause: true,
+        metaData: '1:${target.path}',
+      );
+      expect(await plugin.enqueue(later), isTrue);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+
+      final relaunched = BackgroundDownloadService.under(
+        plugin,
+        '${temp.path}/root',
+      );
+      await relaunched.start();
+      final outcome = await relaunched.download(target, (_) {});
+
+      expect(
+        outcome,
+        isA<FileDownloaded>().having((o) => o.attempt, 'attempt', 1),
+      );
+      expect(await landed('staging/two.a1.bin').readAsBytes(), _large);
+    });
+
     group('with an order made again', () {
       FileOrder again(
         String path, {
