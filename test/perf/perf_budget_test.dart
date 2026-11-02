@@ -88,6 +88,14 @@ void main() {
     },
   );
 
+  test('a scroll that did not last the span is refused', () {
+    final share = checksOf('NF-02')
+        .singleWhere((c) => c.metric == 'travelledShare');
+    expect(share.comparison, Comparison.atLeast);
+    expect(share.holds(1), isTrue);
+    expect(share.holds(0.6), isFalse);
+  });
+
   test('the scenarios are listed once each, in order', () {
     expect(perfScenarios, [
       'cold_start',

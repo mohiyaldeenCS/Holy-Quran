@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/ui/features/search/view_models/search_view_model.dart';
@@ -19,7 +20,7 @@ const _size = String.fromEnvironment('PERF_SIZE') == 'full'
 void main() {
   final results = <PerfResult>[];
   // A line per result, as the harness prints them on a device.
-  tearDownAll(() => results.map((r) => r.toLogLine()).forEach(print));
+  tearDownAll(() => results.map((r) => r.toLogLine()).forEach(debugPrint));
 
   Future<PerfApp> prepare(WidgetTester tester, QuranAddress seed) =>
       preparePerfApp(tester, size: _size, seed: seed, reseed: true);
@@ -56,7 +57,15 @@ void main() {
     expect(result.metrics['framesPerSecond'], greaterThan(0));
     expect(result.metrics['p99FrameMs'], greaterThan(0));
     expect(result.details['frameSource'], 'pump-wall-clock');
-    expect(result.details['travelledPx'], closeTo(3000, 1));
+    // The small pack's surah is shorter than the 3000 px the span asks for.
+    expect(
+      result.details['travelledPx'],
+      allOf(greaterThan(0), lessThan(3001)),
+    );
+    expect(
+      result.metrics['travelledShare'],
+      allOf(greaterThan(0), lessThan(1.01)),
+    );
   });
 
   testWidgets('a search finds the word of its query and times both queries', (

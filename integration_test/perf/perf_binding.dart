@@ -1,8 +1,23 @@
-import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/foundation.dart';
+import 'package:integration_test/integration_test.dart';
 
-/// Initialises the binding the harness runs under. On a device the runner
-/// needs `IntegrationTestWidgetsFlutterBinding.ensureInitialized()` from
-/// `package:integration_test` here, which the pubspec does not yet depend on
-/// (see the report of P1-36); until then the plain test binding serves the
-/// runs on a computer.
-void initPerfBinding() => TestWidgetsFlutterBinding.ensureInitialized();
+import 'perf_result.dart';
+
+IntegrationTestWidgetsFlutterBinding? _binding;
+final _published = <PerfResult>[];
+
+/// Initialises the binding the harness runs under. Its frames are drawn at the
+/// display's pace, which the frame timings of the scroll need.
+void initPerfBinding() {
+  _binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+}
+
+/// Prints [result] as a line of the run's log and hands it to the host driver
+/// (`test_driver/perf_driver.dart`) through the binding's report data.
+void publish(PerfResult result) {
+  debugPrint(result.toLogLine());
+  _published.add(result);
+  _binding?.reportData = {
+    perfReportKey: [for (final published in _published) published.toJson()],
+  };
+}

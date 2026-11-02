@@ -6,6 +6,10 @@ import 'perf_budget.dart';
 /// be mixed with any other text (`flutter test`, `logcat`).
 const perfResultMarker = 'PERF_RESULT ';
 
+/// The key of the integration test binding's report data that holds the
+/// published results, one JSON object each.
+const perfReportKey = 'perf';
+
 /// What one run of one scenario measured, as JSON on one line.
 final class PerfResult {
   const PerfResult({

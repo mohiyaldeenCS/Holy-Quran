@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../integration_test/perf/perf_result.dart';
-import '../../test_driver/perf_driver.dart';
+import '../../test_driver/perf_summary.dart';
 
 PerfResult _run(String scenario, String metric, num value) => PerfResult(
   scenario: scenario,
@@ -120,7 +120,7 @@ void main() {
   test('a log that cannot be read, or a damaged line, exits 2', () async {
     expect((await drive(['${directory.path}/missing.log'])).code, 2);
     final damaged = File('${directory.path}/damaged.log')
-      ..writeAsStringSync('${perfResultMarker}{broken');
+      ..writeAsStringSync('$perfResultMarker{broken');
 
     final outcome = await drive([damaged.path]);
 
@@ -132,6 +132,6 @@ void main() {
     final outcome = await drive(const []);
 
     expect(outcome.code, 2);
-    expect(outcome.errors, contains('perf_driver.dart'));
+    expect(outcome.errors, contains('perf_summary.dart'));
   });
 }

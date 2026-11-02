@@ -5,7 +5,6 @@ import 'package:holyquran/ui/features/search/view_models/search_view_model.dart'
 import 'perf_binding.dart';
 import 'perf_launch.dart';
 import 'perf_pack.dart';
-import 'perf_run.dart';
 import 'perf_scenarios.dart' as scenarios;
 
 // NF-03. Run it in a new process for each repetition: the first query of a

@@ -74,7 +74,8 @@ const List<PerfCheck> perfChecks = [
     unit: 'fps',
     source:
         '$_prd, NF-02: 60 frames per second; one frame per second of '
-        'tolerance is the harness reading, to confirm with the owner',
+        'tolerance covers the rounding of a rate counted from vsync times '
+        '(D-157)',
     measures:
         'Frames per second over the scroll of the longest surah in surah '
         'mode at 1500 px/s.',
@@ -90,6 +91,20 @@ const List<PerfCheck> perfChecks = [
     measures:
         'The 99th percentile of the frame total (vsync to raster end) over '
         'the same scroll.',
+  ),
+  PerfCheck(
+    id: 'NF-02',
+    scenario: 'scroll',
+    metric: 'travelledShare',
+    comparison: Comparison.atLeast,
+    limit: 0.95,
+    unit: 'of the span',
+    source:
+        'The harness: frames are only those of a scroll if the list moved '
+        'for the whole span',
+    measures:
+        'The distance the list moved, over the distance 1500 px/s asks for. '
+        'Below the limit the longest surah is too short for the span.',
   ),
   PerfCheck(
     id: 'NF-03',
@@ -141,5 +156,6 @@ const List<PerfCheck> perfChecks = [
 ];
 
 /// The scenarios the checks name, in the order the harness runs them.
-List<String> get perfScenarios =>
-    [for (final check in perfChecks) check.scenario].toSet().toList();
+List<String> get perfScenarios => [
+  ...{for (final check in perfChecks) check.scenario},
+];

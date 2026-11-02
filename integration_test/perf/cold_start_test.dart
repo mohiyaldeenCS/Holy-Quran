@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'perf_binding.dart';
 import 'perf_launch.dart';
 import 'perf_pack.dart';
-import 'perf_run.dart';
 import 'perf_scenarios.dart' as scenarios;
 
 // NF-01. One start per process: the first launch of an install builds the pack

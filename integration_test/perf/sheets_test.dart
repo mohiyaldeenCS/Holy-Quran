@@ -4,7 +4,6 @@ import 'package:holyquran/domain/models/quran_address.dart';
 import 'perf_binding.dart';
 import 'perf_launch.dart';
 import 'perf_pack.dart';
-import 'perf_run.dart';
 import 'perf_scenarios.dart' as scenarios;
 
 // NF-05. Ten openings of each sheet in one process.

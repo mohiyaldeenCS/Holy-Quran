@@ -77,10 +77,6 @@ PerfResult resultOf(
   details: {...deviceDetails(tester), ...details},
 );
 
-/// Prints [result] where the driver finds it: one line, in the log of the
-/// run.
-void publish(PerfResult result) => debugPrint(result.toLogLine());
-
 /// Collects the frames of a run. The engine's timings (build and raster,
 /// from vsync) are used when [engineTimings] says the run has real frames;
 /// otherwise the cost of each pump is, which is informative only and says so

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' show Locale;
 
 import 'package:flutter/material.dart' show Curves, TextField;
 import 'package:flutter/widgets.dart';
@@ -82,12 +81,10 @@ Future<PerfResult> scroll(
   final recorder = FrameRecorder(engineTimings: isLiveBinding(tester))..start();
   final clock = Stopwatch()..start();
   final travelled = position.pixels;
+  final requested = pixelsPerSecond * span.inMicroseconds / 1e6;
   unawaited(
     position.animateTo(
-      math.min(
-        position.maxScrollExtent,
-        travelled + pixelsPerSecond * span.inMicroseconds / 1e6,
-      ),
+      math.min(position.maxScrollExtent, travelled + requested),
       duration: span,
       curve: Curves.linear,
     ),
@@ -108,8 +105,13 @@ Future<PerfResult> scroll(
     () => Future<void>.delayed(const Duration(milliseconds: 1500)),
   );
   recorder.stop();
-  final metrics = summariseFrames(recorder.frames);
   final distance = position.pixels - travelled;
+  // A surah that ends before the span does would score the frames of a
+  // stopped list; the share lets the check refuse such a run.
+  final metrics = {
+    ...summariseFrames(recorder.frames),
+    'travelledShare': distance / requested,
+  };
   await launched.close(tester);
   return resultOf(tester, 'scroll', metrics, {
     'frameSource': recorder.source,
