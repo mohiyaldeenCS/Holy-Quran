@@ -47,9 +47,9 @@ Map<String, String> _brandColors() => {
 
 /// Ramp token name → hex, from `tokens.json`.
 Map<String, String> _ramps() {
-  final tokens =
-      jsonDecode(_read('design/design-system/tokens.json'))
-          as Map<String, Object?>;
+  final tokens = jsonDecode(
+    _read('design/design-system/tokens.json'),
+  ) as Map<String, Object?>;
   final list =
       (tokens['color']! as Map<String, Object?>)['tokens']! as List<Object?>;
   return {
@@ -60,9 +60,10 @@ Map<String, String> _ramps() {
   };
 }
 
-String _number(double value) => double.parse(
-  value.toStringAsFixed(4),
-).toString().replaceFirst(RegExp(r'\.0$'), '');
+String _number(double value) =>
+    double.parse(value.toStringAsFixed(4))
+        .toString()
+        .replaceFirst(RegExp(r'\.0$'), '');
 
 String _hexToToken(String hex) => _ramps().entries
     .singleWhere((entry) => entry.value == hex.substring(1).toUpperCase())
@@ -164,7 +165,9 @@ void _expectRotatedSquare(String xml) {
     dotAll: true,
   ).firstMatch(xml);
   expect(rotated, isNotNull);
-  final group = _attributes(RegExp(r'<group\b[^>]*>').firstMatch(rotated![0]!)![0]!);
+  final group = _attributes(
+    RegExp(r'<group\b[^>]*>').firstMatch(rotated![0]!)![0]!,
+  );
   expect(group['android:pivotX'], '60');
   expect(group['android:pivotY'], '60');
   expect(
@@ -241,9 +244,8 @@ void main() {
 
     test('the background colour is the one of app-icon-fullbleed.svg', () {
       final svg = _read('$_logos/app-icon-fullbleed.svg');
-      final tile = RegExp(
-        r'<rect width="120"[^>]*fill="(#\w+)"',
-      ).firstMatch(svg);
+      final tile = RegExp(r'<rect width="120"[^>]*fill="(#\w+)"')
+          .firstMatch(svg);
       expect(_hexToToken(tile![1]!), 'emerald-700');
     });
 
@@ -307,12 +309,11 @@ void main() {
     });
 
     test('the app name is the ARB file\'s appTitle', () {
-      final title =
-          (jsonDecode(_read('lib/l10n/app_ar.arb'))
-              as Map<String, Object?>)['appTitle'];
-      final name = RegExp(
-        r'<string name="app_name">([^<]*)</string>',
-      ).firstMatch(_read('$_res/values/strings.xml'))![1];
+      final title = (jsonDecode(
+        _read('lib/l10n/app_ar.arb'),
+      ) as Map<String, Object?>)['appTitle'];
+      final name = RegExp(r'<string name="app_name">([^<]*)</string>')
+          .firstMatch(_read('$_res/values/strings.xml'))![1];
       expect(name, title);
     });
   });

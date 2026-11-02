@@ -13,9 +13,9 @@ void main() {
   test('writes each brand ramp as an Android colour, in the fixed order', () {
     final xml = writeAndroidColors(readTokens(encode(syntheticTokens())));
     expect(
-      RegExp(
-        r'<color name="(\w+)">#([0-9A-F]{6})</color>',
-      ).allMatches(xml).map((m) => (m[1], m[2])),
+      RegExp(r'<color name="(\w+)">#([0-9A-F]{6})</color>')
+          .allMatches(xml)
+          .map((m) => (m[1], m[2])),
       [
         ('brand_emerald_700', '0E5A52'),
         ('brand_gold_400', 'D9AE5A'),
