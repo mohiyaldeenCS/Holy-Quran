@@ -57,9 +57,8 @@ final class FlowRig {
       // The test binding refuses every connection; the server is on loopback.
       HttpOverrides.global = null;
       _root = await Directory.systemTemp.createTemp('flows');
-      bundle = (await buildFlowPack(
-        Directory('${_root.path}/bundle'),
-      )).directory;
+      bundle = (await buildFlowPack(Directory('${_root.path}/bundle')))
+          .directory;
       final served = Directory('${_root.path}/served');
       server = await FlowServer.start(served);
       tafsir = await serveCatalogue(served, server);

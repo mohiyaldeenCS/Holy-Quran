@@ -109,9 +109,9 @@ void main() {
       await expectInstalledAsServed();
       await settle(
         tester,
-        () => spokenNames(
-          tester,
-        ).any((name) => name.contains(flowL10n.resourceDelete)),
+        () =>
+            spokenNames(tester)
+                .any((name) => name.contains(flowL10n.resourceDelete)),
       );
       await expectUserDataUnchanged(bookmarks, notes);
 
@@ -125,9 +125,9 @@ void main() {
 
       await settle(
         tester,
-        () => spokenNames(
-          tester,
-        ).any((name) => name.contains(flowL10n.resourceDownload)),
+        () =>
+            spokenNames(tester)
+                .any((name) => name.contains(flowL10n.resourceDownload)),
       );
       await tapNamed(
         tester,

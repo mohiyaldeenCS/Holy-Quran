@@ -68,9 +68,8 @@ Future<SyntheticTafsirPack> serveCatalogue(
   FlowServer server,
 ) async {
   final tafsir = await buildSyntheticTafsirPack(served);
-  final manifest = await File(
-    '${tafsir.directory.path}/$manifestFileName',
-  ).readAsBytes();
+  final manifest = await File('${tafsir.directory.path}/$manifestFileName')
+      .readAsBytes();
   final data = await tafsir.file.readAsBytes();
   const base = '/$flowTafsirId/1';
   final json = syntheticCatalogueJson(base: server.uri('/').toString());
@@ -93,8 +92,7 @@ Future<SyntheticTafsirPack> serveCatalogue(
     ];
   // The base pack is bundled, never downloaded.
   packs.removeWhere((pack) => pack['kind'] == 'text');
-  await File(
-    '${served.path}/catalogue.json',
-  ).writeAsBytes(utf8.encode(jsonEncode(json)));
+  await File('${served.path}/catalogue.json')
+      .writeAsBytes(utf8.encode(jsonEncode(json)));
   return tafsir;
 }
