@@ -153,12 +153,14 @@ void main() {
   late Directory temp;
   late _Server server;
   late FileDownloader plugin;
+  late MemoryTaskStorage storage;
   late BackgroundDownloadService service;
   final httpOverrides = HttpOverrides.current;
 
   setUpAll(() async {
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
-    plugin = memoryFileDownloader();
+    storage = MemoryTaskStorage();
+    plugin = memoryFileDownloader(storage: storage);
     HttpOverrides.global = null;
     temp = await Directory.systemTemp.createTemp('download_service_test');
     await plugin.ready;
@@ -408,6 +410,34 @@ void main() {
       expect(await landed('staging/again.bin').readAsBytes(), _large);
     });
 
+    test('the same order made again after a stop is a task of its own too, '
+        'which the stopped one cannot end', () async {
+      server.bytesPerSecond['/large.bin'] = 1 << 20;
+      final target = order('/large.bin', 'staging/same.bin');
+      final running = Completer<void>();
+      final stopped = service.download(target, (u) {
+        if ((u.progress?.receivedBytes ?? 0) > 0 && !running.isCompleted) {
+          running.complete();
+        }
+      });
+      await running.future;
+      server.bytesPerSecond.remove('/large.bin');
+
+      await service.cancel(target);
+      // Once the plugin lists nothing of the file, only the service knows
+      // that the first task's id was spent.
+      while ((await plugin.allTasks(group: 'packs')).isNotEmpty) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+      final outcome = await service
+          .download(target, (_) {})
+          .timeout(const Duration(seconds: 20));
+
+      expect(await stopped, isA<FileDownloadCanceled>());
+      expect(outcome, isA<FileDownloaded>());
+      expect(await landed('staging/same.bin').readAsBytes(), _large);
+    });
+
     test(
       'the first attempt keeps the id it always had, a later one differs',
       () {
@@ -600,6 +630,42 @@ void main() {
         await landed('staging/relaunch-running.bin').readAsBytes(),
         _large,
       );
+      expect([for (final r in server.requests) r.status], [HttpStatus.ok]);
+    });
+
+    test('a task that finishes while the service looks for it ends the '
+        'call, whatever the record it read says', () async {
+      server.bytesPerSecond['/large.bin'] = 2 << 20;
+      final first = BackgroundDownloadService.under(
+        plugin,
+        '${temp.path}/root',
+      );
+      await first.start();
+      final target = order('/large.bin', 'staging/relaunch-lag.bin');
+      final running = Completer<void>();
+      unawaited(
+        first.download(target, (u) {
+          if ((u.progress?.receivedBytes ?? 0) > 0 && !running.isCompleted) {
+            running.complete();
+          }
+        }),
+      );
+      await running.future;
+
+      final relaunched = BackgroundDownloadService.under(
+        plugin,
+        '${temp.path}/root',
+      );
+      await relaunched.start();
+      storage.lag = const Duration(seconds: 4);
+      addTearDown(() => storage.lag = null);
+
+      final outcome = await relaunched
+          .download(target, (_) {})
+          .timeout(const Duration(seconds: 30));
+
+      expect(outcome, isA<FileDownloaded>());
+      expect(await landed('staging/relaunch-lag.bin').readAsBytes(), _large);
       expect([for (final r in server.requests) r.status], [HttpStatus.ok]);
     });
 

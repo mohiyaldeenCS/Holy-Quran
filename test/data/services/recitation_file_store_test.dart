@@ -125,4 +125,32 @@ void main() {
 
     expect(await Directory(staging).list().toList(), isEmpty);
   });
+
+  test('removeStale removes the copies of a file that is on the device whole, '
+      'the claimed one too, and keeps those of a file that is not', () async {
+    await File(finalPath).writeAsBytes(_bytes);
+    await stage(0, _late);
+    await stage(2, _bytes);
+    await File('$staging/${_file.sha256}.claimed.mp3').writeAsBytes(_bytes);
+    final other = File('$staging/${'0' * 64}.a1.mp3')..writeAsBytesSync(_bytes);
+
+    await store().removeStale(_pack);
+
+    expect(await File(finalPath).readAsBytes(), _bytes);
+    expect(
+      [
+        for (final e in await Directory(staging).list().toList())
+          e.uri.pathSegments.last,
+      ],
+      [other.uri.pathSegments.last],
+    );
+  });
+
+  test('removeStale does nothing without a staging folder', () async {
+    await Directory(staging).delete();
+
+    await store().removeStale(_pack);
+
+    expect(await Directory(staging).exists(), isFalse);
+  });
 }
