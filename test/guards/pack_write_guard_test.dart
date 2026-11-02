@@ -89,9 +89,8 @@ Iterable<String> _violationsIn(String path, String text) sync* {
     if (!RegExp(r'\buri\s*:\s*true\b').hasMatch(arguments)) {
       yield '${at(call.start)}: open without uri: true';
     }
-    if (!RegExp(
-      r'\bmode\s*:\s*OpenMode\s*\.\s*readOnly\b',
-    ).hasMatch(arguments)) {
+    if (!RegExp(r'\bmode\s*:\s*OpenMode\s*\.\s*readOnly\b')
+        .hasMatch(arguments)) {
       yield '${at(call.start)}: open without OpenMode.readOnly';
     }
   }

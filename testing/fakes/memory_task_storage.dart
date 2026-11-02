@@ -1,4 +1,24 @@
 import 'package:background_downloader/background_downloader.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+/// Starts the plugin's one instance on a [MemoryTaskStorage], on Wi-Fi: since
+/// 9.6 it reads connectivity as it starts, and holds its tasks without a
+/// network. Call it before setting [HttpOverrides.global], which the test
+/// binding replaces.
+FileDownloader memoryFileDownloader() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+    ..setMockMethodCallHandler(
+      const MethodChannel('dev.fluttercommunity.plus/connectivity'),
+      (call) async => ['wifi'],
+    )
+    ..setMockStreamHandler(
+      const EventChannel('dev.fluttercommunity.plus/connectivity_status'),
+      MockStreamHandler.inline(onListen: (arguments, events) {}),
+    );
+  return FileDownloader(persistentStorage: MemoryTaskStorage());
+}
 
 /// background_downloader's task database in memory. The plugin keeps its
 /// records in files, written by an isolate that outlives a test; this keeps

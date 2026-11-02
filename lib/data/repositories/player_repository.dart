@@ -18,11 +18,10 @@ typedef LocatedAudio = ({Uri uri, bool streamed});
 
 /// Finds the file behind a segment of a plan; null when the recitation
 /// offers none that may be played.
-typedef RecitationFileLocator =
-    Future<LocatedAudio?> Function(
-      Recitation recitation,
-      PlaybackSource source,
-    );
+typedef RecitationFileLocator = Future<LocatedAudio?> Function(
+  Recitation recitation,
+  PlaybackSource source,
+);
 
 /// A surah's name from the base pack, or null when it cannot be read.
 typedef SurahNameLookup = Future<PackText?> Function(int surah);

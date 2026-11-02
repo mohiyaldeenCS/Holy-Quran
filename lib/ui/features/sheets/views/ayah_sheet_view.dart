@@ -96,9 +96,8 @@ class AyahSheetView extends StatelessWidget {
                   variant: ButtonVariant.tonal,
                   icon: IconName.note,
                   onPressed: () => unawaited(
-                    GoRouter.of(
-                      context,
-                    ).push<Object?>(Routes.noteSheet(address)),
+                    GoRouter.of(context)
+                        .push<Object?>(Routes.noteSheet(address)),
                   ),
                 ),
               ],

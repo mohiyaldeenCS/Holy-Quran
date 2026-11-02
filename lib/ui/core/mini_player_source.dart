@@ -14,5 +14,6 @@ abstract interface class MiniPlayerSource implements Listenable {
 
 /// Creates the source over the providers above [context], or null when the
 /// app has none to offer (no verified base pack).
-typedef MiniPlayerSourceFactory =
-    MiniPlayerSource? Function(BuildContext context);
+typedef MiniPlayerSourceFactory = MiniPlayerSource? Function(
+  BuildContext context,
+);

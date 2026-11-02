@@ -100,9 +100,8 @@ void main() {
         .widget<ReaderBlock>(find.byType(ReaderBlock).first)
         .layout;
     final origin = tester.getTopLeft(find.byType(ReaderBlock).first);
-    final rect = TargetGeometry.of(layout).words.values.firstWhere(
-      (r) => (origin + r.center).dy < readerHeight - 160,
-    );
+    final rect = TargetGeometry.of(layout).words.values
+        .firstWhere((r) => (origin + r.center).dy < readerHeight - 160);
     return origin + rect.center;
   }
 

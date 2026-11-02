@@ -34,9 +34,8 @@ Future<void> _pump(
       ReadingTheme.paper,
       Builder(
         builder: (context) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(textScale)),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space5),
             child: child,

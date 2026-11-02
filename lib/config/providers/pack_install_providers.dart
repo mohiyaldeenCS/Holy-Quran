@@ -16,11 +16,10 @@ import 'package:holyquran/data/services/pack_file_service.dart';
 
 /// Makes the installer of [packInstallProviders], given what it is told of
 /// the packs.
-typedef InstallerFactory =
-    LocalPackInstallRepository Function({
-      void Function(String packId)? onPackChanged,
-      Set<String> reservedPackIds,
-    });
+typedef InstallerFactory = LocalPackInstallRepository Function({
+  void Function(String packId)? onPackChanged,
+  Set<String> reservedPackIds,
+});
 
 /// Provides the device's [FreeSpaceService], which the resource manager
 /// reads too, and the installer, and starts it: the installed packs are

@@ -45,8 +45,8 @@ The project is developed with Claude Code. Open the repository, and the session 
 
 ### Toolchain
 
-Flutter **3.44.7** stable (Dart 3.12.2), the version pinned in `docs/DECISIONS.md`
-(D-040) and used by CI. In Claude Code cloud sessions,
+Flutter **3.47.9** stable (Dart 3.13.7), the version pinned in `docs/DECISIONS.md`
+(D-154) and used by CI. In Claude Code cloud sessions,
 `.claude/hooks/session-start.sh` installs it automatically.
 
 ### Run, check, test

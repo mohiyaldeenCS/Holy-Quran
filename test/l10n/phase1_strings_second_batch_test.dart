@@ -104,9 +104,9 @@ final _emoji = RegExp(
 );
 
 void main() {
-  final arb =
-      jsonDecode(File('lib/l10n/app_ar.arb').readAsStringSync())
-          as Map<String, dynamic>;
+  final arb = jsonDecode(
+    File('lib/l10n/app_ar.arb').readAsStringSync(),
+  ) as Map<String, dynamic>;
   final generated = File('lib/l10n/app_localizations.dart').readAsStringSync();
 
   test('the key lists have no duplicates', () {

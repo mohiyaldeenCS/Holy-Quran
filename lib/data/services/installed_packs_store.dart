@@ -62,9 +62,8 @@ final class InstalledPacksStore {
   /// Files an earlier attempt left there are kept, so that it can resume.
   Future<String> prepareStaging(String id, int version) async {
     _checkId(id);
-    return (await Directory(
-      stagingPath(id, version),
-    ).create(recursive: true)).path;
+    return (await Directory(stagingPath(id, version)).create(recursive: true))
+        .path;
   }
 
   Future<void> discardStaging(String id, int version) async {
@@ -216,12 +215,10 @@ final class InstalledPacksStore {
 
   /// Renames `packs/<id>/` out of `packs/` in one step, then removes it.
   Future<void> _discardPack(String id) async {
-    final removed = await Directory(
-      '${_support.path}/$_removed',
-    ).create(recursive: true);
-    final moved = await Directory(
-      _packPath(id),
-    ).rename('${removed.path}/$id-${DateTime.now().microsecondsSinceEpoch}');
+    final removed = await Directory('${_support.path}/$_removed')
+        .create(recursive: true);
+    final moved = await Directory(_packPath(id))
+        .rename('${removed.path}/$id-${DateTime.now().microsecondsSinceEpoch}');
     await moved.delete(recursive: true);
   }
 

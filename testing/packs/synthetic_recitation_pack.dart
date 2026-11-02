@@ -230,9 +230,8 @@ Future<SyntheticRecitationPack> buildSyntheticRecitationPack(
       ? 'http://example.invalid/synthetic/'
       : 'https://example.invalid/synthetic/';
 
-  final directory = await Directory(
-    '${root.path}/$id/$version',
-  ).create(recursive: true);
+  final directory = await Directory('${root.path}/$id/$version')
+      .create(recursive: true);
   final file = File('${directory.path}/$recitationFileName');
   writePackFile(
     file,

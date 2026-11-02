@@ -49,9 +49,8 @@ List<Widget> highlightsOver(
       child: IgnorePointer(
         child: ExcludeSemantics(
           child: MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: layout.plan.style.scaler),
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: layout.plan.style.scaler),
             child: AyahMarker(number: recited.ayah, playing: true),
           ),
         ),

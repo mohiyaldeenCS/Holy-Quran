@@ -26,19 +26,16 @@ void main() {
     );
     final verified =
         (await verifier.verify(pack.directory.path) as Ok<VerifiedPack>).value;
-    final text =
-        (PackQuranTextRepository.open(verified) as Ok<PackQuranTextRepository>)
-            .value;
+    final text = (PackQuranTextRepository.open(
+      verified,
+    ) as Ok<PackQuranTextRepository>).value;
     addTearDown(text.close);
-    final real =
-        (PackQuranIndexRepository.build(
-                  riwaya: text.riwaya,
-                  surahs: (await text.surahs() as Ok<List<SurahInfo>>).value,
-                  map: (await text.editionMap() as Ok<EditionMap>).value,
-                  serving: () => true,
-                )
-                as Ok<PackQuranIndexRepository>)
-            .value;
+    final real = (PackQuranIndexRepository.build(
+      riwaya: text.riwaya,
+      surahs: (await text.surahs() as Ok<List<SurahInfo>>).value,
+      map: (await text.editionMap() as Ok<EditionMap>).value,
+      serving: () => true,
+    ) as Ok<PackQuranIndexRepository>).value;
     final fake = FakeQuranIndexRepository.synthetic();
 
     expect(fake.riwaya, real.riwaya);

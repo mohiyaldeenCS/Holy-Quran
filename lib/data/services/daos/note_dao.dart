@@ -110,18 +110,16 @@ class NoteDao extends DatabaseAccessor<UserDatabase> with _$NoteDaoMixin {
           NoteTagCompanion.insert(noteId: id, tagId: tagId, updatedAt: at),
         );
       } else if (pair.deleted) {
-        await update(
-          noteTag,
-        ).replace(pair.copyWith(deleted: false, updatedAt: at));
+        await update(noteTag)
+            .replace(pair.copyWith(deleted: false, updatedAt: at));
       }
     }
     for (final pair in pairs) {
       if (!pair.deleted &&
           !tagIds.contains(pair.tagId) &&
           !deletedTags.contains(pair.tagId)) {
-        await update(
-          noteTag,
-        ).replace(pair.copyWith(deleted: true, updatedAt: at));
+        await update(noteTag)
+            .replace(pair.copyWith(deleted: true, updatedAt: at));
       }
     }
   }

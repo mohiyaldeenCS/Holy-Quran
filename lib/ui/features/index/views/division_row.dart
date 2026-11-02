@@ -55,9 +55,8 @@ class DivisionRow extends StatelessWidget {
                     maxLines: 1,
                     softWrap: false,
                     textScaler: TextScaler.noScaling,
-                    style: IndexMetrics.numberStyleIn(
-                      box,
-                    ).copyWith(color: colors.accent),
+                    style: IndexMetrics.numberStyleIn(box)
+                        .copyWith(color: colors.accent),
                   ),
                 ],
               ),
