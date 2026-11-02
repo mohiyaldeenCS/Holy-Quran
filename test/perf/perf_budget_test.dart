@@ -40,9 +40,8 @@ void main() {
   });
 
   test('NF-02 holds the frame rate to 60 less a stated tolerance', () {
-    final fps = checksOf(
-      'NF-02',
-    ).singleWhere((c) => c.metric == 'framesPerSecond');
+    final fps = checksOf('NF-02')
+        .singleWhere((c) => c.metric == 'framesPerSecond');
     expect(fps.comparison, Comparison.atLeast);
     expect(fps.limit, lessThan(60));
     expect(fps.limit, greaterThanOrEqualTo(58));

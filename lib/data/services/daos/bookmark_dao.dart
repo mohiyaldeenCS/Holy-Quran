@@ -123,18 +123,16 @@ class BookmarkDao extends DatabaseAccessor<UserDatabase>
               ),
             );
           } else if (pair.deleted) {
-            await update(
-              bookmarkTag,
-            ).replace(pair.copyWith(deleted: false, updatedAt: at));
+            await update(bookmarkTag)
+                .replace(pair.copyWith(deleted: false, updatedAt: at));
           }
         }
         for (final pair in pairs) {
           if (!pair.deleted &&
               !tagIds.contains(pair.tagId) &&
               !deletedTags.contains(pair.tagId)) {
-            await update(
-              bookmarkTag,
-            ).replace(pair.copyWith(deleted: true, updatedAt: at));
+            await update(bookmarkTag)
+                .replace(pair.copyWith(deleted: true, updatedAt: at));
           }
         }
         return true;

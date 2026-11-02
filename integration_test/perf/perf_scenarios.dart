@@ -178,9 +178,8 @@ Offset firstWordPoint(WidgetTester tester) {
   final layout = tester.widget<ReaderBlock>(block).layout;
   final origin = tester.getTopLeft(block);
   final height = tester.view.physicalSize.height / tester.view.devicePixelRatio;
-  final rect = TargetGeometry.of(
-    layout,
-  ).words.values.firstWhere((r) => (origin + r.center).dy < height - 160);
+  final rect = TargetGeometry.of(layout).words.values
+      .firstWhere((r) => (origin + r.center).dy < height - 160);
   return origin + rect.center;
 }
 

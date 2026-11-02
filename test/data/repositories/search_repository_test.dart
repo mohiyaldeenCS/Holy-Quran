@@ -139,10 +139,9 @@ void main() {
         serving: () => true,
       );
       Future<List<QuranAddress>> found(String text, int juz) async => ayatOf(
-        (await split.search(_query(text, scope: JuzScope(juz)))
-                as Ok<SearchResults>)
-            .value
-            .hits,
+        (await split.search(
+          _query(text, scope: JuzScope(juz)),
+        ) as Ok<SearchResults>).value.hits,
       );
       expect(await found('alpha', 1), [_ayah(1, 1), _ayah(1, 2)]);
       expect(await found('alpha', 2), [_ayah(1, 3), _ayah(2, 1)]);

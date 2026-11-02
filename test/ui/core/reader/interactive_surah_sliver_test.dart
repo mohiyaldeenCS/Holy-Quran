@@ -37,9 +37,8 @@ Widget _reader(
   ReadingTheme.paper,
   Builder(
     builder: (context) => MediaQuery(
-      data: MediaQuery.of(
-        context,
-      ).copyWith(textScaler: TextScaler.linear(systemScale)),
+      data: MediaQuery.of(context)
+          .copyWith(textScaler: TextScaler.linear(systemScale)),
       child: ReaderPinch(
         onPinchEnd: (scale, focal) => log.pinches.add((scale, focal)),
         child: SizedBox(

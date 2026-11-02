@@ -20,9 +20,9 @@ void main() {
 
   setUpAll(() async {
     root = await Directory.systemTemp.createTemp('synthetic_v2_integrity');
-    textPack = (await buildSyntheticPack(
-      Directory('${root.path}/text'),
-    )).directory.path;
+    textPack = (await buildSyntheticPack(Directory('${root.path}/text')))
+        .directory
+        .path;
   });
   tearDownAll(() => root.delete(recursive: true));
 
@@ -45,9 +45,10 @@ void main() {
 
   defineTafsirPackIntegritySuite(
     'a synthetic tafsir pack',
-    () async => (await buildSyntheticTafsirPack(
-      Directory('${root.path}/tafsir'),
-    )).directory.path,
+    () async =>
+        (await buildSyntheticTafsirPack(Directory('${root.path}/tafsir')))
+            .directory
+            .path,
     textPackDirectory: () async => textPack,
   );
 
@@ -94,16 +95,14 @@ void main() {
   }
 
   test('the riwaya check finds a text pack of another riwaya', () async {
-    final other = await Directory(
-      '${root.path}/warsh/text/1',
-    ).create(recursive: true);
+    final other = await Directory('${root.path}/warsh/text/1')
+        .create(recursive: true);
     await File('$textPack/$textFileName').copy('${other.path}/$textFileName');
-    final manifest =
-        jsonDecode(await File('$textPack/$manifestFileName').readAsString())
-            as Map<String, Object?>;
-    await File(
-      '${other.path}/$manifestFileName',
-    ).writeAsString(jsonEncode({...manifest, 'riwaya': 'warsh'}));
+    final manifest = jsonDecode(
+      await File('$textPack/$manifestFileName').readAsString(),
+    ) as Map<String, Object?>;
+    await File('${other.path}/$manifestFileName')
+        .writeAsString(jsonEncode({...manifest, 'riwaya': 'warsh'}));
     final tafsir = await buildSyntheticTafsirPack(
       Directory('${root.path}/tafsir-warsh'),
     );

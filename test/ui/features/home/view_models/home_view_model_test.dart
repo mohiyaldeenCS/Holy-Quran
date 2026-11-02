@@ -183,9 +183,8 @@ void main() {
     );
 
     test('names the surah, the ayah and the reciter', () {
-      final row = listening(
-        last: listenedAt(QuranAddress('hafs', 2, 2)),
-      ).continueListening!;
+      final row = listening(last: listenedAt(QuranAddress('hafs', 2, 2)))
+          .continueListening!;
 
       expect(row.surahName, same(index.surahs[1].name));
       expect(row.ayah, 2);
@@ -278,9 +277,8 @@ void main() {
 
     test('failed is announced', () {
       expect(
-        withState(
-          const IntegrityFailed(PackInconsistent('base', 'synthetic')),
-        ).baseFailed,
+        withState(const IntegrityFailed(PackInconsistent('base', 'synthetic')))
+            .baseFailed,
         isTrue,
       );
     });

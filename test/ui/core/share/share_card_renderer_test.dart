@@ -183,9 +183,8 @@ void main() {
   testWidgets('paints the card as a PNG 1080 pixels wide', (tester) async {
     final pack = (await tester.runAsync(loadShareTestPack))!;
     final repository = pack.openRepository();
-    final ayah = (await tester.runAsync(
-      () => packAyat(pack, repository),
-    ))!.first;
+    final ayah = (await tester.runAsync(() => packAyat(pack, repository)))!
+        .first;
     final card = _card(ayah, ShareCardDesign.paper, 34);
     final renderer = await _renderer(tester);
     final png = await tester.runAsync(() => renderer.png(card));

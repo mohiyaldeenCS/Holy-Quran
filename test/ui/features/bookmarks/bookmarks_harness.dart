@@ -71,10 +71,12 @@ final class BookmarksWorld {
     String body, {
     String? category,
     Set<String> tagIds = const {},
-  }) async =>
-      (await notes.add(at, body, categoryId: category, tagIds: tagIds)
-              as Ok<Note>)
-          .value;
+  }) async => (await notes.add(
+    at,
+    body,
+    categoryId: category,
+    tagIds: tagIds,
+  ) as Ok<Note>).value;
 }
 
 /// Pumps the app, phone sized, over [world]'s data and pack, and goes to

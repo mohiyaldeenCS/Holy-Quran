@@ -157,10 +157,10 @@ void main() {
   final httpOverrides = HttpOverrides.current;
 
   setUpAll(() async {
-    HttpOverrides.global = null;
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    plugin = memoryFileDownloader();
+    HttpOverrides.global = null;
     temp = await Directory.systemTemp.createTemp('download_service_test');
-    plugin = FileDownloader(persistentStorage: MemoryTaskStorage());
     await plugin.ready;
     await plugin.configure(
       globalConfig: (Config.tempFilePath, '${temp.path}/partial'),
@@ -294,6 +294,29 @@ void main() {
         first.bytes + resumed.bytes,
         lessThanOrEqualTo(_large.length + (64 << 10)),
       );
+    });
+
+    test('a drop while offline stays pending, spends no request, and cancel '
+        'ends it', () async {
+      server.dropAfter['/large.bin'] = 3 << 19;
+      addTearDown(() => plugin.isConnected = true);
+      final target = order('/large.bin', 'staging/held.bin');
+      final held = Completer<void>();
+      var ended = false;
+      final outcome = service.download(target, (u) {
+        if ((u.progress?.receivedBytes ?? 0) > 0) plugin.isConnected = false;
+        if (u.status == FileTaskStatus.retrying && !held.isCompleted) {
+          held.complete();
+        }
+      });
+      unawaited(outcome.whenComplete(() => ended = true));
+      await held.future;
+      // Longer than the plugin's first wait between retries when online.
+      await Future<void>.delayed(const Duration(seconds: 3));
+      expect(ended, isFalse);
+      expect(server.requests, hasLength(1));
+      await service.cancel(target);
+      expect(await outcome, isA<FileDownloadCanceled>());
     });
 
     test(

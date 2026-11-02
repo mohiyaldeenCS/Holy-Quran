@@ -169,11 +169,9 @@ const y = 0xFF;
       for (final (first, last) in firstAndLast) {
         for (final code in [first, last]) {
           final letter = String.fromCharCode(code);
-          expect(
-            _violations({file: "final a = '$letter';"}),
-            ['$file:1: Arabic text'],
-            reason: code.toRadixString(16),
-          );
+          expect(_violations({file: "final a = '$letter';"}), [
+            '$file:1: Arabic text',
+          ], reason: code.toRadixString(16));
         }
         for (final code in [first - 1, last + 1]) {
           if (firstAndLast.any((r) => code >= r.$1 && code <= r.$2)) continue;

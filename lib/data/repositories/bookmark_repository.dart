@@ -106,15 +106,16 @@ final class LocalBookmarkRepository extends BookmarkRepository {
       case Failure(:final error):
         return Failure(error);
     }
-    if (row != null && !row.deleted) return const Ok(null);
+    final stored = row;
+    if (stored != null && !stored.deleted) return const Ok(null);
     return _change(() async {
-      if (row == null) throw ItemNotFound(id);
+      if (stored == null) throw ItemNotFound(id);
       final now = _now();
-      if (now - row.updatedAt > undoWindow.inMilliseconds) {
+      if (now - stored.updatedAt > undoWindow.inMilliseconds) {
         throw UndoExpired(id);
       }
       if (!await _dao.revive(id, at: now)) {
-        throw AyahAlreadyBookmarked(QuranAddress.parse(row.address));
+        throw AyahAlreadyBookmarked(QuranAddress.parse(stored.address));
       }
     });
   }

@@ -75,9 +75,9 @@ const double _clampHeight = 92;
 const double _cardAyahSize = 22;
 
 /// The ARB templates, read from the file so that no template is typed here.
-final _templates =
-    jsonDecode(File('lib/l10n/app_ar.arb').readAsStringSync())
-        as Map<String, Object?>;
+final _templates = jsonDecode(
+  File('lib/l10n/app_ar.arb').readAsStringSync(),
+) as Map<String, Object?>;
 
 final _placeholder = RegExp(r'\{(\w+)\}');
 

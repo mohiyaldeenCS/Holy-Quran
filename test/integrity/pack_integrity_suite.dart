@@ -414,12 +414,12 @@ Future<List<String>> locationProblems(PackUnderTest pack) =>
     directoryLocationProblems(pack.directory);
 
 Future<List<String>> directoryLocationProblems(String directory) async {
-  final segments = Directory(
-    directory,
-  ).absolute.uri.pathSegments.where((segment) => segment.isNotEmpty).toList();
-  final manifest =
-      jsonDecode(await File('$directory/manifest.json').readAsString())
-          as Map<String, Object?>;
+  final segments = Directory(directory).absolute.uri.pathSegments
+      .where((segment) => segment.isNotEmpty)
+      .toList();
+  final manifest = jsonDecode(
+    await File('$directory/manifest.json').readAsString(),
+  ) as Map<String, Object?>;
   final expected = ['${manifest['id']}', '${manifest['version']}'];
   final found = segments.length < 2
       ? segments
@@ -569,9 +569,9 @@ Future<(int, int)?> _spanCounts(
 /// value manifest.json holds: null or an object of strings, numbers and
 /// booleans.
 Future<List<String>> sourceOptionsProblems(PackUnderTest pack) async {
-  final json =
-      jsonDecode(await File('${pack.directory}/manifest.json').readAsString())
-          as Map<String, Object?>;
+  final json = jsonDecode(
+    await File('${pack.directory}/manifest.json').readAsString(),
+  ) as Map<String, Object?>;
   return optionsProblems([
     for (final source in pack.manifest.sources) source.options,
   ], json['sources']);
@@ -1059,9 +1059,8 @@ Future<List<String>> fontProblems(PackUnderTest pack) async {
   final font = pack.manifest.font;
   final bytes = await File(amiriQuranFontPath).readAsBytes();
   final family = _fontName(bytes, 16) ?? _fontName(bytes, 1);
-  final version = RegExp(
-    r'^Version (\d+\.\d+)',
-  ).firstMatch(_fontName(bytes, 5) ?? '')?[1];
+  final version = RegExp(r'^Version (\d+\.\d+)')
+      .firstMatch(_fontName(bytes, 5) ?? '')?[1];
   return [
     if (sha256.convert(bytes).toString() != font.sha256)
       'font.sha256 is not the SHA-256 of $amiriQuranFontPath',

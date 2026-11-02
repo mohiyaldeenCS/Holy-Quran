@@ -22,9 +22,8 @@ void main() {
         child: goldenColumn([
           const PositionBar(surahName: _name, juz: 30, hizb: 60),
           MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: const TextScaler.linear(2)),
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: const TextScaler.linear(2)),
             child: const PositionBar(surahName: _name, juz: 30, hizb: 60),
           ),
         ]),

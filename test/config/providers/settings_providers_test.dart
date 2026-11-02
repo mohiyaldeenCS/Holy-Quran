@@ -165,9 +165,8 @@ void main() {
       final unreadable = UserDatabase(NativeDatabase(file));
       addTearDown(unreadable.close);
 
-      final settings = (await _settingsOver(
-        unreadable,
-      )).read<AppSettingsRepository>();
+      final settings = (await _settingsOver(unreadable))
+          .read<AppSettingsRepository>();
 
       expect(settings, isA<InMemoryAppSettingsRepository>());
       expect(settings.themePreference, const ThemePreference());

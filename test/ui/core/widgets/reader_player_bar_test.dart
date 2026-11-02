@@ -37,9 +37,8 @@ Future<void> _pump(
       ReadingTheme.paper,
       Builder(
         builder: (context) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(textScale)),
           child: SizedBox(width: _width, child: child),
         ),
       ),
@@ -275,9 +274,8 @@ void main() {
         ReadingTheme.paper,
         Builder(
           builder: (context) => MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: const TextScaler.linear(2)),
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: const TextScaler.linear(2)),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.space4,

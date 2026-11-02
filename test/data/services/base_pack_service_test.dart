@@ -113,9 +113,8 @@ void main() {
     final manifest = pack.manifestFile.readAsBytesSync();
     await service.extract([manifestFileName]);
     await service.remember(manifest);
-    File(
-      '${await service.directory()}/$manifestFileName',
-    ).writeAsBytesSync(Uint8List.fromList(manifest)..[0] ^= 1);
+    File('${await service.directory()}/$manifestFileName')
+        .writeAsBytesSync(Uint8List.fromList(manifest)..[0] ^= 1);
 
     expect(await service.remembers(manifest), isFalse);
   });

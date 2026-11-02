@@ -50,9 +50,8 @@ final class ShareCard extends StatelessWidget {
       design: design,
     );
     return MediaQuery(
-      data: MediaQuery.of(
-        context,
-      ).copyWith(textScaler: TextScaler.noScaling, boldText: false),
+      data: MediaQuery.of(context)
+          .copyWith(textScaler: TextScaler.noScaling, boldText: false),
       child: SizedBox(
         width: _cardWidth,
         height: _cardHeight,

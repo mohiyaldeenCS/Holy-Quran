@@ -272,29 +272,26 @@ void main() {
     expect(viewModel.failed, isFalse);
   });
 
-  test(
-    'a pack that is failing when the screen opens has no chips, and gets them when it serves',
-    () async {
-      fixture.serving = false;
-      final search = finding()..failure = const PackDisabled('synthetic-text');
-      final integrity = FakePackIntegrityRepository();
-      final viewModel = viewModelOf(search, integrity: integrity);
-      await viewModel.load();
+  test('a pack that is failing when the screen opens has no chips, and gets them when it serves', () async {
+    fixture.serving = false;
+    final search = finding()..failure = const PackDisabled('synthetic-text');
+    final integrity = FakePackIntegrityRepository();
+    final viewModel = viewModelOf(search, integrity: integrity);
+    await viewModel.load();
 
-      expect(viewModel.hasData, isFalse);
-      expect(viewModel.loaded, isTrue);
-      expect(viewModel.canSearch, isFalse);
+    expect(viewModel.hasData, isFalse);
+    expect(viewModel.loaded, isTrue);
+    expect(viewModel.canSearch, isFalse);
 
-      fixture.serving = true;
-      search.failure = null;
-      integrity.report('synthetic-text', const IntegrityOk());
-      await pumpEventQueue();
+    fixture.serving = true;
+    search.failure = null;
+    integrity.report('synthetic-text', const IntegrityOk());
+    await pumpEventQueue();
 
-      expect(viewModel.hasData, isTrue);
-      expect(viewModel.canSearch, isTrue);
-      expect(viewModel.kinds, [SearchKinds.word, SearchKinds.bare]);
-    },
-  );
+    expect(viewModel.hasData, isTrue);
+    expect(viewModel.canSearch, isTrue);
+    expect(viewModel.kinds, [SearchKinds.word, SearchKinds.bare]);
+  });
 
   test('is not loaded until the pack has answered with its kinds', () async {
     final search = _HeldSearch();
