@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:background_downloader/background_downloader.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -56,7 +55,7 @@ void main() {
 
   // The areas start the pack installer, which creates the downloader plugin;
   // its own storage runs an isolate that outlives the test.
-  setUpAll(() => FileDownloader(persistentStorage: MemoryTaskStorage()));
+  setUpAll(memoryFileDownloader);
 
   test('the areas are set up in the order of D-103', () {
     expect(appAreas, [

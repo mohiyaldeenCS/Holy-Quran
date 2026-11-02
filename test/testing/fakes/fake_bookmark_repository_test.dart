@@ -27,8 +27,9 @@ void main() {
       hasLength(1),
     );
     expect(
-      (await bookmarks.list(categoryId: 'category-a') as Ok<List<Bookmark>>)
-          .value,
+      (await bookmarks.list(
+        categoryId: 'category-a',
+      ) as Ok<List<Bookmark>>).value,
       isEmpty,
     );
     await bookmarks.delete(added.id);

@@ -26,9 +26,9 @@ final _style = AppTextStyles.surahHeader.copyWith(
 );
 
 /// The ARB templates, read from the file so the test types no template.
-final _templates =
-    jsonDecode(File('lib/l10n/app_ar.arb').readAsStringSync())
-        as Map<String, Object?>;
+final _templates = jsonDecode(
+  File('lib/l10n/app_ar.arb').readAsStringSync(),
+) as Map<String, Object?>;
 
 // The copy reference names its placeholders as the copy format does.
 String _filled(String key) => (_templates[key]! as String)

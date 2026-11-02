@@ -257,10 +257,10 @@ void main() {
 
     VerifiedPack verified(SyntheticPack pack) => VerifiedPack(
       directory: pack.directory.path,
-      manifest:
-          (parsePackManifest(pack.manifestFile.readAsBytesSync(), pack: 'p')
-                  as Ok<PackManifest>)
-              .value,
+      manifest: (parsePackManifest(
+        pack.manifestFile.readAsBytesSync(),
+        pack: 'p',
+      ) as Ok<PackManifest>).value,
       signatureChecked: false,
     );
 

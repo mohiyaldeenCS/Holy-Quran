@@ -164,11 +164,11 @@ void main() {
         _ayat(FromAyahTool(_a('10:3'), AyahToolEnd.page)),
         _span('10:3', '10:4'),
       );
-      expect(
-        _ayat(FromAyahTool(_a('9:8'), AyahToolEnd.juz)),
-        ['9:8', '9:9', ..._span('10:1', '10:4')],
-        reason: 'the last juz ends with the mushaf',
-      );
+      expect(_ayat(FromAyahTool(_a('9:8'), AyahToolEnd.juz)), [
+        '9:8',
+        '9:9',
+        ..._span('10:1', '10:4'),
+      ], reason: 'the last juz ends with the mushaf');
     });
 
     test('a number outside the edition is refused, never clamped', () {

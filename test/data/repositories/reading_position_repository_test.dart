@@ -145,9 +145,8 @@ void main() {
     final file = File('${directory.path}/${UserDatabase.fileName}');
 
     final first = UserDatabase(NativeDatabase(file));
-    await (await _load(
-      ReadingPositionDao(first),
-    )).save(QuranAddress.parse('hafs:18:10'));
+    await (await _load(ReadingPositionDao(first)))
+        .save(QuranAddress.parse('hafs:18:10'));
     await first.close();
 
     final second = UserDatabase(NativeDatabase(file));

@@ -17,8 +17,10 @@ import 'target_gestures.dart';
 
 /// Draws what sits over a block, in the block's coordinates: its size is the
 /// block's, its [BlockLayout] says where lines, ayat and margin marks are.
-typedef BlockOverlayBuilder =
-    Widget Function(BuildContext context, BlockLayout layout);
+typedef BlockOverlayBuilder = Widget Function(
+  BuildContext context,
+  BlockLayout layout,
+);
 
 /// A surah in surah mode as [SurahSliver] draws it, with the reader's
 /// gestures: one gesture layer per block resolves a tap or long press to a

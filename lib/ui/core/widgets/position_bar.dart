@@ -65,9 +65,8 @@ final class PositionBar extends StatelessWidget {
           ),
         ),
         Text(
-          AppLocalizations.of(
-            context,
-          ).juzHizbLine(arabicDigits(juz), arabicDigits(hizb)),
+          AppLocalizations.of(context)
+              .juzHizbLine(arabicDigits(juz), arabicDigits(hizb)),
           style: _lineStyle.copyWith(color: colors.inkMuted),
         ),
       ],

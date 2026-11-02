@@ -209,9 +209,8 @@ class _Reader extends StatelessWidget {
                       children: [
                         if (showReturn)
                           SmallButton(
-                            label: AppLocalizations.of(
-                              context,
-                            ).returnToRecitation,
+                            label: AppLocalizations.of(context)
+                                .returnToRecitation,
                             onPressed: viewModel.follow.resume,
                           ),
                         if (viewModel.selectedAyah case final ayah?)

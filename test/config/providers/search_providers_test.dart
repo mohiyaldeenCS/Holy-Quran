@@ -20,13 +20,10 @@ import '../../../testing/packs/synthetic_tafsir_pack.dart';
 
 VerifiedPack _verified(Directory directory, String id) => VerifiedPack(
   directory: directory.path,
-  manifest:
-      (parsePackManifest(
-                File('${directory.path}/$manifestFileName').readAsBytesSync(),
-                pack: id,
-              )
-              as Ok<PackManifest>)
-          .value,
+  manifest: (parsePackManifest(
+    File('${directory.path}/$manifestFileName').readAsBytesSync(),
+    pack: id,
+  ) as Ok<PackManifest>).value,
   signatureChecked: false,
 );
 
@@ -186,10 +183,9 @@ void main() {
         failed: (_) {},
       ),
     );
-    final hits =
-        (await repository.search('Synthetic', ['synthetic-tafsir'])
-                as Ok<List<TafsirHit>>)
-            .value;
+    final hits = (await repository.search('Synthetic', [
+      'synthetic-tafsir',
+    ]) as Ok<List<TafsirHit>>).value;
     expect([for (final hit in hits) hit.passage.number], [3, 4]);
   });
 }

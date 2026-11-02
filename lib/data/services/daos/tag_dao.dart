@@ -45,9 +45,8 @@ class TagDao extends DatabaseAccessor<UserDatabase> with _$TagDaoMixin {
 
   /// Whether a live tag [id] was renamed.
   Future<bool> rename(String id, String name, {required int at}) async =>
-      await _whereLive(
-        id,
-      ).write(TagCompanion(name: Value(name), updatedAt: Value(at))) >
+      await _whereLive(id)
+          .write(TagCompanion(name: Value(name), updatedAt: Value(at))) >
       0;
 
   /// Whether a live tag [id] was marked deleted.

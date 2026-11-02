@@ -276,9 +276,8 @@ void main() {
     });
 
     test('a file that is not SQLite, or too short for a header', () async {
-      final notSqlite = await File(
-        '${root.path}/not.sqlite',
-      ).writeAsBytes(List.filled(4096, 0x20));
+      final notSqlite = await File('${root.path}/not.sqlite')
+          .writeAsBytes(List.filled(4096, 0x20));
       final short = await File('${root.path}/short.sqlite').writeAsBytes(
         (await (await buildSyntheticPack(
           root,

@@ -11,9 +11,9 @@ import '../lib/tokens_writer.dart';
 
 /// The committed outputs compile and hold what the sources say.
 void main() {
-  final tokens =
-      jsonDecode(File(tokensSourcePath).readAsStringSync())
-          as Map<String, Object?>;
+  final tokens = jsonDecode(
+    File(tokensSourcePath).readAsStringSync(),
+  ) as Map<String, Object?>;
   final themes =
       (tokens['color']! as Map<String, Object?>)['themes']! as List<Object?>;
   final themeIds = [

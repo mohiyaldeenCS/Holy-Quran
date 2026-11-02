@@ -91,10 +91,10 @@ void main() {
         final address = byBytes[base64.encode(utf8.encode(label))];
         if (address == null) continue;
         final (surah, ayah) = address;
-        if (before case (
-          final lastSurah,
-          final lastAyah,
-        ) when surah == lastSurah ? ayah != lastAyah + 1 : surah < lastSurah) {
+        if (before case (final lastSurah, final lastAyah)
+            when surah == lastSurah
+                ? ayah != lastAyah + 1
+                : surah < lastSurah) {
           problems.add('$lastSurah:$lastAyah is followed by $surah:$ayah');
         }
         before = address;

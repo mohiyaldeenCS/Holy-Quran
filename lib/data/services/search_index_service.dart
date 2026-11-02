@@ -254,9 +254,8 @@ final class _Query {
       seen.addAll(covered);
     }
     if (seen.length < _labels.length) return null;
-    final exact = Iterable<int>.generate(
-      ayah.forms.length,
-    ).any((i) => _phraseAt(ayah, i) != null);
+    final exact = Iterable<int>.generate(ayah.forms.length)
+        .any((i) => _phraseAt(ayah, i) != null);
     return SearchHit(
       ayah: ayah.ayah,
       matches: [for (final i in positions) _range(ayah, i, i + 1)],

@@ -11,6 +11,7 @@ import 'package:holyquran/ui/features/listen/views/listen_screen.dart';
 import 'package:holyquran/ui/features/more/views/more_screen.dart';
 import 'package:holyquran/ui/features/mushaf/views/mushaf_screen.dart';
 import 'package:holyquran/ui/features/study/views/study_screen.dart';
+
 import '../../testing/test_app.dart';
 
 final _l10n = lookupAppLocalizations(const Locale('ar'));

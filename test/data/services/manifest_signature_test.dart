@@ -41,9 +41,8 @@ void ed25519Tests() {
     test('a signature by the key in use is valid', () async {
       final (key, signature) = await keyAndSignature();
       expect(
-        await Ed25519ManifestVerifier([
-          key,
-        ]).verify(manifest: manifest, signature: signature),
+        await Ed25519ManifestVerifier([key])
+            .verify(manifest: manifest, signature: signature),
         SignatureCheck.valid,
       );
     });
@@ -52,10 +51,8 @@ void ed25519Tests() {
       final (inUse, _) = await keyAndSignature();
       final (spare, signature) = await keyAndSignature();
       expect(
-        await Ed25519ManifestVerifier([
-          inUse,
-          spare,
-        ]).verify(manifest: manifest, signature: signature),
+        await Ed25519ManifestVerifier([inUse, spare])
+            .verify(manifest: manifest, signature: signature),
         SignatureCheck.valid,
       );
     });
@@ -79,9 +76,8 @@ void ed25519Tests() {
       final (key, _) = await keyAndSignature();
       final (_, other) = await keyAndSignature();
       expect(
-        await Ed25519ManifestVerifier([
-          key,
-        ]).verify(manifest: manifest, signature: other),
+        await Ed25519ManifestVerifier([key])
+            .verify(manifest: manifest, signature: other),
         SignatureCheck.invalid,
       );
     });
@@ -103,15 +99,13 @@ void ed25519Tests() {
     test('with no key or no signature file, it is not checked', () async {
       final (key, signature) = await keyAndSignature();
       expect(
-        await Ed25519ManifestVerifier(
-          const [],
-        ).verify(manifest: manifest, signature: signature),
+        await Ed25519ManifestVerifier(const [])
+            .verify(manifest: manifest, signature: signature),
         SignatureCheck.notChecked,
       );
       expect(
-        await Ed25519ManifestVerifier([
-          key,
-        ]).verify(manifest: manifest, signature: null),
+        await Ed25519ManifestVerifier([key])
+            .verify(manifest: manifest, signature: null),
         SignatureCheck.notChecked,
       );
     });

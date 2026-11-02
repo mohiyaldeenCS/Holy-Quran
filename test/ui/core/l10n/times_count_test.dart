@@ -33,9 +33,9 @@ final _table = {
 /// The case texts of the `timesCount` message, read from the ARB so the test
 /// types no Arabic.
 Map<_Form, String> _formsFromArb() {
-  final arb =
-      jsonDecode(File('lib/l10n/app_ar.arb').readAsStringSync())
-          as Map<String, Object?>;
+  final arb = jsonDecode(
+    File('lib/l10n/app_ar.arb').readAsStringSync(),
+  ) as Map<String, Object?>;
   final message = arb['timesCount']! as String;
   final cases = {
     for (final match in RegExp(
