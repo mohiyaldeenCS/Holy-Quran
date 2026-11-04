@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The adaptive launcher icon (D-117). minSdk is 26, so every device reads
+     this file and no raster fallback exists. The layers are built from
+     app-icon-fullbleed.svg (background and foreground) and app-icon-mono.svg
+     (the themed icon of Android 13). -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/brand_emerald_700" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_monochrome" />
+</adaptive-icon>

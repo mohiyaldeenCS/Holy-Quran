@@ -13,6 +13,9 @@ Map<String, Object?> syntheticTokens() => {
     'tokens': <Object?>[
       {'name': 'base-100', 'value': '#F0F0F0', 'usage': 'USAGE_MARKER'},
       {'name': 'base-900', 'value': '#101010'},
+      {'name': 'emerald-700', 'value': '#0E5A52'},
+      {'name': 'gold-400', 'value': '#D9AE5A'},
+      {'name': 'paper-100', 'value': '#F8F2E4'},
       {
         'name': 'ground',
         'value': {'light': '{base-100}', 'dark': '#000000'},

@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
+<!-- The launch screen until Flutter draws its first frame: the horizontal
+     lockup on emerald-700, with no loading indicator, in every theme
+     (docs/DESIGN_SYSTEM.md, "Splash"). -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
-
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+    <item android:drawable="@color/brand_emerald_700" />
+    <item
+        android:drawable="@drawable/launch_lockup"
+        android:gravity="center" />
 </layer-list>
