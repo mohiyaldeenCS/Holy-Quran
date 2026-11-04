@@ -1088,6 +1088,89 @@ void main() {
     });
   });
 
+  group('the end reaches Dart after the changes around it', () {
+    test('the playlist ending while the successor is already held plays the '
+        'successor', () async {
+      final e = await _started();
+      await e.playing(_track(1));
+      e.player.hold('add');
+      await e.engine.setNext(_track(2));
+      await pumpEventQueue();
+
+      e.player.end();
+      e.player.arrive('add');
+      e.player.reply('add');
+      await pumpEventQueue();
+      e.player.deliver();
+      await pumpEventQueue();
+
+      expect(e.ended, [1]);
+      expect(e.player.calls, ['add 2', 'seek 1', 'play', 'remove 0']);
+      expect(e.player.audible, '2');
+      expect(e.player.platformNames, ['2']);
+    });
+
+    test('the end of the held successor is the next end', () async {
+      final e = await _started();
+      await e.playing(_track(1));
+      e.player.hold('add');
+      await e.engine.setNext(_track(2));
+      await pumpEventQueue();
+      e.player.end();
+      e.player.arrive('add');
+      e.player.reply('add');
+      e.player.deliver();
+      await pumpEventQueue();
+
+      e.player.end();
+      e.player.deliver();
+      await pumpEventQueue();
+
+      expect(e.ended, [1, 2]);
+    });
+
+    test('a failing add of the successor wanted at the end is a failure, '
+        'not silence', () async {
+      final e = await _started();
+      await e.playing(_track(1, streamed: false));
+      e.player.hold('add');
+      await e.engine.setNext(_track(2));
+      await pumpEventQueue();
+      e.player.end();
+      e.player.deliver();
+      await pumpEventQueue();
+
+      e.player.arrive('add');
+      e.player.reply('add', error: PlayerException(0, 'no file', null));
+      await pumpEventQueue();
+
+      expect(e.ended, [1]);
+      expect(e.failures, [EngineFailure.connection]);
+    });
+
+    test('a next track set while the head has ended queues behind the '
+        'successor', () async {
+      final e = await _started();
+      await e.playing(_track(1));
+      e.player.hold('add');
+      await e.engine.setNext(_track(2));
+      await pumpEventQueue();
+      e.player.end();
+      e.player.deliver();
+      await pumpEventQueue();
+      await e.engine.setNext(_track(3));
+
+      e.player.release('add');
+      await pumpEventQueue();
+      e.player.release('add');
+      await pumpEventQueue();
+
+      expect(e.ended, [1]);
+      expect(e.player.audible, '2');
+      expect(e.player.platformNames, ['2', '3']);
+    });
+  });
+
   group('events of a playlist that is being replaced', () {
     Future<_Engine> replacing() async {
       final e = await _started();
@@ -1310,6 +1393,68 @@ void main() {
         'play',
         'remove 0',
       ]);
+    });
+
+    test('stop-after toggled while a removal is in flight, the head and the '
+        'removed track both end at the platform', () async {
+      final (e, repository) = await toggling();
+
+      e.player.end();
+      e.player.deliver();
+      await pumpEventQueue();
+      expect(e.ended, isEmpty, reason: 'the Dart side no longer has track 2');
+      e.player.end();
+      e.player.deliver();
+      await pumpEventQueue();
+      expect(e.ended, [1]);
+      expect(repository.state.segment?.address, a('1:2'));
+
+      e.player.unhold('remove');
+      e.player.release('remove');
+      await pumpEventQueue();
+
+      expect(e.player.audible, 'AyahFile(x:1:2)');
+      expect(e.player.platformNames, ['AyahFile(x:1:2)', 'AyahFile(x:1:3)']);
+      e.player.end();
+      e.player.deliver();
+      await pumpEventQueue();
+      expect(e.ended, hasLength(2));
+      expect(repository.state.segment?.address, a('1:3'));
+      expect(e.player.audible, 'AyahFile(x:1:3)');
+    });
+
+    test('stop-after toggled while the next ayah is being added, the head '
+        'advances into the track that was added', () async {
+      final e = await _started();
+      final repository = EnginePlayerRepository(
+        engine: e.engine,
+        locate: (recitation, source) async =>
+            (uri: Uri.parse('https://audio.test/$source'), streamed: true),
+        surahName: (surah) async => null,
+      );
+      addTearDown(repository.dispose);
+      await repository.play(plan(AyahSpan(QuranRange(a('1:1'), a('1:3')))));
+      await pumpEventQueue();
+      e.player.hold('add');
+      e.player.end();
+      e.player.deliver();
+      await pumpEventQueue();
+      expect(e.ended, [1]);
+      expect(e.player.names, ['AyahFile(x:1:2)', 'AyahFile(x:1:3)']);
+      await repository.setStopAfter(StopAfter.ayah);
+      await repository.setStopAfter(null);
+      await pumpEventQueue();
+
+      e.player.arrive('add');
+      e.player.end();
+      e.player.deliver();
+      await pumpEventQueue();
+      e.player.unhold('add');
+      e.player.reply('add');
+      await pumpEventQueue();
+
+      expect(repository.state.segment?.address, a('1:3'));
+      expect(e.player.audible, 'AyahFile(x:1:3)');
     });
 
     test('an ayah range goes on when an ayah ends early', () async {
