@@ -426,6 +426,10 @@ their permission conditions (O-04, stream B). Item 5 of the queue became #80 (D-
 Follow-up for B0.2 found by the plan: the bundled base pack's signature is not enforced in
 release builds, though D-108 says it must be.
 
+Recitations (D-167): the owner chose four, Minshawi and Abdul Basit, murattal and mujawwad,
+all word-timed, replacing the PRD's suggested five; he fills `docs/content/RECITATION_RIGHTS_FORM.md`
+from his papers (part of B0.1). Stream B then builds the recitation packs and measures drift.
+
 Branch deletion (D-162 (11)), for the owner to run on his machine, since the cloud session's
 proxy refuses it. It deletes only remote branches wholly contained in `main`:
 

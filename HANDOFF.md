@@ -74,7 +74,7 @@ session only, so a run's task is in its log under "Task as given" or the workflo
 | #81 records | **Merged** 2026-11-04 (`a412d79`) after two reviews (sonnet, $0.26) and green CI: D-162, `docs/plans/TEST_COPY.md` | none |
 | #83 T3 test copy | **Merged** 2026-11-04 (`9ca8b65`) after two reviews (the second PASS WITH NITS, $0.98; the first re-review run died on an API overload) and green CI. Its notes (S1: the dirty-tree message suggested a whole-tree `git clean -fd`; a killed run's key unnoticed; the pack check after signing) go to the follow-up below, which must merge before the owner uses the script | none |
 | #84 T3 polish | **Merged** 2026-11-04 (`f10e248`) after a review (PASS WITH NITS, $0.10; the reviewer ran the mutation the author skipped) and green CI: per-file clean-up commands, a leftover key refused, the tree checked before signing. The script is ready; it waits for T1 and T2 in the app | none |
-| O-04 candidates | Read-only research: 8-12 Hafs recitations with layout, timing, terms and risks, a recommended five (two word-timed), and what the owner must confirm | 41850166495: `none` sonnet, $6, key 2 |
+| O-04 candidates | Research done ($0.83), kept in `docs/content/RECITATION_CANDIDATES.md`. The owner chose four (D-167): Minshawi and Abdul Basit, murattal and mujawwad, all word-timed; the PRD's five replaced by his decision. He fills `docs/content/RECITATION_RIGHTS_FORM.md` | none |
 
 **Lost reports.** Two runs (the #71 audit and #80) ended with a short reply to a late background
 notification, which replaced the report: only the last message is kept, and the log shortens
@@ -93,7 +93,7 @@ run on a branch, check it:** `git merge-base --is-ancestor origin/main origin/<b
 `main` changed `.github/` and the branch lacks it, merge `main` into the branch from your own
 session. Decision numbers: D-156, D-158, D-159 and D-162 are on `main`; D-155 and D-160 (#71), D-157
 (#78) and D-161 (#80) are on open branches; D-163 to D-165 are reserved for the
-test-copy tasks T1 to T3; D-166 is the lead's approval of the pending wording (D-128 (5)); the next free number is D-167.
+test-copy tasks T1 to T3; D-166 is the lead's approval of the pending wording (D-128 (5)); D-167 the owner's recitations; the next free number is D-168.
 
 The queue, after the table above:
 
@@ -163,7 +163,7 @@ Given to him on 2026-11-04; his answers are D-162. Still his to do:
 - **B0.1, first (D-162 (12)):** the rights register, read clause by clause from the permission papers.
 - **His phone:** the device checks in the status file, in one session on the local test-pack
   build (D-162 (9)); the lead guides the build when the marking task is merged.
-- **O-04:** choose from the candidates an agent will propose (D-162 (10)).
+- **O-04:** chosen (D-167). Fill `docs/content/RECITATION_RIGHTS_FORM.md` from the permission papers and send it back.
 - **O-16:** the proofreader's sign-off, once the base pack is built.
 - **The religious reviewer:** the linking pages of books 183, 514, 276, 471, 473 and 440,
   and the honorific table (D-140 (7)) when the lead has derived it.
