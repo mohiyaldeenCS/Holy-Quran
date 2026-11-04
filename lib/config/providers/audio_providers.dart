@@ -1,9 +1,12 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:holyquran/config/dependencies.dart';
+import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/data/repositories/listening_position_repository.dart';
 import 'package:holyquran/data/repositories/player_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
+import 'package:holyquran/data/repositories/recitation_locator.dart';
+import 'package:holyquran/data/repositories/recitation_repository.dart';
 import 'package:holyquran/data/services/audio_engine_service.dart';
 import 'package:holyquran/domain/models/playback_plan_builder.dart';
 import 'package:holyquran/domain/use_cases/record_listening_position.dart';
@@ -12,10 +15,20 @@ import 'package:holyquran/utils/result.dart';
 Future<void> audioProviders(Dependencies dependencies) => provideAudio(
   dependencies,
   createEngine: PluginAudioEngineService.new,
-  // No recitation pack can be installed or streamed before P1-13 and P1-33,
-  // which bring the locator.
-  locate: (recitation, source) async => null,
+  locate: recitationLocatorOf(dependencies),
 );
+
+/// The locator that plays a downloaded file from the device and streams the
+/// rest, over the recitations and the download choices earlier areas
+/// provided; without them nothing is located.
+RecitationFileLocator recitationLocatorOf(Dependencies dependencies) {
+  final recitations = dependencies.tryRead<RecitationRepository>();
+  final settings = dependencies.tryRead<DownloadSettingsRepository>();
+  if (recitations == null || settings == null) {
+    return (recitation, source) async => null;
+  }
+  return recitationLocator(recitations: recitations, settings: settings);
+}
 
 /// Provides the [PlayerRepository] over the engine [createEngine] makes. Plans are
 /// built over the base pack's edition, so without a verified base pack,

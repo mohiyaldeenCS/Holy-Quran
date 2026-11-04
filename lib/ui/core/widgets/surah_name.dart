@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
+import 'package:holyquran/ui/core/widgets/labelled.dart';
 
 /// The ways a surah name is written (D-084, D-130).
 enum SurahNameFormat {
@@ -23,7 +24,8 @@ enum SurahNameFormat {
   copyReference,
 }
 
-/// The only widget that draws a surah name read from a pack (D-084).
+/// The only widget that draws or speaks a surah name read from a pack
+/// (D-084, D-160).
 ///
 /// [name] is substituted whole and unchanged into the ARB template of
 /// [format]; [ayah] is required by the formats that carry one and written in
@@ -64,6 +66,32 @@ final class SurahName extends StatelessWidget {
     return SurahNameSpan._(_written(name, format, ayah, l10n), style);
   }
 
+  /// [child] named for a screen reader by [template], an ARB template that
+  /// takes the name, filled with [name] in [format] (D-160). The label is
+  /// made and set here, so the name never leaves this file as a string; the
+  /// child's own semantics are dropped, and with [onTap] it is a button.
+  static Widget labelled(
+    PackText name, {
+    required String Function(String name) template,
+    required Widget child,
+    SurahNameFormat format = SurahNameFormat.titled,
+    String? value,
+    VoidCallback? onTap,
+  }) {
+    assert(
+      format == SurahNameFormat.name || format == SurahNameFormat.titled,
+      'A label names the surah, without an ayah.',
+    );
+    return _LabelledSurah(
+      name: name,
+      format: format,
+      template: template,
+      value: value,
+      onTap: onTap,
+      child: child,
+    );
+  }
+
   final PackText name;
   final TextStyle style;
   final SurahNameFormat format;
@@ -85,6 +113,32 @@ final class SurahName extends StatelessWidget {
       ),
     );
   }
+}
+
+final class _LabelledSurah extends StatelessWidget {
+  const _LabelledSurah({
+    required this.name,
+    required this.format,
+    required this.template,
+    required this.child,
+    this.value,
+    this.onTap,
+  });
+
+  final PackText name;
+  final SurahNameFormat format;
+  final String Function(String name) template;
+  final Widget child;
+  final String? value;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => labelled(
+    label: template(_written(name, format, null, AppLocalizations.of(context))),
+    value: value,
+    onTap: onTap,
+    child: child,
+  );
 }
 
 /// A surah name from a pack in one of its formats, made only by

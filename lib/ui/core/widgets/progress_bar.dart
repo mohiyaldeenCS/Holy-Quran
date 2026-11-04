@@ -18,18 +18,19 @@ enum ProgressBarTone { primary, player }
 /// The identity's progress track (`ProgressBar`, `.qk-progress`). It fills
 /// from the start of the line, the right in Arabic. [value] runs from 0 to 1
 /// and is clamped. A screen reader reads [label] with the value as a
-/// percentage.
+/// percentage; with no [label] the track says nothing, for a parent that
+/// speaks for it.
 class ProgressBar extends StatelessWidget {
   const ProgressBar({
     required this.value,
-    required this.label,
+    this.label,
     this.tone = ProgressBarTone.primary,
     this.height = _defaultHeight,
     super.key,
   });
 
   final double value;
-  final String label;
+  final String? label;
   final ProgressBarTone tone;
   final double height;
 
@@ -44,34 +45,32 @@ class ProgressBar extends StatelessWidget {
         colors.playerAccent,
       ),
     };
-    final percent = AppLocalizations.of(context)
-        .percentValue(arabicDigits((fraction * 100).round()));
-    // No progress-bar role: Flutter's check for it parses the value as a
-    // Western number, and the value is read in Arabic-Indic digits.
-    return Semantics(
-      container: true,
-      label: label,
-      value: percent,
-      child: ClipRRect(
-        borderRadius: _radius,
-        child: SizedBox(
-          height: height,
-          width: double.infinity,
-          child: DecoratedBox(
-            decoration: BoxDecoration(color: track),
-            child: Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: FractionallySizedBox(
-                widthFactor: fraction,
-                heightFactor: 1,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(color: fill, borderRadius: _radius),
-                ),
+    final bar = ClipRRect(
+      borderRadius: _radius,
+      child: SizedBox(
+        height: height,
+        width: double.infinity,
+        child: DecoratedBox(
+          decoration: BoxDecoration(color: track),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: FractionallySizedBox(
+              widthFactor: fraction,
+              heightFactor: 1,
+              child: DecoratedBox(
+                decoration: BoxDecoration(color: fill, borderRadius: _radius),
               ),
             ),
           ),
         ),
       ),
     );
+    final label = this.label;
+    if (label == null) return ExcludeSemantics(child: bar);
+    final percent = AppLocalizations.of(context)
+        .percentValue(arabicDigits((fraction * 100).round()));
+    // No progress-bar role: Flutter's check for it parses the value as a
+    // Western number, and the value is read in Arabic-Indic digits.
+    return Semantics(container: true, label: label, value: percent, child: bar);
   }
 }
