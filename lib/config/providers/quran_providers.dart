@@ -1,15 +1,18 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:holyquran/config/base_pack.dart';
 import 'package:holyquran/config/dependencies.dart';
 import 'package:holyquran/config/providers/base_pack_guard.dart';
 import 'package:holyquran/config/signing_keys.dart';
+import 'package:holyquran/config/test_copy.dart';
 import 'package:holyquran/data/repositories/local_pack_repository.dart';
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/pack_quran_text_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/data/services/base_pack_service.dart';
+import 'package:holyquran/data/services/device_pack_bundle.dart';
 import 'package:holyquran/data/services/manifest_signature.dart';
 import 'package:holyquran/data/services/pack_file_service.dart';
 import 'package:holyquran/domain/models/edition_map.dart';
@@ -22,6 +25,10 @@ import 'package:holyquran/domain/models/verified_pack.dart';
 import 'package:holyquran/utils/result.dart';
 
 Future<void> quranProviders(Dependencies dependencies) async {
+  if (testCopy case final copy?) {
+    await provideTestCopy(dependencies, copy);
+    return;
+  }
   // Before B0.2 the app bundles no base pack, and there is nothing to read.
   if (bundledBasePack case final pack?) {
     await provideQuran(
@@ -31,6 +38,26 @@ Future<void> quranProviders(Dependencies dependencies) async {
     );
   }
 }
+
+/// [provideQuran] over the unapproved test copy's pack, read from the phone's
+/// files at [root] through a [DevicePackBundle] and accepted only with a
+/// signature that is valid for the copy's own throwaway key (D-163). The
+/// bundled and the production keys play no part.
+Future<void> provideTestCopy(
+  Dependencies dependencies,
+  TestCopy copy, {
+  Future<Directory?> Function() root = DevicePackBundle.testCopyRoot,
+  Future<Directory> Function()? supportDirectory,
+}) => provideQuran(
+  dependencies,
+  basePack: BasePackService(
+    id: copy.pack.id,
+    version: copy.pack.version,
+    bundle: DevicePackBundle(root),
+    supportDirectory: supportDirectory,
+  ),
+  signatures: SignatureRequired(Ed25519ManifestVerifier([copy.publicKey])),
+);
 
 /// Provides the [PackIntegrityRepository], then checks the base pack and,
 /// once it is verified, provides it as the [VerifiedPack], whose manifest

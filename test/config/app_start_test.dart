@@ -11,6 +11,7 @@ import 'package:holyquran/main.dart' as app;
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/splash.dart';
+import 'package:holyquran/ui/core/widgets/unapproved_copy_banner.dart';
 import 'package:holyquran/ui/features/home/views/home_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
@@ -47,6 +48,28 @@ void main() {
     expect(Localizations.localeOf(context), const Locale('ar'));
     expect(Directionality.of(context), TextDirection.rtl);
   });
+
+  for (final unapproved in [true, false]) {
+    testWidgets('the unapproved-copy banner shows only when told '
+        '(unapprovedCopy: $unapproved)', (tester) async {
+      await tester.pumpWidget(
+        app.AppStart(
+          dependencies: Future.value([
+            ChangeNotifierProvider<AppSettingsRepository>.value(
+              value: FakeAppSettingsRepository(),
+            ),
+          ]),
+          unapprovedCopy: unapproved,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byType(UnapprovedCopyBanner),
+        unapproved ? findsOneWidget : findsNothing,
+      );
+    });
+  }
 
   testWidgets('the splash is in Arabic, right to left', (tester) async {
     await tester.pumpWidget(

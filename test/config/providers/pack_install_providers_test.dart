@@ -147,6 +147,14 @@ void main() {
       expect(reserved, {'synthetic-text'});
     });
 
+    test('reserves the id of the unapproved test copy', () async {
+      final (_, reserved) = await told(
+        basePack: (id: 'unapproved-synthetic', version: 1),
+      );
+
+      expect(reserved, {'unapproved-synthetic'});
+    });
+
     test('gives the installer the one downloader it provides, for the '
         'recitation downloads to share', () async {
       final downloads = _Downloads();

@@ -16,26 +16,31 @@ import 'package:provider/provider.dart';
 
 // The repositories are read as optional: without a base pack or a user
 // database they are not provided, and home then shows no card.
-final homeRoutes = FeatureRoutes(
-  tabRoot: TabRoot(
-    ShellTab.home,
-    (context, state) => ChangeNotifierProvider(
-      create: (context) => HomeViewModel(
-        positions: context.read<ReadingPositionRepository?>(),
-        index: context.read<QuranIndexRepository?>(),
-        integrity: context.read<PackIntegrityRepository?>(),
-        listening: context.read<ListeningPositionRepository?>(),
-        recitations: context.read<RecitationRepository?>(),
-        player: context.read<PlayerRepository?>(),
-        plans: context.read<PlaybackPlanBuilder?>(),
-        basePackId: bundledBasePack?.id,
-      ),
-      // The screen listens to its view model itself.
-      child: Builder(
-        builder: (context) => HomeScreen(
-          viewModel: Provider.of<HomeViewModel>(context, listen: false),
+final homeRoutes = homeRoutesFor(basePackInUse);
+
+/// The home routes over [basePack], the pack this build reads; a parameter so
+/// a test can give it the test copy's pack.
+FeatureRoutes homeRoutesFor(({String id, int version})? basePack) =>
+    FeatureRoutes(
+      tabRoot: TabRoot(
+        ShellTab.home,
+        (context, state) => ChangeNotifierProvider(
+          create: (context) => HomeViewModel(
+            positions: context.read<ReadingPositionRepository?>(),
+            index: context.read<QuranIndexRepository?>(),
+            integrity: context.read<PackIntegrityRepository?>(),
+            listening: context.read<ListeningPositionRepository?>(),
+            recitations: context.read<RecitationRepository?>(),
+            player: context.read<PlayerRepository?>(),
+            plans: context.read<PlaybackPlanBuilder?>(),
+            basePackId: basePack?.id,
+          ),
+          // The screen listens to its view model itself.
+          child: Builder(
+            builder: (context) => HomeScreen(
+              viewModel: Provider.of<HomeViewModel>(context, listen: false),
+            ),
+          ),
         ),
       ),
-    ),
-  ),
-);
+    );
