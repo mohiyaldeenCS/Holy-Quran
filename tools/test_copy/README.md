@@ -49,12 +49,12 @@ TC="$HOME/holyquran-test-copy"
    sha256sum "$TC"/raw/*
    ```
    `rub=false` is D-079. The text address above follows Tanzil's download form. **The
-   metadata address, `https://tanzil.net/res/text/metadata/quran-data.xml`, is
-   unconfirmed: it was written from memory and nobody has checked it.** Take the
+   metadata address is not in the template: nobody has confirmed it, so the template
+   holds a `FILL_IN` placeholder and the pack step refuses it until you fill it in.** Take the
    metadata file from Tanzil's own download page, save it as `$TC/raw/quran-data.xml`
    (for example `curl -fL -o "$TC/raw/quran-data.xml" '<the address the page gives>'`),
    and put the same address in the `url` of the `edition_map` source in `build.json` in
-   step 3 (the address is recorded in the pack's manifest). The metadata `version`
+   step 3 (you fill it in there; the address is recorded in the pack's manifest). The metadata `version`
    comes from the notice at the head of that file, not from the page. Do not edit, save again or re-encode either file: open
    nothing in an editor.
 
@@ -64,7 +64,8 @@ TC="$HOME/holyquran-test-copy"
    head -c 600 "$TC/raw/quran-data.xml"
    ```
    The second command shows the notice at the head of the metadata file; it names a
-   `Version`. Open `$TC/build.json` and replace every `FILL_IN…`: `fetched_on` of both
+   `Version`. Open `$TC/build.json` and replace every `FILL_IN…`: the metadata `url` (the address you took from
+   Tanzil's page in step 2), `fetched_on` of both
    sources (the date of step 2, `YYYY-MM-DD`), `file_sha256` of each (the two hashes
    printed by `sha256sum`), and the metadata `version` (the one in the notice). Leave
    `reviews` as `[]`, and everything else as it is. The build stops if a hash, a

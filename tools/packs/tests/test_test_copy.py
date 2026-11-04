@@ -65,6 +65,7 @@ class TemplateTest(unittest.TestCase):
             source["file_sha256"] = "0" * 64
             source["fetched_on"] = "2026-11-04"
         data["sources"]["edition_map"]["version"] = "1"
+        data["sources"]["edition_map"]["url"] = "https://example.invalid/metadata.xml"
         path = Path(directory) / "build.json"
         path.write_text(json.dumps(data), encoding="utf-8")
         return path
@@ -81,6 +82,7 @@ class TemplateTest(unittest.TestCase):
             [
                 ("edition_map", "fetched_on"),
                 ("edition_map", "file_sha256"),
+                ("edition_map", "url"),
                 ("edition_map", "version"),
                 ("text", "fetched_on"),
                 ("text", "file_sha256"),
