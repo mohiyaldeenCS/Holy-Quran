@@ -103,8 +103,8 @@ The queue, after the table above:
    under D-136.
 2. **`agent/nf-14-guard-followup`:** the re-review of #77's should-fix and notes (task text
    written; a `test-engineer` run when a slot frees).
-3. **The local test copy** by `docs/plans/TEST_COPY.md` (section 4): T3 and T2 first (T2 after
-   #71 merges: both edit `app_ar.arb`), then T1, then T4. Then guide the owner through its
+3. **The local test copy** by `docs/plans/TEST_COPY.md` (section 4): T3 is merged (#83, #84);
+   T2 is #87; then T1, then T4. Then guide the owner through its
    local steps; that build is his first device session (D-162 (9)).
 4. **Stand mode's button** «وضع الحامل» in `ReaderPlayerBar` (D-162 (3)), and the 1:1 and 9:16
    share cards (D-162 (6)); `ui-builder` tasks, the share images shown to the owner before merging.
