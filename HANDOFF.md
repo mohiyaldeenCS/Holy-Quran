@@ -51,8 +51,24 @@ gh workflow run agent.yml --ref main \
   before this session's total passes $100, and state the spend in each report.
 - **At most 3–4 runs at a time**, owning different files. No `fable`, no `max`, without his
   permission. An `apk` task never runs beside a test run.
+- **From a cloud session** (2026-11-04): `gh auth status` calls the token invalid, yet `gh
+  api` and `gh workflow run` work through the session's proxy, with admin rights. GraphQL is
+  refused, so `gh pr list`, `gh pr view` and `gh run view` fail: use `gh api
+  repos/mohiyaldeenCS/Holy-Quran/...` (pulls, issues/<n>/comments, actions/runs/<id>/jobs,
+  actions/jobs/<id>/logs). Two runs on one branch queue (`concurrency: agent-<branch>`); a
+  third cancels the waiting one.
 
 ## 3. In flight, in order
+
+**Runs out now** (cloud lead, 2026-11-04; check each with `gh api
+repos/mohiyaldeenCS/Holy-Quran/actions/runs/<id>`):
+
+| Run | Branch | Agent, model, cap, key | Purpose |
+| --- | --- | --- | --- |
+| 41779572524 | `agent/p1-37-release-readiness` | `code-reviewer`, opus high, $10, 1 | Final review of #77 (item 1) |
+| 41779581640 | `agent/p1-33-recitation-downloads` | `code-reviewer`, opus high, $15, 2 | Final review of #71 (item 2); $15 for a 57-file diff |
+| 41779591923 | `agent/p1-33-recitation-downloads` | `identity-auditor`, sonnet high, $6, 1 | Identity audit of #71's screens; queued behind the review |
+| 41779654656 | `agent/p1-34-critical-path-tests` | `test-engineer`, sonnet high, $15, 2 | The seven findings of #76's review (item 3); may write D-156 |
 
 `main` holds 35 of 40 tasks (16 partial); see the status file. **No app build has real
 content yet and none has run on a device since the spike of 2026-10-12.** All four

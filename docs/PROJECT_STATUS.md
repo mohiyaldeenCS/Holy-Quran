@@ -13,7 +13,7 @@ corrected first.
 | Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **35 merged**: P1-01 to P1-32, P1-38 to P1-40, of which 16 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-32, P1-40). **Open pull requests**: P1-33 (#71), P1-34 (#76, not ready), P1-36 (#78, draft), P1-37 (#77). P1-35 not started. The composition root is wired (#72, D-151). **No APK has been run on a device since the spike of 2026-10-12, and no real content is in the app** |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/*`), worked by agents in GitHub Actions (D-159) |
-| Last session | 2026-11-04, local session on the owner's Windows machine, stopped for his move to a new account. **Read `HANDOFF.md` first**: it holds the queue, how to start agents and his rules |
+| Last session | 2026-11-04, cloud session on the owner's new account, managing agents in Actions (D-159). **Read `HANDOFF.md` first**: it holds the queue, the runs out, how to start agents and his rules |
 
 ## What is in the repository
 
@@ -558,6 +558,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-11-04 | Cloud session, new account (managing lead, D-159) | Read the handover; confirmed `gh` can start workflows; reported to the owner; started the final reviews of #77 and #71, an identity audit of #71 and the fix of #76's review in Actions | `claude/quran-app-leadership-kcenv4` |
 | 2026-11-04 | Local session, continued | Merged #75 after review and CI; recovered and advanced P1-33, P1-34, P1-36 and P1-37 to #71, #76, #78 and #77; reviewed #76. Agents and reviewers stopped on the account's usage limit. Tested both API keys, fixed how `agent.yml` reports read-only runs, and handed over for agents in Actions under a managing lead (D-159) | This branch |
 | 2026-11-02 | Local session (owner's Windows machine) | Audited the real state from the code; on the owner's approval upgraded Flutter to 3.47.9 and every direct package, with Gradle, AGP, Kotlin and the iOS target (D-154); pushed the local-only branches; pruned the dead worktree records; found why the session of 2026-10-29 stopped | #75 |
 | 2026-10-29 | Local session, continued (team lead with agents) | Merged P1-23, P1-26, P1-29 to P1-32, P1-40 and the composition root (#72) up to #74. Stopped at 08:57 on an authentication failure with P1-33 to P1-37 in flight; the status file was not updated | `main` 9fc6895 |
