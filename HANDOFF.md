@@ -60,17 +60,27 @@ gh workflow run agent.yml --ref main \
 
 ## 3. In flight, in order
 
-**Runs out now** (cloud lead, 2026-11-04; check each with `gh api
-repos/mohiyaldeenCS/Holy-Quran/actions/runs/<id>`):
+**Where each pull request stands** (cloud lead, 2026-11-04 07:00 UTC; check a run with `gh api
+repos/mohiyaldeenCS/Holy-Quran/actions/runs/<id>`; task texts the lead wrote are kept in the
+session only, so a run's task is in its log under "Task as given" or the workflow inputs):
 
-| Run | Branch | Agent, model, cap, key | Purpose |
-| --- | --- | --- | --- |
-| 41779572524 | `agent/p1-37-release-readiness` | `code-reviewer`, opus high, $10, 1 | Final review of #77: **done, $1.15**, CHANGES REQUIRED (no blocking; five should-fix gaps in the guards, confirmed by probes and checked by the lead). Report is the last comment on #77 |
-| 41780413238 | `agent/p1-37-release-readiness` | `test-engineer`, sonnet high, $10, 1 | The five should-fix items of that review; may amend D-158 (4) to name the tafsir repository's settings-only exception (lead's decision). Then a short re-review |
-| 41779581640 | `agent/p1-33-recitation-downloads` | `code-reviewer`, opus high, $15, 2 | Final review of #71: **done, $2.29**, CHANGES REQUIRED. Blocking: a surah name leaves `SurahName` as a `String` (`.span(...).text!`) for five button labels (D-084, D-130). Should-fix: a relaunch can re-issue a stopped task id so a download never finishes (reproduced); no test that the recitations use the shared `DownloadService`; the route's new branch untested. One fix run will take this and the audit together; D-160 is reserved for the `SurahName` label |
-| 41780988100 | `agent/au-01-engine-track-end-race` | `audio-builder`, sonnet high, $15, 2 | Item 5: reproduce the possible stall in `audio_engine_service.dart:397-400` with a test, then fix; may write D-161 |
-| 41779591923 | `agent/p1-33-recitation-downloads` | `identity-auditor`, sonnet high, $6, 1 | Identity audit of #71's screens; queued behind the review |
-| 41779654656 | `agent/p1-34-critical-path-tests` | `test-engineer`, sonnet high, $15, 2 | The seven findings of #76's review (item 3); may write D-156 |
+| PR | State | Runs out |
+| --- | --- | --- |
+| #77 P1-37 | Review ($1.15) found five should-fix gaps in the guards; fixed by `test-engineer` (`293e09a`, `1d5437b`, $0.47; D-158 (4) names the tafsir repository's settings-only exception, the lead's decision). CI green on `1d5437b` | 41827745404: re-review, `code-reviewer` opus, $6, key 2 |
+| #76 P1-34 | The seven findings fixed by `test-engineer` (`8bfc6ce`..`e5caf8c`, $0.78; D-156 written; the mutant of finding 2 fails the new test). CI green on `e5caf8c` | 41827740396: re-review, `code-reviewer` opus, $8, key 1 |
+| #71 P1-33 | Review ($2.29): blocking, a surah name leaves `SurahName` as a `String` in five button labels; should-fix, a relaunch can re-issue a stopped task id so a download never finishes (reproduced), two test gaps. Identity audit ($0.52): the delete sheet bypasses `SheetPage` (motion, reduce-motion). The owner chose fix-then-merge (D-162 (1)) | 41827857238: data findings, `data-builder` sonnet, $12, key 2; then 41827908560 (queued): UI findings, the `SurahName` label as D-160 and the three approved strings, `ui-builder` sonnet, $12, key 2. Then a re-review |
+| #80 AU-01 (item 5) | The stall was real: reproduced by a test over a new player seam and fixed (`3317625`, `eba0735`, $2.07; D-161). CI green on `eba0735`. The run's full report was lost (below) | 41827750386: review, `code-reviewer` opus, $8, key 1; it is also asked to find the "two residual races" the lost report mentioned |
+| #78 P1-36 | Draft, untouched. Waits for #76 to merge: it builds its pack with the same font path #76 fixed, and both edit `pubspec` | none |
+
+**Lost reports.** Two runs (the #71 audit and #80) ended with a short reply to a late background
+notification, which replaced the report: only the last message is kept, and the log shortens
+earlier messages. Every task text now ends with: run commands in the foreground, no background
+shells or Monitor, and repeat the whole report if woken after writing it.
+**`action_required` CI runs.** Each agent push starts two CI runs: the `workflow_dispatch` check,
+which runs, and a `pull_request` run that waits for approval. The dispatch run is the check of
+record for the head.
+**Spend this session**, by the SDK's estimates: $7.28 for six finished runs; caps of the runs
+out: $54.
 
 `main` holds 35 of 40 tasks (16 partial); see the status file. **No app build has real
 content yet and none has run on a device since the spike of 2026-10-12.** All four
@@ -79,7 +89,7 @@ refuses an agent's merge that carries a `.github/` change. **Before the first ru
 branch, check it:** `git merge-base --is-ancestor origin/main origin/<branch>`. If `main`
 changed `.github/` and the branch lacks it, merge `main` into the branch from your own
 session. D-155 (#71), D-157 (#78), D-158 (#77) and D-159 are written; D-156 is reserved for
-#76's `integration_test` decision. D-160 is reserved for #71's `SurahName` label and D-161 for the audio race; the next free number is D-162.
+#76's `integration_test` decision. D-160 is reserved for #71's `SurahName` label and D-161 for the audio race; D-162 holds the owner's answers of 2026-11-04; the next free number is D-163.
 
 1. **#77, P1-37 release readiness.** CI green at last check. Its author reports its own
    reviewers passed; the independent review of the final head died on a usage limit.
@@ -150,21 +160,22 @@ it. The CI `apk` task uploads to GitHub and must not be used for that build.**
 
 ## 6. What only the owner can do
 
-Give him this list, in Arabic, when you first report:
+Given to him on 2026-11-04; his answers are D-162. Still his to do:
 
-- **His phone:** the device checks in the status file, gathered in one session.
-- **O-04:** which recitations (at least five, two word-timed), with their permissions.
-- **B0.1:** the rights register, read clause by clause from the permission papers.
+- **B0.1, first (D-162 (12)):** the rights register, read clause by clause from the permission papers.
+- **His phone:** the device checks in the status file, in one session on the local test-pack
+  build (D-162 (9)); the lead guides the build when the marking task is merged.
+- **O-04:** choose from the candidates an agent will propose (D-162 (10)).
 - **O-16:** the proofreader's sign-off, once the base pack is built.
 - **The religious reviewer:** the linking pages of books 183, 514, 276, 471, 473 and 440,
   and the honorific table (D-140 (7)) when the lead has derived it.
 - **Book 466:** finish extracting it and upload the result.
-- **O-01 and O-11:** application id, publisher name, store accounts, who keeps the keys.
-- **Later:** the launch host, and iOS with Gate 0 (no iOS build has ever been made).
-- **A look at:** the three strings above; the Android 12 system splash (the lead accepted
-  it as a platform limit, D-159 (6)); the share sizes (D-089 (2)).
-- **The open question, when work reaches it:** stand mode (SY-05) is built with no entry
-  point, and the identity draws none.
+- **Branches (D-162 (11)):** delete the 55 merged branches from his machine; the cloud
+  session cannot. The command is in the status file's next actions.
+- **Later:** O-01 and O-11 when a store account exists (D-162 (7), (8)); the launch host;
+  iOS with Gate 0 (no iOS build has ever been made).
+- **To approve when built:** the stand-mode button's label (D-162 (3), D-115); the 1:1 and
+  9:16 share images (D-162 (6)).
 
 ## 7. When to ask him, and his rules
 

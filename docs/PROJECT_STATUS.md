@@ -389,6 +389,20 @@ stall in `audio_engine_service.dart:397-400` (comment on #76).
 
 The first real run on the owner's phone never goes through GitHub (`HANDOFF.md`, section 4).
 
+From the owner's answers of 2026-11-04 (D-162), tasks to send to agents: the unapproved-copy
+marking «نسخة تجريبية غير معتمدة», off unless a build flag asks for it (D-159 (5)); the
+stand-mode button in `ReaderPlayerBar` (SY-05, its label to be approved first); the 1:1 and
+9:16 share cards (SH-02, SH-03); a proposal of candidate recitations with their permission
+conditions (O-04, stream B). Item 5 of the queue became #80 (D-161).
+
+Branch deletion (D-162 (11)), for the owner to run on his machine, since the cloud session's
+proxy refuses it. It deletes only remote branches wholly contained in `main`:
+
+```sh
+git fetch --prune origin
+git branch -r --merged origin/main | grep -v -e 'origin/main$' -e 'origin/HEAD' | sed 's#^ *origin/##' | xargs git push origin --delete
+```
+
 ## Next actions — stream B (planning session and the owner)
 
 1. Owner: finish extracting book 466 and upload the result.
@@ -558,7 +572,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
-| 2026-11-04 | Cloud session, new account (managing lead, D-159) | Read the handover; confirmed `gh` can start workflows; reported to the owner; started the final reviews of #77 and #71, an identity audit of #71 and the fix of #76's review in Actions | `claude/quran-app-leadership-kcenv4` |
+| 2026-11-04 | Cloud session, new account (managing lead, D-159) | Read the handover; confirmed `gh` can start workflows; reported to the owner. In Actions: final reviews of #77 and #71 and an identity audit of #71; fixes of #76's and #77's reviews; the audio stall reproduced and fixed (#80, D-161); re-reviews and the two #71 fix runs started. Put twelve decisions to the owner (D-162). Could not delete branches (proxy) | `claude/quran-app-leadership-kcenv4` |
 | 2026-11-04 | Local session, continued | Merged #75 after review and CI; recovered and advanced P1-33, P1-34, P1-36 and P1-37 to #71, #76, #78 and #77; reviewed #76. Agents and reviewers stopped on the account's usage limit. Tested both API keys, fixed how `agent.yml` reports read-only runs, and handed over for agents in Actions under a managing lead (D-159) | This branch |
 | 2026-11-02 | Local session (owner's Windows machine) | Audited the real state from the code; on the owner's approval upgraded Flutter to 3.47.9 and every direct package, with Gradle, AGP, Kotlin and the iOS target (D-154); pushed the local-only branches; pruned the dead worktree records; found why the session of 2026-10-29 stopped | #75 |
 | 2026-10-29 | Local session, continued (team lead with agents) | Merged P1-23, P1-26, P1-29 to P1-32, P1-40 and the composition root (#72) up to #74. Stopped at 08:57 on an authentication failure with P1-33 to P1-37 in flight; the status file was not updated | `main` 9fc6895 |
