@@ -12,13 +12,15 @@ import 'package:holyquran/ui/core/widgets/button.dart';
 import '../../testing/flows/flow_driver.dart';
 import '../../testing/flows/flow_rig.dart';
 import '../../testing/golden.dart';
+import '../integrity/installed_packs.dart';
 import '../integrity/pack_integrity_suite.dart';
 import '../ui/core/share/share_test_pack.dart';
 import 'copy_scenario.dart';
 
 // SH-01, SH-05, NF-20: every ayah of the synthetic pack is copied through the
-// app (copy_scenario.dart), and every ayah of a pack given with
-// HOLYQURAN_PACK_DIR through the same sheet over that pack's repository.
+// app (copy_scenario.dart), and every ayah of each text pack under
+// assets/packs/ and of one given with HOLYQURAN_PACK_DIR through the same
+// sheet over that pack's repository.
 
 void main() {
   FlowRig().test(
@@ -31,58 +33,67 @@ void main() {
     timeout: const Timeout(Duration(minutes: 5)),
   );
 
-  const given = givenPackDirectory;
-  if (given.isEmpty) {
+  final packs = {
+    ...installedTextPackDirectories(),
+    if (givenPackDirectory.isNotEmpty) givenPackDirectory,
+  };
+  if (packs.isEmpty) {
     test(
-      'every ayah of the pack given with HOLYQURAN_PACK_DIR is copied as the '
-      'pack stores it',
+      'every ayah of a pack under $installedPacksRoot/ or the one given with '
+      'HOLYQURAN_PACK_DIR is copied as the pack stores it',
       () {},
-      skip: 'no --dart-define=HOLYQURAN_PACK_DIR=<pack-id/version> was given',
-    );
-  } else {
-    testWidgets(
-      'every ayah of the pack HOLYQURAN_PACK_DIR=$given is copied as the '
-      'pack stores it',
-      (tester) async {
-        tester.view
-          ..physicalSize = Size(flowPhone.width, 1200)
-          ..devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
-        mockClipboard(tester);
-        final pack = await real(tester, () => PackUnderTest.load(given));
-        addTearDown(pack.close);
-        final PackQuranTextRepository repository = pack.openRepository();
-        final ayat = await real(tester, () => packAyat(pack, repository));
-        expect(ayat.length, pack.manifest.counts.ayat);
-        final copyText = AyahCopyText(repository, flowL10n);
-
-        final problems = await copyAll(ayat, (address) async {
-          await clearClipboard(tester);
-          await tester.pumpWidget(
-            goldenApp(
-              ReadingTheme.paper,
-              CopySheetView(
-                key: ValueKey(address),
-                create: () => CopySheetViewModel(
-                  address: address,
-                  copyText: copyText,
-                  copyToClipboard: const SystemClipboardService().copyText,
-                ),
-              ),
-            ),
-          );
-          await tester.pump();
-          // The sheet is laid out in a plain page here, outside the bounds a
-          // tap on it would need.
-          tester
-              .widget<Button>(find.widgetWithText(Button, flowL10n.copyAction))
-              .onPressed!();
-          await tester.pump();
-          return copiedText(tester);
-        });
-        expectNoProblems(problems);
-      },
-      timeout: const Timeout(Duration(minutes: 60)),
+      skip:
+          '$installedPacksRoot/ holds no text pack and no '
+          '--dart-define=HOLYQURAN_PACK_DIR=<pack-id/version> was given',
     );
   }
+  for (final directory in packs) {
+    _copiesEveryAyahOfPack(directory);
+  }
+}
+
+void _copiesEveryAyahOfPack(String directory) {
+  testWidgets(
+    'every ayah of the pack $directory is copied as the pack stores it',
+    (tester) async {
+      tester.view
+        ..physicalSize = Size(flowPhone.width, 1200)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      mockClipboard(tester);
+      final pack = await real(tester, () => PackUnderTest.load(directory));
+      addTearDown(pack.close);
+      final PackQuranTextRepository repository = pack.openRepository();
+      final ayat = await real(tester, () => packAyat(pack, repository));
+      expect(ayat.length, pack.manifest.counts.ayat);
+      final copyText = AyahCopyText(repository, flowL10n);
+
+      final problems = await copyAll(ayat, (address) async {
+        await clearClipboard(tester);
+        await tester.pumpWidget(
+          goldenApp(
+            ReadingTheme.paper,
+            CopySheetView(
+              key: ValueKey(address),
+              create: () => CopySheetViewModel(
+                address: address,
+                copyText: copyText,
+                copyToClipboard: const SystemClipboardService().copyText,
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        // The sheet is laid out in a plain page here, outside the bounds a
+        // tap on it would need.
+        tester
+            .widget<Button>(find.widgetWithText(Button, flowL10n.copyAction))
+            .onPressed!();
+        await tester.pump();
+        return copiedText(tester);
+      });
+      expectNoProblems(problems);
+    },
+    timeout: const Timeout(Duration(minutes: 60)),
+  );
 }
