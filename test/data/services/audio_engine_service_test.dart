@@ -79,6 +79,11 @@ final class _FakePlayer extends Fake implements AudioPlayer {
   /// [release].
   void hold(String kind) => _held.add(kind);
 
+  void unhold(String kind) => _held.remove(kind);
+
+  /// The names of the tracks in the playlist, in order.
+  List<String> get names => [for (final source in _sources) _name(source)];
+
   void release(String kind, {Object? error}) {
     final change = _pending[kind]!.removeAt(0);
     if (error == null) {
@@ -433,6 +438,63 @@ void main() {
         'play',
         'remove 0',
       ]);
+    });
+  });
+
+  group('a replacement successor wanted while a removal is in flight', () {
+    test('the head ending starts the replacement', () async {
+      final e = await _started();
+      await e.playing(_track(1), next: _track(2));
+      e.player.hold('remove');
+      await e.engine.setNext(null);
+      await e.engine.setNext(_track(3));
+      await pumpEventQueue();
+
+      await e.send(ProcessingState.completed);
+      e.player.unhold('remove');
+      e.player.release('remove');
+      await pumpEventQueue();
+
+      expect(e.ended, [1]);
+      expect(e.player.calls, [
+        'remove 1',
+        'add 3',
+        'seek 1',
+        'play',
+        'remove 0',
+      ]);
+      expect(e.player.names, ['3']);
+    });
+
+    test('the player advancing into the removed track and ending it starts '
+        'the replacement and keeps it', () async {
+      final e = await _started();
+      await e.playing(_track(1), next: _track(2));
+      e.player.hold('remove');
+      await e.engine.setNext(null);
+      await e.engine.setNext(_track(3));
+      await pumpEventQueue();
+
+      await e.advance();
+      await e.send(ProcessingState.completed);
+      e.player.unhold('remove');
+      e.player.release('remove');
+      await pumpEventQueue();
+
+      expect(e.ended, [1, 2]);
+      expect(e.player.calls, [
+        'remove 1',
+        'add 3',
+        'seek 1',
+        'play',
+        'remove 0',
+      ]);
+      expect(e.player.names, ['3']);
+
+      await e.engine.setNext(_track(4));
+      await pumpEventQueue();
+      await e.advance();
+      expect(e.ended, [1, 2, 3]);
     });
   });
 
