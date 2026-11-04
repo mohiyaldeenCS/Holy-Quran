@@ -10,12 +10,14 @@
 set -euo pipefail
 
 WORK="${HQ_TEST_COPY_DIR:-$HOME/holyquran-test-copy}"
+KEYS="$WORK/keys"
 PACK_ID="unapproved-hafs-tanzil"
 PACK_VERSION="1"
 APP_ID="com.example.holyquran"
 FONT="assets/fonts/AmiriQuran-Regular.ttf"
 MARKS="tools/test_copy/provisional_marks.json"
 APK="build/app/outputs/flutter-apk/app-profile.apk"
+GRADLE_APK="build/app/outputs/apk/profile/app-profile.apk"
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO"
@@ -59,14 +61,26 @@ require_clean_tree() {
 }
 
 require_outside_git() {
-  local path="$1" what="$2"
-  mkdir -p "$path"
-  if git -C "$path" rev-parse --show-toplevel >/dev/null 2>&1; then
+  local path="$1" what="$2" probe rest
+  # The folder may not exist yet, and nothing is created before it is checked:
+  # test the nearest folder that does exist.
+  probe="$path"
+  rest=""
+  while [ ! -d "$probe" ]; do
+    rest="/$(basename "$probe")$rest"
+    probe="$(dirname "$probe")"
+  done
+  if git -C "$probe" rev-parse --show-toplevel >/dev/null 2>&1; then
     die "$what ($path) is inside a Git working tree. Use a folder outside every repository, for example \$HOME/holyquran-test-copy."
   fi
-  case "$(cd "$path" && pwd -P)/" in
+  case "$(cd "$probe" && pwd -P)$rest/" in
     "$(cd "$REPO" && pwd -P)"/*) die "$what ($path) is inside the repository." ;;
   esac
+  mkdir -p "$path"
+}
+
+remove_apks() {
+  rm -f "$REPO/$APK" "$REPO/$APK.sha1" "$REPO/$GRADLE_APK" "$REPO/$GRADLE_APK.sha1"
 }
 
 pack_dir() {
@@ -86,7 +100,7 @@ pack_command() {
     die "the two source files are not in $WORK/raw (README, step 2)."
   fi
   pack="$(pack_dir)"
-  [ ! -e "$pack" ] || die "$pack exists. A pack version is never rebuilt in place: remove '$WORK/packs' and '$WORK/keys' and run again."
+  [ ! -e "$pack" ] || die "$pack exists. A pack version is never rebuilt in place: remove '$WORK/packs' and '$KEYS' and run again."
 
   cp -f "$MARKS" "$WORK/provisional_marks.json"
   local font_native marks_native pack_native
@@ -109,9 +123,9 @@ pack_command() {
 
 sign_pack() {
   local pack="$1" pack_native="$2" font_native="$3" marks_native="$4"
-  local keys="$WORK/keys"
+  local keys="$KEYS"
   require_outside_git "$keys" "the key folder"
-  trap 'rm -f "$keys/test-copy.pem"' EXIT
+  trap 'rm -f "$KEYS/test-copy.pem"' EXIT
   openssl genpkey -algorithm ed25519 -out "$keys/test-copy.pem"
   openssl pkey -in "$keys/test-copy.pem" -pubout -out "$keys/test-copy.pub.pem"
   openssl pkey -in "$keys/test-copy.pem" -pubout -outform DER | tail -c 32 | base64 | tr -d '\n' >"$keys/test-copy.pub.b64"
@@ -130,12 +144,12 @@ install_command() {
   require_outside_git "$WORK" "the work folder"
   pack="$(pack_dir)"
   [ -f "$pack/manifest.json.sig" ] || die "$pack is not a signed pack. Run 'test_copy.sh pack' first."
-  [ -f "$WORK/keys/test-copy.pub.b64" ] || die "$WORK/keys/test-copy.pub.b64 is missing. Run 'test_copy.sh pack' first."
-  key="$(cat "$WORK/keys/test-copy.pub.b64")"
+  [ -f "$KEYS/test-copy.pub.b64" ] || die "$KEYS/test-copy.pub.b64 is missing. Run 'test_copy.sh pack' first."
+  key="$(cat "$KEYS/test-copy.pub.b64")"
   device="/sdcard/Android/data/$APP_ID/files/test_copy/$PACK_ID/$PACK_VERSION"
   command -v adb >/dev/null 2>&1 || die "adb was not found"
 
-  trap 'rm -f "$REPO/$APK" "$REPO/$APK.sha1"' EXIT
+  trap remove_apks EXIT
   flutter build apk --profile \
     --dart-define="HOLYQURAN_TEST_PACK=$PACK_ID/$PACK_VERSION" \
     --dart-define="HOLYQURAN_TEST_PACK_KEY=$key"
@@ -147,7 +161,7 @@ install_command() {
   adb install -r "$(native "$REPO/$APK")"
   adb shell mkdir -p "$device"
   adb push "$(native "$pack")/." "$device/"
-  rm -f "$REPO/$APK" "$REPO/$APK.sha1"
+  remove_apks
   require_clean_tree after
   printf '\nInstalled. Open the app: the unapproved-copy banner shows on every screen.\nThe pack is now on the phone at %s.\nClean up: rm -rf "%s/packs" "%s/keys"\n' "$device" "$WORK" "$WORK"
 }

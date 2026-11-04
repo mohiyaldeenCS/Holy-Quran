@@ -337,9 +337,10 @@ class UnapprovedTestCopyTest(BuildCase):
     def test_the_git_check_follows_symbolic_links(self):
         tree = self.work / "tree"
         (tree / ".git").mkdir(parents=True)
+        (tree / "sub").mkdir()
         link = self.work / "link"
         try:
-            link.symlink_to(tree, target_is_directory=True)
+            link.symlink_to(tree / "sub", target_is_directory=True)
         except OSError:
             self.skipTest("symbolic links are not available")
         with hafs_shaped_profiles():

@@ -46,12 +46,16 @@ TC="$HOME/holyquran-test-copy"
    ```
    mkdir -p "$TC/raw"
    curl -fL -o "$TC/raw/quran-uthmani.xml" 'https://tanzil.net/pub/download/index.php?quranType=uthmani&outType=xml&marks=true&sajdah=true&rub=false&agree=true'
-   curl -fL -o "$TC/raw/quran-data.xml" 'https://tanzil.net/res/text/metadata/quran-data.xml'
    sha256sum "$TC"/raw/*
    ```
-   `rub=false` is D-079. If Tanzil's page gives another address for the metadata file,
-   use it and put the same address in `build.json` in step 3 (the address is recorded
-   in the pack's manifest). Do not edit, save again or re-encode either file: open
+   `rub=false` is D-079. The text address above follows Tanzil's download form. **The
+   metadata address, `https://tanzil.net/res/text/metadata/quran-data.xml`, is
+   unconfirmed: it was written from memory and nobody has checked it.** Take the
+   metadata file from Tanzil's own download page, save it as `$TC/raw/quran-data.xml`
+   (for example `curl -fL -o "$TC/raw/quran-data.xml" '<the address the page gives>'`),
+   and put the same address in the `url` of the `edition_map` source in `build.json` in
+   step 3 (the address is recorded in the pack's manifest). The metadata `version`
+   comes from the notice at the head of that file, not from the page. Do not edit, save again or re-encode either file: open
    nothing in an editor.
 
 3. **Write the build description.**
@@ -76,7 +80,7 @@ TC="$HOME/holyquran-test-copy"
    --exclude-tags golden test/integrity test/flows/copy_text_flow_test.dart
    test/ui/core/share` against the pack through `--dart-define=HOLYQURAN_PACK_DIR`;
    makes a throwaway Ed25519 key in `$TC/keys`, signs, checks the signature with the
-   public key, and deletes the private key; checks the Git tree is still clean.
+   public key, and deletes the private key (also when a step fails); checks the Git tree is still clean.
    Output: `$TC/packs/unapproved-hafs-tanzil/1/` and `$TC/keys/test-copy.pub.b64`.
    - If it stops on a `U+XXXX`, a count or a hash: **report the message to the lead,
      with the code point or number, and stop.** Never edit a source file, the mark
@@ -94,8 +98,16 @@ TC="$HOME/holyquran-test-copy"
    lists, and never commit them), installs the APK with `adb install -r`, pushes the
    pack to
    `/sdcard/Android/data/com.example.holyquran/files/test_copy/unapproved-hafs-tanzil/1/`,
-   and deletes the APK. Open the app: «نسخة تجريبية غير معتمدة» shows on every screen.
+   and deletes the APK, including Gradle's own copy under
+   `build/app/outputs/apk/profile/`. Open the app: «نسخة تجريبية غير معتمدة» shows on every screen.
    Keep the pushed files while you use the copy; the app reads them at every start.
+
+   What this does to the phone: USB debugging must be on and the phone authorised for
+   this computer. `adb install -r` **replaces** any installed `com.example.holyquran`,
+   keeping its data. If the installed app was signed on another machine (for example an
+   APK from CI), the install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. The only
+   way out is `adb uninstall com.example.holyquran`, which **erases the app's data**
+   (bookmarks, notes, settings). Decide that yourself; the script never does it.
 
 6. **Clean up the computer.**
    ```
@@ -127,11 +139,37 @@ accepted by every future release.
 ## The provisional mark table
 
 `provisional_marks.json` lists the code points of the Arabic block's Quranic annotation
-signs, U+06D6 to U+06ED, from the Unicode chart (their Unicode names, not any text), in
-the format `mark_table.py` reads. It leaves out:
+signs, U+06D6 to U+06ED, from the Unicode chart, in the format `mark_table.py` reads.
+These are the 21 code points, with their Unicode names (from Python's `unicodedata`):
 
-- U+06DE (start of rub el hizb), which D-079 keeps out of the text, and
-- U+06E5 and U+06E6 (small waw, small yeh), which Unicode classifies as letters
+| Code point | Unicode name |
+| --- | --- |
+| `U+06D6` | ARABIC SMALL HIGH LIGATURE SAD WITH LAM WITH ALEF MAKSURA |
+| `U+06D7` | ARABIC SMALL HIGH LIGATURE QAF WITH LAM WITH ALEF MAKSURA |
+| `U+06D8` | ARABIC SMALL HIGH MEEM INITIAL FORM |
+| `U+06D9` | ARABIC SMALL HIGH LAM ALEF |
+| `U+06DA` | ARABIC SMALL HIGH JEEM |
+| `U+06DB` | ARABIC SMALL HIGH THREE DOTS |
+| `U+06DC` | ARABIC SMALL HIGH SEEN |
+| `U+06DD` | ARABIC END OF AYAH |
+| `U+06DF` | ARABIC SMALL HIGH ROUNDED ZERO |
+| `U+06E0` | ARABIC SMALL HIGH UPRIGHT RECTANGULAR ZERO |
+| `U+06E1` | ARABIC SMALL HIGH DOTLESS HEAD OF KHAH |
+| `U+06E2` | ARABIC SMALL HIGH MEEM ISOLATED FORM |
+| `U+06E3` | ARABIC SMALL LOW SEEN |
+| `U+06E4` | ARABIC SMALL HIGH MADDA |
+| `U+06E7` | ARABIC SMALL HIGH YEH |
+| `U+06E8` | ARABIC SMALL HIGH NOON |
+| `U+06E9` | ARABIC PLACE OF SAJDAH |
+| `U+06EA` | ARABIC EMPTY CENTRE LOW STOP |
+| `U+06EB` | ARABIC EMPTY CENTRE HIGH STOP |
+| `U+06EC` | ARABIC ROUNDED HIGH STOP WITH FILLED CENTRE |
+| `U+06ED` | ARABIC SMALL LOW MEEM |
+
+It leaves out:
+
+- U+06DE (ARABIC START OF RUB EL HIZB), which D-079 keeps out of the text, and
+- U+06E5 and U+06E6 (ARABIC SMALL WAW, ARABIC SMALL YEH), which Unicode classifies as letters
   (category Lm). The pipeline never takes a letter for a mark (D-083), and
   `mark_table.py` refuses a table that lists one, so such a token is a word and needs no
   entry.

@@ -171,8 +171,8 @@ anything is written, and each proved by a test:
 The totals of the real `hafs` profile are not relaxed: the mode on a source of another
 shape stops at the surah count (`test_every_other_check_still_runs_on_the_real_hafs_profile`).
 The pack carries no marker field, since the manifest accepts none: the `unapproved-`
-id is the marker, and the app refuses it unless it is told to read a test copy
-(D-163). The mark table comes from the build description, as always; the test copy
+id is the marker, and the app will refuse it unless it is told to read a test copy
+(D-163, T1 of `docs/plans/TEST_COPY.md`: not built yet). The mark table comes from the build description, as always; the test copy
 uses `tools/test_copy/provisional_marks.json`. `tools/test_copy/` holds the owner's
 script and steps (`tools/test_copy/README.md`). `sign` and `verify-signature` take PEM
 keys through OpenSSL and need no change for it.
