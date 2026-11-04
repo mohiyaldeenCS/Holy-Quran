@@ -5,6 +5,7 @@ import 'package:holyquran/ui/core/gallery/gallery_section.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/storage_bar.dart';
+import 'package:holyquran/ui/core/widgets/unapproved_copy_banner.dart';
 
 // Sample shares of a whole, in bytes: two categories that use some of it,
 // one that uses none.
@@ -13,8 +14,9 @@ const int _sampleTafsirs = 120;
 const int _sampleRiwayat = 40;
 
 /// The gallery's resource-manager section: the storage bar and the
-/// integrity alert (PRD §7.7), on sample strings; the alert's own wording
-/// awaits the owner (docs/plans/PHASE1.md, Appendix C).
+/// integrity alert (PRD §7.7), on sample strings, and the strip that marks the
+/// unapproved test copy (D-164). The alert's own wording awaits the owner
+/// (docs/plans/PHASE1.md, Appendix C).
 class ResourcesGallery extends StatelessWidget {
   const ResourcesGallery({super.key});
 
@@ -57,6 +59,7 @@ class ResourcesGallery extends StatelessWidget {
             action: (label: l10n.resourceRedownload, onPressed: _none),
           ),
           IntegrityAlert(title: l10n.connectionFailed),
+          const UnapprovedCopyBanner(),
         ],
       ),
     );

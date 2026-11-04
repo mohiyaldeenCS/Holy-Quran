@@ -7,6 +7,7 @@ import 'package:holyquran/ui/core/gallery/gallery_section.dart';
 import 'package:holyquran/ui/core/gallery/sections/resources_gallery.dart';
 import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/storage_bar.dart';
+import 'package:holyquran/ui/core/widgets/unapproved_copy_banner.dart';
 
 import '../../../../testing/golden.dart';
 
@@ -67,9 +68,15 @@ void main() {
         _l10n.resourceCategoryPageMushaf,
       ],
     );
-    expect(find.byType(IntegrityAlert), findsNWidgets(3));
+    expect(find.byType(IntegrityAlert), findsNWidgets(4));
     expect(find.text(_l10n.sampleRowLabel), findsOneWidget);
     expect(find.text(_l10n.resourceRedownload), findsNWidgets(2));
     expect(find.text(_l10n.connectionFailed), findsOneWidget);
+  });
+
+  testWidgets('shows the unapproved test copy strip', (tester) async {
+    await _pump(tester);
+    expect(find.byType(UnapprovedCopyBanner), findsOneWidget);
+    expect(find.text(_l10n.unapprovedTestCopy), findsOneWidget);
   });
 }

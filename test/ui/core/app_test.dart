@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
@@ -10,6 +11,9 @@ import 'package:holyquran/routing/router.dart';
 import 'package:holyquran/ui/core/app.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
+import 'package:holyquran/ui/core/widgets/sheet_route.dart';
+import 'package:holyquran/ui/core/widgets/unapproved_copy_banner.dart';
 import 'package:holyquran/ui/features/home/views/home_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -228,5 +232,109 @@ void main() {
         expect(colors(tester), same(expected));
       });
     }
+  });
+
+  group('the unapproved test copy (D-164)', () {
+    const statusBar = 24.0;
+    final l10n = lookupAppLocalizations(const Locale('ar'));
+    const routeKey = Key('route');
+    const sheetKey = Key('sheet');
+    double? routeTopInset;
+
+    Future<void> pumpApp(
+      WidgetTester tester, {
+      required bool unapprovedCopy,
+      double bottomInset = 0,
+    }) async {
+      tester.view
+        ..physicalSize = const Size(360, 800)
+        ..devicePixelRatio = 1
+        ..padding = FakeViewPadding(top: statusBar, bottom: bottomInset);
+      addTearDown(tester.view.reset);
+      routeTopInset = null;
+      final router = GoRouter(
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (_, _) => Scaffold(
+              body: Builder(
+                builder: (context) {
+                  routeTopInset = MediaQuery.paddingOf(context).top;
+                  return Center(
+                    child: TextButton(
+                      key: routeKey,
+                      onPressed: () => Navigator.of(context).push(
+                        sheetRoute<void>(
+                          context,
+                          builder: (_) => const SizedBox(key: sheetKey),
+                        ),
+                      ),
+                      child: const SizedBox(width: 48, height: 48),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        ChangeNotifierProvider<AppSettingsRepository>.value(
+          value: FakeAppSettingsRepository(),
+          child: QuranApp(router: router, unapprovedCopy: unapprovedCopy),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('shows the banner above a route', (tester) async {
+      await pumpApp(tester, unapprovedCopy: true);
+
+      expect(find.byType(UnapprovedCopyBanner), findsOneWidget);
+      expect(find.text(l10n.unapprovedTestCopy), findsOneWidget);
+      expect(
+        tester.getBottomLeft(find.byType(UnapprovedCopyBanner)).dy,
+        lessThanOrEqualTo(tester.getTopLeft(find.byType(Scaffold)).dy),
+      );
+    });
+
+    testWidgets('keeps the banner above an open sheet and its scrim', (
+      tester,
+    ) async {
+      await pumpApp(tester, unapprovedCopy: true);
+      await tester.tap(find.byKey(routeKey));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(sheetKey), findsOneWidget);
+      expect(find.byType(UnapprovedCopyBanner), findsOneWidget);
+      final banner = tester.getRect(find.byType(UnapprovedCopyBanner));
+      final barrier = tester.getRect(find.byType(ModalBarrier).last);
+      expect(barrier.top, greaterThanOrEqualTo(banner.bottom));
+    });
+
+    testWidgets('is absent without the flag', (tester) async {
+      await pumpApp(tester, unapprovedCopy: false);
+
+      expect(find.byType(UnapprovedCopyBanner), findsNothing);
+      expect(find.text(l10n.unapprovedTestCopy), findsNothing);
+      expect(routeTopInset, statusBar);
+    });
+
+    testWidgets('uses the status-bar inset once', (tester) async {
+      await pumpApp(tester, unapprovedCopy: true);
+
+      expect(routeTopInset, 0);
+      final banner = tester.getRect(find.byType(UnapprovedCopyBanner));
+      expect(banner.top, 0);
+      final alert = tester.getRect(find.byType(IntegrityAlert));
+      expect(alert.top, greaterThanOrEqualTo(statusBar));
+    });
+
+    testWidgets('leaves the bottom inset to the screens', (tester) async {
+      await pumpApp(tester, unapprovedCopy: true, bottomInset: 34);
+
+      final context = tester.element(find.byKey(routeKey));
+      expect(MediaQuery.paddingOf(context).bottom, 34);
+    });
   });
 }
