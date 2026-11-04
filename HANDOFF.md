@@ -87,7 +87,7 @@ shells or Monitor, and repeat the whole report if woken after writing it.
 **`action_required` CI runs.** Each agent push starts two CI runs: the `workflow_dispatch` check,
 which runs, and a `pull_request` run that waits for approval. The dispatch run is the check of
 record for the head.
-**Spend this session**, by the SDK's estimates: about $77 by 17:00 UTC (the largest single run: #80's last round, $14.63). The owner asked to be told before the total passes $100.
+**Spend this session**, by the SDK's estimates: about $60 for 46 runs by 17:00 UTC, summed from the run logs (the largest single run: #80's last round, $14.63). The owner asked to be told before the total passes $100.
 
 `main` holds 37 of 40 tasks (18 partial); see the status file. **No app build has real
 content yet and none has run on a device since the spike of 2026-10-12.** **Before the first
