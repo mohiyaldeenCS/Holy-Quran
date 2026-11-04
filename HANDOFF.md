@@ -99,7 +99,7 @@ the next free number is D-168.
 
 The queue, after the table above:
 
-1. **#71, #80, #78:** each fix or finishing run, then an independent re-review, then merge
+1. **#80, #87:** each fix run, then an independent re-review, then merge
    under D-136.
 2. **`agent/nf-14-guard-followup`:** the re-review of #77's should-fix and notes (task text
    written; a `test-engineer` run when a slot frees).
@@ -127,7 +127,7 @@ never uploaded to GitHub and never enters a release.
 **So no Actions agent, CI task or GitHub artefact may touch this pack. The CI `apk` task
 uploads to GitHub and must not be used for that build.**
 
-- **The route is `docs/plans/TEST_COPY.md`** (D-162 (13), (14); D-163 to D-165 when written).
+- **The route is `docs/plans/TEST_COPY.md`** (D-162 (13), (14); D-163 (T1) and D-164 (T2) when merged; D-165 is written).
   It replaces the bundling this section used to describe: the pack is never put in
   `assets/packs/` or an APK. A profile APK built with `--dart-define=HOLYQURAN_TEST_PACK=...`
   and a throwaway test key (never the production key of D-140 (8)) reads the signed pack
