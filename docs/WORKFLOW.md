@@ -127,8 +127,9 @@ application code itself.
   request (a draft when anything failed) or comments on the open one; and starts
   `ci.yml` with the task `check`, because a pull request opened by the workflow token
   starts no `pull_request` run.
-- **A run without commits**, such as a review, opens nothing: it comments its report on
-  the branch's open pull request, and every run prints the whole report in its log.
+- **A run without commits**, such as a review, comments its report on the branch's open
+  pull request, and every run prints the whole report in its log. A stray file a reviewer
+  leaves is committed like any other, so review tasks say to leave none.
 - **Parallel runs.** Several runs work at once on both keys, two or more per key: a
   wave's tasks may all be started together (D-100). If an account's rate limit
   throttles them, start two at a time, one per key, in the plan's order. Runs that

@@ -78,3 +78,8 @@ __pycache__/
 
 # Golden test failure images written by flutter test
 **/failures/
+
+# An unapproved test pack and an APK holding it never reach GitHub (D-159). The
+# approved base pack is added with `git add -f` when B0.2 delivers it.
+/assets/packs/
+*.apk

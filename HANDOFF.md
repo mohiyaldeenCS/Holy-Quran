@@ -56,8 +56,12 @@ gh workflow run agent.yml --ref main \
 
 `main` holds 35 of 40 tasks (16 partial); see the status file. **No app build has real
 content yet and none has run on a device since the spike of 2026-10-12.** All four
-branches below already hold `main` with this file. Decision numbers D-155 (#71), D-156
-(#76), D-157 (#78), D-158 (#77) and D-159 (this) are taken; the next free one is D-160.
+branches below were brought up to `main` from the outgoing session, because the workflow
+refuses an agent's merge that carries a `.github/` change. **Before the first run on a
+branch, check it:** `git merge-base --is-ancestor origin/main origin/<branch>`. If `main`
+changed `.github/` and the branch lacks it, merge `main` into the branch from your own
+session. D-155 (#71), D-157 (#78), D-158 (#77) and D-159 are written; D-156 is reserved for
+#76's `integration_test` decision. The next free number is D-160.
 
 1. **#77, P1-37 release readiness.** CI green at last check. Its author reports its own
    reviewers passed; the independent review of the final head died on a usage limit.
@@ -105,8 +109,11 @@ it. The CI `apk` task uploads to GitHub and must not be used for that build.**
 - The rest happens on his machine, by him with your guidance, or by a session running
   there: fetch the source under `docs/SOURCES.md`'s conditions with `tools/packs`, run the
   integrity suite, generate the signing key (D-140 (8): it never leaves the machine and is
-  never committed), sign, build the APK locally, install. Check `.gitignore` covers every
-  output first, and commit none of it. Stop and report a failed hash or count.
+  never committed), sign, build the APK locally, install. The pack sits in `assets/packs/`
+  for that build: `.gitignore` covers that folder and `*.apk` so that "push after every
+  commit" cannot take it to GitHub; run `git status` before any commit there, never use
+  `git add -f` on it, and remove the folder afterwards. D-140 (6) and (10) do not apply to
+  this pack. Stop and report a failed hash or count.
 
 ## 5. What happened, and what is kept
 

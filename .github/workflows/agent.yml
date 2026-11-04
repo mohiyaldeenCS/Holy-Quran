@@ -198,6 +198,10 @@ jobs:
             echo "::error::The run committed golden images; they are made only by the CI goldens task. Nothing is pushed."
             exit 1
           fi
+          if printf '%s\n' "$changed" | grep -Eq '^assets/packs/|\.apk$'; then
+            echo "::error::The run committed a content pack or an APK (D-159). Nothing is pushed."
+            exit 1
+          fi
           if printf '%s\n' "$changed" | grep -Eq '^\.github/'; then
             echo "::error::The run changed files under .github/, which only the lead changes. Nothing is pushed."
             exit 1
@@ -240,6 +244,8 @@ jobs:
           BRANCH: ${{ inputs.branch }}
           BASE: ${{ inputs.base }}
           TASK: ${{ inputs.task }}
+          KEY_1: ${{ secrets.ANTHROPIC_API_KEY }}
+          KEY_2: ${{ secrets.ANTHROPIC_API_KEY2 }}
           KEY_SLOT: ${{ inputs.key }}
           BUDGET: ${{ inputs.budget_usd }}
           AGENT: ${{ inputs.agent }}
@@ -291,6 +297,12 @@ jobs:
             echo
             echo "</details>"
           } > "$body"
+          for key in "$KEY_1" "$KEY_2"; do
+            if [ -n "$key" ] && grep -qF -- "$key" "$body"; then
+              echo "::error::A secret value appears in the report. It is not published."
+              exit 1
+            fi
+          done
           number="$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')"
           if [ -n "$number" ]; then
             gh pr comment "$number" --body-file "$body"
@@ -314,6 +326,8 @@ jobs:
         if: steps.guard.outputs.changes == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
+          KEY_1: ${{ secrets.ANTHROPIC_API_KEY }}
+          KEY_2: ${{ secrets.ANTHROPIC_API_KEY2 }}
           BRANCH: ${{ inputs.branch }}
           AGENT: ${{ inputs.agent }}
           MODEL: ${{ inputs.model }}
@@ -332,6 +346,12 @@ jobs:
             echo
             jq -r '.report // "The run ended without a report."' "$outcome"
           } > "$body"
+          for key in "$KEY_1" "$KEY_2"; do
+            if [ -n "$key" ] && grep -qF -- "$key" "$body"; then
+              echo "::error::A secret value appears in the report. It is not published."
+              exit 1
+            fi
+          done
           gh pr comment "$number" --body-file "$body"
 
       # A pull request opened with the workflow token starts no pull_request
