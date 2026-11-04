@@ -254,6 +254,74 @@ void main() {
       expect(server.requests.single.status, HttpStatus.ok);
     });
 
+    group('a pack file and a recitation file of one URL', () {
+      FileOrder pack() => FileOrder(
+        url: server.uri('/large.bin'),
+        path: 'pack-staging/synthetic/1/large.bin',
+        wifiOnly: true,
+      );
+
+      FileOrder recitation() => FileOrder(
+        url: server.uri('/large.bin'),
+        path: 'recitations/synthetic/staging/large.bin',
+        wifiOnly: true,
+        separateAttempts: true,
+      );
+
+      test('ordered at once, each finishes and hears only its own', () async {
+        server.bytesPerSecond['/large.bin'] = 2 << 20;
+        final packUpdates = <FileTaskUpdate>[];
+        final recitationUpdates = <FileTaskUpdate>[];
+
+        final outcomes = await Future.wait([
+          service.download(pack(), packUpdates.add),
+          service.download(recitation(), recitationUpdates.add),
+        ]);
+
+        expect(outcomes, everyElement(isA<FileDownloaded>()));
+        expect(
+          await landed('pack-staging/synthetic/1/large.bin').readAsBytes(),
+          _large,
+        );
+        expect(
+          await landed('recitations/synthetic/staging/large.bin').readAsBytes(),
+          _large,
+        );
+        for (final updates in [packUpdates, recitationUpdates]) {
+          expect(
+            updates.where((u) => u.status == FileTaskStatus.enqueued),
+            hasLength(1),
+          );
+          final received = [
+            for (final u in updates) ?u.progress?.receivedBytes,
+          ];
+          expect(received, orderedEquals([...received]..sort()));
+        }
+        expect([for (final r in server.requests) r.method], ['GET', 'GET']);
+      });
+
+      test('a cancel of one leaves the other to finish', () async {
+        server.bytesPerSecond['/large.bin'] = 2 << 20;
+        final running = Completer<void>();
+        final kept = service.download(pack(), (u) {
+          if ((u.progress?.receivedBytes ?? 0) > 0 && !running.isCompleted) {
+            running.complete();
+          }
+        });
+        final stopped = service.download(recitation(), (_) {});
+        await running.future;
+
+        await service.cancel(recitation());
+
+        expect(await stopped, isA<FileDownloadCanceled>());
+        expect(await kept, isA<FileDownloaded>());
+        expect(
+          await landed('pack-staging/synthetic/1/large.bin').readAsBytes(),
+          _large,
+        );
+      });
+    });
+
     test('a 404 fails with its status and writes nothing', () async {
       final outcome = await service.download(
         order('/absent.bin', 'staging/absent.bin'),
@@ -878,5 +946,30 @@ void main() {
         },
       );
     });
+
+    test(
+      'two callers of start return when the one start has finished',
+      () async {
+        final fresh = BackgroundDownloadService.under(
+          plugin,
+          '${temp.path}/root',
+        );
+        var firstReturned = false;
+        final first = fresh.start().then((_) => firstReturned = true);
+
+        await fresh.start();
+
+        expect(firstReturned, isTrue);
+        await first;
+        server.bytesPerSecond.remove('/large.bin');
+        expect(
+          await fresh.download(
+            order('/small.bin', 'staging/started.bin'),
+            (_) {},
+          ),
+          isA<FileDownloaded>(),
+        );
+      },
+    );
   });
 }

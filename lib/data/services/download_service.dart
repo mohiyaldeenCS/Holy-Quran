@@ -163,6 +163,10 @@ final class BackgroundDownloadService implements DownloadService {
   final Set<String> _stopping = {};
   FileDownloader? _downloader;
 
+  /// Shared by every caller of [start], so that a second one returns only
+  /// when the first has finished configuring the plugin.
+  Future<void>? _starting;
+
   /// The plugin's task id for [url] and [path]; a later [attempt] is another
   /// task, and the first one's id is as it was before attempts existed.
   static String taskIdFor(Uri url, String path, [int attempt = 0]) {
@@ -173,8 +177,9 @@ final class BackgroundDownloadService implements DownloadService {
   /// Creates the plugin, tracks its tasks and delivers what happened while
   /// the app was not running.
   @override
-  Future<void> start() async {
-    if (_downloader != null) return;
+  Future<void> start() => _starting ??= _start();
+
+  Future<void> _start() async {
     final downloader = _open()
       ..registerCallbacks(
         group: _group,
@@ -201,6 +206,10 @@ final class BackgroundDownloadService implements DownloadService {
     final pending = _byFile[key] = _Pending(key, order, onUpdate);
     try {
       final found = await _tasksOfFile(downloader, order);
+      // A task stopped below keeps its id spent, whichever one is attached.
+      for (final task in found) {
+        _issued[key] = max(_issued[key] ?? task.attempt, task.attempt);
+      }
       // Tasks of the file the plugin kept, from before a relaunch or from an
       // order since replaced: at most one that needs the network now asked
       // for is attached to, a running one before a paused one, and the rest
@@ -247,10 +256,7 @@ final class BackgroundDownloadService implements DownloadService {
       } else {
         // Above every attempt this file has had, also one the plugin no
         // longer lists because it is being stopped.
-        final next = found.fold(
-          max(order.attempt, (_issued[key] ?? -1) + 1),
-          (n, task) => max(n, task.attempt + 1),
-        );
+        final next = max(order.attempt, (_issued[key] ?? -1) + 1);
         final task = _taskFor(order, next);
         _attach(pending, task, next);
         if (!await downloader.enqueue(task)) {
