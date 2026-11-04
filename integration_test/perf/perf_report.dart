@@ -29,8 +29,10 @@ List<Map<String, Object?>> _devices(List<PerfResult> results) {
   return devices;
 }
 
-/// The report as text for a person: one line per check.
+/// The report as text for a person: one line per check, and per device when
+/// results came from more than one.
 String formatReport(List<CheckOutcome> outcomes) {
+  final several = {for (final outcome in outcomes) outcome.device}.length > 1;
   final lines = <String>[];
   for (final outcome in outcomes) {
     final check = outcome.check;
@@ -40,7 +42,8 @@ String formatReport(List<CheckOutcome> outcomes) {
               '${outcome.runs} run${outcome.runs == 1 ? '' : 's'}, '
               'worst ${_number(outcome.worst!)}';
     lines.add(
-      '${outcome.verdict.name.toUpperCase().padRight(12)} ${check.id} '
+      '${outcome.verdict.name.toUpperCase().padRight(12)} '
+      '${several ? '[${outcome.device}] ' : ''}${check.id} '
       '${check.scenario}.${check.metric}: $measured '
       '(${check.comparison.words} ${check.limit} ${check.unit})',
     );

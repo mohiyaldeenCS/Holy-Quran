@@ -10,11 +10,12 @@ PerfResult _run(
   String metric,
   num value, {
   String mode = 'profile',
+  String platform = 'android',
   Map<String, Object?> details = const {},
 }) => PerfResult(
   scenario: scenario,
   buildMode: mode,
-  platform: 'android',
+  platform: platform,
   metrics: {metric: value},
   details: details,
 );
@@ -248,6 +249,48 @@ void main() {
       );
 
       expect(outcome.verdict, Verdict.missed);
+    });
+
+    test('a profile run on a computer is informative', () {
+      for (final platform in ['linux', 'windows', 'macos']) {
+        final outcome = _outcomeOf(
+          [_run('search', 'resultsShownMs', 10, platform: platform)],
+          'search',
+          'resultsShownMs',
+        );
+        expect(outcome.verdict, Verdict.informative, reason: platform);
+      }
+    });
+
+    test('a scroll that stopped early misses even among good runs', () {
+      final outcome = _outcomeOf(
+        [
+          for (final share in [0.3, 0.99, 1.0])
+            _run('scroll', 'travelledShare', share),
+        ],
+        'scroll',
+        'travelledShare',
+      );
+
+      expect(outcome.verdict, Verdict.missed);
+      expect(outcome.median, 0.99);
+      expect(outcome.worst, 0.3);
+    });
+
+    test('each device is held to the budgets on its own', () {
+      final outcomes = evaluate([
+        _run('search', 'resultsShownMs', 100, details: {'os': 'phone A'}),
+        _run('search', 'resultsShownMs', 900, details: {'os': 'phone B'}),
+      ]).where((o) => o.check.scenario == 'search').toList();
+
+      expect(
+        [for (final o in outcomes) o.device],
+        ['android phone A', 'android phone B'],
+      );
+      expect(
+        [for (final o in outcomes) o.verdict],
+        [Verdict.met, Verdict.missed],
+      );
     });
 
     test('every check gets one outcome, in the order of the checks', () {

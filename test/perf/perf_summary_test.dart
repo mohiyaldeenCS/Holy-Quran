@@ -82,6 +82,23 @@ void main() {
     expect(outcome.report, contains('median 200 ms over 2 runs, worst 250'));
   });
 
+  test('runs of two devices are reported one device after the other', () async {
+    PerfResult on(String os, num ms) => PerfResult(
+      scenario: 'word_sheet',
+      buildMode: 'profile',
+      platform: 'ios',
+      metrics: {'sheetOpenMs': ms},
+      details: {'os': os},
+    );
+    final log = logOf([on('phone A', 150), on('phone B', 250)]);
+
+    final outcome = await drive([log.path]);
+
+    expect(outcome.code, 1);
+    expect(outcome.report, contains('MET          [ios phone A] NF-05'));
+    expect(outcome.report, contains('MISSED       [ios phone B] NF-05'));
+  });
+
   test('--out writes the report with the verdicts and the devices', () async {
     final log = logOf([_run('cold_start', 'savedAyahShownMs', 1500)]);
     final out = File('${directory.path}/report.json');

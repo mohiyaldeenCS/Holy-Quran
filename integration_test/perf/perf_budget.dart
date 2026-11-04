@@ -25,6 +25,7 @@ final class PerfCheck {
     required this.unit,
     required this.source,
     required this.measures,
+    this.everyRun = false,
   });
 
   /// The PRD requirement (`NF-01`).
@@ -40,6 +41,10 @@ final class PerfCheck {
 
   /// What the harness times to get the metric, in words.
   final String measures;
+
+  /// Whether every run must hold, not just the median: for a validity check,
+  /// where one bad run among good ones is a bad run.
+  final bool everyRun;
 
   bool holds(num value) => comparison.holds(value, limit);
 
@@ -98,6 +103,7 @@ const List<PerfCheck> perfChecks = [
     metric: 'travelledShare',
     comparison: Comparison.atLeast,
     limit: 0.95,
+    everyRun: true,
     unit: 'of the span',
     source:
         'NF-02, harness validity: frames are only those of a scroll if the list moved '

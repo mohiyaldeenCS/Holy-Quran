@@ -4,7 +4,9 @@ Measures the budgets of PRD §11 that a text-only build can reach: `NF-01` cold 
 to the last reading position (2 s), `NF-02` scroll (60 fps, 99% of frames under
 32 ms), `NF-03` offline search (300 ms) and `NF-05` the word and ayah sheets (200 ms).
 `NF-04` and `NF-09` need a recitation and the player, and `NF-06`, `NF-07` are not
-timings; the harness does not measure them.
+timings; the harness does not measure them. `NF-02` also names page turning
+(«التقليب»); only the scroll of surah mode is measured, so turning pages stays a
+pending human check of M1.11.
 
 It runs the app's own start-up (`buildDependencies`, `AppStart`, the real screens)
 over a synthetic pack of the real pack's shape (114 surahs, the long surah of 286
@@ -13,8 +15,10 @@ ayat, 604 pages), never Quran text. Every scenario prints its numbers as
 
 ## What a number means
 
-* A figure counts only from a **profile or release** build. A debug build, and every
-  run on a computer through `flutter test`, is informative: the summary says so.
+* A figure counts only from a **profile or release** build on a **phone**. A debug
+  build, a run on a computer (`flutter test`, or `flutter drive -d linux|windows|macos`)
+  and frames that are the cost of each pump of a widget test are informative: the
+  summary says so.
 * The first launch of an install builds the pack (`prepared: true`); the summary
   leaves that run out. Runs after it find the pack as an earlier launch left it.
 * `cold_start` runs from the first frame the app is asked to draw (the splash) to the
@@ -29,7 +33,10 @@ ayat, 604 pages), never Quran text. Every scenario prints its numbers as
   that time is `screenReadyMs`); `search_warm` is the second.
 * `word_sheet` and `ayah_sheet` are the median of ten openings, from the tap to the
   first frame that draws the sheet's text; the worst is kept beside it.
-* The verdict of a check is on the median of its runs, with the worst run beside it.
+* The verdict of a check is on the median of its runs, with the worst run beside it,
+  except `travelledShare`, where every run must hold: one stopped scroll is a bad
+  run. Results are held apart by device (platform and OS version), so two phones
+  are never pooled, and the summary prints each device's lines.
 
 ## On a reference device (owner)
 
@@ -63,7 +70,9 @@ low-power mode is on; whether the phone was warm from other use; the commit
      first query of a process builds the index.
    * Scroll and sheets: once each.
    * Do not uninstall the app between runs: the pack lives in its storage.
-5. Each run writes `build/perf/<scenario>-<time>.log`. Summarise:
+5. Each run writes `build/perf/<scenario>-<time>.log`. Use a clean `build/perf/` for
+   each phone (a stale log of an older commit would be counted) or pass only that
+   phone's files. Summarise:
 
    ```
    dart run test_driver/perf_summary.dart --out build/perf/report.json build/perf/*.log
@@ -85,4 +94,5 @@ stopwatch video or `adb shell am start -W`.
 `flutter test test/perf` runs every scenario on a small pack, so that they keep
 working; `--dart-define=PERF_SIZE=full` uses the full-size pack. The numbers come
 from a debug build whose frames are never drawn and say nothing about a phone.
-`flutter drive -d windows --profile ...` uses the same commands as a phone.
+`flutter drive -d windows --profile ...` takes the same commands as a phone and
+shows how the harness behaves, but its figures stay informative.

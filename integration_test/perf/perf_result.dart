@@ -69,10 +69,17 @@ final class PerfResult {
   /// rate, the marks of a start.
   final Map<String, Object?> details;
 
-  /// Whether the run stands for a device: not a debug build, and not frames
-  /// that were the cost of each pump of a widget test.
+  /// Whether the run stands for a reference device (PRD §11): a phone, not a
+  /// debug build, and not frames that were the cost of each pump of a widget
+  /// test. A profile run on a computer is informative (D-157).
   bool get comparable =>
-      buildMode != 'debug' && details['frameSource'] != 'pump-wall-clock';
+      (platform == 'android' || platform == 'ios') &&
+      buildMode != 'debug' &&
+      details['frameSource'] != 'pump-wall-clock';
+
+  /// What the run's numbers are held apart by: two phones are two devices and
+  /// each has to meet the budgets.
+  String get device => '$platform ${details['os']}';
 
   /// Whether the run is held against the budgets. The launch that built the
   /// pack is not: its caches are not those of a start that finds one.
@@ -130,11 +137,15 @@ final class CheckOutcome {
     required this.check,
     required this.verdict,
     required this.runs,
+    this.device,
     this.median,
     this.worst,
   });
 
   final PerfCheck check;
+
+  /// The device of the runs ([PerfResult.device]); null when there are none.
+  final String? device;
   final Verdict verdict;
   final int runs;
 
@@ -145,6 +156,7 @@ final class CheckOutcome {
   final num? worst;
 
   Map<String, Object?> toJson() => {
+    'device': device,
     'check': check.id,
     'scenario': check.scenario,
     'metric': check.metric,
@@ -158,15 +170,30 @@ final class CheckOutcome {
   };
 }
 
-/// Holds [results] against [checks]. The verdict is given on the median of
-/// the runs of a scenario, so that one run disturbed by the system does not
-/// decide; the worst run is reported beside it.
+/// Holds [results] against [checks], for each device that reported. The
+/// verdict is given on the median of the runs of a scenario, so that one run
+/// disturbed by the system does not decide, unless the check says every run
+/// must hold; the worst run is reported beside it.
 List<CheckOutcome> evaluate(
   Iterable<PerfResult> results, {
   List<PerfCheck> checks = perfChecks,
-}) => [for (final check in checks) _outcome(check, results)];
+}) {
+  final devices = <String?>{for (final result in results) result.device};
+  return [
+    for (final device in devices.isEmpty ? <String?>[null] : devices)
+      for (final check in checks)
+        _outcome(check, [
+          for (final result in results)
+            if (result.device == device) result,
+        ], device),
+  ];
+}
 
-CheckOutcome _outcome(PerfCheck check, Iterable<PerfResult> results) {
+CheckOutcome _outcome(
+  PerfCheck check,
+  Iterable<PerfResult> results,
+  String? device,
+) {
   final runs = [
     for (final result in results)
       if (result.counts &&
@@ -175,7 +202,12 @@ CheckOutcome _outcome(PerfCheck check, Iterable<PerfResult> results) {
         result,
   ];
   if (runs.isEmpty) {
-    return CheckOutcome(check: check, verdict: Verdict.notMeasured, runs: 0);
+    return CheckOutcome(
+      check: check,
+      verdict: Verdict.notMeasured,
+      runs: 0,
+      device: device,
+    );
   }
   final values = [for (final run in runs) run.metrics[check.metric]!]..sort();
   final median = values.length.isOdd
@@ -186,13 +218,14 @@ CheckOutcome _outcome(PerfCheck check, Iterable<PerfResult> results) {
       : values.first;
   final verdict = !runs.every((run) => run.comparable)
       ? Verdict.informative
-      : check.holds(median)
+      : check.holds(check.everyRun ? worst : median)
       ? Verdict.met
       : Verdict.missed;
   return CheckOutcome(
     check: check,
     verdict: verdict,
     runs: runs.length,
+    device: device,
     median: median,
     worst: worst,
   );

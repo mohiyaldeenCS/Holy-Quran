@@ -27,6 +27,9 @@ import 'perf_pack.dart';
 import 'perf_result.dart';
 import 'perf_run.dart';
 
+/// The engine reports frame timings in batches, up to a second late.
+const _timingsBatch = Duration(milliseconds: 1500);
+
 /// The ayah the reader opens at: the middle of the longest surah, so that a
 /// start has to scroll to it.
 QuranAddress middleOfLongSurah(PerfPackSize size) =>
@@ -80,6 +83,11 @@ Future<PerfResult> scroll(
             .first,
       )
       .position;
+  if (isLiveBinding(tester)) {
+    // Timings of the start-up's frames, and of the last run's, arrive in
+    // batches up to a second late and must not be taken for the scroll's.
+    await tester.runAsync(() => Future<void>.delayed(_timingsBatch));
+  }
   final recorder = FrameRecorder(engineTimings: isLiveBinding(tester))..start();
   final clock = Stopwatch()..start();
   final travelled = position.pixels;
@@ -111,12 +119,10 @@ Future<PerfResult> scroll(
       recorder.addPumped(started, cost.elapsed);
     }
   }
-  // The engine reports frame timings in batches, up to a second late.
-  await tester.runAsync(
-    () => Future<void>.delayed(const Duration(milliseconds: 1500)),
-  );
+  await tester.runAsync(() => Future<void>.delayed(_timingsBatch));
   recorder.stop();
   final distance = position.pixels - travelled;
+  final extent = position.maxScrollExtent;
   // A surah that ends before the span does would score the frames of a
   // stopped list; the share lets the check refuse such a run.
   final metrics = {
@@ -128,7 +134,7 @@ Future<PerfResult> scroll(
     'frameSource': recorder.source,
     'pixelsPerSecond': pixelsPerSecond,
     'travelledPx': distance,
-    'extentPx': position.maxScrollExtent,
+    'extentPx': extent,
     'spanMs': millis(span),
     'surah': perfLongSurah,
   });
@@ -276,11 +282,14 @@ Future<List<PerfResult>> sheets(
 
 PerfResult _sheetResult(WidgetTester tester, String scenario, List<double> ms) {
   final sorted = [...ms]..sort();
+  final middle = sorted.length ~/ 2;
   return resultOf(
     tester,
     scenario,
     {
-      'sheetOpenMs': sorted[sorted.length ~/ 2],
+      'sheetOpenMs': sorted.length.isOdd
+          ? sorted[middle]
+          : (sorted[middle - 1] + sorted[middle]) / 2,
       'sheetOpenWorstMs': sorted.last,
     },
     {'repetitions': ms.length},
