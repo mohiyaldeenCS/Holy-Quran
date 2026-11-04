@@ -70,7 +70,7 @@ session only, so a run's task is in its log under "Task as given" or the workflo
 | #76 P1-34 | **Merged** 2026-11-04 (`a917862`) after a re-review (PASS WITH NITS, $0.88) and green CI on `e5caf8c` | none |
 | #82 (was #71) P1-33 | **Merged** 2026-11-04 (`bc73b54`) after a short review of the post-merge commits (PASS, $0.30) and green CI on `3b4b671` | none |
 | #87 T2 marking | Banner done; audit found it stretched to its parent, fixed (`6926f06`: `IntegrityAlert` sizes to content, which also centres the reader's no-pack alert, accepted by the lead); the lead looked at the eight new images; re-audit CONFORMS WITH NITS | CI check 41876149411 on `2e76494`, then merge, then T1 (task text ready) |
-| P1-35 audit | Read-only accessibility audit of every screen, step 1 of P1-35 | 41877486086: `identity-auditor` sonnet, $6, key 1 |
+| P1-35 audit | Done ($1.46): two must-fix (no keyboard route into the reader's ayahs; the seek track not keyboard-operable), five should-fix (`IntegrityAlert` not a live region, no copy confirmation, no `test/a11y/`, settings headings read twice…), four nits; a ten-task TalkBack protocol for the owner. The owner answered D-168; the lead ruled D-169. Kept in `docs/plans/P1-35_AUDIT.md` | the builder run starts after #87 merges (both edit `app_ar.arb`) |
 | SH-02 share sizes | The 1:1 and 9:16 cards by D-089 (2) and D-162 (6); the owner sees the images before merging | 41877569131: `ui-builder` sonnet, $12, key 2 |
 | #86 NF-14 guard follow-up | **Merged** 2026-11-04 (`695c5c8`) after a review (PASS WITH NITS) and green CI; D-158 (4) now says the database-handle check is name-based | none |
 | #80 AU-01 | Last round on opus ($14.63, near its $15 cap: `6cc4b87`, `0b23445`, `cf278c5`): advances hidden by a seek caught (`_catchUp`), the repository's paused-end race closed, a stricter walk (eight scenarios, 14,468 orderings, 0 failures, ~35 s) that also found and fixed a double play. The lead merged `main` (`533e01e`; analyze clean, 1,444 data/config/flow/guard tests pass locally) | 41867564788: fifth review, `code-reviewer` opus, $10, key 1 |
@@ -97,7 +97,7 @@ run on a branch, check it:** `git merge-base --is-ancestor origin/main origin/<b
 `main` changed `.github/` and the branch lacks it, merge `main` into the branch from your own
 session. Decision numbers: D-155 to D-160, D-162 and D-165 are on `main`; D-166 and D-167 on the
 lead's records pull request; D-161 (#80) and D-164 (#87) on open branches; D-163 is reserved for T1;
-the next free number is D-168.
+D-168 and D-169 are the P1-35 answers and rulings; the next free number is D-170.
 
 The queue, after the table above:
 
