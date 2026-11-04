@@ -1,3 +1,8 @@
+// WARNING: a run on a device ERASES the app's data on that device: the user
+// database, settings, installed packs and catalogue under application support
+// of com.example.holyquran, which is also the id of an installed build. Run it
+// only on a device or emulator that holds nothing to keep.
+//
 import 'package:flutter_test/flutter_test.dart';
 
 import '../test/flows/copy_scenario.dart';
@@ -7,13 +12,15 @@ import '../testing/flows/flow_scenarios.dart';
 // The critical paths of NF-20 on a device, over the same synthetic pack as
 // test/flows/. The application-support folder, the user's database on its own
 // isolate and the system clipboard are the device's. Still replaced, as
-// testing/flows/flow_session.dart says: the audio engine, the downloader and
-// the wakelock, so these runs are only partly on real plugins.
+// testing/flows/flow_session.dart says: the audio engine, the downloader, the
+// wakelock, the network probe and the disk probe, so these runs are only
+// partly on real plugins. Signature checking is not exercised either: the
+// flows accept an unsigned catalogue and pack.
 //
 // Run: flutter test integration_test/critical_paths_test.dart -d <device>.
 // The command needs `integration_test: sdk: flutter` under dev_dependencies in
-// pubspec.yaml. These runs are pending until they are made on an Android and
-// an iOS device.
+// pubspec.yaml (D-156). These runs are pending until they are made on an
+// Android and an iOS device.
 
 void main() {
   final rig = FlowRig(onDevice: true);
@@ -45,16 +52,17 @@ void main() {
     'an ayah set to repeat three times is heard exactly three times',
     () {},
     skip:
-        'pending: the rig still plays through a recording engine and a '
-        'stand-in locator; a device run waits for the real engine and the '
-        'locator of P1-13 and P1-33',
+        'pending: the rig has no downloaded recitation file to play, so the '
+        'real engine has nothing to open and the run stays on a recording '
+        'engine',
   );
 
   test(
     'a pack is downloaded, verified, activated, deleted and downloaded again',
     () {},
     skip:
-        'pending: the rig still downloads through a loopback fetcher; a device '
-        'run waits for the real downloader and a host it may fetch from',
+        'pending: the rig has no host it may fetch from, so the real '
+        'downloader has nothing to fetch and the run stays on a loopback '
+        'fetcher',
   );
 }

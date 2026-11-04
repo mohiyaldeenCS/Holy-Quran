@@ -76,9 +76,11 @@ typedef FlowSources = ({Directory bundle, FlowServer server});
 ///
 /// What is not a plugin and differs from the app, and why: the URLs are plain
 /// `http` (the server is on the loopback address); the catalogue repository is
-/// built here, on that server, because `catalogueUrl` is not configured; and
-/// the player's file locator is a stand-in for the one P1-13 and P1-33 bring,
-/// which finds a file for every segment.
+/// built here, on that server, because `catalogueUrl` is not configured; the
+/// catalogue and the installer are built with `acceptUnchecked: true` and the
+/// served catalogue carries a null signature, so the flows never exercise
+/// signature checking; and the player's file locator is a stand-in that finds
+/// a file for every segment.
 final class FlowSession {
   FlowSession._(this.providers, this._dependencies, this.engine);
 
