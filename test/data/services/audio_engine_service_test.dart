@@ -37,7 +37,9 @@ void main() {
       expect(e.ended, [1]);
       e.player.release('add');
       await pumpEventQueue();
-      expect(e.player.calls, ['add 2', 'seek 1', 'play', 'remove 0']);
+      expect(e.player.calls, ['add 2', 'remove 0']);
+      expect(e.player.audible, '2');
+      expect(e.player.startedTwice, isNull);
     });
 
     test('is not followed by a successor the user paused before', () async {
@@ -65,7 +67,8 @@ void main() {
 
       e.player.release('add');
       await pumpEventQueue();
-      expect(e.player.calls, ['add 2', 'seek 1', 'play', 'remove 0', 'add 3']);
+      expect(e.player.calls, ['add 2', 'remove 0', 'add 3']);
+      expect(e.player.audible, '2');
 
       e.player.release('add');
       await e.advance();
@@ -112,6 +115,52 @@ void main() {
 
       expect(e.ended, [1, 2]);
       expect(e.player.calls, ['add 2']);
+      expect(e.player.startedTwice, isNull);
+    });
+
+    test('playing, the player moves into it when it arrives, and it is '
+        'not started again', () async {
+      final e = await _started();
+      await e.playing(_track(1));
+      e.player.hold('add');
+      await e.engine.setNext(_track(2));
+      await pumpEventQueue();
+      e.player
+        ..end()
+        ..deliver();
+      await pumpEventQueue();
+      expect(e.ended, [1]);
+
+      e.player.release('add');
+      await pumpEventQueue();
+
+      expect(e.player.calls, ['add 2', 'remove 0']);
+      expect(e.player.audible, '2');
+      expect(e.player.startedTwice, isNull);
+    });
+
+    test('paused, the player goes back to the start of the ended track when '
+        'the successor arrives; the successor is started, and plays on '
+        'resuming', () async {
+      final e = await _started();
+      await e.playing(_track(1));
+      e.player.hold('add');
+      await e.engine.setNext(_track(2));
+      await pumpEventQueue();
+      e.player
+        ..end()
+        ..deliver();
+      await pumpEventQueue();
+      await e.engine.pause();
+
+      e.player.release('add');
+      await pumpEventQueue();
+      expect(e.player.calls, ['add 2', 'pause', 'seek 1', 'remove 0']);
+      expect(e.player.audible, isNull);
+
+      await e.engine.resume();
+      await pumpEventQueue();
+      expect(e.player.audible, '2');
       expect(e.player.startedTwice, isNull);
     });
 
@@ -179,6 +228,45 @@ void main() {
     );
   });
 
+  group('a seek after the last track ended', () {
+    test('is dropped, so the ended track is not heard again', () async {
+      final e = await _started();
+      await e.playing(_track(1));
+      await e.send(ProcessingState.completed);
+      expect(e.ended, [1]);
+
+      await e.engine.seek(const Duration(seconds: 1));
+      await pumpEventQueue();
+
+      expect(e.player.calls, isEmpty);
+      expect(e.player.audible, isNull);
+    });
+  });
+
+  group('a seek given before the head ended', () {
+    test('is dropped when it reaches the engine after the successor took '
+        'the head\'s place, so it does not cut into the successor', () async {
+      final e = await _started();
+      await e.playing(_track(1));
+      e.player.hold('add');
+      await e.engine.setNext(_track(2));
+      await e.engine.seek(const Duration(seconds: 1));
+      await pumpEventQueue();
+      e.player
+        ..end()
+        ..deliver();
+      await pumpEventQueue();
+      expect(e.ended, [1]);
+
+      e.player.release('add');
+      await pumpEventQueue();
+
+      expect(e.player.calls, ['add 2', 'remove 0']);
+      expect(e.player.audible, '2');
+      expect(e.player.landings, isEmpty);
+    });
+  });
+
   group('a removal of the queued track that is still in flight', () {
     test('a completion is reported as the track that ended', () async {
       final e = await _started();
@@ -230,14 +318,9 @@ void main() {
       e.player.release('add');
       await pumpEventQueue();
       expect(e.ended, [1]);
-      expect(e.player.calls, [
-        'add 2',
-        'remove 1',
-        'add 3',
-        'seek 1',
-        'play',
-        'remove 0',
-      ]);
+      expect(e.player.calls, ['add 2', 'remove 1', 'add 3', 'remove 0']);
+      expect(e.player.audible, '3');
+      expect(e.player.startedTwice, isNull);
     });
   });
 
@@ -256,14 +339,9 @@ void main() {
       await pumpEventQueue();
 
       expect(e.ended, [1]);
-      expect(e.player.calls, [
-        'remove 1',
-        'add 3',
-        'seek 1',
-        'play',
-        'remove 0',
-      ]);
+      expect(e.player.calls, ['remove 1', 'add 3', 'remove 0']);
       expect(e.player.names, ['3']);
+      expect(e.player.audible, '3');
     });
 
     test('the player advancing into the removed track and ending it starts '
@@ -282,14 +360,9 @@ void main() {
       await pumpEventQueue();
 
       expect(e.ended, [1]);
-      expect(e.player.calls, [
-        'remove 1',
-        'add 3',
-        'seek 1',
-        'play',
-        'remove 0',
-      ]);
+      expect(e.player.calls, ['remove 1', 'add 3', 'remove 0']);
       expect(e.player.names, ['3']);
+      expect(e.player.audible, '3');
 
       await e.engine.setNext(_track(4));
       await pumpEventQueue();
@@ -299,8 +372,8 @@ void main() {
   });
 
   group('the end reaches Dart after the changes around it', () {
-    test('the playlist ending while the successor is already held plays the '
-        'successor', () async {
+    test('an end the successor\'s add reply brings with it, with the player '
+        'moved into the successor, keeps the successor playing', () async {
       final e = await _started();
       await e.playing(_track(1));
       e.player.hold('add');
@@ -311,11 +384,10 @@ void main() {
       e.player.arrive('add');
       e.player.reply('add');
       await pumpEventQueue();
-      e.player.deliver();
-      await pumpEventQueue();
 
       expect(e.ended, [1]);
-      expect(e.player.calls, ['add 2', 'seek 1', 'play', 'remove 0']);
+      expect(e.player.calls, ['add 2', 'remove 0']);
+      expect(e.player.startedTwice, isNull);
       expect(e.player.audible, '2');
       expect(e.player.platformNames, ['2']);
     });
@@ -329,7 +401,6 @@ void main() {
       e.player.end();
       e.player.arrive('add');
       e.player.reply('add');
-      e.player.deliver();
       await pumpEventQueue();
 
       e.player.end();
@@ -554,10 +625,9 @@ void main() {
 
       e.player.release('add');
       await pumpEventQueue();
-      expect(
-        e.player.calls,
-        containsAllInOrder(['add $third', 'seek 1', 'play']),
-      );
+      expect(e.player.calls, contains('add $third'));
+      expect(e.player.audible, third);
+      expect(e.player.startedTwice, isNull);
 
       await e.send(ProcessingState.completed);
       await pumpEventQueue();
@@ -596,13 +666,9 @@ void main() {
 
       expect(e.ended, [1]);
       expect(repository.state.segment?.address, a('1:2'));
-      expect(e.player.calls, [
-        'remove 1',
-        'add AyahFile(x:1:2)',
-        'seek 1',
-        'play',
-        'remove 0',
-      ]);
+      expect(e.player.calls, ['remove 1', 'add AyahFile(x:1:2)', 'remove 0']);
+      expect(e.player.audible, 'AyahFile(x:1:2)');
+      expect(e.player.startedTwice, isNull);
     });
 
     test('stop-after toggled while a removal is in flight, the head and the '
@@ -729,6 +795,65 @@ void main() {
       expect(problems, isEmpty);
     });
 
+    test('the player moving into the next ayah itself when its add reaches '
+        'it after the end does not start that ayah again', () async {
+      final problems = await _replay([
+        'end',
+        'see',
+        'arriveRemove',
+        'replyRemove',
+        'see',
+        'end',
+        'see',
+        'arriveAdd',
+        'see',
+        'see',
+        'replyAdd',
+      ]);
+
+      expect(problems, isEmpty);
+    });
+
+    test('a resume while an ended ayah waits for its successor does not play '
+        'the ended ayah, which a removal took back to its start', () async {
+      final problems = await _replay([
+        'stopOn',
+        'stopOff',
+        'arriveRemove',
+        'replyRemove',
+        'arriveAdd',
+        'end',
+        'end',
+        'pause',
+        'resume',
+        'see',
+        'see',
+        'replyAdd',
+      ]);
+
+      expect(problems, isEmpty);
+    });
+
+    test('a seek given at an ayah whose end is reported before the seek '
+        'runs does not land on the next ayah', () async {
+      final problems = await _replay(
+        [
+          'end',
+          'see',
+          'seek',
+          'end',
+          'see',
+          'arriveRemove',
+          'replyRemove',
+          'arriveAdd',
+          'replyAdd',
+        ],
+        holding: {'add', 'remove', 'seek'},
+      );
+
+      expect(problems, isEmpty);
+    });
+
     test('a seek lands on the ayah the repository is at, even when the '
         'player moved on before it arrived', () async {
       final (e, repository) = await seeking();
@@ -793,7 +918,7 @@ void main() {
         'replyAdd': 1,
         'arriveRemove': 2,
         'replyRemove': 2,
-      }, orderings: 30);
+      }, orderings: 26);
 
       walk('stop-after turned on and off across an ayah boundary', {
         'stopOn': 1,
@@ -804,7 +929,7 @@ void main() {
         'replyAdd': 1,
         'arriveRemove': 1,
         'replyRemove': 1,
-      }, orderings: 1222);
+      }, orderings: 965);
 
       walk('the sleep timer turned on and off across an ayah boundary', {
         'sleepOn': 1,
@@ -815,7 +940,7 @@ void main() {
         'replyAdd': 1,
         'arriveRemove': 1,
         'replyRemove': 1,
-      }, orderings: 1222);
+      }, orderings: 965);
 
       walk(
         'stop-after turned on and off while a seek is in flight',
@@ -832,7 +957,7 @@ void main() {
           'arriveRemove': 1,
           'replyRemove': 1,
         },
-        orderings: 2063,
+        orderings: 1620,
         holding: {'add', 'remove', 'seek'},
       );
 
@@ -865,7 +990,7 @@ void main() {
           'arriveRemove': 1,
           'replyRemove': 1,
         },
-        orderings: 1820,
+        orderings: 795,
         holding: {'add', 'remove', 'seek'},
       );
 
@@ -878,7 +1003,25 @@ void main() {
         'replyAdd': 2,
         'arriveRemove': 2,
         'replyRemove': 2,
-      }, orderings: 3158);
+      }, orderings: 2166);
+
+      walk(
+        'a pause and a resume while stop-after is toggled across an ayah '
+        'boundary',
+        {
+          'stopOn': 1,
+          'stopOff': 1,
+          'pause': 1,
+          'resume': 1,
+          'end': 2,
+          'see': 2,
+          'arriveAdd': 1,
+          'replyAdd': 1,
+          'arriveRemove': 1,
+          'replyRemove': 1,
+        },
+        orderings: 19834,
+      );
 
       walk(
         'a pause, a seek and a new play inside the window',

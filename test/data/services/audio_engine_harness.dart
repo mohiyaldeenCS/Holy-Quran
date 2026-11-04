@@ -56,8 +56,14 @@ final class _Ready extends _Outbound {}
 ///   call to its reply (`_seeking`, 298, 1316-1334), though [currentIndex]
 ///   still follows every report;
 /// - [processingStateStream] repeats no state (`.distinct()`, 281-282);
-/// - the platform's reports reach Dart in the order it sent them, so a
-///   seek's reply comes after what it reported before replying.
+/// - the platform's reports reach Dart in the order it sent them, and a
+///   seek, an add or a removal replies after what the platform reported
+///   before replying (AudioPlayer.java 493-517, 1031-1047: the playlist's
+///   own adds and removals reply right after ExoPlayer's callbacks);
+/// - an add or a removal that reaches a player that has ended moves it on:
+///   set to play, into the track after the current one, if there is one;
+///   paused, back to the start of the current track (`onTimelineChanged`,
+///   AudioPlayer.java 304-323).
 final class _FakePlayer extends Fake implements AudioPlayer {
   final _states = StreamController<ProcessingState>.broadcast(sync: true);
   final _jumps = StreamController<PositionDiscontinuity>.broadcast(sync: true);
@@ -74,6 +80,9 @@ final class _FakePlayer extends Fake implements AudioPlayer {
   /// track may play again.
   final List<AudioSource?> starts = [];
 
+  /// The track each seek to a position within a track landed on, in order.
+  final List<String?> landings = [];
+
   /// The Dart-side playlist, as just_audio's `sequence` holds it.
   final List<AudioSource> _sources = [];
 
@@ -84,6 +93,10 @@ final class _FakePlayer extends Fake implements AudioPlayer {
   int _sent = 0;
   int _seen = 0;
   bool _completed = false;
+
+  /// The platform went back to the start of its current track while
+  /// paused; playing it hears it again.
+  bool _rewound = false;
   bool _playing = false;
   bool _seeking = false;
   ProcessingState _state = ProcessingState.ready;
@@ -180,7 +193,7 @@ final class _FakePlayer extends Fake implements AudioPlayer {
   void reply(String kind, {Object? error}) {
     final change = _pending[kind]!.removeAt(0);
     assert(change.arrived, 'a reply before the change arrived');
-    if (kind == 'seek') _seeUpTo(change.reportsBefore);
+    _seeUpTo(change.reportsBefore);
     if (error == null) {
       change.reply.complete();
     } else {
@@ -229,6 +242,7 @@ final class _FakePlayer extends Fake implements AudioPlayer {
   /// holds, or completes. Dart hears of it at [deliver].
   void end() {
     assert(hasHead, 'nothing is playing to end');
+    _rewound = false;
     if (_current + 1 < _platform.length) {
       _report(_Advanced(_current, ++_current));
       starts.add(_platform[_current]);
@@ -281,13 +295,28 @@ final class _FakePlayer extends Fake implements AudioPlayer {
     _report(_Completed());
   }
 
+  /// What just_audio does when the playlist changes while the player has
+  /// ended.
+  void _moveOnIfEnded() {
+    if (!_completed || _platform.isEmpty) return;
+    if (_playing) {
+      if (_current + 1 >= _platform.length) return;
+      _report(_Advanced(_current, ++_current));
+      starts.add(_platform[_current]);
+    } else {
+      _rewound = true;
+    }
+    _completed = false;
+    _report(_Ready());
+  }
+
   Future<void> _change(String kind, String call, void Function() apply) {
     calls.add(call);
     final change = _Change(kind, _epoch, apply);
     if (!_held.contains(kind)) {
       change.arrived = true;
       apply();
-      if (kind == 'seek') _seeUpTo(_sent);
+      _seeUpTo(_sent);
       return Future.value();
     }
     (_pending[kind] ??= []).add(change);
@@ -331,6 +360,7 @@ final class _FakePlayer extends Fake implements AudioPlayer {
         ..addAll(audioSources);
       _current = _reported = initialIndex ?? 0;
       _completed = false;
+      _rewound = false;
       _state = ProcessingState.ready;
       starts.addAll([null, if (hasHead) _platform[_current]]);
     });
@@ -340,11 +370,10 @@ final class _FakePlayer extends Fake implements AudioPlayer {
   @override
   Future<void> addAudioSource(AudioSource audioSource) {
     _sources.add(audioSource);
-    return _change(
-      'add',
-      'add ${_name(audioSource)}',
-      () => _platform.add(audioSource),
-    );
+    return _change('add', 'add ${_name(audioSource)}', () {
+      _platform.add(audioSource);
+      _moveOnIfEnded();
+    });
   }
 
   @override
@@ -357,6 +386,7 @@ final class _FakePlayer extends Fake implements AudioPlayer {
       if (at < _current) {
         _report(_Indexed(--_current));
       } else if (at == _current) {
+        _rewound = false;
         if (_current >= _platform.length) {
           // With no track after it, the player ends at the last one left.
           if (_platform.isNotEmpty) _report(_Indexed(--_current));
@@ -365,6 +395,7 @@ final class _FakePlayer extends Fake implements AudioPlayer {
           starts.add(_platform[_current]);
         }
       }
+      _moveOnIfEnded();
     });
   }
 
@@ -372,6 +403,8 @@ final class _FakePlayer extends Fake implements AudioPlayer {
   Future<void> play() async {
     calls.add('play');
     _playing = true;
+    if (_rewound && hasHead) starts.add(_platform[_current]);
+    _rewound = false;
   }
 
   @override
@@ -391,9 +424,15 @@ final class _FakePlayer extends Fake implements AudioPlayer {
     _seeking = true;
     try {
       await _change('seek', 'seek ${index ?? '-'}', () {
+        _rewound = false;
         if (index != null && index >= 0 && index < _platform.length) {
           _current = index;
           _report(_Indexed(index));
+        }
+        if (position != Duration.zero) {
+          landings.add(
+            _current < _platform.length ? _name(_platform[_current]) : null,
+          );
         }
         if (_completed) _report(_Ready());
         _completed = false;
@@ -520,6 +559,9 @@ final class _SpyEngine implements AudioEngineService {
   /// The track the engine was last told to play after the current one.
   EngineTrack? wanted;
 
+  /// Called as each seek is given to the engine.
+  void Function()? onSeek;
+
   EngineTrack _note(EngineTrack track) {
     given[track.id] = track.uri.pathSegments.last;
     return track;
@@ -574,7 +616,10 @@ final class _SpyEngine implements AudioEngineService {
   Future<void> setVolume(double volume) => _inner.setVolume(volume);
 
   @override
-  Future<void> seek(Duration position) => _inner.seek(position);
+  Future<void> seek(Duration position) {
+    onSeek?.call();
+    return _inner.seek(position);
+  }
 
   @override
   Future<void> setSpeed(double factor) => _inner.setSpeed(factor);
@@ -622,6 +667,11 @@ final class _Race {
   final endedIds = <int>[];
   final problems = <String>[];
   var _replayed = false;
+
+  /// For each seek given to the engine, the segment the repository was at
+  /// and how many ends had been reported.
+  final _seeks = <({String? segment, int ended})>[];
+  var _landed = 0;
 
   _FakePlayer get player => engine.player;
 
@@ -676,6 +726,10 @@ final class _Race {
     );
     final race = _Race._(engine, spy, repository);
     engine.engine.events.listen(race._onEngine);
+    spy.onSeek = () => race._seeks.add((
+      segment: race._segmentName,
+      ended: race.endedIds.length,
+    ));
     repository.addListener(race._onState);
     await repository.play(plan);
     await _flush();
@@ -782,6 +836,7 @@ final class _Race {
         unawaited(repository.play(plan));
     }
     await _flush();
+    _checkLandings();
     if (step != 'play' && endedIds.length > endedBefore) {
       final advanced = (state.segmentIndex ?? 0) - (indexBefore ?? 0);
       if (state.stopReason == null &&
@@ -793,6 +848,33 @@ final class _Race {
       }
     }
     if (!player.busy) checkSettled('after $step');
+  }
+
+  /// A seek lands on the segment the repository was at when it gave it. The
+  /// engine drops it only if that segment's end was reported first.
+  void _checkLandings() {
+    while (_landed < player.landings.length) {
+      final landing = player.landings[_landed++];
+      String? dropped;
+      while (true) {
+        if (_seeks.isEmpty) {
+          problems.add(
+            dropped == null
+                ? 'a seek landed on $landing, but none was given'
+                : 'a seek given at $dropped landed on $landing after the end '
+                      'of $dropped was reported',
+          );
+          return;
+        }
+        final seek = _seeks.removeAt(0);
+        if (landing == seek.segment) break;
+        if (endedIds.length == seek.ended) {
+          problems.add('a seek given at ${seek.segment} landed on $landing');
+          return;
+        }
+        dropped = seek.segment;
+      }
+    }
   }
 
   /// Lets every change through and every report be heard.
@@ -813,6 +895,7 @@ final class _Race {
         }
       }
       await _flush();
+      _checkLandings();
       if (!moved) return;
     }
     problems.add('the player never settled');

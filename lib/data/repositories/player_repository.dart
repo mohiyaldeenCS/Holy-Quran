@@ -231,7 +231,12 @@ final class EnginePlayerRepository extends PlayerRepository {
     notifyListeners();
   }
 
-  Future<void> _start(PlaybackPlan plan, int startAt) async {
+  /// A plan that starts [paused] readies its first segment for [resume].
+  Future<void> _start(
+    PlaybackPlan plan,
+    int startAt, {
+    bool paused = false,
+  }) async {
     final rules =
         _rules?.handOver(plan, startAt: startAt) ??
         PlaybackRules(plan, clock: _now, startAt: startAt);
@@ -268,7 +273,7 @@ final class EnginePlayerRepository extends PlayerRepository {
       }
       _activated = true;
     }
-    await _apply(rules.start());
+    await _apply(rules.start(), paused: paused);
   }
 
   /// [paused] when the user paused while the end that [input] reports was
@@ -290,9 +295,9 @@ final class EnginePlayerRepository extends PlayerRepository {
         case AyahStarted(:final ayah):
           _update(_state.copyWith(ayah: ayah));
         case SilenceStarted(:final duration):
-          await _startSilence(duration, paused: paused);
+          await _startSilence(duration);
         case PlaybackStopped(:final reason, :final fade):
-          await _stopped(reason, fade: fade);
+          await _stopped(reason, fade: fade, paused: paused);
       }
     }
   }
@@ -420,9 +425,9 @@ final class EnginePlayerRepository extends PlayerRepository {
     );
   }
 
-  Future<void> _startSilence(Duration duration, {bool paused = false}) async {
+  Future<void> _startSilence(Duration duration) async {
     _update(_state.copyWith(inSilence: true));
-    if (_state.playing && !paused) {
+    if (_state.playing) {
       _runSilence(duration);
     } else {
       _silenceLeft = duration;
@@ -443,7 +448,10 @@ final class EnginePlayerRepository extends PlayerRepository {
     _silenceEnds = _now().add(duration);
     _silenceTimer = Timer(
       duration,
-      () => unawaited(_serially(() => _handle(SilenceEnded(serial)))),
+      // A pause handled after the timer fired holds what follows.
+      () => unawaited(
+        _serially(() => _handle(SilenceEnded(serial), paused: !_state.playing)),
+      ),
     );
   }
 
@@ -465,7 +473,13 @@ final class EnginePlayerRepository extends PlayerRepository {
     );
   }
 
-  Future<void> _stopped(StopReason reason, {required bool fade}) async {
+  /// [paused] when the user paused while the end that stopped the plan was
+  /// on its way: the next queued plan then starts paused.
+  Future<void> _stopped(
+    StopReason reason, {
+    required bool fade,
+    bool paused = false,
+  }) async {
     _cancelSilence();
     _sleepAlarm?.cancel();
     _preload = null;
@@ -483,7 +497,7 @@ final class EnginePlayerRepository extends PlayerRepository {
     if (reason == StopReason.endOfPlan && _state.queue.isNotEmpty) {
       final [next, ...rest] = _state.queue;
       _update(_state.copyWith(queue: rest));
-      return _start(next, 0);
+      return _start(next, 0, paused: paused);
     }
     if (fade) {
       await _engine.setNext(null);

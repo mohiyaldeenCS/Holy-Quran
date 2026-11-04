@@ -345,11 +345,15 @@ final class PluginAudioEngineService implements AudioEngineService {
     await _player.pause();
   }
 
+  /// An ended head is not played again: a playlist change that reached the
+  /// player while it was paused may have taken it back to the head's start
+  /// (`onTimelineChanged`, just_audio's AudioPlayer.java), and starting the
+  /// successor plays it.
   @override
   Future<void> resume() async {
     _handler!.playing = true;
     _inOrder(() async {
-      if (_handler!.playing) _play();
+      if (_handler!.playing && (!_headEnded || _successorStarted)) _play();
     });
   }
 
@@ -445,7 +449,7 @@ final class PluginAudioEngineService implements AudioEngineService {
         index == head + 1 &&
         index! < _player.audioSources.length) {
       _advanced(index);
-      if (!completed || _tracks.isEmpty) return;
+      if (!completed) return;
       if (!_headEnded) {
         // The track advanced into ended too, before the caller could say
         // what follows it: the next [setNext] names its successor.
@@ -502,21 +506,27 @@ final class PluginAudioEngineService implements AudioEngineService {
   @override
   Future<void> setVolume(double volume) => _player.setVolume(volume);
 
-  /// Pinned to the head, so that it lands on the track the caller is at
-  /// even if the player moved on before the seek reached it; dropped if the
-  /// head's end was reported first, since the caller has moved on.
+  /// Pinned to the track the caller is at when it seeks: the head, or the
+  /// successor once the head's end has been reported. It lands there even
+  /// if the player moved on before the seek reached it, and is dropped if
+  /// that track's end was reported first or it is not yet the head, since
+  /// the caller has moved on or the track is not yet in place.
   @override
-  Future<void> seek(Duration position) async => _inOrder(() async {
-    if (_headEnded) return;
-    final head = _tracks.isEmpty ? -1 : _indexOf(_tracks.first);
-    _seeking = true;
-    try {
-      await _player.seek(position, index: head < 0 ? null : head);
-    } finally {
-      _seeking = false;
-    }
-    _catchUp();
-  });
+  Future<void> seek(Duration position) async {
+    final at = _headEnded ? _successor : _tracks.firstOrNull;
+    _inOrder(() async {
+      if (_headEnded || _tracks.isEmpty || !identical(_tracks.first, at)) {
+        return;
+      }
+      _seeking = true;
+      try {
+        await _player.seek(position, index: _indexOf(_tracks.first));
+      } finally {
+        _seeking = false;
+      }
+      _catchUp();
+    });
+  }
 
   @override
   Future<void> setSpeed(double factor) async {
@@ -574,7 +584,17 @@ final class PluginAudioEngineService implements AudioEngineService {
   /// The player moved from the head into the track at [index] of its
   /// playlist.
   void _advanced(int index) {
-    if (_loading || _headEnded || _tracks.isEmpty) return;
+    if (_loading || _tracks.isEmpty) return;
+    if (_headEnded) {
+      // just_audio moves into the track after an ended one itself when the
+      // playlist changes (AudioPlayer.java onTimelineChanged), so the
+      // successor whose queueing has not replied may be playing already.
+      if (_successor case final successor?
+          when identical(_player.audioSources[index], _sourceOf[successor])) {
+        _successorStarted = true;
+      }
+      return;
+    }
     // The track advanced into becomes the head only if it is the one wanted
     // now. Otherwise it is a track being removed or replaced, because
     // stop-after or the sleep timer was toggled: taking it as the head would

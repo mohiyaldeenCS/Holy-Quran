@@ -210,8 +210,15 @@ final class _FakeEngine implements AudioEngineService {
   Future<void> seek(Duration position) async =>
       log.add('seek ${position.inSeconds}');
 
+  /// While set, [setSpeed] waits for it, and every command after it waits
+  /// too.
+  Completer<void>? speedGate;
+
   @override
-  Future<void> setSpeed(double factor) async => speed = factor;
+  Future<void> setSpeed(double factor) async {
+    await speedGate?.future;
+    speed = factor;
+  }
 
   @override
   Future<void> setMediaInfo(MediaInfo info) async => infos.add(info);
@@ -681,6 +688,64 @@ void main() {
         expect(h.state.ayah, _a('1:2'));
         expect(h.engine.heard, ['1-1', '1-2']);
       });
+    });
+  });
+
+  group('a pause while the end of a plan is on its way', () {
+    test('loads the next queued plan held, and resuming plays it', () {
+      fakeAsync((async) {
+        final h = _Harness(async);
+        final next = _plan(WholeSurah(2));
+        h.repository.enqueue(next);
+        h.run((p) => p.play(_plan(SingleAyah(_a('1:1')))));
+        h.engine.log.clear();
+
+        h.engine.finish();
+        h.run((p) => p.pause());
+
+        expect(h.state.plan, same(next));
+        expect(h.state.playing, isFalse);
+        expect(h.engine.playing, isFalse);
+        expect(h.engine.log.take(2), ['pause', 'load basmala']);
+        expect(h.engine.heard, ['1-1']);
+
+        h.run((p) => p.resume());
+
+        expect(h.state.playing, isTrue);
+        expect(h.engine.heard, ['1-1', 'basmala']);
+      });
+    });
+  });
+
+  test('a pause just before a silence ends holds the next ayah', () {
+    fakeAsync((async) {
+      final h = _Harness(async);
+      h.run(
+        (p) => p.play(
+          _plan(_span('1:1', '1:2'), silence: const Duration(seconds: 4)),
+        ),
+      );
+      h.engine.finish();
+      h.settle();
+      expect(h.engine.log.last, 'load 1-2');
+      final gate = h.engine.speedGate = Completer<void>();
+      unawaited(h.repository.setSpeed(PlaybackSpeed.normal.faster));
+      unawaited(h.repository.pause());
+
+      async.elapse(const Duration(seconds: 4));
+      gate.complete();
+      h.settle();
+
+      expect(h.state.playing, isFalse);
+      expect(h.engine.playing, isFalse);
+      expect(h.engine.log.last, 'session paused');
+      expect(h.engine.heard, ['1-1']);
+
+      h.run((p) => p.resume());
+
+      expect(h.state.ayah, _a('1:2'));
+      expect(h.state.playing, isTrue);
+      expect(h.engine.heard, ['1-1', '1-2']);
     });
   });
 
