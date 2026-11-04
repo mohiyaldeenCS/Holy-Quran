@@ -11,18 +11,24 @@ import 'audio_engine_service.dart';
 /// their commands to [onCommand] and never act on the player themselves, so
 /// the player repository stays the one authority (`AU-15`, `AU-22`).
 final class AppAudioHandler extends BaseAudioHandler with SeekHandler {
-  AppAudioHandler(this.onCommand) {
+  /// [player] and [watchSession] let a test run the handler over a fake
+  /// player and without the platform's audio session.
+  AppAudioHandler(
+    this.onCommand, {
+    AudioPlayer? player,
+    bool watchSession = true,
+  }) : player = player ?? AudioPlayer(handleInterruptions: false) {
     _subscriptions
-      ..add(player.playbackEventStream.listen((_) => _broadcast()))
-      ..add(player.durationStream.listen(_showDuration));
-    unawaited(_configureSession());
+      ..add(this.player.playbackEventStream.listen((_) => _broadcast()))
+      ..add(this.player.durationStream.listen(_showDuration));
+    if (watchSession) unawaited(_configureSession());
   }
 
   /// One click toggles, two or more within this window skip (S3).
   static const _clickWindow = Duration(milliseconds: 400);
 
   final void Function(RemoteCommand command) onCommand;
-  final player = AudioPlayer(handleInterruptions: false);
+  final AudioPlayer player;
   final List<StreamSubscription<Object?>> _subscriptions = [];
   bool _pausedByInterruption = false;
   bool _playing = false;

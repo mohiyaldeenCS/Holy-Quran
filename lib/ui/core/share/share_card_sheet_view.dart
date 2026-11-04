@@ -9,6 +9,9 @@ import 'package:holyquran/ui/core/widgets/share_card.dart';
 /// The share sheet for the view model [create] makes. It fits the ayah on
 /// the card of each design as it is chosen (SH-03), and paints the card it
 /// shows when the user shares it.
+///
+/// The Share board draws no choice of size, so the size follows the fit
+/// rule: 4:5, the board's size for posts, shrinking to 22, then 9:16.
 class ShareCardSheetView extends StatefulWidget {
   const ShareCardSheetView({
     required this.create,
@@ -51,17 +54,11 @@ class _ShareCardSheetViewState extends State<ShareCardSheetView> {
     if (card == null || _fits.containsKey(card.design)) return;
     final fits = ShareCardRenderer(context).fitTest(card);
     setState(() {
-      _fits[card.design] = fitShareCard(
-        ShareCardRatio.portrait,
-        // ShareCard draws the 4:5 card only (D-089, 2): an ayah that needs
-        // the tall card is treated as too long until it draws that one.
-        (ratio, fontSize) =>
-            ratio == ShareCardRatio.portrait && fits(ratio, fontSize),
-      );
+      _fits[card.design] = fitShareCard(_startRatio, fits);
     });
   }
 
-  ShareCard? _card(double fontSize) {
+  ShareCard? _card(double fontSize, [ShareCardRatio ratio = _startRatio]) {
     final ayah = _viewModel.ayah;
     final surahName = _viewModel.surahName;
     if (ayah == null || surahName == null) return null;
@@ -71,6 +68,7 @@ class _ShareCardSheetViewState extends State<ShareCardSheetView> {
       ayahNumber: _viewModel.address.ayah,
       ayahFontSize: fontSize,
       design: _viewModel.design,
+      ratio: ratio,
     );
   }
 
@@ -90,7 +88,7 @@ class _ShareCardSheetViewState extends State<ShareCardSheetView> {
       final fit = _fits[_viewModel.design];
       if (fit == null) return const SizedBox.shrink();
       final card = switch (fit) {
-        ShareCardFits(:final fontSize) => _card(fontSize),
+        ShareCardFits(:final ratio, :final fontSize) => _card(fontSize, ratio),
         ShareCardTooLong() => null,
       };
       final share = _viewModel.share;
@@ -106,3 +104,7 @@ class _ShareCardSheetViewState extends State<ShareCardSheetView> {
     },
   );
 }
+
+// The size the fit starts from: the drawn card (Share.dc.html) and the
+// board's «عمودي ٤:٥ للمنشورات».
+const _startRatio = ShareCardRatio.portrait;
