@@ -21,6 +21,7 @@ import 'package:holyquran/ui/core/reader/reader_text_scale.dart';
 import 'package:holyquran/ui/core/reader/surah_layout.dart';
 import 'package:holyquran/ui/core/reader/target_gestures.dart';
 import 'package:holyquran/ui/core/theme/motion.dart';
+import 'package:holyquran/ui/core/widgets/reveal_on_focus.dart';
 import 'package:holyquran/ui/core/widgets/surah_header.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/mushaf_view_model.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/reader_surah.dart';
@@ -453,14 +454,16 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
   // The whole header opens «مقدمة السورة» when there are facts to show.
   Widget _header(BuildContext context, ReaderSurah surah) {
     final info = surahInfoText(AppLocalizations.of(context), surah.info);
-    return SurahHeader(
-      name: surah.info.name,
-      info: info,
-      onInfoPressed: info == null
-          ? null
-          : () => unawaited(
-              context.push<Object?>(Routes.surahInfoSheet(surah.info.number)),
-            ),
+    return RevealOnFocus(
+      child: SurahHeader(
+        name: surah.info.name,
+        info: info,
+        onInfoPressed: info == null
+            ? null
+            : () => unawaited(
+                context.push<Object?>(Routes.surahInfoSheet(surah.info.number)),
+              ),
+      ),
     );
   }
 

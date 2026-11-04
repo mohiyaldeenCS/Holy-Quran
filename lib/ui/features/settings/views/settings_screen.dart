@@ -107,8 +107,9 @@ class _SectionTitle extends StatelessWidget {
   final String text;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    header: true,
+  // The group below it carries the same words as its name; a screen reader
+  // hears them there, once.
+  Widget build(BuildContext context) => ExcludeSemantics(
     child: Text(
       text,
       style: AppTextStyles.sectionTitle.copyWith(color: context.colors.ink),

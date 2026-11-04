@@ -4,6 +4,8 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/domain/models/pack_text.dart';
+import 'package:holyquran/ui/core/widgets/focus_ring.dart';
+import 'package:holyquran/ui/core/widgets/reveal_on_focus.dart';
 
 import 'break_units.dart';
 import 'planned_ayah.dart';
@@ -200,8 +202,11 @@ double basmalaHeight(PackText basmala, ReaderStyle style, double width) {
 
 /// What a screen reader reads for an ayah: its stored text, at [order]
 /// among the block's text, markers and page marks. With [onActivate] a
-/// screen reader can activate it, and [selected] true says it is the chosen
-/// ayah; null leaves the state out, as for every other ayah.
+/// screen reader can activate it, and a keyboard can reach it: it takes
+/// focus inside the identity's `FocusRing` (square, round the ayah's
+/// rectangle), scrolls into view, and Enter or Space activates it (`AX-09`,
+/// D-169). [selected] true says it is the chosen ayah; null leaves the state
+/// out, as for every other ayah.
 Widget ayahSemantics(
   AyahText ayah,
   double order, {
@@ -215,7 +220,21 @@ Widget ayahSemantics(
   button: onActivate != null,
   selected: selected,
   onTap: onActivate,
-  child: const SizedBox.expand(),
+  child: onActivate == null
+      ? const SizedBox.expand()
+      : RevealOnFocus(
+          child: FocusRing(
+            radius: BorderRadius.zero,
+            child: FocusableActionDetector(
+              actions: {
+                ActivateIntent: CallbackAction<ActivateIntent>(
+                  onInvoke: (_) => onActivate(),
+                ),
+              },
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
 );
 
 // Room past the ayah's natural width, so that the one line it is measured on

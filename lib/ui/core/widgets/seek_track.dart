@@ -1,13 +1,20 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' hide Icon;
 
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/metrics/player_metrics.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/focus_ring.dart';
 import 'package:holyquran/ui/core/widgets/progress_bar.dart';
+
+// Not drawn: the track has no keyboard state in the board, so its focus ring
+// sits square round the target-min band, as the other bare targets' do.
+const BorderRadius _focusRadius = BorderRadius.zero;
 
 /// The player-tone [ProgressBar] in a target-min band that seeks where it
 /// is tapped or dragged, from the right in Arabic; a screen reader moves it
-/// by [PlayerMetrics.seekStep].
+/// by [PlayerMetrics.seekStep], and so do the arrow keys while it has focus,
+/// the one toward the start of the line going back (`AX-09`, D-169).
 class SeekTrack extends StatefulWidget {
   const SeekTrack({
     required this.progress,
@@ -22,6 +29,12 @@ class SeekTrack extends StatefulWidget {
 
   @override
   State<SeekTrack> createState() => _SeekTrackState();
+}
+
+final class _SeekIntent extends Intent {
+  const _SeekIntent({required this.forward});
+
+  final bool forward;
 }
 
 class _SeekTrackState extends State<SeekTrack> {
@@ -50,6 +63,9 @@ class _SeekTrackState extends State<SeekTrack> {
   Widget build(BuildContext context) {
     final onSeek = widget.onSeek;
     final onSeekBy = widget.onSeekBy;
+    // The line runs from the right in Arabic, so the arrow toward its end is
+    // the left one there.
+    final rtl = Directionality.of(context) == TextDirection.rtl;
     return MergeSemantics(
       child: Semantics(
         onIncrease: onSeekBy == null
@@ -58,26 +74,55 @@ class _SeekTrackState extends State<SeekTrack> {
         onDecrease: onSeekBy == null
             ? null
             : () => onSeekBy(-PlayerMetrics.seekStep),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          excludeFromSemantics: true,
-          onTapUp: onSeek == null
-              ? null
-              : (details) {
-                  if (_fractionAt(details.localPosition.dx) case final at?) {
-                    onSeek(at);
-                  }
+        child: FocusRing(
+          radius: _focusRadius,
+          child: FocusableActionDetector(
+            enabled: onSeekBy != null,
+            shortcuts: {
+              const SingleActivator(LogicalKeyboardKey.arrowLeft): _SeekIntent(
+                forward: rtl,
+              ),
+              const SingleActivator(LogicalKeyboardKey.arrowRight): _SeekIntent(
+                forward: !rtl,
+              ),
+            },
+            actions: {
+              _SeekIntent: CallbackAction<_SeekIntent>(
+                onInvoke: (intent) {
+                  onSeekBy?.call(
+                    intent.forward
+                        ? PlayerMetrics.seekStep
+                        : -PlayerMetrics.seekStep,
+                  );
+                  return null;
                 },
-          onHorizontalDragUpdate: onSeek == null ? null : _drag,
-          onHorizontalDragEnd: onSeek == null ? null : (_) => _release(onSeek),
-          onHorizontalDragCancel: () => setState(() => _dragged = null),
-          child: SizedBox(
-            height: AppSizes.targetMin,
-            child: Center(
-              child: ProgressBar(
-                value: _dragged ?? widget.progress,
-                tone: ProgressBarTone.player,
-                label: AppLocalizations.of(context).playerPosition,
+              ),
+            },
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              excludeFromSemantics: true,
+              onTapUp: onSeek == null
+                  ? null
+                  : (details) {
+                      if (_fractionAt(details.localPosition.dx)
+                          case final at?) {
+                        onSeek(at);
+                      }
+                    },
+              onHorizontalDragUpdate: onSeek == null ? null : _drag,
+              onHorizontalDragEnd: onSeek == null
+                  ? null
+                  : (_) => _release(onSeek),
+              onHorizontalDragCancel: () => setState(() => _dragged = null),
+              child: SizedBox(
+                height: AppSizes.targetMin,
+                child: Center(
+                  child: ProgressBar(
+                    value: _dragged ?? widget.progress,
+                    tone: ProgressBarTone.player,
+                    label: AppLocalizations.of(context).playerPosition,
+                  ),
+                ),
               ),
             ),
           ),

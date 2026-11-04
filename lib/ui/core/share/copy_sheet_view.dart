@@ -1,10 +1,13 @@
+import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 
+import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/share/copy_sheet_view_model.dart';
 import 'package:holyquran/ui/core/widgets/copy_sheet.dart';
 
 /// The copy sheet for the view model [create] makes. It closes once the
-/// ayah is on the clipboard.
+/// ayah is on the clipboard, and tells a screen reader so, in words only it
+/// hears (D-168).
 class CopySheetView extends StatefulWidget {
   const CopySheetView({required this.create, super.key});
 
@@ -27,6 +30,11 @@ class _CopySheetViewState extends State<CopySheetView> {
     // the page under it.
     if (_viewModel.copy.completed &&
         (ModalRoute.isCurrentOf(context) ?? false)) {
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        AppLocalizations.of(context).copyConfirmed,
+        Directionality.of(context),
+      );
       Navigator.of(context).pop();
     }
   }

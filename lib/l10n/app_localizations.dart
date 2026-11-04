@@ -1192,6 +1192,12 @@ abstract class AppLocalizations {
   /// **'الآية مع اسم السورة ورقمها'**
   String get copyWithSurahAndNumber;
 
+  /// Spoken to a screen reader after the copy sheet puts the ayah on the clipboard; shown nowhere. Wording approved by the owner, 2026-11-04 (D-168).
+  ///
+  /// In ar, this message translates to:
+  /// **'نُسخت الآية'**
+  String get copyConfirmed;
+
   /// The copy sheet's action button. Source: design/identity-boards/Share.dc.html.
   ///
   /// In ar, this message translates to:
@@ -2112,49 +2118,49 @@ abstract class AppLocalizations {
     String version,
   );
 
-  /// The bookmarks screen's search field: its hint and spoken name. Wording of SR-08 in docs/prd/PRD.ar.md. P1-24, proposed for the lead to approve under D-128 (5).
+  /// The bookmarks screen's search field: its hint and spoken name. Wording of SR-08 in docs/prd/PRD.ar.md. P1-24. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166).
   ///
   /// In ar, this message translates to:
   /// **'ابحث في العلامات والملاحظات'**
   String get bookmarksSearchHint;
 
-  /// The bookmarks tab of the bookmarks screen. First half of the screen title, docs/prd/PRD.ar.md (§7.1). P1-24, proposed for the lead to approve under D-128 (5).
+  /// The bookmarks tab of the bookmarks screen. First half of the screen title, docs/prd/PRD.ar.md (§7.1). P1-24. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166).
   ///
   /// In ar, this message translates to:
   /// **'العلامات'**
   String get bookmarksTabBookmarks;
 
-  /// The notes tab of the bookmarks screen. Second half of the screen title, docs/prd/PRD.ar.md (§7.1). P1-24, proposed for the lead to approve under D-128 (5).
+  /// The notes tab of the bookmarks screen. Second half of the screen title, docs/prd/PRD.ar.md (§7.1). P1-24. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166).
   ///
   /// In ar, this message translates to:
   /// **'الملاحظات'**
   String get bookmarksTabNotes;
 
-  /// The number of bookmarks listed. P1-24, proposed for the lead to approve under D-128 (5). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.
+  /// The number of bookmarks listed. P1-24. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.
   ///
   /// In ar, this message translates to:
   /// **'{count, plural, =1{علامة واحدة} =2{علامتان} few{{digits} علامات} other{{digits} علامة}}'**
   String bookmarksCount(int count, String digits);
 
-  /// The number of notes listed. P1-24, proposed for the lead to approve under D-128 (5). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.
+  /// The number of notes listed. P1-24. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166). count chooses the Arabic plural form; digits is the same number already written in Arabic-Indic digits.
   ///
   /// In ar, this message translates to:
   /// **'{count, plural, =1{ملاحظة واحدة} =2{ملاحظتان} few{{digits} ملاحظات} other{{digits} ملاحظة}}'**
   String notesCount(int count, String digits);
 
-  /// Name of the category group of tags, in the filter and in the note editor. Wording of UD-03 in docs/prd/PRD.ar.md. P1-24, proposed for the lead to approve under D-128 (5).
+  /// Name of the category group of tags, in the filter and in the note editor. Wording of UD-03 in docs/prd/PRD.ar.md. P1-24. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166).
   ///
   /// In ar, this message translates to:
   /// **'التصنيف'**
   String get categoryLabel;
 
-  /// Spoken name of the delete button of a bookmark, beside noteDelete. P1-24, proposed for the lead to approve under D-128 (5).
+  /// Spoken name of the delete button of a bookmark, beside noteDelete. P1-24. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166).
   ///
   /// In ar, this message translates to:
   /// **'احذف العلامة'**
   String get bookmarkDelete;
 
-  /// The line beside the undo action after a bookmark or a note is deleted (UD-07). P1-24, proposed for the lead to approve under D-128 (5).
+  /// The line beside the undo action after a bookmark or a note is deleted (UD-07). P1-24. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166).
   ///
   /// In ar, this message translates to:
   /// **'تم الحذف'**
@@ -2166,19 +2172,19 @@ abstract class AppLocalizations {
   /// **'أضف ملاحظة'**
   String get noteAdd;
 
-  /// Hint and spoken name of the field that makes a free tag (UD-02). P1-24, proposed for the lead to approve under D-128 (5).
+  /// Hint and spoken name of the field that makes a free tag (UD-02). P1-24. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166).
   ///
   /// In ar, this message translates to:
   /// **'وسم جديد'**
   String get tagNewHint;
 
-  /// The button that makes the free tag typed in the note editor (UD-02). P1-24, proposed for the lead to approve under D-128 (5).
+  /// The button that makes the free tag typed in the note editor (UD-02). P1-24. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166).
   ///
   /// In ar, this message translates to:
   /// **'أضف'**
   String get tagAdd;
 
-  /// The spoken hint of a tag on a bookmark's or note's card, whose press opens the editor of its category and tags. Wording of UD-03 in docs/prd/PRD.ar.md. P1-24, proposed for the lead to approve under D-128 (5).
+  /// The spoken hint of a tag on a bookmark's or note's card, whose press opens the editor of its category and tags. Wording of UD-03 in docs/prd/PRD.ar.md. P1-24. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166).
   ///
   /// In ar, this message translates to:
   /// **'غيّر التصنيف والوسوم'**
@@ -2190,13 +2196,13 @@ abstract class AppLocalizations {
   /// **'عدّل الملاحظة'**
   String get noteEdit;
 
-  /// P1-29, for the lead's approval under D-128 (5). The name of the group of chips that choose where a search looks (SR-06). Wording from docs/prd/PRD.ar.md (SR-06).
+  /// Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166). The name of the group of chips that choose where a search looks (SR-06). Wording from docs/prd/PRD.ar.md (SR-06).
   ///
   /// In ar, this message translates to:
   /// **'نطاق البحث'**
   String get searchScopeLabel;
 
-  /// P1-29, for the lead's approval under D-128 (5). The count line of the search summary, as the Search board writes it: places is searchPlaces and ayat is ayahCount, each already written. Source: design/identity-boards/Search.dc.html.
+  /// Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166). The count line of the search summary, as the Search board writes it: places is searchPlaces and ayat is ayahCount, each already written. Source: design/identity-boards/Search.dc.html.
   ///
   /// In ar, this message translates to:
   /// **'{places} في {ayat}'**
@@ -2208,13 +2214,13 @@ abstract class AppLocalizations {
   /// **'مسح السجل'**
   String get searchHistoryClear;
 
-  /// P1-29, for the lead's approval under D-128 (5). The hint and spoken name of the field for the number of the surah a search is limited to; the Go to sheet's «سورة» with the word a number is expected (SR-06).
+  /// Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166). The hint and spoken name of the field for the number of the surah a search is limited to; the Go to sheet's «سورة» with the word a number is expected (SR-06).
   ///
   /// In ar, this message translates to:
   /// **'رقم السورة'**
   String get searchScopeSurahNumber;
 
-  /// P1-29, for the lead's approval under D-128 (5). The hint and spoken name of the field for the number of the juz a search is limited to (SR-06).
+  /// Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166). The hint and spoken name of the field for the number of the juz a search is limited to (SR-06).
   ///
   /// In ar, this message translates to:
   /// **'رقم الجزء'**
