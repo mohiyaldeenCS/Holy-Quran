@@ -2,7 +2,8 @@ name: Agent
 
 # Runs one task with the Claude Agent SDK (.github/agent.mjs) on a branch of
 # its own, checks the result, pushes it and opens a pull request. Started by
-# hand from the Actions tab. Nothing is merged here: the owner merges.
+# hand from the Actions tab or `gh workflow run`. Nothing is merged here: the
+# lead merges after an independent review and CI (D-136).
 on:
   workflow_dispatch:
     inputs:
@@ -33,7 +34,7 @@ on:
       agent:
         description: Project agent for the main thread (.claude/agents), or none for the lead
         type: choice
-        options: [none, ui-builder, data-builder, audio-builder, content-engineer, test-engineer]
+        options: [none, ui-builder, data-builder, audio-builder, content-engineer, test-engineer, code-reviewer, identity-auditor]
         default: none
       model:
         description: Model
@@ -307,6 +308,32 @@ jobs:
             echo "::warning::The pull request could not be opened (Settings → Actions → General → allow GitHub Actions to create pull requests). Open it from https://github.com/${GITHUB_REPOSITORY}/compare/${BASE}...${BRANCH}"
           fi
 
+      # A read-only run, such as a review, commits nothing: its report still
+      # belongs on the branch's pull request.
+      - name: Comment the report of a run without commits
+        if: steps.guard.outputs.changes == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ inputs.branch }}
+          AGENT: ${{ inputs.agent }}
+          MODEL: ${{ inputs.model }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          outcome="$RUNNER_TEMP/agent-outcome.json"
+          number="$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')"
+          if [ -z "$number" ] || [ ! -f "$outcome" ]; then
+            exit 0
+          fi
+          body="$RUNNER_TEMP/report-body.md"
+          {
+            echo "## Report of a run without commits"
+            echo
+            echo "Agent ${AGENT}, model ${MODEL}, run ${RUN_URL}"
+            echo
+            jq -r '.report // "The run ended without a report."' "$outcome"
+          } > "$body"
+          gh pr comment "$number" --body-file "$body"
+
       # A pull request opened with the workflow token starts no pull_request
       # run, so the checks are started here; they report on the branch's head.
       - name: Start CI on the branch
@@ -327,6 +354,12 @@ jobs:
           GOLDENS: ${{ steps.checks.outputs.goldens }}
           PR_URL: ${{ steps.pr.outputs.url }}
         run: |
+          # The whole report, since the agent's own log lines are shortened.
+          if [ -f "$RUNNER_TEMP/agent-outcome.json" ]; then
+            echo "===== Agent's report ====="
+            jq -r '.report // "The run ended without a report."' "$RUNNER_TEMP/agent-outcome.json"
+            echo "===== End of the report ====="
+          fi
           {
             echo "## Workflow"
             echo
