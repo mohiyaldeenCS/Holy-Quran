@@ -216,6 +216,40 @@ void main() {
       expect(outcome.verdict, Verdict.informative);
     });
 
+    test('frames that were the cost of a pump are informative in any mode', () {
+      final outcome = _outcomeOf(
+        [
+          _run(
+            'scroll',
+            'framesPerSecond',
+            240,
+            details: {'frameSource': 'pump-wall-clock'},
+          ),
+        ],
+        'scroll',
+        'framesPerSecond',
+      );
+
+      expect(outcome.verdict, Verdict.informative);
+    });
+
+    test('engine frame timings from a profile run are held to the limit', () {
+      final outcome = _outcomeOf(
+        [
+          _run(
+            'scroll',
+            'framesPerSecond',
+            58,
+            details: {'frameSource': 'frame-timing'},
+          ),
+        ],
+        'scroll',
+        'framesPerSecond',
+      );
+
+      expect(outcome.verdict, Verdict.missed);
+    });
+
     test('every check gets one outcome, in the order of the checks', () {
       final outcomes = evaluate(const []);
 

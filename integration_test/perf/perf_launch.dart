@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -15,16 +17,24 @@ import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
 import '../../testing/application_support.dart';
+import '../../testing/packs/synthetic_pack.dart' show amiriQuranFontPath;
 import 'perf_app.dart';
 import 'perf_pack.dart';
 import 'perf_run.dart';
 
+bool get _onDevice => Platform.isAndroid || Platform.isIOS;
+
 /// The application support folder: the device's own, or on a computer a new
 /// temporary folder that path_provider is made to answer with.
-Future<Directory> perfSupportFolder() async =>
-    Platform.isAndroid || Platform.isIOS
+Future<Directory> perfSupportFolder() async => _onDevice
     ? getApplicationSupportDirectory()
     : useTemporaryApplicationSupport();
+
+/// The pinned font's bytes from the app's bundle on a device, which has no
+/// repository path to read them from; null on a computer, which has.
+Future<Uint8List?> perfFontBytes() async => _onDevice
+    ? (await rootBundle.load(amiriQuranFontPath)).buffer.asUint8List()
+    : null;
 
 /// Opens the harness over the application support folder, building the pack
 /// there when an earlier run of the install has not. The next start opens the
@@ -41,7 +51,11 @@ Future<PerfApp> preparePerfApp(
 }) async {
   final support = await perfSupportFolder();
   final perf = (await tester.runAsync(
-    () => PerfApp.open(size: size, support: support),
+    () async => PerfApp.open(
+      size: size,
+      support: support,
+      fontBytes: await perfFontBytes(),
+    ),
   ))!;
   if (reseed || !perf.packReused) {
     await tester.runAsync(() async {

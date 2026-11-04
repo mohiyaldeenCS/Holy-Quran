@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import '../../testing/packs/synthetic_pack.dart';
 
@@ -39,8 +40,14 @@ const _pauseMarks = ['\u{6D6}', '\u{6D7}', '\u{6DA}'];
 
 const _basmala = '\u{646}\u{635} \u{627}\u{641}\u{62A}\u{62A}\u{627}\u{62D}';
 
+// The long surah's ayat run to about 21 words, as the real one's do (about
+// 6100 words in 286 ayat): a scroll of 15000 px must not reach its end.
+int _wordCount(int surah, int ayah) => surah == perfLongSurah
+    ? 10 + (ayah * 7) % 24
+    : 4 + (surah * 5 + ayah * 7) % 17;
+
 String _ayah(int surah, int ayah) {
-  final count = 4 + (surah * 5 + ayah * 7) % 17;
+  final count = _wordCount(surah, ayah);
   final tokens = <String>[];
   for (var k = 0; k < count; k++) {
     tokens.add(_words[(surah + ayah * 5 + k * 3) % _words.length]);
@@ -99,11 +106,13 @@ List<SyntheticDivision> perfDivisions(List<SyntheticSurah> surahs) => [
 ];
 
 /// Builds the pack of [size] under [root] and returns it, with its search
-/// forms of the app's kinds.
+/// forms of the app's kinds. [fontBytes] are the pinned font's, for a device
+/// that has no repository to read it from.
 Future<SyntheticPack> buildPerfPack(
   Directory root,
   PerfPackSize size, {
   required List<String> searchFormKinds,
+  Uint8List? fontBytes,
 }) {
   final surahs = perfSurahs(size);
   return buildSyntheticPack(
@@ -113,5 +122,6 @@ Future<SyntheticPack> buildPerfPack(
     sajdas: const [],
     formatVersion: 2,
     searchFormKinds: searchFormKinds,
+    fontBytes: fontBytes,
   );
 }

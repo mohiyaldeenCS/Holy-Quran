@@ -69,7 +69,10 @@ final class PerfResult {
   /// rate, the marks of a start.
   final Map<String, Object?> details;
 
-  bool get comparable => buildMode != 'debug';
+  /// Whether the run stands for a device: not a debug build, and not frames
+  /// that were the cost of each pump of a widget test.
+  bool get comparable =>
+      buildMode != 'debug' && details['frameSource'] != 'pump-wall-clock';
 
   /// Whether the run is held against the budgets. The launch that built the
   /// pack is not: its caches are not those of a start that finds one.

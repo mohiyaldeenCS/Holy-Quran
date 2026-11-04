@@ -83,15 +83,24 @@ final class PerfApp {
 
   /// Opens the harness over the application support folder [support], where
   /// an earlier run may have built the pack.
+  ///
+  /// A device has no repository to read the pinned font from, so it passes
+  /// [fontBytes] from its bundle.
   static Future<PerfApp> open({
     required PerfPackSize size,
     required Directory support,
+    Uint8List? fontBytes,
   }) async {
     final root = Directory('${support.path}/perf_bundle/${size.name}');
     final bundle = Directory('${root.path}/$_packId/1');
     final reused = File('${bundle.path}/manifest.json').existsSync();
     if (!reused) {
-      await buildPerfPack(root, size, searchFormKinds: SearchKinds.all);
+      await buildPerfPack(
+        root,
+        size,
+        searchFormKinds: SearchKinds.all,
+        fontBytes: fontBytes,
+      );
     }
     return PerfApp._(support, bundle, size, reused);
   }

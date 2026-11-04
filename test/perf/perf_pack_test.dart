@@ -15,6 +15,15 @@ void main() {
     expect(count('page'), 604);
   });
 
+  test('the longest surah has about the real number of words', () {
+    final words = surahs[perfLongSurah - 1].ayat.fold<int>(
+      0,
+      (sum, a) => sum + a.spans.length,
+    );
+
+    expect(words, inInclusiveRange(5500, 6700));
+  });
+
   test('the full pack is of the real size, in ayat and in words', () {
     final ayat = surahs.fold<int>(0, (sum, s) => sum + s.ayat.length);
     final words = surahs.fold<int>(

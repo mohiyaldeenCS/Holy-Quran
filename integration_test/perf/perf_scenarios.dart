@@ -42,6 +42,8 @@ Future<PerfResult> coldStart(
   final shown = launched.reader(tester).position?.address;
   final marks = launched.marks;
   await launched.close(tester);
+  // A time to a reader that opened somewhere else is not the budget's.
+  expect(shown, saved, reason: 'the reader opens at the saved ayah');
   return resultOf(
     tester,
     'cold_start',
@@ -126,6 +128,7 @@ Future<PerfResult> scroll(
     'frameSource': recorder.source,
     'pixelsPerSecond': pixelsPerSecond,
     'travelledPx': distance,
+    'extentPx': position.maxScrollExtent,
     'spanMs': millis(span),
     'surah': perfLongSurah,
   });
