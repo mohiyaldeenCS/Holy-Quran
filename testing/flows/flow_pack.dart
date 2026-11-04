@@ -92,16 +92,20 @@ const List<SyntheticDivision> flowDivisions = [
 /// Builds the flows' base pack, a format 2 pack with the search forms of
 /// [flowSearchKinds], under [root]. [fontBytes] are the pinned font's, as
 /// `buildSyntheticPack` takes them.
-Future<SyntheticPack> buildFlowPack(Directory root, {Uint8List? fontBytes}) =>
-    buildSyntheticPack(
-      root,
-      surahs: flowSurahs,
-      divisions: flowDivisions,
-      sajdas: const [(flowLongSurah, 12)],
-      formatVersion: 2,
-      searchFormKinds: flowSearchKinds,
-      fontBytes: fontBytes,
-    );
+Future<SyntheticPack> buildFlowPack(
+  Directory root, {
+  Uint8List? fontBytes,
+  String id = flowPackId,
+}) => buildSyntheticPack(
+  root,
+  id: id,
+  surahs: flowSurahs,
+  divisions: flowDivisions,
+  sajdas: const [(flowLongSurah, 12)],
+  formatVersion: 2,
+  searchFormKinds: flowSearchKinds,
+  fontBytes: fontBytes,
+);
 
 /// Serves the files of a directory as the bundled pack, as the app's
 /// `assets/packs/<id>/<version>/` would.
