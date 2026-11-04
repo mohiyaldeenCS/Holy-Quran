@@ -10,7 +10,7 @@ corrected first.
 | --- | --- |
 | Updated | 2026-11-04 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **38 merged**: P1-01 to P1-32, P1-34, P1-36 to P1-40, of which 19 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-32, P1-34, P1-36, P1-37, P1-40). **Open pull requests**: P1-33 (#82, which replaced #71; passed its reviews, last checks running), the audio race (#80, last round). P1-35 not started. P1-35 not started. The composition root is wired (#72, D-151). **No APK has been run on a device since the spike of 2026-10-12, and no real content is in the app** |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **39 merged**: P1-01 to P1-34, P1-36 to P1-40, of which 20 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-34, P1-36, P1-37, P1-40). **Open pull request**: the audio race (#80, last round). P1-35 not started. P1-35 not started. The composition root is wired (#72, D-151). **No APK has been run on a device since the spike of 2026-10-12, and no real content is in the app** |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/*`), worked by agents in GitHub Actions (D-159) |
 | Last session | 2026-11-04, cloud session on the owner's new account, managing agents in Actions (D-159). **Read `HANDOFF.md` first**: it holds the queue, the runs out, how to start agents and his rules |
@@ -360,6 +360,18 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   (the whole harness, 21 files), P1-37 `1032347`. P1-34 lost nothing; P1-35 had written
   nothing. 27 unreachable commits of 2026-10-27 to 2026-10-29, stashes of finished work,
   are kept on GitHub under `refs/archive/2026-10-orphans/`.
+- **P1-33 merged (#82, which replaced #71), partial.** Recitation downloads by surah, juz or the
+  whole mushaf with the quality choice (AU-13, AU-14, D-155): one shared `DownloadService` for the
+  installer and the recitations, every file checked by SHA-256 and size before its final name, a
+  relaunch that never re-issues a stopped task id, deleting refused while a job of the pack runs,
+  catalogue paths confined; the player prefers the chosen quality on disk, then another on disk,
+  then streams. Surah names label the buttons through `SurahName.labelled` (D-160); delete sheets go
+  through the shared `sheetRoute`. The wording of `resourceStop`, `recitationDownloadWhole` and
+  `recitationQualityKbps` approved by the owner (D-162 (2)). Partial: no real recitation yet (D-167,
+  rights form pending); OF-03's storage bar; the reciter's own basmala and isti'adha find no file; a
+  real download, resume after a kill and Wi-Fi only on a device. Reviewed by `code-reviewer` (opus)
+  twice and once more after the merges (sonnet), `identity-auditor` twice. Follow-ups: the track's
+  spoken value untested; `SurahName.labelled`'s `template` can leak the name.
 - **P1-36 merged (#78), partial.** The performance harness (D-157): cold start to the saved ayah,
   a 15,000 px scroll of the longest surah, offline search, and the word and ayah sheets, each
   publishing JSON; `flutter drive --profile` with a `PERF_DEVICE` label; failures published and
