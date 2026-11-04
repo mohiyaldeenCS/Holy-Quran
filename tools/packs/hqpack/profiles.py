@@ -59,10 +59,19 @@ PROFILES = {
 }
 
 SYNTHETIC_ID_PREFIX = "synthetic-"
+# D-165: the one riwaya that may be built without the KFGQPC comparison, and
+# only as a test copy that never leaves the owner's machine.
+UNAPPROVED_ID_PREFIX = "unapproved-"
+UNAPPROVED_RIWAYA = "hafs"
 
 
-def profile_for(riwaya, pack_id):
-    """The profile of `riwaya`; a synthetic pack and only a synthetic pack has a synthetic id."""
+def profile_for(riwaya, pack_id, unapproved=False):
+    """The profile of `riwaya`.
+
+    A synthetic pack and only a synthetic pack has a synthetic id. An
+    unapproved test copy is a hafs pack whose id begins with the unapproved
+    prefix, and the prefix goes with the flag and with nothing else.
+    """
     profile = PROFILES.get(riwaya)
     if profile is None:
         raise PackError(
@@ -73,5 +82,15 @@ def profile_for(riwaya, pack_id):
         raise PackError(
             "id %s and riwaya %s: a pack id begins with %r exactly when its "
             "riwaya is synthetic" % (pack_id, riwaya, SYNTHETIC_ID_PREFIX)
+        )
+    if unapproved and riwaya != UNAPPROVED_RIWAYA:
+        raise PackError(
+            "an unapproved test copy is built for riwaya %s only, not %s"
+            % (UNAPPROVED_RIWAYA, riwaya)
+        )
+    if unapproved != pack_id.startswith(UNAPPROVED_ID_PREFIX):
+        raise PackError(
+            "id %s: a pack id begins with %r exactly when it is built as an "
+            "unapproved test copy" % (pack_id, UNAPPROVED_ID_PREFIX)
         )
     return profile

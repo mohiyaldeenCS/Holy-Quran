@@ -1,16 +1,28 @@
 """Synthetic sources with one change each, for the build and CLI tests."""
 
+import dataclasses
 import json
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import synthetic_source as synthetic
+from hqpack.profiles import PROFILES
 
 REPO = Path(__file__).resolve().parents[3]
 FONT = REPO / "assets" / "fonts" / "AmiriQuran-Regular.ttf"
 OTHER_FONT = REPO / "assets" / "fonts" / "IBMPlexSansArabic-Regular.ttf"
+
+
+TEST_COPY_ID = "unapproved-hafs-tanzil"
+
+
+def hafs_shaped_profiles():
+    """Patches PROFILES so that "hafs" has the synthetic source's totals and still needs the KFGQPC comparison."""
+    shaped = dataclasses.replace(PROFILES["synthetic"], needs_kfgqpc_comparison=True)
+    return mock.patch.dict(PROFILES, {"hafs": shaped})
 
 
 def surahs_with_ayah(surah, ayah, text):
