@@ -942,21 +942,46 @@ Future<({int orderings, List<String> failures})> _interleave(
     }
   }
 
-  return runZoned(
-    () async {
-      while (branches.isNotEmpty) {
-        await explore(branches.removeLast());
-      }
-      return (orderings: orderings, failures: failures);
-    },
-    zoneSpecification: ZoneSpecification(
-      scheduleMicrotask: (self, parent, zone, task) {
-        _Race._queued++;
-        parent.scheduleMicrotask(zone, () {
-          _Race._queued--;
-          task();
-        });
-      },
-    ),
-  );
+  return _counted(() async {
+    while (branches.isNotEmpty) {
+      await explore(branches.removeLast());
+    }
+    return (orderings: orderings, failures: failures);
+  });
 }
+
+/// Runs [steps] in order as one ordering of the walk, skipping those the
+/// state does not allow, then plays on, and returns what went wrong.
+Future<List<String>> _replay(
+  List<String> steps, {
+  Set<String> holding = const {'add', 'remove'},
+}) => _counted(() async {
+  final race = await _Race.start(holding: holding);
+  try {
+    for (final step in steps) {
+      if (race.can(step)) await race.run(step);
+    }
+    await race.drain();
+    await race.playOn();
+    race
+      ..checkOrder()
+      ..checkStarts();
+    return race.problems;
+  } finally {
+    await race.dispose();
+  }
+});
+
+/// Runs [body] in a zone that counts pending microtasks for [_Race._flush].
+Future<T> _counted<T>(Future<T> Function() body) => runZoned(
+  body,
+  zoneSpecification: ZoneSpecification(
+    scheduleMicrotask: (self, parent, zone, task) {
+      _Race._queued++;
+      parent.scheduleMicrotask(zone, () {
+        _Race._queued--;
+        task();
+      });
+    },
+  ),
+);

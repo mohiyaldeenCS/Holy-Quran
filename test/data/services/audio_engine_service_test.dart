@@ -704,6 +704,31 @@ void main() {
       expect(e.player.calls, ['seek 0', 'remove 0', 'add AyahFile(x:1:3)']);
     });
 
+    test('a seek that reaches the engine after the end of its ayah was '
+        'reported is dropped, so no ayah is heard twice', () async {
+      final problems = await _replay(
+        [
+          'end',
+          'stopOn',
+          'seek',
+          'stopOff',
+          'arriveRemove',
+          'see',
+          'see',
+          'see',
+          'replyRemove',
+          'arriveSeek',
+          'replySeek',
+          'arriveAdd',
+          'end',
+          'replyAdd',
+        ],
+        holding: {'add', 'remove', 'seek'},
+      );
+
+      expect(problems, isEmpty);
+    });
+
     test('a seek lands on the ayah the repository is at, even when the '
         'player moved on before it arrived', () async {
       final (e, repository) = await seeking();
@@ -812,6 +837,22 @@ void main() {
       );
 
       walk(
+        'stop-after turned on and off while a seek is in flight and two '
+        'ayat end',
+        {
+          'seek': 1,
+          'arriveSeek': 1,
+          'replySeek': 1,
+          'stopOn': 1,
+          'stopOff': 1,
+          'end': 2,
+          'see': 3,
+        },
+        orderings: 2959,
+        holding: {'add', 'remove', 'seek'},
+      );
+
+      walk(
         'a plain seek across an ayah boundary',
         {
           'seek': 1,
@@ -830,14 +871,14 @@ void main() {
 
       walk('a pause and a resume while tracks end and change', {
         'end': 2,
-        'see': 2,
+        'see': 3,
         'pause': 1,
         'resume': 1,
         'arriveAdd': 2,
         'replyAdd': 2,
         'arriveRemove': 2,
         'replyRemove': 2,
-      }, orderings: 733);
+      }, orderings: 3158);
 
       walk(
         'a pause, a seek and a new play inside the window',

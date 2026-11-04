@@ -503,9 +503,11 @@ final class PluginAudioEngineService implements AudioEngineService {
   Future<void> setVolume(double volume) => _player.setVolume(volume);
 
   /// Pinned to the head, so that it lands on the track the caller is at
-  /// even if the player moved on before the seek reached it.
+  /// even if the player moved on before the seek reached it; dropped if the
+  /// head's end was reported first, since the caller has moved on.
   @override
   Future<void> seek(Duration position) async => _inOrder(() async {
+    if (_headEnded) return;
     final head = _tracks.isEmpty ? -1 : _indexOf(_tracks.first);
     _seeking = true;
     try {
