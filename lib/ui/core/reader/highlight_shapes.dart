@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/painting.dart';
 
 import 'package:holyquran/domain/models/quran_address.dart';
+import 'package:holyquran/ui/core/widgets/focus_ring.dart';
 
 import 'block_layout.dart';
 import 'reader_highlights.dart';
@@ -61,6 +64,24 @@ List<HighlightShape> highlightShapes(
     if (highlights.spokenWord case final word? when here(word) && word.isWord)
       if (layout.wordBox(word.ayah, word.word!) case final box?)
         (kind: HighlightKind.spokenWord, rect: fontBox(box)),
+  ];
+}
+
+/// What the keyboard focus ring goes round for [ayah]: one rect per line of
+/// its text and marker ([BlockLayout.ayahLines]), in block coordinates, as
+/// tall as the font's own box. Each is drawn in so that the ring's own reach ends on the edge of the
+/// line's text and of its band: a ring never covers an ayah that shares the
+/// line, nor the line above or below (D-171).
+List<Rect> ayahFocusLines(BlockLayout layout, int ayah) {
+  final (:top, :height) = _fontBoxOf(layout.plan);
+  return [
+    for (final box in layout.ayahLines(ayah))
+      Rect.fromLTRB(
+        box.left + focusRingReach,
+        math.max(box.top + top, box.top + focusRingReach),
+        box.right - focusRingReach,
+        math.min(box.top + top + height, box.bottom - focusRingReach),
+      ),
   ];
 }
 

@@ -20,13 +20,17 @@ final class HomeHeader extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return Row(
       children: [
-        const AppIconTile(),
+        // The name beside the tile says what the tile's label would.
+        const ExcludeSemantics(child: AppIconTile()),
         const SizedBox(width: _titleGap),
         Expanded(
-          child: Text(
-            l10n.appTitle,
-            style: AppTextStyles.appTitle.copyWith(
-              color: context.colors.brandInk,
+          child: Semantics(
+            header: true,
+            child: Text(
+              l10n.appTitle,
+              style: AppTextStyles.appTitle.copyWith(
+                color: context.colors.brandInk,
+              ),
             ),
           ),
         ),

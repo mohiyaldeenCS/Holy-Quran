@@ -6,6 +6,7 @@ import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/widgets/ayah_marker.dart';
 
 import 'block_layout.dart';
+import 'highlight_shapes.dart';
 import 'page_mark.dart';
 import 'reader_paragraph.dart';
 
@@ -37,42 +38,56 @@ final class ReaderBlock extends StatelessWidget {
     return MediaQuery(
       data: MediaQuery.of(context)
           .copyWith(textScaler: layout.plan.style.scaler),
-      child: SizedBox(
-        width: layout.width,
-        height: layout.height,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned.fill(child: CustomPaint(painter: _BlockPainter(layout))),
-            for (final MapEntry(key: ayah, value: page)
-                in layout.pageMarks.entries)
-              Positioned.fromRect(
-                rect: layout.pageMarkRect(ayah)!,
-                child: Semantics(
-                  container: true,
-                  sortKey: OrdinalSortKey(readingOrder(ayah) - 1),
-                  child: PageMark(page: page),
+      child: FocusTraversalGroup(
+        policy: OrderedTraversalPolicy(),
+        child: SizedBox(
+          width: layout.width,
+          height: layout.height,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              for (final ayah in layout.ayat)
+                Positioned.fromRect(
+                  rect: layout.ayahRect(ayah)!,
+                  child: ayahSemantics(
+                    layout.plan.text.ayat[ayah - 1],
+                    readingOrder(ayah).toDouble(),
+                    selected: ayah == selectedAyah ? true : null,
+                    onActivate: activate == null ? null : () => activate(ayah),
+                    focusLines: activate == null ? const [] : _lines(ayah),
+                  ),
                 ),
+              Positioned.fill(
+                child: CustomPaint(painter: _BlockPainter(layout)),
               ),
-            for (final ayah in layout.ayat) ...[
-              Positioned.fromRect(
-                rect: layout.ayahRect(ayah)!,
-                child: ayahSemantics(
-                  layout.plan.text.ayat[ayah - 1],
-                  readingOrder(ayah).toDouble(),
-                  selected: ayah == selectedAyah ? true : null,
-                  onActivate: activate == null ? null : () => activate(ayah),
+              for (final MapEntry(key: ayah, value: page)
+                  in layout.pageMarks.entries)
+                Positioned.fromRect(
+                  rect: layout.pageMarkRect(ayah)!,
+                  child: Semantics(
+                    container: true,
+                    sortKey: OrdinalSortKey(readingOrder(ayah) - 1),
+                    child: PageMark(page: page),
+                  ),
                 ),
-              ),
-              Positioned.fromRect(
-                rect: layout.markerRect(ayah)!,
-                child: _marker(context, ayah, activate),
-              ),
+              for (final ayah in layout.ayat)
+                Positioned.fromRect(
+                  rect: layout.markerRect(ayah)!,
+                  child: _marker(context, ayah, activate),
+                ),
             ],
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  /// The rects of the ayah's lines in the coordinates of its own rectangle.
+  List<Rect> _lines(int ayah) {
+    final origin = layout.ayahRect(ayah)!.topLeft;
+    return [
+      for (final line in ayahFocusLines(layout, ayah)) line.shift(-origin),
+    ];
   }
 
   Widget _marker(BuildContext context, int ayah, ValueChanged<int>? activate) {

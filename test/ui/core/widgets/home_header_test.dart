@@ -119,16 +119,17 @@ void main() {
     expect(searches, 1);
   });
 
-  testWidgets('reads the tile as the app icon and labels search', (
+  testWidgets('reads the name once as a heading and labels search', (
     tester,
   ) async {
     final handle = tester.ensureSemantics();
     await _pump(tester, HomeHeader(onSearch: () {}));
-    expect(
-      tester.getSemantics(find.byType(AppIconTile)),
-      matchesSemantics(label: _l10n.appIconLabel, isImage: true),
-    );
+    expect(find.bySemanticsLabel(_l10n.appIconLabel), findsNothing);
     expect(find.bySemanticsLabel(_l10n.appTitle), findsOneWidget);
+    expect(
+      tester.getSemantics(find.text(_l10n.appTitle)),
+      matchesSemantics(label: _l10n.appTitle, isHeader: true),
+    );
     expect(
       tester.getSemantics(find.byType(IconButton)),
       matchesSemantics(

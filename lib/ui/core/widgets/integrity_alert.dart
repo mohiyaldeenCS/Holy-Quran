@@ -28,6 +28,7 @@ class IntegrityAlert extends StatelessWidget {
     final action = this.action;
     return Semantics(
       container: true,
+      liveRegion: true,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: AppSpacing.space3,
