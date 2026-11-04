@@ -86,8 +86,8 @@ out: $54.
 content yet and none has run on a device since the spike of 2026-10-12.** **Before the first
 run on a branch, check it:** `git merge-base --is-ancestor origin/main origin/<branch>`. If
 `main` changed `.github/` and the branch lacks it, merge `main` into the branch from your own
-session. Decision numbers: D-155 to D-159 and D-162 are written; D-157 (#78), D-160 (#71's
-`SurahName` label) and D-161 (#80) are on open branches; D-163 to D-165 are reserved for the
+session. Decision numbers: D-156, D-158, D-159 and D-162 are on `main`; D-155 and D-160 (#71), D-157
+(#78) and D-161 (#80) are on open branches; D-163 to D-165 are reserved for the
 test-copy tasks T1 to T3; the next free number is D-166.
 
 The queue, after the table above:
