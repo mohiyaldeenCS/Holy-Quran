@@ -10,7 +10,7 @@ corrected first.
 | --- | --- |
 | Updated | 2026-11-04 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **37 merged**: P1-01 to P1-32, P1-34, P1-37 to P1-40, of which 18 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-32, P1-34, P1-37, P1-40). **Open pull requests**: P1-33 (#71, being fixed), P1-36 (#78, being finished), the audio race (#80, being fixed). P1-35 not started. The composition root is wired (#72, D-151). **No APK has been run on a device since the spike of 2026-10-12, and no real content is in the app** |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **38 merged**: P1-01 to P1-32, P1-34, P1-36 to P1-40, of which 19 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-32, P1-34, P1-36, P1-37, P1-40). **Open pull requests**: P1-33 (#82, which replaced #71; passed its reviews, last checks running), the audio race (#80, last round). P1-35 not started. P1-35 not started. The composition root is wired (#72, D-151). **No APK has been run on a device since the spike of 2026-10-12, and no real content is in the app** |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/*`), worked by agents in GitHub Actions (D-159) |
 | Last session | 2026-11-04, cloud session on the owner's new account, managing agents in Actions (D-159). **Read `HANDOFF.md` first**: it holds the queue, the runs out, how to start agents and his rules |
@@ -360,6 +360,15 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   (the whole harness, 21 files), P1-37 `1032347`. P1-34 lost nothing; P1-35 had written
   nothing. 27 unreachable commits of 2026-10-27 to 2026-10-29, stashes of finished work,
   are kept on GitHub under `refs/archive/2026-10-orphans/`.
+- **P1-36 merged (#78), partial.** The performance harness (D-157): cold start to the saved ayah,
+  a 15,000 px scroll of the longest surah, offline search, and the word and ayah sheets, each
+  publishing JSON; `flutter drive --profile` with a `PERF_DEVICE` label; failures published and
+  counted as misses, minimum run counts (INCOMPLETE below them), figures only from a labelled phone
+  in profile or release, devices judged apart. **A phone run rewrites the app's data** (README
+  warning, `pm clear` step). Partial: every budget is a pending human check on the two reference
+  devices; page turning, NF-04, NF-09 and the whole-process cold start are not measured. Reviewed by
+  `code-reviewer` (opus) three times; a follow-up closes the third review's S-1 (a launch that fails
+  before the reader shows leaves the saved position moved) and notes.
 - **The test copy's pipeline merged (#83, D-165).** `tools/packs` builds a Hafs pack marked as an
   unapproved test copy (id prefix `unapproved-`, no reviews, output outside any Git tree), skipping
   only the KFGQPC comparison, with a provisional mark table from the Unicode chart (D-162 (13)).
