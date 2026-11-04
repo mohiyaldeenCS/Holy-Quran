@@ -11,7 +11,8 @@ holds them against the budgets of PRD §11.
   dart run test_driver/perf_summary.dart [--out report.json] LOG [LOG...]
 
 A LOG is any text that holds the harness's PERF_RESULT lines: the output of
-`flutter test`, or `adb logcat -d -s flutter`. Exit code 0 when no budget was
+`flutter test`, or `adb logcat -d -s flutter`. A run found twice, in a log
+and in a copy of it, counts once. Exit code 0 when no budget was
 missed, 1 when one was, 2 when a log cannot be read or holds no result.''';
 
 Future<void> main(List<String> arguments) async {
@@ -38,10 +39,10 @@ Future<int> collect(
     errors.writeln(_usage);
     return 2;
   }
-  final results = <PerfResult>[];
+  final lines = <PerfResult>[];
   try {
     for (final path in logs) {
-      results.addAll(parsePerfLog(await File(path).readAsString()));
+      lines.addAll(parsePerfLog(await File(path).readAsString()));
     }
   } on FileSystemException catch (error) {
     errors.writeln('Cannot read ${error.path}: ${error.message}');
@@ -50,6 +51,7 @@ Future<int> collect(
     errors.writeln(error.message);
     return 2;
   }
+  final results = withoutRepeats(lines);
   if (results.isEmpty) {
     errors.writeln('No $perfResultMarker line in ${logs.join(', ')}');
     return 2;

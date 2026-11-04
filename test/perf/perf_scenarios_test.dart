@@ -1,6 +1,11 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
+import 'package:holyquran/ui/features/mushaf/views/mushaf_screen.dart';
 import 'package:holyquran/ui/features/search/view_models/search_view_model.dart';
 
 import '../../integration_test/perf/perf_app.dart';
@@ -216,5 +221,87 @@ void main() {
     // animation's: reaching 85% takes over 400 frames.
     expect(opening.visibleMs, greaterThan(400));
     expect(opening.settledMs, greaterThan(opening.visibleMs));
+  });
+
+  group('a target that failed after a scroll', () {
+    // One install for both tests, as two processes of a phone share one.
+    late Directory install;
+    const channel = MethodChannel('plugins.flutter.io/path_provider');
+
+    setUpAll(
+      () => install = Directory.systemTemp.createTempSync('perf_install'),
+    );
+    tearDownAll(() => install.deleteSync(recursive: true));
+    setUp(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            channel,
+            (call) async => call.method == 'getApplicationSupportDirectory'
+                ? install.path
+                : null,
+          );
+    });
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    testWidgets('leaves the reader far from the saved ayah and no close', (
+      tester,
+    ) async {
+      final saved = scenarios.middleOfLongSurah(_size);
+      final perf = await preparePerfApp(
+        tester,
+        size: _size,
+        seed: QuranAddress('hafs', perfLongSurah, 1),
+        reseed: true,
+        support: install,
+      );
+      final launched = await launch(tester, perf, leaveSavedAt: saved);
+
+      // What a scroll that then failed leaves: the reader away from the seed,
+      // its position saved, and no call of close.
+      final scrollable = find.descendant(
+        of: find.byType(MushafScreen),
+        matching: find.byType(Scrollable),
+      );
+      unawaited(
+        tester
+            .state<ScrollableState>(scrollable.first)
+            .position
+            .animateTo(
+              3000,
+              duration: const Duration(seconds: 1),
+              curve: Curves.linear,
+            ),
+      );
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 17));
+      }
+      for (var i = 0; i < 40; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 25)),
+        );
+        await tester.pump();
+      }
+      expect(launched.start.positions!.last, isNot(saved));
+    });
+
+    testWidgets('does not leave the next cold start without its ayah', (
+      tester,
+    ) async {
+      final saved = scenarios.middleOfLongSurah(_size);
+      final perf = await preparePerfApp(
+        tester,
+        size: _size,
+        seed: QuranAddress('hafs', perfLongSurah, 1),
+        support: install,
+      );
+      expect(perf.packReused, isTrue, reason: 'the install of the first test');
+
+      final result = await scenarios.coldStart(tester, perf, saved: saved);
+
+      expect(result.details['shown'], '$saved');
+    });
   });
 }

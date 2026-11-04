@@ -41,18 +41,20 @@ Future<Uint8List?> perfFontBytes() async => _onDevice
 /// reader at [seed] at the level [level] when the pack was built now or when
 /// [reseed] is set. A start that must find the pack as an earlier launch left
 /// it, as a cold start does, leaves [reseed] off and reads [PerfApp.packReused]
-/// to know whether it did.
+/// to know whether it did. [support] is the folder of an install that an
+/// earlier test of the same run used; by default the device's own.
 Future<PerfApp> preparePerfApp(
   WidgetTester tester, {
   required PerfPackSize size,
   required QuranAddress seed,
   bool reseed = false,
   UiLevel level = UiLevel.medium,
+  Directory? support,
 }) async {
-  final support = await perfSupportFolder();
+  final folder = support ?? await perfSupportFolder();
   final perf = (await tester.runAsync(
     () async =>
-        PerfApp.open(size: size, support: support, loadFont: perfFontBytes),
+        PerfApp.open(size: size, support: folder, loadFont: perfFontBytes),
   ))!;
   if (reseed || !perf.packReused) {
     await tester.runAsync(() async {
@@ -75,10 +77,14 @@ typedef LaunchMarks = ({
 
 /// One launch of the app in [tester], and what it holds open.
 final class Launched {
-  Launched._(this.start, this.marks);
+  Launched._(this.start, this.marks, this.leaveSavedAt);
 
   final PerfStart start;
   final LaunchMarks marks;
+
+  /// The position the next launch of the install must find, set last when the
+  /// app is closed, also when the target ended in an error before it could.
+  final QuranAddress? leaveSavedAt;
   bool _closed = false;
 
   /// The router of the running app.
@@ -91,10 +97,10 @@ final class Launched {
   );
 
   /// Takes the app out of the tree and closes what it opened, after the
-  /// reads and writes the reader started on its way out have ended. With
-  /// [leaveSavedAt] the saved reading position is set to it last, so that the
-  /// next launch of the install, whatever ran before it, starts from there.
-  Future<void> close(WidgetTester tester, {QuranAddress? leaveSavedAt}) async {
+  /// reads and writes the reader started on its way out have ended, with the
+  /// saved reading position set to [leaveSavedAt] last, so that the next
+  /// launch of the install, whatever ran before it, starts from there.
+  Future<void> close(WidgetTester tester) async {
     _closed = true;
     await tester.pumpWidget(const SizedBox());
     // The reader's reads of the user database are a chain of a few queries,
@@ -105,8 +111,8 @@ final class Launched {
       );
       await tester.pump();
     }
-    if (leaveSavedAt != null) {
-      await tester.runAsync(() => start.positions!.save(leaveSavedAt));
+    if (leaveSavedAt case final saved?) {
+      await tester.runAsync(() => start.positions!.save(saved));
     }
     await tester.runAsync(start.close);
   }
@@ -159,11 +165,13 @@ bool readerShown(WidgetTester tester, {QuranAddress? ayah}) {
 /// Starts the app as `main` does, over [perf], and waits for the reader to
 /// show text, taking the marks of the start. The splash is pumped first and
 /// the dependencies are built after it, so the sum is the start's, one step
-/// after the other.
+/// after the other. A launch that is never closed, because its target failed,
+/// still leaves the saved position at [leaveSavedAt] when the test ends.
 Future<Launched> launch(
   WidgetTester tester,
   PerfApp perf, {
   QuranAddress? showing,
+  QuranAddress? leaveSavedAt,
 }) async {
   if (!isLiveBinding(tester)) {
     // A phone, as a device would give; a plain widget test has a tiny view.
@@ -191,10 +199,14 @@ Future<Launched> launch(
     splashMs: millis(splash),
     dependenciesMs: millis(dependencies),
     readerShownMs: millis(shown),
-  ));
-  // A failed run still releases the files, which Windows will not delete open.
+  ), leaveSavedAt);
+  // A failed run still releases the files, which Windows will not delete open,
+  // and does not leave the position where it stopped, which every later cold
+  // start would wait for in vain.
   addTearDown(() async {
-    if (!launched._closed) await start.close();
+    if (launched._closed) return;
+    if (leaveSavedAt != null) await start.positions!.save(leaveSavedAt);
+    await start.close();
   });
   return launched;
 }

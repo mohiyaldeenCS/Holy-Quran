@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 
@@ -13,6 +14,13 @@ import '../../integration_test/perf/perf_target.dart';
 
 PerfResult _result(WidgetTester tester) =>
     resultOf(tester, 'search', const {'resultsShownMs': 1});
+
+class _Throws extends StatelessWidget {
+  const _Throws();
+
+  @override
+  Widget build(BuildContext context) => throw StateError('built badly');
+}
 
 void main() {
   testWidgets('a run publishes what it measured', (tester) async {
@@ -55,6 +63,31 @@ void main() {
       expect(failure.details['prepared'], isTrue, reason: 'it built the pack');
       expect(failure.samples, 0);
     }
+  });
+
+  testWidgets('an error the framework held during a frame fails the run '
+      'before anything is published as good', (tester) async {
+    final before = publishedResults.length;
+
+    await expectLater(
+      runPerf(
+        tester,
+        scenarios: const ['search'],
+        size: PerfPackSize.small,
+        seed: QuranAddress('hafs', 1, 1),
+        run: (perf) async {
+          await tester.pumpWidget(const _Throws());
+          return [_result(tester)];
+        },
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    final added = publishedResults.skip(before).toList();
+    expect(added, hasLength(1), reason: 'the failure, not the measurement');
+    expect(added.single.failed, isTrue);
+    expect(added.single.details['reason'], contains('built badly'));
+    expect(tester.takeException(), isNull, reason: 'the run took it');
   });
 
   testWidgets('a long reason is cut', (tester) async {

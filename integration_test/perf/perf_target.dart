@@ -14,7 +14,8 @@ const _reasonLength = 300;
 ///
 /// A run that ends in an error publishes a failed result for each of
 /// [scenarios] first and then lets the error go on, so that the summary counts
-/// it as a miss instead of judging the runs that finished (D-157).
+/// it as a miss instead of judging the runs that finished (D-157). An error
+/// the framework held during a frame is such an error.
 Future<void> runPerf(
   WidgetTester tester, {
   required List<String> scenarios,
@@ -26,7 +27,12 @@ Future<void> runPerf(
   PerfApp? perf;
   try {
     perf = await preparePerfApp(tester, size: size, seed: seed, reseed: reseed);
-    (await run(perf)).forEach(publish);
+    final results = await run(perf);
+    // The framework holds an error raised during a frame and fails the test
+    // only after the body returns, when the results would already be good.
+    final Object? held = tester.takeException();
+    if (held != null) Error.throwWithStackTrace(held, StackTrace.current);
+    results.forEach(publish);
   } catch (error) {
     final reason = '$error';
     for (final scenario in scenarios) {

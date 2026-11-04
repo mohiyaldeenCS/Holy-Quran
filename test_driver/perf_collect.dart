@@ -53,3 +53,29 @@ Future<bool> writeRunResults(
     return false;
   }
 }
+
+/// The shape of `integrationDriver` that the harness depends on.
+typedef IntegrationDriver = Future<void> Function({
+  Future<void> Function(Map<String, dynamic>? data)? responseDataCallback,
+  bool writeResponseOnFailure,
+});
+
+/// Runs [driver] so that a run that fails part-way still writes the runs that
+/// finished and the failure it published, which the summary counts as a miss,
+/// and so that a run that published nothing ends in an error through [fail].
+Future<void> runPerfDriver(
+  IntegrationDriver driver, {
+  Directory? folder,
+  StringSink? output,
+  void Function(int code) fail = exit,
+}) => driver(
+  writeResponseOnFailure: true,
+  responseDataCallback: (data) async {
+    final written = await writeRunResults(
+      data,
+      folder: folder ?? Directory('build/perf'),
+      output: output ?? stdout,
+    );
+    if (!written) fail(1);
+  },
+);

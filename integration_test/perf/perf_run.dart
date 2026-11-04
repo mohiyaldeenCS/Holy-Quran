@@ -70,6 +70,20 @@ Map<String, Object?> deviceDetails(WidgetTester tester) {
   };
 }
 
+final _processStart = DateTime.now().microsecondsSinceEpoch;
+final _published = <String, int>{};
+
+/// Names one result across every copy of its log line: the process, the
+/// scenario and how many results of it the process made before.
+String _nextRunId(String scenario) {
+  final repetition = _published.update(
+    scenario,
+    (count) => count + 1,
+    ifAbsent: () => 0,
+  );
+  return '$_processStart-$scenario-$repetition';
+}
+
 PerfResult resultOf(
   WidgetTester tester,
   String scenario,
@@ -80,7 +94,11 @@ PerfResult resultOf(
   buildMode: perfBuildMode,
   platform: Platform.operatingSystem,
   metrics: metrics,
-  details: {...deviceDetails(tester), ...details},
+  details: {
+    ...deviceDetails(tester),
+    'runId': _nextRunId(scenario),
+    ...details,
+  },
 );
 
 /// Collects the frames of a run. The engine's timings (build and raster,

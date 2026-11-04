@@ -6,7 +6,9 @@
 > `flutter drive` also **uninstalls an installed build signed with another key, which
 > erases everything that build holds**. Use a phone with no build of the app that holds
 > anything to keep, and finish with the clean-up step below, which erases all the app's
-> data.
+> data. That includes the owner's unapproved test copy: if it was built with the same
+> debug key, `flutter drive` installs over it and keeps its data, and `pm clear` then
+> erases the pushed test pack too.
 
 Measures the budgets of PRD §11 that a text-only build can reach: `NF-01` cold start
 to the last reading position (2 s), `NF-02` scroll (60 fps, 99% of frames under
@@ -31,13 +33,13 @@ ayat, 604 pages), never Quran text. Every scenario prints its numbers as
   leaves that run out, whichever target it was. Runs after it find the pack as an
   earlier launch left it.
 * `cold_start` is a stand-in for NF-01. It runs from the first frame the app is asked
-  to draw (the splash) to the first frame in which the saved ayah's rectangle is inside
-  the reader's viewport. Not in the figure: the engine's start-up before Dart's entry
-  point, and the audio, download, catalogue and tafsir areas of the real start-up. The
-  whole-process figure of the product (`adb shell am start -W`, its Total time) needs
-  the bundled base pack (B0.2) and stays a pending human check of M1.11. Every target
-  leaves the saved position as the cold start needs it, so the targets can run in any
-  order.
+  to draw (the splash) to the first frame in which the saved ayah's rectangle overlaps
+  the reader's viewport (some of it inside). Not in the figure: the engine's start-up
+  before Dart's entry point, and the audio, download, catalogue and tafsir areas of the
+  real start-up. The whole-process figure of the product (`adb shell am start -W`, its
+  Total time) needs the bundled base pack (B0.2) and stays a pending human check of
+  M1.11. Every target leaves the saved position as the cold start needs it, so the
+  targets can run in any order.
 * `scroll` records the engine's frame timings (vsync to raster end) while the
   longest surah scrolls at 1500 px/s for 10 s, three scrolls in one process. The
   budget's "99% of frames under 32 ms" is judged as the share of frames over 32 ms
@@ -114,13 +116,15 @@ low-power mode is on; whether the phone was warm from other use; the commit
    ```
 
    The output has one line per check, with the median, the worst run and the limit.
+   A line begins with `MET`, `MISSED`, `INCOMPLETE`, `INFORMATIVE` or `NOTMEASURED`.
+   A run found twice (the driver's log and `adb logcat`) counts once, by its `runId`.
+   Runs of a device that cannot be compared (a debug build) are summarised apart, as
+   `<name> (informative)`, and never change the verdict of the device's other runs.
 
 6. Clean up. The app on the phone now holds the harness's data and its id is the real
    app's. Clear it: `adb shell pm clear com.example.holyquran` (Android; on an iPhone
    delete the app). **This erases everything the app holds on that phone**: use it
    only on a phone that holds nothing to keep.
-
-   A line begins with `MET`, `MISSED`, `INCOMPLETE`, `INFORMATIVE` or `NOTMEASURED`.
 
 Send: `build/perf/report.json`, the `build/perf/*.log` files, the lines the summary
 printed, and the phone details above. Note any run that was disturbed (a call, a

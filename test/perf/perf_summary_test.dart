@@ -18,6 +18,14 @@ PerfResult _run(String scenario, String metric, num value) => PerfResult(
   },
 );
 
+PerfResult _named(String runId) => PerfResult(
+  scenario: 'cold_start',
+  buildMode: 'profile',
+  platform: 'android',
+  metrics: const {'savedAyahShownMs': 1500},
+  details: {'device': 'test phone', 'runId': runId},
+);
+
 void main() {
   late Directory directory;
 
@@ -200,4 +208,67 @@ void main() {
       contains('MISSED       NF-03 search.resultsShownMs: 1 failed run '),
     );
   });
+
+  test('the same runs given twice count once', () async {
+    final runs = [for (var i = 0; i < 6; i++) _named('42-cold_start-$i')];
+    final driver = logOf(runs, name: 'driver.log');
+    final logcat = logOf(runs, name: 'logcat.log');
+    final out = File('${directory.path}/report.json');
+
+    final outcome = await drive(['--out', out.path, driver.path, logcat.path]);
+
+    expect(
+      outcome.report,
+      contains('median 1500 ms over 6 runs, worst 1500, only 6 of the 10'),
+    );
+    final json = jsonDecode(out.readAsStringSync()) as Map<String, Object?>;
+    expect(json['results'], 6);
+  });
+
+  test('twelve lines of six runs do not make ten cold starts', () async {
+    final runs = [for (var i = 0; i < 6; i++) _named('42-cold_start-$i')];
+    final log = logOf([...runs, ...runs]);
+
+    final outcome = await drive([log.path]);
+
+    expect(outcome.report, contains('INCOMPLETE'));
+    expect(outcome.report, isNot(contains('MET  ')));
+  });
+
+  test('runs of two processes with the same scenario are all kept', () async {
+    final log = logOf([
+      for (final process in [1, 2])
+        for (var i = 0; i < 5; i++) _named('$process-cold_start-$i'),
+    ]);
+
+    final outcome = await drive([log.path]);
+
+    expect(outcome.report, contains('MET          NF-01'));
+    expect(outcome.report, contains('over 10 runs'));
+  });
+
+  test(
+    'a stray debug run under a label does not hide its device\'s miss',
+    () async {
+      final log = logOf([
+        _run('cold_start', 'savedAyahShownMs', 2600),
+        const PerfResult(
+          scenario: 'cold_start',
+          buildMode: 'debug',
+          platform: 'android',
+          metrics: {'savedAyahShownMs': 1200},
+          details: {'device': 'test phone'},
+        ),
+      ]);
+
+      final outcome = await drive([log.path]);
+
+      expect(outcome.code, 1);
+      expect(outcome.report, contains('MISSED       [test phone] NF-01'));
+      expect(
+        outcome.report,
+        contains('INFORMATIVE  [test phone (informative)] NF-01'),
+      );
+    },
+  );
 }

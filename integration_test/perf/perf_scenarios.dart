@@ -36,18 +36,23 @@ QuranAddress middleOfLongSurah(PerfPackSize size) =>
     QuranAddress('hafs', perfLongSurah, size.longAyat ~/ 2);
 
 /// `NF-01`: from the first frame of the app to the reader showing the saved
-/// ayah inside its viewport.
+/// ayah in its viewport (some of its rectangle inside).
 Future<PerfResult> coldStart(
   WidgetTester tester,
   PerfApp perf, {
   required QuranAddress saved,
 }) async {
-  final launched = await launch(tester, perf, showing: saved);
+  final launched = await launch(
+    tester,
+    perf,
+    showing: saved,
+    leaveSavedAt: middleOfLongSurah(perf.size),
+  );
   final shown = launched.reader(tester).position?.address;
   final marks = launched.marks;
-  // Scrolling and the sheets leave other positions; each run leaves this one
-  // for the next process.
-  await launched.close(tester, leaveSavedAt: middleOfLongSurah(perf.size));
+  // Scrolling and the sheets leave other positions; each launch leaves the one
+  // the next process needs, also when it fails.
+  await launched.close(tester);
   // A time to a reader that opened somewhere else is not the budget's.
   expect(shown, saved, reason: 'the reader opens at the saved ayah');
   return resultOf(
@@ -75,7 +80,11 @@ Future<PerfResult> scroll(
   double pixelsPerSecond = 1500,
   Duration span = const Duration(seconds: 10),
 }) async {
-  final launched = await launch(tester, perf);
+  final launched = await launch(
+    tester,
+    perf,
+    leaveSavedAt: middleOfLongSurah(perf.size),
+  );
   final position = tester
       .state<ScrollableState>(
         find
@@ -132,7 +141,7 @@ Future<PerfResult> scroll(
     ...summariseFrames(recorder.frames),
     'travelledShare': distance / requested,
   };
-  await launched.close(tester, leaveSavedAt: middleOfLongSurah(perf.size));
+  await launched.close(tester);
   return resultOf(tester, 'scroll', metrics, {
     'prepared': !perf.packReused,
     'frameSource': recorder.source,
@@ -172,7 +181,11 @@ Future<List<PerfResult>> search(
   required String second,
 }) async {
   useTestTextInput(tester);
-  final launched = await launch(tester, perf);
+  final launched = await launch(
+    tester,
+    perf,
+    leaveSavedAt: middleOfLongSurah(perf.size),
+  );
   final opening = Stopwatch()..start();
   launched.router(tester).go(Routes.search);
   final ready = await pumpUntilFrame(
@@ -198,7 +211,7 @@ Future<List<PerfResult>> search(
 
   final cold = await query(first);
   final warm = await query(second);
-  await launched.close(tester, leaveSavedAt: middleOfLongSurah(perf.size));
+  await launched.close(tester);
   final prepared = {'prepared': !perf.packReused};
   return [
     resultOf(tester, 'search', {
@@ -264,7 +277,11 @@ Future<List<PerfResult>> sheets(
   PerfApp perf, {
   int repetitions = 10,
 }) async {
-  final launched = await launch(tester, perf);
+  final launched = await launch(
+    tester,
+    perf,
+    leaveSavedAt: middleOfLongSurah(perf.size),
+  );
   final router = launched.router(tester);
   final l10n = lookupAppLocalizations(const Locale('ar'));
   final reader = launched.reader(tester);
@@ -316,7 +333,7 @@ Future<List<PerfResult>> sheets(
     reader.clearSelection();
     await tester.pumpAndSettle();
   }
-  await launched.close(tester, leaveSavedAt: middleOfLongSurah(perf.size));
+  await launched.close(tester);
   return [
     _sheetResult(tester, perf, 'word_sheet', word),
     _sheetResult(tester, perf, 'ayah_sheet', ayah),

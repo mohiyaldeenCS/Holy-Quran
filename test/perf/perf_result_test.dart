@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../integration_test/perf/perf_budget.dart';
+import '../../integration_test/perf/perf_report.dart';
 import '../../integration_test/perf/perf_result.dart';
 
 PerfResult _run(
@@ -238,17 +239,58 @@ void main() {
       expect(outcome.verdict, Verdict.met);
     });
 
-    test('a debug run among profile runs makes the verdict informative', () {
-      final outcome = _outcomeOf(
+    test('a debug run of a device is held apart from its profile runs', () {
+      final outcomes = evaluate(
         [
-          _run('search', 'resultsShownMs', 100),
+          _run('search', 'resultsShownMs', 900),
           _run('search', 'resultsShownMs', 100, mode: 'debug'),
         ],
-        'search',
-        'resultsShownMs',
-      );
+        checks: _oneRunSuffices,
+      ).where((o) => o.check.scenario == 'search').toList();
 
-      expect(outcome.verdict, Verdict.informative);
+      expect(
+        [for (final o in outcomes) (o.device, o.verdict, o.runs)],
+        [
+          ('test phone', Verdict.missed, 1),
+          ('test phone (informative)', Verdict.informative, 1),
+        ],
+      );
+    });
+
+    test('a debug run does not turn the miss of its device informative', () {
+      final outcomes = evaluate([
+        for (var i = 0; i < 3; i++) _run('search', 'resultsShownMs', 900),
+        _run('search', 'resultsShownMs', 100, mode: 'debug'),
+      ], checks: _oneRunSuffices);
+
+      expect(reportFails(outcomes), isTrue);
+    });
+
+    test('a debug run that built the pack leaves no group of its own', () {
+      final outcomes = evaluate([
+        _run('search', 'resultsShownMs', 100),
+        _run(
+          'search',
+          'resultsShownMs',
+          100,
+          mode: 'debug',
+          details: const {'prepared': true},
+        ),
+      ], checks: _oneRunSuffices);
+
+      expect({for (final o in outcomes) o.device}, {'test phone'});
+    });
+
+    test('a device with only debug runs is one informative device', () {
+      final outcomes = evaluate([
+        _run('search', 'resultsShownMs', 900, mode: 'debug'),
+        _run('search', 'resultsShownMs', 100, mode: 'debug'),
+      ], checks: _oneRunSuffices).where((o) => o.check.scenario == 'search');
+
+      expect(
+        [for (final o in outcomes) (o.device, o.verdict, o.runs)],
+        [('test phone', Verdict.informative, 2)],
+      );
     });
 
     test('frames that were the cost of a pump are informative in any mode', () {
@@ -564,6 +606,30 @@ void main() {
         expect(outcome.verdict, Verdict.informative, reason: '$label');
         expect(outcome.device, 'android Android 14');
       }
+    });
+  });
+
+  group('withoutRepeats', () {
+    PerfResult named(String? id) =>
+        _run('search', 'resultsShownMs', 100, details: {'runId': id});
+
+    test('keeps the first of the lines that share a run id', () {
+      final kept = withoutRepeats([named('a'), named('b'), named('a')]);
+
+      expect([for (final r in kept) r.runId], ['a', 'b']);
+    });
+
+    test('keeps every line that has no run id', () {
+      final kept = withoutRepeats([named(null), named(null), named('')]);
+
+      expect(kept, hasLength(3));
+      expect(kept.every((r) => r.runId == null), isTrue);
+    });
+
+    test('the run id survives the log line', () {
+      final back = parsePerfLog(named('7-search-0').toLogLine()).single;
+
+      expect(back.runId, '7-search-0');
     });
   });
 }

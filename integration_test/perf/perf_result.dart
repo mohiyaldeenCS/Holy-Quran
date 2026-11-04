@@ -69,6 +69,14 @@ final class PerfResult {
   /// rate, the marks of a start.
   final Map<String, Object?> details;
 
+  /// What names the run in every copy of its log line, so that a log read
+  /// twice (the driver's and `adb logcat`'s) does not count it twice; null for
+  /// a line written without one.
+  String? get runId => switch (details['runId']) {
+    final String id when id.isNotEmpty => id,
+    _ => null,
+  };
+
   /// The name the owner gave the phone (`--dart-define=PERF_DEVICE=`).
   String get deviceLabel => '${details['device'] ?? ''}'.trim();
 
@@ -131,6 +139,16 @@ List<PerfResult> parsePerfLog(String log) {
     }
   }
   return results;
+}
+
+/// [results] with each run once: a later line with the run id of an earlier
+/// one is a copy of it. Lines without a run id are all kept.
+List<PerfResult> withoutRepeats(Iterable<PerfResult> results) {
+  final seen = <String>{};
+  return [
+    for (final result in results)
+      if (result.runId == null || seen.add(result.runId!)) result,
+  ];
 }
 
 /// How a check came out.
@@ -208,18 +226,32 @@ final class CheckOutcome {
 /// verdict is given on the median of the runs of a scenario, so that one run
 /// disturbed by the system does not decide, unless the check says every run
 /// must hold; the worst run is reported beside it.
+///
+/// The runs of a device that cannot stand for it (a debug build, frames of a
+/// widget test) are held apart from its comparable runs, under the device's
+/// name followed by "(informative)", so that one stray debug run cannot turn
+/// the device's miss into an informative figure.
 List<CheckOutcome> evaluate(
   Iterable<PerfResult> results, {
   List<PerfCheck> checks = perfChecks,
 }) {
-  final devices = <String?>{for (final result in results) result.device};
+  final comparable = {
+    for (final result in results)
+      if (result.comparable) result.device,
+  };
+  final groups = <String, List<PerfResult>>{};
+  for (final result in results) {
+    final apart = !result.comparable && comparable.contains(result.device);
+    if (apart && !result.counts) continue;
+    final group = apart ? '${result.device} (informative)' : result.device;
+    groups.putIfAbsent(group, () => []).add(result);
+  }
+  if (groups.isEmpty) {
+    return [for (final check in checks) _outcome(check, const [], null)];
+  }
   return [
-    for (final device in devices.isEmpty ? <String?>[null] : devices)
-      for (final check in checks)
-        _outcome(check, [
-          for (final result in results)
-            if (result.device == device) result,
-        ], device),
+    for (final MapEntry(key: device, value: runs) in groups.entries)
+      for (final check in checks) _outcome(check, runs, device),
   ];
 }
 

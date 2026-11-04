@@ -107,4 +107,59 @@ void main() {
     expect(back.failed, isTrue);
     expect(back.details['reason'], 'timed out');
   });
+
+  group('the driver', () {
+    Future<
+      ({
+        bool? onFailure,
+        Future<void> Function(Map<String, dynamic>?)? callback,
+      })
+    >
+    arguments(StringBuffer output, List<int> failures) async {
+      bool? onFailure;
+      Future<void> Function(Map<String, dynamic>?)? callback;
+      await runPerfDriver(
+        ({responseDataCallback, writeResponseOnFailure = false}) async {
+          onFailure = writeResponseOnFailure;
+          callback = responseDataCallback;
+        },
+        folder: folder,
+        output: output,
+        fail: failures.add,
+      );
+      return (onFailure: onFailure, callback: callback);
+    }
+
+    test(
+      'asks for the response of a failed run, which holds its failure',
+      () async {
+        final given = await arguments(StringBuffer(), []);
+
+        expect(given.onFailure, isTrue);
+        expect(given.callback, isNotNull);
+      },
+    );
+
+    test('writes the results it is given and does not fail', () async {
+      final output = StringBuffer();
+      final failures = <int>[];
+      final given = await arguments(output, failures);
+
+      await given.callback!(_data([_result('cold_start')]));
+
+      expect(folder.listSync(), hasLength(1));
+      expect(output.toString(), contains('Performance results written to'));
+      expect(failures, isEmpty);
+    });
+
+    test('fails when the run published nothing', () async {
+      final failures = <int>[];
+      final given = await arguments(StringBuffer(), failures);
+
+      await given.callback!(null);
+
+      expect(failures, [1]);
+      expect(folder.listSync(), isEmpty);
+    });
+  });
 }
