@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
+import 'package:holyquran/ui/core/share/share_card_fit.dart';
 import 'package:holyquran/ui/core/theme/app_theme.dart';
 import 'package:holyquran/ui/core/theme/ramps.g.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
@@ -16,8 +17,10 @@ import 'package:holyquran/ui/core/widgets/surah_name.dart';
 /// The three designs of the ayah share card (Share.dc.html).
 enum ShareCardDesign { emerald, paper, night }
 
-/// The ayah share card in its 4:5 size (SH-02; D-089, 2): the ayah, its
-/// reference under it, and the small mark and name at the foot.
+/// The ayah share card (SH-02; D-089, 2; D-162, 6): the ayah, its reference
+/// under it, and the small mark and name at the foot. Every [ratio] keeps
+/// the drawn 4:5 card's width and paddings, and takes its height from the
+/// ratio.
 ///
 /// It is an exported image, so its colours are fixed per [design] whatever
 /// the app's theme (the paper and night cards take the `paper` and `night`
@@ -31,6 +34,7 @@ final class ShareCard extends StatelessWidget {
     required this.ayahNumber,
     required this.ayahFontSize,
     this.design = ShareCardDesign.emerald,
+    this.ratio = ShareCardRatio.portrait,
     super.key,
   });
 
@@ -39,6 +43,7 @@ final class ShareCard extends StatelessWidget {
   final int ayahNumber;
   final double ayahFontSize;
   final ShareCardDesign design;
+  final ShareCardRatio ratio;
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +59,7 @@ final class ShareCard extends StatelessWidget {
           .copyWith(textScaler: TextScaler.noScaling, boldText: false),
       child: SizedBox(
         width: _cardWidth,
-        height: _cardHeight,
+        height: ratio.heightFor(_cardWidth),
         child: switch (design) {
           ShareCardDesign.emerald => _EmeraldCard(content: content),
           ShareCardDesign.paper => Theme(
@@ -86,21 +91,30 @@ final class _EmeraldCard extends StatelessWidget {
     child: Stack(
       fit: StackFit.expand,
       children: [
-        for (final star in _emeraldStars)
-          Positioned(
-            left: star.left,
-            top: star.top,
-            child: StarOutline(
-              size: star.size,
-              stroke: _starStroke,
-              color: Ramps.gold400.withValues(alpha: star.opacity),
-            ),
+        Positioned(
+          left: _emeraldTopStar.left,
+          top: _emeraldTopStar.top,
+          child: _emeraldStar(_emeraldTopStar.size, _emeraldTopStar.opacity),
+        ),
+        Positioned(
+          left: _emeraldBottomStar.left,
+          bottom: _emeraldBottomStar.bottom,
+          child: _emeraldStar(
+            _emeraldBottomStar.size,
+            _emeraldBottomStar.opacity,
           ),
+        ),
         Padding(padding: _emeraldPadding, child: content),
       ],
     ),
   );
 }
+
+Widget _emeraldStar(double size, double opacity) => StarOutline(
+  size: size,
+  stroke: _starStroke,
+  color: Ramps.gold400.withValues(alpha: opacity),
+);
 
 final class _PaperCard extends StatelessWidget {
   const _PaperCard({required this.content});
@@ -258,9 +272,9 @@ final class _Content extends StatelessWidget {
 }
 
 // Share.dc.html, the three cards: `width:300px;height:375px;
-// border-radius:20px`, the 4:5 size.
+// border-radius:20px`, the 4:5 size. The width is every size's (D-089, 2);
+// 4:5 of it is the board's 375.
 const double _cardWidth = 300;
-const double _cardHeight = 375;
 const double _cardRadius = 20;
 
 // Share.dc.html, emerald card: `padding:28px 26px 20px`; night card:
@@ -273,10 +287,16 @@ const EdgeInsets _nightPadding = EdgeInsets.fromLTRB(24, 28, 24, 20);
 // emerald card's are #D9AE5A (gold-400); the night card's is the night
 // theme's #D9AE5A (ornament).
 const double _starStroke = 0.8;
-const _emeraldStars = [
-  (left: -90.0, top: -90.0, size: 280.0, opacity: 0.28),
-  (left: 170.0, top: 230.0, size: 220.0, opacity: 0.18),
-];
+const _emeraldTopStar = (left: -90.0, top: -90.0, size: 280.0, opacity: 0.28);
+// The board's second star is `left:170px;top:230px` on the 375 card, 75
+// below its foot (230 + 220 - 375). It is held to the foot, so that it
+// bleeds off the corner as drawn on the 1:1 and 9:16 cards as well.
+const _emeraldBottomStar = (
+  left: 170.0,
+  bottom: -75.0,
+  size: 220.0,
+  opacity: 0.18,
+);
 const _nightStar = (left: 60.0, top: -120.0, size: 300.0, opacity: 0.16);
 
 // Share.dc.html, paper card: `padding:14px` inside its 1px #DDD2B8 (line)

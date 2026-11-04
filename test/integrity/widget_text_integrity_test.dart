@@ -9,6 +9,7 @@ import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
+import 'package:holyquran/ui/core/share/share_card_fit.dart';
 import 'package:holyquran/ui/core/widgets/ayah_row.dart';
 import 'package:holyquran/ui/core/widgets/quran_text.dart';
 import 'package:holyquran/ui/core/widgets/search_result.dart';
@@ -232,38 +233,56 @@ void main() {
   }
 
   for (final design in ShareCardDesign.values) {
-    testWidgets('ShareCard, ${design.name}, draws the stored bytes of every '
-        'ayah and its surah name', (tester) async {
-      final problems = <String>[];
-      for (final ayah in ayat) {
-        await tester.pumpWidget(
-          goldenApp(
-            ReadingTheme.paper,
-            ShareCard(
-              ayah: ayah.text,
-              surahName: ayah.surahName,
-              ayahNumber: ayah.address.ayah,
-              ayahFontSize: _cardAyahSize,
-              design: design,
-            ),
-          ),
-        );
-        final card = find.byType(ShareCard);
-        final where = '${ayah.address} ShareCard ${design.name}';
-        problems
-          ..addAll(_quranTextProblems(tester, card, where, ayah.stored))
-          ..addAll(
-            _nameProblems(
-              tester,
-              card,
-              '$where reference',
-              ayah.storedName,
-              ayah.address.ayah,
-            ),
-          );
-      }
-      expectNoProblems(problems);
-    });
+    for (final ratio in ShareCardRatio.values) {
+      testWidgets(
+        'ShareCard, ${design.name}, ${ratio.name}, draws the stored bytes of every '
+        'ayah and its surah name',
+        (tester) async {
+          final problems = <String>[];
+          for (final ayah in ayat) {
+            await tester.pumpWidget(
+              goldenApp(
+                ReadingTheme.paper,
+                ShareCard(
+                  ayah: ayah.text,
+                  surahName: ayah.surahName,
+                  ayahNumber: ayah.address.ayah,
+                  ayahFontSize: _cardAyahSize,
+                  design: design,
+                  ratio: ratio,
+                ),
+              ),
+            );
+            // The card's own 4:5 holds every ayah at 22; a shorter card may
+            // overflow, which this test, of bytes, leaves to the fit tests.
+            if (ratio != ShareCardRatio.portrait) {
+              for (
+                var error = tester.takeException();
+                error != null;
+                error = tester.takeException()
+              ) {
+                expect('$error', contains('overflowed'));
+              }
+            }
+            final card = find.byType(ShareCard);
+            final where =
+                '${ayah.address} ShareCard ${design.name} ${ratio.name}';
+            problems
+              ..addAll(_quranTextProblems(tester, card, where, ayah.stored))
+              ..addAll(
+                _nameProblems(
+                  tester,
+                  card,
+                  '$where reference',
+                  ayah.storedName,
+                  ayah.address.ayah,
+                ),
+              );
+          }
+          expectNoProblems(problems);
+        },
+      );
+    }
   }
 }
 
