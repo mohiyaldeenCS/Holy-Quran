@@ -219,6 +219,10 @@ final class PluginAudioEngineService implements AudioEngineService {
   /// being queued; the queueing starts the successor.
   bool _headEnded = false;
 
+  /// The successor the repository was told is playing when the head ended;
+  /// only that track may be started, not one a later [setNext] replaced.
+  EngineTrack? _successor;
+
   AudioPlayer get _player =>
       (_handler ?? (throw StateError('the engine is not active'))).player;
 
@@ -308,7 +312,9 @@ final class PluginAudioEngineService implements AudioEngineService {
       await _player.addAudioSource(_source(next));
       if (generation != _playlist) return;
       _tracks = [..._tracks, next];
-      if (_headEnded) await _startQueued(generation);
+      if (_headEnded && identical(next, _successor)) {
+        await _startQueued(generation);
+      }
     });
   }
 
@@ -341,6 +347,7 @@ final class PluginAudioEngineService implements AudioEngineService {
   void _invalidate() {
     _tracks = [];
     _wantedNext = null;
+    _successor = null;
     _headEnded = false;
     _loaded = ++_playlist;
   }
@@ -355,6 +362,7 @@ final class PluginAudioEngineService implements AudioEngineService {
   /// and drops the ended one.
   Future<void> _startQueued(int generation) async {
     _headEnded = false;
+    _successor = null;
     _tracks = _tracks.sublist(1);
     await _player.seek(Duration.zero, index: _player.audioSources.length - 1);
     if (generation != _playlist) return;
@@ -377,6 +385,7 @@ final class PluginAudioEngineService implements AudioEngineService {
   }) {
     _tracks = tracks;
     _wantedNext = null;
+    _successor = null;
     _headEnded = false;
     final generation = ++_playlist;
     _playlistChanges = _setTracks(tracks, generation, from: from)
@@ -468,6 +477,7 @@ final class PluginAudioEngineService implements AudioEngineService {
     } else if (_successorPending) {
       // The player moved on before the queueing's reply reached us.
       _headEnded = true;
+      _successor = _wantedNext;
       _events.add(TrackEnded(_tracks.first.id));
     }
   }
@@ -484,9 +494,10 @@ final class PluginAudioEngineService implements AudioEngineService {
         _tracks.isEmpty) {
       return;
     }
-    final ended = _tracks.last;
+    final ended = _tracks.first;
     if (_tracks.length == 1 && _successorPending) {
       _headEnded = true;
+      _successor = _wantedNext;
     } else {
       _invalidate();
     }
@@ -497,8 +508,7 @@ final class PluginAudioEngineService implements AudioEngineService {
   // streamed track's failure counts as a lost connection.
   void _failed() {
     if (_tracks.isEmpty) return;
-    final current = _headEnded ? _wantedNext ?? _tracks.first : _tracks.first;
-    final streamed = current.streamed;
+    final streamed = (_successor ?? _tracks.first).streamed;
     _invalidate();
     _events.add(
       EngineFailed(

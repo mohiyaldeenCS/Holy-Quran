@@ -580,6 +580,7 @@ void main() {
     Future<void> playThroughTheRace(
       PlaybackPlan plan,
       List<PlaybackSegment> started,
+      String third,
     ) async {
       final e = await _started();
       final repository = EnginePlayerRepository(
@@ -609,7 +610,7 @@ void main() {
       await pumpEventQueue();
       expect(
         e.player.calls,
-        containsAllInOrder([startsWith('add'), 'seek 1', 'play']),
+        containsAllInOrder(['add $third', 'seek 1', 'play']),
       );
 
       await e.send(ProcessingState.completed);
@@ -622,6 +623,7 @@ void main() {
       await playThroughTheRace(
         plan(AyahSpan(QuranRange(a('1:1'), a('1:3')))),
         started,
+        'AyahFile(x:1:3)',
       );
       expect(
         [for (final s in started) s.address],
@@ -634,6 +636,7 @@ void main() {
       await playThroughTheRace(
         plan(SingleAyah(a('1:2')), repeat: RepeatMode(RepeatUnit.ayah, 3)),
         started,
+        'AyahFile(x:1:2)',
       );
       expect(started, hasLength(3));
     });
