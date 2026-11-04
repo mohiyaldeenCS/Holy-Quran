@@ -77,7 +77,7 @@ typedef LaunchMarks = ({
 
 /// One launch of the app in [tester], and what it holds open.
 final class Launched {
-  Launched._(this.start, this.marks, this.leaveSavedAt);
+  Launched._(this.start, this.marks, this.leaveSavedAt, this._markClosed);
 
   final PerfStart start;
   final LaunchMarks marks;
@@ -85,7 +85,7 @@ final class Launched {
   /// The position the next launch of the install must find, set last when the
   /// app is closed, also when the target ended in an error before it could.
   final QuranAddress? leaveSavedAt;
-  bool _closed = false;
+  final void Function() _markClosed;
 
   /// The router of the running app.
   GoRouter router(WidgetTester tester) =>
@@ -101,7 +101,7 @@ final class Launched {
   /// saved reading position set to [leaveSavedAt] last, so that the next
   /// launch of the install, whatever ran before it, starts from there.
   Future<void> close(WidgetTester tester) async {
-    _closed = true;
+    _markClosed();
     await tester.pumpWidget(const SizedBox());
     // The reader's reads of the user database are a chain of a few queries,
     // and a future of the tree's zone advances only with a pump.
@@ -172,6 +172,7 @@ Future<Launched> launch(
   PerfApp perf, {
   QuranAddress? showing,
   QuranAddress? leaveSavedAt,
+  Duration timeout = const Duration(seconds: 60),
 }) async {
   if (!isLiveBinding(tester)) {
     // A phone, as a device would give; a plain widget test has a tiny view.
@@ -186,6 +187,14 @@ Future<Launched> launch(
   await tester.pumpWidget(app.AppStart(dependencies: built.future));
   final splash = clock.elapsed;
   final start = (await tester.runAsync(perf.start))!;
+  // Registered before anything that can fail, so that a launch that never
+  // shows the reader still restores the position and closes the start.
+  var closed = false;
+  addTearDown(() async {
+    if (closed) return;
+    if (leaveSavedAt != null) await start.positions!.save(leaveSavedAt);
+    await start.close();
+  });
   built.complete(start.providers);
   final dependencies = clock.elapsed;
   markTimeline('dependenciesBuilt');
@@ -193,20 +202,17 @@ Future<Launched> launch(
     tester,
     clock,
     () => readerShown(tester, ayah: showing),
+    timeout: timeout,
   );
   markTimeline('readerShown');
-  final launched = Launched._(start, (
-    splashMs: millis(splash),
-    dependenciesMs: millis(dependencies),
-    readerShownMs: millis(shown),
-  ), leaveSavedAt);
-  // A failed run still releases the files, which Windows will not delete open,
-  // and does not leave the position where it stopped, which every later cold
-  // start would wait for in vain.
-  addTearDown(() async {
-    if (launched._closed) return;
-    if (leaveSavedAt != null) await start.positions!.save(leaveSavedAt);
-    await start.close();
-  });
-  return launched;
+  return Launched._(
+    start,
+    (
+      splashMs: millis(splash),
+      dependenciesMs: millis(dependencies),
+      readerShownMs: millis(shown),
+    ),
+    leaveSavedAt,
+    () => closed = true,
+  );
 }

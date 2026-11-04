@@ -79,9 +79,9 @@ const List<PerfCheck> perfChecks = [
         'A stand-in for the product\'s figure: from the first frame of the '
         'app (the splash, before its dependencies are built) to the first '
         'frame in which the saved ayah\'s rectangle overlaps the reader\'s '
-        'viewport (some of it inside). The engine\'s start-up before Dart runs, and the audio, '
-        'download, catalogue and tafsir areas of the real start-up, are not '
-        'in the figure.',
+        'viewport (some of it inside). The engine\'s start-up before Dart '
+        'runs, and the audio, download, catalogue and tafsir areas of the '
+        'real start-up, are not in the figure.',
   ),
   PerfCheck(
     id: 'NF-02',
