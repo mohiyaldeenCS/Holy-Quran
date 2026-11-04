@@ -360,6 +360,13 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   (the whole harness, 21 files), P1-37 `1032347`. P1-34 lost nothing; P1-35 had written
   nothing. 27 unreachable commits of 2026-10-27 to 2026-10-29, stashes of finished work,
   are kept on GitHub under `refs/archive/2026-10-orphans/`.
+- **Follow-ups merged (#85, #86).** #85 closes the third review's notes on the performance harness
+  (a launch that fails before the reader shows restores the saved position; run ids carry the device
+  label). #86 closes the re-review's notes on the NF-14 guards: a settings stop file's re-exports are
+  followed, a settings-only file may not take the database out of a DAO (a name-based scan, D-158
+  (4)), Clarity, Appodeal and Bugfender wrappers by their pub.dev names, `@android:color/` refused.
+  Left for a later small task: drift's inherited `custom*` and `transaction` in that scan;
+  `clarity_web`, `clarity_support`.
 - **P1-33 merged (#82, which replaced #71), partial.** Recitation downloads by surah, juz or the
   whole mushaf with the quality choice (AU-13, AU-14, D-155): one shared `DownloadService` for the
   installer and the recitations, every file checked by SHA-256 and size before its final name, a
