@@ -1,9 +1,11 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../application_support.dart';
+import '../packs/synthetic_pack.dart' show amiriQuranFontPath;
 import '../packs/synthetic_tafsir_pack.dart';
 import 'flow_driver.dart';
 import 'flow_pack.dart';
@@ -57,8 +59,15 @@ final class FlowRig {
       // The test binding refuses every connection; the server is on loopback.
       HttpOverrides.global = null;
       _root = await Directory.systemTemp.createTemp('flows');
-      bundle = (await buildFlowPack(Directory('${_root.path}/bundle')))
-          .directory;
+      // A device has no repository to read the font from: the app's own
+      // bundle has it.
+      final font = onDevice
+          ? (await rootBundle.load(amiriQuranFontPath)).buffer.asUint8List()
+          : null;
+      bundle = (await buildFlowPack(
+        Directory('${_root.path}/bundle'),
+        fontBytes: font,
+      )).directory;
       final served = Directory('${_root.path}/served');
       server = await FlowServer.start(served);
       tafsir = await serveCatalogue(served, server);
