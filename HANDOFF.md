@@ -71,7 +71,8 @@ session only, so a run's task is in its log under "Task as given" or the workflo
 | #82 (was #71) P1-33 | **Merged** 2026-11-04 (`bc73b54`) after a short review of the post-merge commits (PASS, $0.30) and green CI on `3b4b671` | none |
 | #87 T2 marking | **Merged** 2026-11-04 (`67425d7`) after the re-audit (CONFORMS WITH NITS, $0.17) and a full check on `2e76494` (5,538 tests passed; the jobs API stayed stale, the log was read) | none |
 | #90 T1 test copy | **Merged** 2026-11-04 (`cbd7acb`) after its fix (Gradle compiles and refuses release with the test pack, five dry runs; home shows a failed test-copy pack), a re-review (PASS, $0.10) and green CI on the merge with `main`. T1, T2 and T3 are all on `main`: the owner's local build can start (T4, the extra guards and flow test, does not gate it) | none |
-| P1-35 build | Done ($4.01, `3bf7d39`..`259ec23`): keyboard access to ayat and the seek track, «نُسخت الآية», live alerts, `test/a11y/` (246 tests), the fifteen D-166 descriptions; no golden changed. The owner answered (D-171, written by the fix run): the focus ring's gap in `ground` (tokens.md), the ayah ring per line | 41893397062: fix, `ui-builder` sonnet, $5, key 2; then goldens, review, merge |
+| P1-35 build | Built, then the owner's D-171 applied ($1.46). Review ($1.63): CHANGES REQUIRED — the ayah ring was painted over the Quran text's edge letters and diacritics while focused (1,761 pixels); a weakened assertion; the branch's D-171 row (the lead records D-171 instead) | fix: ring under the text with a pixel test, `ui-builder` sonnet, $4, key 2; then goldens, review, merge |
+| #92 T4 | Guards and the test-copy flow ($1.14) | 41904159896: review, sonnet, $2, key 1 |
 | P1-35 audit | Done ($1.46): two must-fix (no keyboard route into the reader's ayahs; the seek track not keyboard-operable), five should-fix (`IntegrityAlert` not a live region, no copy confirmation, no `test/a11y/`, settings headings read twice…), four nits; a ten-task TalkBack protocol for the owner. The owner answered D-168; the lead ruled D-169. Kept in `docs/plans/P1-35_AUDIT.md` | none |
 | #89 SH-02 share sizes | **Merged** 2026-11-04 (`0928573`) after the owner approved the images (D-170), a review (PASS WITH NITS, $0.18) and green CI | none |
 | #86 NF-14 guard follow-up | **Merged** 2026-11-04 (`695c5c8`) after a review (PASS WITH NITS) and green CI; D-158 (4) now says the database-handle check is name-based | none |
@@ -100,7 +101,7 @@ run on a branch, check it:** `git merge-base --is-ancestor origin/main origin/<b
 `main` changed `.github/` and the branch lacks it, merge `main` into the branch from your own
 session. Decision numbers: D-155 to D-160, D-162 and D-165 are on `main`; D-166 and D-167 on the
 lead's records pull request; D-161 (#80) and D-164 (#87) on open branches; D-163 is reserved for T1;
-D-168 and D-169 are the P1-35 answers and rulings; D-170 the share sizes; D-171 is taken by the P1-35 fix run; the next free number is D-172.
+D-168 and D-169 are the P1-35 answers and rulings; D-170 the share sizes; D-171 the owner's P1-35 answers (on the records branch); the next free number is D-172.
 
 The queue, after the table above:
 
