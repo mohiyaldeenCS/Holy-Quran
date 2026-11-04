@@ -161,7 +161,7 @@ void main() {
             tafsirProviders,
           ],
         ),
-        hasLength(2),
+        hasLength(3),
       );
     });
   });

@@ -26,6 +26,10 @@ UNSIGNED = (
     "signature: none, the pack is unsigned (%s absent; signing key custody is "
     "undecided, D-024, O-03)" % SIGNATURE_FILE
 )
+TEST_COPY = (
+    "unapproved test copy: the KFGQPC comparison was not run; never upload or bundle this "
+    "pack, and keep it out of every Git working tree (D-165)"
+)
 
 
 class _Usage(Exception):
@@ -63,6 +67,13 @@ def _parser():
     build.add_argument("--config", required=True, type=Path, help="the build description (JSON)")
     build.add_argument("--font", required=True, type=Path, help="the font the text is drawn with")
     build.add_argument("--out", required=True, type=Path, help="where <id>/<version>/ is written")
+    build.add_argument(
+        "--unapproved-test-copy",
+        action="store_true",
+        help="build a hafs pack without the KFGQPC comparison, as an unapproved test copy "
+        "for the owner's own phone (D-165): the id begins with unapproved-, reviews are "
+        "empty and the output is outside every Git working tree",
+    )
     build.set_defaults(run=_build)
 
     verify = commands.add_parser("verify", help="verify a pack directory <id>/<version>")
@@ -90,7 +101,7 @@ def _pack_inputs(parser, required=False):
 
 
 def _build(args, out):
-    result = build_pack(args.config, args.font, args.out)
+    result = build_pack(args.config, args.font, args.out, unapproved=args.unapproved_test_copy)
     counts = result.counts
     print("pack %s" % result.directory, file=out)
     print("sqlite %s" % result.sqlite_version, file=out)
@@ -105,6 +116,8 @@ def _build(args, out):
     for surah, value in result.surah_sha256.items():
         print("surah %s sha256 %s" % (surah, value), file=out)
     print("verified", file=out)
+    if args.unapproved_test_copy:
+        print(TEST_COPY, file=out)
     print(UNSIGNED, file=out)
     return 0
 

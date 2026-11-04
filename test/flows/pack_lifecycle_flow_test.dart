@@ -12,6 +12,7 @@ import 'package:holyquran/domain/models/bookmark.dart';
 import 'package:holyquran/domain/models/category.dart';
 import 'package:holyquran/domain/models/note.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
+import 'package:holyquran/ui/features/resources/views/pack_row.dart';
 import 'package:holyquran/ui/features/resources/views/resources_screen.dart';
 import 'package:holyquran/utils/result.dart';
 
@@ -65,6 +66,11 @@ void main() {
       expect(checked, isA<Ok<Object?>>());
     });
 
+    // The recitations the catalogue lists have rows of their own.
+    final tafsirRow = find.byWidgetPredicate(
+      (widget) => widget is PackRow && widget.row.entry.id == flowTafsirId,
+    );
+
     Future<void> openResources(WidgetTester tester) async {
       await tapNamed(tester, flowL10n.tabMore);
       await tapNamed(tester, flowL10n.resourceManagerTitle);
@@ -99,6 +105,7 @@ void main() {
       await tapNamed(
         tester,
         flowL10n.resourceDownload,
+        within: tafsirRow,
         done: () => installs.installed.isNotEmpty,
       );
       expect(
@@ -139,6 +146,7 @@ void main() {
       await tapNamed(
         tester,
         flowL10n.resourceDownload,
+        within: tafsirRow,
         done: () => installs.installed.isNotEmpty,
       );
       expect(

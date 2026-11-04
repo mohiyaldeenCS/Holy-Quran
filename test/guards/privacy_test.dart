@@ -272,10 +272,14 @@ final _userModelName = RegExp(
   r'collection|streak|statistic|reading_position|listening_position',
 );
 
-/// Repositories that read the user's database for one setting only (the
-/// chosen tafsir book) and hold nothing the user wrote or read; they may sit
-/// beside the installer. D-158 (4) names the exception.
-const _settingsOnly = ['lib/data/repositories/tafsir_repository.dart'];
+/// Files that read the user's database for settings only (the chosen tafsir
+/// book, the Wi-Fi-only choice, the preferred quality) and hold nothing the
+/// user wrote or read; they may sit beside the installer. D-158 (4) names them.
+const _settingsOnly = [
+  'lib/data/repositories/tafsir_repository.dart',
+  'lib/data/repositories/download_settings_repository.dart',
+  'lib/data/repositories/recitation_locator.dart',
+];
 
 /// The only user-data files a [_settingsOnly] file may reach.
 const _settingsAccess = [

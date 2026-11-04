@@ -33,11 +33,11 @@ All under `hqpack/`. Each raises `errors.PackError` with a message as above.
 | `database.py` | `text.sqlite` with the exact DDL, `encoding`, `application_id`, `user_version`, `STRICT`, `journal_mode = DELETE`, ending with `VACUUM`; read-back of every stored text as bytes | `require_sqlite()`, `write_text_database(path, surahs, divisions, sajdas)`, `read_stored_texts(path)` |
 | `manifest.py` | The manifest's fields in the format's order, and its bytes (UTF-8, no BOM, two-space indent, final line break) | `build_manifest(...) -> dict`, `encode_manifest(dict) -> bytes` |
 | `config.py` | The build description: pack identity, both sources' registry fields, expected source SHA-256, the mark table, reviews. Strict JSON | `read_build_config(path) -> BuildConfig` |
-| `profiles.py` | What a riwaya must hold: surah and ayah totals, division counts, which surahs have no basmala, whether the KFGQPC comparison is required | `PROFILES`, `profile_for(riwaya, pack_id)` |
-| `build.py` | The pipeline: hash and read the sources, run every build check, write into a temporary directory, read back, write the manifest, run the verifier, then move into `<out>/<id>/<version>/` | `build_pack(config_path, font_path, out_root) -> BuildResult` |
+| `profiles.py` | What a riwaya must hold: surah and ayah totals, division counts, which surahs have no basmala, whether the KFGQPC comparison is required | `PROFILES`, `profile_for(riwaya, pack_id, unapproved=False)` |
+| `build.py` | The pipeline: hash and read the sources, run every build check, write into a temporary directory, read back, write the manifest, run the verifier, then move into `<out>/<id>/<version>/` | `build_pack(config_path, font_path, out_root, unapproved=False) -> BuildResult` |
 | `verify.py` | An independent verifier of a pack directory, sharing no code with the writer beyond `errors.py`: everything the app and its integrity suite check, recomputed from the stored bytes | `verify_pack(directory, mark_code_points=None, font=None) -> Report(problems, counts, signed)` |
 | `signing.py` | The signing seam (D-080, O-03): `Signer` with `sign(data) -> 64 bytes`; `OpenSslEd25519Signer(key_path)` runs `openssl pkeyutl -sign -rawin`; `sign_pack` writes `manifest.json.sig` for a pack that verifies; `verify_signature` checks it with a public key | `sign_pack(directory, signer)`, `verify_signature(directory, public_key_path)` |
-| `cli.py` | `build`, `verify`, `sign`, `verify-signature`; prints counts, hashes, paths and `U+XXXX` only | `main(argv) -> exit code` |
+| `cli.py` | `build` (with `--unapproved-test-copy`), `verify`, `sign`, `verify-signature`; prints counts, hashes, paths and `U+XXXX` only | `main(argv) -> exit code` |
 
 `pack.py` (next to this file) runs the CLI; `synthetic_source.py` writes the synthetic
 source files, mark table and build description into a directory.
@@ -67,6 +67,7 @@ done, `64` usage, `65` a source or a pack breaks a rule, `70` anything else
 
 ```
 python3 tools/packs/pack.py build --config <build.json> --font assets/fonts/AmiriQuran-Regular.ttf --out data/build
+python3 tools/packs/pack.py build --unapproved-test-copy --config <build.json> --font assets/fonts/AmiriQuran-Regular.ttf --out <folder outside every Git tree>
 python3 tools/packs/pack.py verify <out>/<id>/<version> [--font <ttf>] [--mark-table <marks.json>]
 python3 tools/packs/pack.py sign <out>/<id>/<version> --key <ed25519 private key> --font <ttf> --mark-table <marks.json> [--openssl openssl]
 python3 tools/packs/pack.py verify-signature <out>/<id>/<version> --public-key <ed25519 public key> [--openssl openssl]
@@ -74,7 +75,7 @@ python3 tools/packs/pack.py verify-signature <out>/<id>/<version> --public-key <
 
 | Command | Does |
 | --- | --- |
-| `build` | Reads the build description, runs every build check below, and writes `<out>/<id>/<version>/` with `manifest.json` and `text.sqlite`, unsigned. An existing version directory is refused: a released pack is never rebuilt in place |
+| `build` | Reads the build description, runs every build check below, and writes `<out>/<id>/<version>/` with `manifest.json` and `text.sqlite`, unsigned. An existing version directory is refused: a released pack is never rebuilt in place. `--unapproved-test-copy` builds the owner's local test copy (see "Test-copy mode") |
 | `verify` | Runs the independent verifier on a pack directory; with `--font` and `--mark-table` it also checks the font pair and every mark |
 | `sign` | Verifies the pack, with its font and mark table (both required), then writes `manifest.json.sig` with OpenSSL (D-080). Refuses a pack that already has one |
 | `verify-signature` | Checks `manifest.json.sig` against a public key |
@@ -113,7 +114,7 @@ it into place, so every verifier check is also a build check.
 | §9.4 check | Where |
 | --- | --- |
 | 114 surahs; ayat and words as in the source | `profiles.py`: `hafs` needs 114 surahs and 6,236 ayat (registry row 1), and 30 juz, 60 hizb, 240 rub and 604 pages. `source_checks.check_structure`: the text file's surahs and ayat per surah equal the metadata's `ayas` and `start`. The word and mark rows are counted from the tokens and recounted independently by the verifier |
-| Tanzil compared with KFGQPC character by character under a table of known differences | **Not built** (B0.2, with B0.3's KFGQPC file and B0.4's table). `build.py` therefore refuses every `hafs` build with a message saying so. The synthetic profile does not need it |
+| Tanzil compared with KFGQPC character by character under a table of known differences | **Not built** (B0.2, with B0.3's KFGQPC file and B0.4's table). `build.py` therefore refuses every `hafs` build with a message saying so, except an unapproved test copy (below). The synthetic profile does not need it |
 | Displayed text equals pack text | App side (`test/integrity/`). The pipeline's part: every stored text is read back as bytes and compared with the source bytes at its offset |
 | No Unicode normalisation in code | `tests/test_guards.py`: no `normalize` or `casefold` call, no lossy decoding, no tolerant XML parser in the pipeline; every Python file is ASCII, so test data is written as `\u` escapes |
 | Every record points to an existing address | `source_checks.divisions`, `sajdas`, `check_points` (juz, quarter, page, manzil, ruku, sajda, each after the one before); verifier: divisions, sajdas, words and marks, plus `foreign_key_check` |
@@ -149,6 +150,38 @@ directory besides `manifest.json`, `text.sqlite` and `manifest.json.sig`; a
 signature that is not 64 bytes; views, triggers and indexes other than automatic
 ones; and, with `--font`, code points the font lacks.
 
+### Test-copy mode (D-165)
+
+`build --unapproved-test-copy` builds a Hafs pack for the owner's own phone before B0.2
+to B0.4 exist (D-162 (13)). It skips the one refusal above, the KFGQPC comparison, and
+nothing else: the totals, the Tanzil notice and version, the options, the font
+coverage, the mark check, the read-back, the digests and the independent verifier all
+run as for any pack. It has its own refusals, each a `PackError` (exit 65) before
+anything is written, and each proved by a test:
+
+| Refusal | Where | Test |
+| --- | --- | --- |
+| The flag with an id that does not begin with `unapproved-` | `profiles.profile_for` | `test_profiles.py`, `test_build.py` (`test_the_flag_without_the_prefix`) |
+| The prefix without the flag, for any riwaya | `profiles.profile_for` | `test_profiles.py`, `test_build.py`, `test_cli.py` |
+| The flag for a riwaya other than `hafs` | `profiles.profile_for` | `test_profiles.py`, `test_build.py` (`test_the_flag_for_a_riwaya_other_than_hafs`) |
+| A non-empty `reviews`: a review would present the copy as approved | `build._check_test_copy` | `test_build.py`, `test_cli.py` |
+| An output folder inside a Git working tree: itself or any parent holds `.git` (a folder, or a file in a worktree or a submodule), links followed, so no `git` program is needed | `build._git_tree` | `test_build.py` (folder, file, symbolic link), `test_cli.py` |
+| A plain `hafs` build, and any build without the flag | `build.build_pack` | `test_build.py`, `test_cli.py`: as before |
+
+The totals of the real `hafs` profile are not relaxed: the mode on a source of another
+shape stops at the surah count (`test_every_other_check_still_runs_on_the_real_hafs_profile`).
+The pack carries no marker field, since the manifest accepts none: the `unapproved-`
+id is the marker, and the app will refuse it unless it is told to read a test copy
+(D-163, T1 of `docs/plans/TEST_COPY.md`: not built yet). The mark table comes from the build description, as always; the test copy
+uses `tools/test_copy/provisional_marks.json`. `tools/test_copy/` holds the owner's
+script and steps (`tools/test_copy/README.md`). `sign` and `verify-signature` take PEM
+keys through OpenSSL and need no change for it.
+
+The tests cannot build a real Hafs pack: they patch the `hafs` profile with the
+synthetic source's totals (`tests/build_support.hafs_shaped_profiles`) and use the
+synthetic source. No real Quran text or metadata is in the repository or fetched by
+any test.
+
 ## Signing (D-080) and what O-03 must decide
 
 The format keeps `manifest.json.sig` absent until D-024 is decided, and the
@@ -173,8 +206,10 @@ be replaced. Another kind of signer, such as a hardware token, would be another
 ## Not done here
 
 - The KFGQPC comparison of PRD §9.4 and the page-list comparison of P2 (B0.2).
-  Until then, no `hafs` pack is built.
-- The real mark table of code points (B0.4).
+  Until then, no approved `hafs` pack is built; only the unapproved test copy (D-165,
+  "Test-copy mode"), which never leaves the owner's machine.
+- The real mark table of code points (B0.4). The test copy uses the provisional
+  table of `tools/test_copy/`, from the Unicode chart, until then.
 - The structure of the real `quran-data.xml` and the text file's notice are taken
   from their published form; B0.2 runs the readers on the downloaded files, and
   they stop on anything else.

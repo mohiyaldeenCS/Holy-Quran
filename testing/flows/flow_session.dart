@@ -29,7 +29,7 @@ import 'package:holyquran/data/repositories/tafsir_repository.dart';
 import 'package:holyquran/data/services/base_pack_service.dart';
 import 'package:holyquran/data/services/catalogue_service.dart';
 import 'package:holyquran/data/services/download_service.dart'
-    show HttpUrlCheck, UrlPolicy;
+    show DownloadService, HttpUrlCheck, UrlPolicy;
 import 'package:holyquran/data/services/free_space_service.dart';
 import 'package:holyquran/data/services/installed_packs_store.dart';
 import 'package:holyquran/data/services/manifest_signature.dart';
@@ -116,6 +116,9 @@ final class FlowSession {
         (d) => providePackInstall(
           d,
           create: _installer,
+          downloads: LoopbackDownloads(
+            () async => (await getApplicationSupportDirectory()).path,
+          ),
           basePack: (id: flowPackId, version: flowPackVersion),
         ),
         // The area provides the device's disk probe, a plugin.
@@ -188,13 +191,12 @@ final class FlowSession {
   );
 
   static LocalPackInstallRepository _installer({
+    required DownloadService downloads,
     void Function(String packId)? onPackChanged,
     Set<String> reservedPackIds = const {},
   }) => LocalPackInstallRepository(
     openStore: InstalledPacksStore.openInApplicationSupport,
-    downloads: LoopbackDownloads(
-      () async => (await getApplicationSupportDirectory()).path,
-    ),
+    downloads: downloads,
     urlCheck: const HttpUrlCheck(),
     connectivity: const UnmeteredNetwork(),
     freeSpace: const RoomyDisk(),
