@@ -6,6 +6,7 @@ import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/widgets/ayah_marker.dart';
 
 import 'block_layout.dart';
+import 'highlight_shapes.dart';
 import 'page_mark.dart';
 import 'reader_paragraph.dart';
 
@@ -66,6 +67,7 @@ final class ReaderBlock extends StatelessWidget {
                     readingOrder(ayah).toDouble(),
                     selected: ayah == selectedAyah ? true : null,
                     onActivate: activate == null ? null : () => activate(ayah),
+                    focusLines: activate == null ? const [] : _lines(ayah),
                   ),
                 ),
                 Positioned.fromRect(
@@ -78,6 +80,14 @@ final class ReaderBlock extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// The rects of the ayah's lines in the coordinates of its own rectangle.
+  List<Rect> _lines(int ayah) {
+    final origin = layout.ayahRect(ayah)!.topLeft;
+    return [
+      for (final line in ayahFocusLines(layout, ayah)) line.shift(-origin),
+    ];
   }
 
   Widget _marker(BuildContext context, int ayah, ValueChanged<int>? activate) {

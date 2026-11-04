@@ -167,6 +167,38 @@ final class BlockLayout {
       ),
   ];
 
+  /// One rect per line for the ayah's text and its marker, the marker taken
+  /// from its own slot ([markerRect]) and not from the paragraph's box for
+  /// the placeholder, which can lie in another's slot (S1 finding 1). Two
+  /// ayat that share a line never share the horizontal span of its rects.
+  List<Rect> ayahLines(int ayah) {
+    int lineOf(Rect rect) => (rect.center.dy / plan.lineHeight).floor();
+    final byLine = <int, Rect>{
+      for (final (laid, planned) in _parts(ayah))
+        for (final box in laid.boxes(
+          laid.offsetOf(planned, planned.textStart),
+          laid.offsetOf(planned, planned.textEnd),
+        ))
+          lineOf(box): box,
+    };
+    if (markerRect(ayah) case final marker?) {
+      byLine.update(
+        lineOf(marker),
+        (box) => box.expandToInclude(marker),
+        ifAbsent: () {
+          final band = lineBand(lineOf(marker));
+          return Rect.fromLTRB(
+            marker.left,
+            band.top,
+            marker.right,
+            band.bottom,
+          );
+        },
+      );
+    }
+    return [for (final line in byLine.keys.toList()..sort()) byLine[line]!];
+  }
+
   /// The margin marks beside this block's lines, each with the band of the
   /// line it belongs to: the line where the text of the ayah that begins
   /// the rub, hizb or juz begins, or for a sajda the line where the ayah,
