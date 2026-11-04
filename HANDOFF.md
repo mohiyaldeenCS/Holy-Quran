@@ -70,12 +70,12 @@ session only, so a run's task is in its log under "Task as given" or the workflo
 | #76 P1-34 | **Merged** 2026-11-04 (`a917862`) after a re-review (PASS WITH NITS, $0.88) and green CI on `e5caf8c` | none |
 | #82 (was #71) P1-33 | **Merged** 2026-11-04 (`bc73b54`) after a short review of the post-merge commits (PASS, $0.30) and green CI on `3b4b671` | none |
 | #87 T2 marking | **Merged** 2026-11-04 (`67425d7`) after the re-audit (CONFORMS WITH NITS, $0.17) and a full check on `2e76494` (5,538 tests passed; the jobs API stayed stale, the log was read) | none |
-| T1 test copy | The flag, `DevicePackBundle`, `SignatureRequired` with a throwaway key, release refusal, the copy line and the withdrawn image share (D-163) | 41881052040: `data-builder` sonnet, $12, key 1 |
+| T1 test copy | Done ($1.33, `164e527`): `TestCopy.parse` (release refused, production keys refused), `DevicePackBundle`, `SignatureRequired`, the Gradle release refusal, the copy line and no share card in the test copy, D-163 | 41885971333: review, `code-reviewer` opus, $3, key 1 |
 | P1-35 build | The audit's fixes, `test/a11y/`, «نُسخت الآية», the fifteen D-166 descriptions | 41881058535: `ui-builder` sonnet, $15, key 2 |
 | P1-35 audit | Done ($1.46): two must-fix (no keyboard route into the reader's ayahs; the seek track not keyboard-operable), five should-fix (`IntegrityAlert` not a live region, no copy confirmation, no `test/a11y/`, settings headings read twice…), four nits; a ten-task TalkBack protocol for the owner. The owner answered D-168; the lead ruled D-169. Kept in `docs/plans/P1-35_AUDIT.md` | none |
 | SH-02 share sizes | Built ($1.26): automatic 4:5 → 9:16, 1:1 built but not offered; the lead looked at the images and the owner approved them (D-170) | review, then merge |
 | #86 NF-14 guard follow-up | **Merged** 2026-11-04 (`695c5c8`) after a review (PASS WITH NITS) and green CI; D-158 (4) now says the database-handle check is name-based | none |
-| #80 AU-01 | Last round on opus ($14.63, near its $15 cap: `6cc4b87`, `0b23445`, `cf278c5`): advances hidden by a seek caught (`_catchUp`), the repository's paused-end race closed, a stricter walk (eight scenarios, 14,468 orderings, 0 failures, ~35 s) that also found and fixed a double play. The lead merged `main` (`533e01e`; analyze clean, 1,444 data/config/flow/guard tests pass locally) | 41867564788: fifth review, `code-reviewer` opus, $10, key 1 |
+| #80 AU-01 | Fifth review's five items closed ($6.83, `a9d38bf`, `f302a39`); the fake now models the plugin's auto-seek at the ended state and reply order, which exposed and fixed two more defects (a resume replaying the ended ayah, a seek cutting into the next). Left open: a seek given between the engine's end report and the repository's handling (needs an interface change) | 41885976229: sixth review, `code-reviewer` opus, $4, key 2 |
 | #78 P1-36 | **Merged** 2026-11-04 (`6f57d75`) after a third review (PASS WITH NITS, $1.09; seven findings closed and checked by mutation) and green CI | none |
 | #85 P1-36 follow-up | **Merged** 2026-11-04 (`ad545cc`) after a review (PASS WITH NITS) and green CI | none |
 | #81 records | **Merged** 2026-11-04 (`a412d79`) after two reviews (sonnet, $0.26) and green CI: D-162, `docs/plans/TEST_COPY.md` | none |
@@ -91,7 +91,7 @@ shells or Monitor, and repeat the whole report if woken after writing it.
 **`action_required` CI runs.** Each agent push starts two CI runs: the `workflow_dispatch` check,
 which runs, and a `pull_request` run that waits for approval. The dispatch run is the check of
 record for the head.
-**Spend this session**, by the SDK's estimates: about $60 for 46 runs by 17:00 UTC, summed from the run logs (the largest single run: #80's last round, $14.63). The owner asked to be told before the total passes $100.
+**Spend this session**, by the SDK's estimates: $74.74 for 56 finished runs by 19:00 UTC, summed from the run logs; the caps of the runs out keep the worst case under $100 (the largest single run: #80's last round, $14.63). The owner asked to be told before the total passes $100.
 
 `main` holds 37 of 40 tasks (18 partial); see the status file. **No app build has real
 content yet and none has run on a device since the spike of 2026-10-12.** **Before the first
