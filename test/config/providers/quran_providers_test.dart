@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -7,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/config/dependencies.dart';
 import 'package:holyquran/config/providers/base_pack_guard.dart';
 import 'package:holyquran/config/providers/quran_providers.dart';
+import 'package:holyquran/config/test_copy.dart';
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/pack_quran_text_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
@@ -284,5 +287,173 @@ void main() {
 
   test('no bundled base pack leaves the area empty', () async {
     expect(await buildDependencies(areas: [quranProviders]), isEmpty);
+  });
+
+  group('the unapproved test copy', () {
+    const copyId = 'unapproved-synthetic';
+    final algorithm = Ed25519();
+
+    /// Builds the pack under `<root>/test_copy/` as `adb push` leaves it, signs
+    /// its manifest with [signWith] unless that is null, and sets the area up
+    /// as the test copy for [copyKey], through a [DevicePackBundle].
+    Future<(BuildContext, Directory)> setUpCopy(
+      WidgetTester tester, {
+      SimpleKeyPair? signWith,
+      required SimpleKeyPair copyKey,
+      Uint8List? signature,
+    }) async {
+      final copyRoot = Directory('${root.path}/test_copy');
+      final key = (await copyKey.extractPublicKey()).bytes;
+      await tester.runAsync(() async {
+        final pack = await buildSyntheticPack(copyRoot, id: copyId);
+        final manifest = await File('${pack.directory.path}/manifest.json')
+            .readAsBytes();
+        final bytes =
+            signature ??
+            (signWith == null
+                ? null
+                : (await algorithm.sign(manifest, keyPair: signWith)).bytes);
+        if (bytes != null) {
+          await File('${pack.directory.path}/manifest.json.sig')
+              .writeAsBytes(bytes);
+        }
+      });
+      final providers = await tester.runAsync(
+        () => buildDependencies(
+          areas: [
+            (dependencies) => provideTestCopy(
+              dependencies,
+              TestCopy.parse('$copyId/1', base64.encode(key), release: false)!,
+              root: () async => copyRoot,
+              supportDirectory: () async =>
+                  Directory('${root.path}/support').create(),
+            ),
+          ],
+        ),
+      );
+      late BuildContext context;
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: providers!,
+          child: Builder(
+            builder: (inside) {
+              context = inside;
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      return (context, copyRoot);
+    }
+
+    testWidgets('a pack signed with the copy\'s key is served', (tester) async {
+      final key = await algorithm.newKeyPair();
+      final (context, _) = await setUpCopy(tester, signWith: key, copyKey: key);
+      closeTextAfterTest(context);
+
+      expect(
+        context.read<PackIntegrityRepository>().stateOf(copyId),
+        isA<IntegrityOk>(),
+      );
+      expect(context.read<VerifiedPack>().manifest.id, copyId);
+      expect(
+        await tester.runAsync(
+          () => context.read<QuranTextRepository>().ayahText(
+            QuranAddress('hafs', 2, 1),
+          ),
+        ),
+        isA<Ok<Object>>(),
+      );
+      expect(context.read<QuranIndexRepository>().surahCount, 3);
+    });
+
+    for (final (name, sign) in <(String, bool)>[
+      ('a pack signed with another key', true),
+      ('an unsigned pack', false),
+    ]) {
+      testWidgets('$name is refused and provides no text', (tester) async {
+        final copyKey = await algorithm.newKeyPair();
+        final other = await algorithm.newKeyPair();
+        final (context, _) = await setUpCopy(
+          tester,
+          signWith: sign ? other : null,
+          copyKey: copyKey,
+        );
+
+        expect(
+          context.read<PackIntegrityRepository>().stateOf(copyId),
+          isA<IntegrityFailed>().having(
+            (state) => state.reason,
+            'reason',
+            isA<SignatureRejected>(),
+          ),
+        );
+        expect(
+          () => context.read<QuranTextRepository>(),
+          throwsA(isA<ProviderNotFoundException>()),
+        );
+        expect(
+          () => context.read<VerifiedPack>(),
+          throwsA(isA<ProviderNotFoundException>()),
+        );
+      });
+    }
+
+    testWidgets('a signature of the wrong length is refused', (tester) async {
+      final key = await algorithm.newKeyPair();
+      final (context, _) = await setUpCopy(
+        tester,
+        copyKey: key,
+        signature: Uint8List(10),
+      );
+
+      expect(
+        context.read<PackIntegrityRepository>().stateOf(copyId),
+        isA<IntegrityFailed>().having(
+          (state) => state.reason,
+          'reason',
+          isA<SignatureRejected>(),
+        ),
+      );
+    });
+
+    testWidgets('a pack that was not pushed is missing', (tester) async {
+      final key = await algorithm.newKeyPair();
+      final publicKey = (await key.extractPublicKey()).bytes;
+      final providers = await tester.runAsync(
+        () => buildDependencies(
+          areas: [
+            (dependencies) => provideTestCopy(
+              dependencies,
+              TestCopy.parse(
+                '$copyId/1',
+                base64.encode(publicKey),
+                release: false,
+              )!,
+              root: () async => null,
+              supportDirectory: () async =>
+                  Directory('${root.path}/support').create(),
+            ),
+          ],
+        ),
+      );
+      late BuildContext context;
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: providers!,
+          child: Builder(
+            builder: (inside) {
+              context = inside;
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+
+      expect(
+        context.read<PackIntegrityRepository>().stateOf(copyId),
+        isA<IntegrityMissing>(),
+      );
+    });
   });
 }

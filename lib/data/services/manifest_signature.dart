@@ -27,6 +27,25 @@ final class SignatureNotConfigured implements ManifestSignatureVerifier {
   }) async => SignatureCheck.notChecked;
 }
 
+/// Takes the answer of [_inner] and makes [SignatureCheck.notChecked]
+/// [SignatureCheck.invalid]: a pack with no signature file, or checked with no
+/// key, is refused. The unapproved test copy is read through it (D-163).
+final class SignatureRequired implements ManifestSignatureVerifier {
+  const SignatureRequired(this._inner);
+
+  final ManifestSignatureVerifier _inner;
+
+  @override
+  Future<SignatureCheck> verify({
+    required Uint8List manifest,
+    required Uint8List? signature,
+  }) async =>
+      switch (await _inner.verify(manifest: manifest, signature: signature)) {
+        SignatureCheck.notChecked => SignatureCheck.invalid,
+        final answer => answer,
+      };
+}
+
 /// Checks the signature with Ed25519 (D-080, D-108): `manifest.json.sig` is
 /// the raw 64-byte signature of the exact bytes of `manifest.json`, and a
 /// signature made with any of the accepted keys is [SignatureCheck.valid].

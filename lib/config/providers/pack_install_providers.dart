@@ -34,14 +34,19 @@ typedef InstallerFactory = LocalPackInstallRepository Function({
 /// so that an old failure is not shown for the new files; the bundled base
 /// pack's id is never installed over.
 Future<void> packInstallProviders(Dependencies dependencies) =>
-    providePackInstall(dependencies, create: packInstallRepository);
+    providePackInstall(
+      dependencies,
+      create: packInstallRepository,
+      basePack: basePackInUse,
+    );
 
 /// [packInstallProviders] over the installer [create] makes, which never
-/// installs over the id of the [basePack] the app bundles.
+/// installs over the id of the [basePack] the app reads, the unapproved test
+/// copy's in a test copy (D-163).
 Future<void> providePackInstall(
   Dependencies dependencies, {
   required InstallerFactory create,
-  ({String id, int version})? basePack = bundledBasePack,
+  ({String id, int version})? basePack,
   DownloadService? downloads,
 }) async {
   final service = downloads ?? BackgroundDownloadService.applicationSupport();

@@ -244,6 +244,41 @@ void main() {
       expect(copies, 1);
     });
 
+    testWidgets('an ayah 4:5 does not hold at 22 moves to the 9:16 card, '
+        'whole, and shares it at 1080 by 1920', (tester) async {
+      final sorted = [...ayat]
+        ..sort((a, b) => a.stored.length.compareTo(b.stored.length));
+      final ratios = <ShareCardRatio>[];
+      late List<Uint8List> shared;
+      for (var i = 0; i < sorted.length; i += 4) {
+        final ayah = sorted[i];
+        // A sheet of another address is a new state, not an update.
+        await tester.pumpWidget(const SizedBox());
+        shared = await pumpView(tester, ayah.address);
+        final cards = find.byType(ShareCard);
+        if (cards.evaluate().isEmpty) break;
+        final card = tester.widget<ShareCard>(cards);
+        ratios.add(card.ratio);
+        expect(card.ayah, ayah.text);
+        if (card.ratio == ShareCardRatio.tall) {
+          expect(card.ayahFontSize, lessThanOrEqualTo(shareCardFontSize));
+          expect(card.ayahFontSize, greaterThanOrEqualTo(22));
+          await tester.tap(_button(_l10n.toolbarShare));
+          await tester.runAsync(() async {
+            while (shared.isEmpty) {
+              await Future<void>.delayed(const Duration(milliseconds: 10));
+            }
+          });
+          final header = ByteData.sublistView(shared.single);
+          expect(header.getUint32(16), 1080);
+          expect(header.getUint32(20), 1920);
+          break;
+        }
+      }
+      expect(ratios, contains(ShareCardRatio.tall));
+      expect(ratios.first, ShareCardRatio.portrait);
+    });
+
     testWidgets('shows nothing until the ayah is read, nor when it fails', (
       tester,
     ) async {
