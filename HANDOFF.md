@@ -93,9 +93,9 @@ record for the head.
 content yet and none has run on a device since the spike of 2026-10-12.** **Before the first
 run on a branch, check it:** `git merge-base --is-ancestor origin/main origin/<branch>`. If
 `main` changed `.github/` and the branch lacks it, merge `main` into the branch from your own
-session. Decision numbers: D-156, D-158, D-159 and D-162 are on `main`; D-155 and D-160 (#71), D-157
-(#78) and D-161 (#80) are on open branches; D-163 to D-165 are reserved for the
-test-copy tasks T1 to T3; D-166 is the lead's approval of the pending wording (D-128 (5)); D-167 the owner's recitations; the next free number is D-168.
+session. Decision numbers: D-155 to D-160, D-162 and D-165 are on `main`; D-166 and D-167 on the
+lead's records pull request; D-161 (#80) and D-164 (#87) on open branches; D-163 is reserved for T1;
+the next free number is D-168.
 
 The queue, after the table above:
 

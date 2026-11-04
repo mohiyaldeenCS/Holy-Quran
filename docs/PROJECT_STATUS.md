@@ -10,7 +10,7 @@ corrected first.
 | --- | --- |
 | Updated | 2026-11-04 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **39 merged**: P1-01 to P1-34, P1-36 to P1-40, of which 20 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-34, P1-36, P1-37, P1-40). **Open pull request**: the audio race (#80, last round). P1-35 not started. P1-35 not started. The composition root is wired (#72, D-151). **No APK has been run on a device since the spike of 2026-10-12, and no real content is in the app** |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **39 merged**: P1-01 to P1-34, P1-36 to P1-40, of which 20 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-34, P1-36, P1-37, P1-40). **Open pull request**: the audio race (#80, last round). P1-35 not started. The composition root is wired (#72, D-151). **No APK has been run on a device since the spike of 2026-10-12, and no real content is in the app** |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/*`), worked by agents in GitHub Actions (D-159) |
 | Last session | 2026-11-04, cloud session on the owner's new account, managing agents in Actions (D-159). **Read `HANDOFF.md` first**: it holds the queue, the runs out, how to start agents and his rules |
@@ -393,8 +393,7 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   only the KFGQPC comparison, with a provisional mark table from the Unicode chart (D-162 (13)).
   `tools/test_copy/` holds the owner's script (`pack`, `install`: throwaway key removed on every
   exit, both APK copies deleted, dirty-tree checks, profile only) and his steps. Reviewed twice by
-  `code-reviewer` (opus); a follow-up (`agent/t3-test-copy-polish`) closes the re-review's notes and
-  must merge before the owner uses the script. Nothing runs end to end until T1 and T2 (D-163,
+  `code-reviewer` (opus); the follow-up #84 that closes the re-review's notes is merged. Nothing runs end to end until T1 and T2 (D-163,
   D-164) are merged; the real build is on his machine only.
 - **P1-37 merged (#77), partial.** Android release readiness (M1.11): adaptive launcher icon and
   monochrome layer from the logo SVGs, launch screen in `emerald-700` with the lockup, bars in
@@ -416,12 +415,9 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   play-range and download entries stay skipped on a device (no recitation file, no host).
   Reviewed by `code-reviewer` (opus) twice; nits left: one comment line over 80 characters
   in `test/ui/core/share/ayah_copy_text_test.dart:26`.
-- Open, in `HANDOFF.md`'s order: **P1-33** (#71): its final review and identity audit found a
-  blocking `SurahName` misuse, a download that can hang after a relaunch and a sheet that
-  ignores reduce-motion; a data run then a UI run are fixing them. **AU-01** (#80): the
-  stall between ayat was real and is fixed (D-161); its review found a regression in one
-  interleaving, being fixed. **P1-36** (#78): being finished (merge of `main`, the font on a
-  device, the acceptance list). **P1-35**: not started; its audit was interrupted.
+- Open, in `HANDOFF.md`'s order: **AU-01** (#80): the stall between ayat fixed with an exhaustive
+  interleaving test, in its fifth review. **T2** (#87): the unapproved test copy's banner (D-164), a
+  sizing fix after its audit. **P1-35**: not started; its audit was interrupted.
 - Local checks use `C:/SDK/flutter`, Flutter 3.47.9 (D-154); no second SDK is kept.
 
 Agent runs so far (estimates from the SDK): about $160 across both keys for M0.4
