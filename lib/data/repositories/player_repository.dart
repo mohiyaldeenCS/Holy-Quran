@@ -271,32 +271,40 @@ final class EnginePlayerRepository extends PlayerRepository {
     await _apply(rules.start());
   }
 
-  Future<void> _handle(PlaybackInput input) async {
+  /// [paused] when the user paused while the end that [input] reports was
+  /// on its way: what follows starts paused.
+  Future<void> _handle(PlaybackInput input, {bool paused = false}) async {
     final rules = _rules;
     if (rules == null) return;
-    await _apply(rules.handle(input));
+    await _apply(rules.handle(input), paused: paused);
   }
 
-  Future<void> _apply(List<PlaybackOutput> outputs) async {
+  Future<void> _apply(
+    List<PlaybackOutput> outputs, {
+    bool paused = false,
+  }) async {
     for (final output in outputs) {
       switch (output) {
         case SegmentStarted(:final segment, :final index, :final serial):
-          await _segmentStarted(segment, index, serial);
+          await _segmentStarted(segment, index, serial, paused: paused);
         case AyahStarted(:final ayah):
           _update(_state.copyWith(ayah: ayah));
         case SilenceStarted(:final duration):
-          await _startSilence(duration);
+          await _startSilence(duration, paused: paused);
         case PlaybackStopped(:final reason, :final fade):
           await _stopped(reason, fade: fade);
       }
     }
   }
 
+  /// A segment that starts [paused] is readied for [resume] without
+  /// playing.
   Future<void> _segmentStarted(
     PlaybackSegment segment,
     int index,
-    int serial,
-  ) async {
+    int serial, {
+    bool paused = false,
+  }) async {
     _serial = serial;
     _cancelSilence();
     _update(
@@ -304,7 +312,7 @@ final class EnginePlayerRepository extends PlayerRepository {
         segment: segment,
         segmentIndex: index,
         position: Duration.zero,
-        playing: true,
+        playing: !paused,
         inSilence: false,
       ),
     );
@@ -313,13 +321,18 @@ final class EnginePlayerRepository extends PlayerRepository {
     _preload = null;
     if (ahead != null && identical(ahead.segment, segment)) {
       _playingTrack = ahead.track.id;
-      if (ahead.held) await _engine.resume();
+      if (ahead.held && !paused) await _engine.resume();
       await _refreshNext();
     } else {
       final track = await _trackFor(segment);
       if (track == null) return;
       _playingTrack = track.id;
-      await _engine.play(track, next: await _nextTrack());
+      if (paused) {
+        await _engine.load(track);
+        await _refreshNext();
+      } else {
+        await _engine.play(track, next: await _nextTrack());
+      }
     }
     await _announce(segment.address.surah);
   }
@@ -407,12 +420,13 @@ final class EnginePlayerRepository extends PlayerRepository {
     );
   }
 
-  Future<void> _startSilence(Duration duration) async {
+  Future<void> _startSilence(Duration duration, {bool paused = false}) async {
     _update(_state.copyWith(inSilence: true));
-    if (_state.playing) {
+    if (_state.playing && !paused) {
       _runSilence(duration);
     } else {
       _silenceLeft = duration;
+      await _engine.setSessionPlaying(false);
     }
     final upcoming = _rules!.upcoming;
     if (upcoming == null) return;
@@ -645,7 +659,7 @@ final class EnginePlayerRepository extends PlayerRepository {
         _engineAhead = _preload;
         _preload = null;
         _playingTrack = _engineAhead?.track.id;
-        await _handle(SegmentEnded(_serial));
+        await _handle(SegmentEnded(_serial), paused: !_state.playing);
       case TrackEnded():
         break;
       case PositionChanged(:final position):

@@ -225,6 +225,18 @@ final class PluginAudioEngineService implements AudioEngineService {
   /// if a later [setNext] wants another; that one queues behind it.
   EngineTrack? _successor;
 
+  /// Whether the player advanced into [_successor] itself before the reply
+  /// to its queueing reached us, so that it is playing already, and whether
+  /// it then ended too.
+  bool _successorStarted = false;
+  bool _successorEnded = false;
+
+  /// While the caller's seek is in flight a completion may be of the track
+  /// as it was before the seek restarted it, and what the player reports
+  /// about the playlist may lag behind it; the state is read again at the
+  /// reply.
+  bool _seeking = false;
+
   /// What the player was given for each track, to find it again by identity:
   /// indices shift while changes are in flight.
   final _sourceOf = Expando<AudioSource>();
@@ -305,6 +317,7 @@ final class PluginAudioEngineService implements AudioEngineService {
   Future<void> setNext(EngineTrack? next) async {
     if (_tracks.isEmpty) return;
     _wantedNext = next;
+    if (_headEnded && _successor == null) _successor = next;
     final generation = _playlist;
     _inOrder(() async {
       if (_tracks.length > 1) {
@@ -355,9 +368,15 @@ final class PluginAudioEngineService implements AudioEngineService {
   void _invalidate() {
     _tracks = [];
     _wantedNext = null;
-    _successor = null;
-    _endedHead = null;
+    _forgetEndedHead();
     _loaded = ++_playlist;
+  }
+
+  void _forgetEndedHead() {
+    _endedHead = null;
+    _successor = null;
+    _successorStarted = false;
+    _successorEnded = false;
   }
 
   bool get _loading => _loaded != _playlist;
@@ -373,23 +392,32 @@ final class PluginAudioEngineService implements AudioEngineService {
 
   /// Records that the current track ended before its successor could be
   /// started, and which track that is.
-  void _headEndedBefore(EngineTrack successor) {
+  void _headEndedBefore(EngineTrack? successor) {
     _endedHead = _tracks.first;
     _successor = successor;
     _events.add(TrackEnded(_tracks.first.id));
   }
 
   /// Starts the track just queued after one that ended before it arrived,
-  /// and drops the ended one.
+  /// unless the player already advanced into it, and drops the ended one.
+  /// Until the seek to it replies, what the player reports may still be
+  /// about the track it played before, so the head counts as ended until
+  /// then.
   Future<void> _startQueued(int generation, EngineTrack next) async {
     final ended = _endedHead!;
-    _endedHead = null;
-    _successor = null;
     _tracks = [next];
-    await _player.seek(Duration.zero, index: _indexOf(next));
-    if (generation != _playlist) return;
-    if (_handler!.playing) _play();
-    await _drop(ended);
+    if (_successorStarted) {
+      final finished = _successorEnded;
+      _forgetEndedHead();
+      if (finished) _onCompleted();
+    } else {
+      await _player.seek(Duration.zero, index: _indexOf(next));
+      if (generation != _playlist) return;
+      _forgetEndedHead();
+      if (_handler!.playing) _play();
+      _catchUp();
+    }
+    if (generation == _playlist) await _drop(ended);
   }
 
   int _indexOf(EngineTrack track) {
@@ -402,6 +430,32 @@ final class PluginAudioEngineService implements AudioEngineService {
   Future<void> _drop(EngineTrack track) async {
     final index = _indexOf(track);
     if (index >= 0) await _player.removeAudioSourceAt(index);
+  }
+
+  /// Brings the head up to what the player did while just_audio reported
+  /// it to no one: it reports no advance from a seek's call to its reply,
+  /// and the engine heeds nothing while a load is pending. An advance shows
+  /// in the current index, an end in the processing state.
+  void _catchUp() {
+    if (_loading || _headEnded || _tracks.isEmpty) return;
+    final head = _indexOf(_tracks.first);
+    final index = _player.currentIndex;
+    final completed = _player.processingState == ProcessingState.completed;
+    if (head >= 0 &&
+        index == head + 1 &&
+        index! < _player.audioSources.length) {
+      _advanced(index);
+      if (!completed || _tracks.isEmpty) return;
+      if (!_headEnded) {
+        // The track advanced into ended too, before the caller could say
+        // what follows it: the next [setNext] names its successor.
+        _headEndedBefore(null);
+      } else if (_successorStarted) {
+        _successorEnded = true;
+      }
+    } else if (completed) {
+      _onCompleted();
+    }
   }
 
   // A failure while playing reaches errorStream, so the future's own error
@@ -419,14 +473,14 @@ final class PluginAudioEngineService implements AudioEngineService {
   }) {
     _tracks = tracks;
     _wantedNext = tracks.length > 1 ? tracks[1] : null;
-    _successor = null;
-    _endedHead = null;
+    _forgetEndedHead();
     final generation = ++_playlist;
     _playlistChanges = _setTracks(tracks, generation, from: from)
         .then((_) {
           if (generation != _playlist) return;
           _loaded = generation;
-          then?.call();
+          _catchUp();
+          if (generation == _playlist) then?.call();
         })
         .catchError((Object _) {
           if (generation == _playlist) _failed();
@@ -448,9 +502,19 @@ final class PluginAudioEngineService implements AudioEngineService {
   @override
   Future<void> setVolume(double volume) => _player.setVolume(volume);
 
+  /// Pinned to the head, so that it lands on the track the caller is at
+  /// even if the player moved on before the seek reached it.
   @override
-  Future<void> seek(Duration position) async =>
-      _inOrder(() => _player.seek(position));
+  Future<void> seek(Duration position) async => _inOrder(() async {
+    final head = _tracks.isEmpty ? -1 : _indexOf(_tracks.first);
+    _seeking = true;
+    try {
+      await _player.seek(position, index: head < 0 ? null : head);
+    } finally {
+      _seeking = false;
+    }
+    _catchUp();
+  });
 
   @override
   Future<void> setSpeed(double factor) async {
@@ -497,24 +561,35 @@ final class PluginAudioEngineService implements AudioEngineService {
   // Replacing the playlist is reported as an advance too; only a move from
   // the current track to the next one is.
   void _onDiscontinuity(PositionDiscontinuity discontinuity) {
-    if (_loading ||
-        _headEnded ||
-        discontinuity.reason != PositionDiscontinuityReason.autoAdvance ||
-        discontinuity.previousEvent.currentIndex != 0 ||
-        discontinuity.event.currentIndex != 1 ||
-        _tracks.isEmpty) {
-      return;
+    if (discontinuity.reason == PositionDiscontinuityReason.autoAdvance &&
+        discontinuity.previousEvent.currentIndex == 0 &&
+        discontinuity.event.currentIndex == 1 &&
+        _player.audioSources.length > 1) {
+      _advanced(1);
     }
+  }
+
+  /// The player moved from the head into the track at [index] of its
+  /// playlist.
+  void _advanced(int index) {
+    if (_loading || _headEnded || _tracks.isEmpty) return;
+    // The track advanced into becomes the head only if it is the one wanted
+    // now. Otherwise it is a track being removed or replaced, because
+    // stop-after or the sleep timer was toggled: taking it as the head would
+    // report its end as the end of a track the repository no longer plays,
+    // and the successor it wants would never start.
     if (_successorHeld) {
       final [ended, ...rest] = _tracks;
       _tracks = rest;
       _events.add(TrackEnded(ended.id));
       _inOrder(() => _drop(ended));
     } else if (_successorPending) {
-      // The player moved on before the queueing's reply reached us, or into
-      // a track whose removal is in flight; the successor wanted now is the
-      // one that is started.
-      _headEndedBefore(_wantedNext!);
+      final successor = _wantedNext!;
+      _headEndedBefore(successor);
+      _successorStarted = identical(
+        _player.audioSources[index],
+        _sourceOf[successor],
+      );
     }
   }
 
@@ -524,12 +599,18 @@ final class PluginAudioEngineService implements AudioEngineService {
         state == ProcessingState.loading || state == ProcessingState.buffering,
       ),
     );
-    if (state != ProcessingState.completed ||
-        _loading ||
-        _headEnded ||
-        _tracks.isEmpty) {
+    if (state != ProcessingState.completed || _loading || _tracks.isEmpty) {
       return;
     }
+    if (_seeking) return;
+    if (_headEnded) {
+      if (_successorStarted) _successorEnded = true;
+      return;
+    }
+    _onCompleted();
+  }
+
+  void _onCompleted() {
     final ended = _tracks.first;
     if (_successorHeld) {
       // The end reached us after the successor's queueing did.
