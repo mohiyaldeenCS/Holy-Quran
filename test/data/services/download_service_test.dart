@@ -815,6 +815,54 @@ void main() {
         expect(await landed('staging/other.bin').exists(), isFalse);
       });
 
+      test('a relaunch never orders a file again under the id of a task it '
+          'stopped', () async {
+        server.bytesPerSecond['/large.bin'] = 1 << 20;
+        final url = server.uri('/large.bin');
+        const path = 'staging/stopped-id.bin';
+        for (final (attempt, wifiOnly) in [(0, false), (1, true)]) {
+          final target = again(path, wifiOnly: wifiOnly, attempt: attempt);
+          expect(
+            await plugin.enqueue(
+              DownloadTask(
+                taskId: BackgroundDownloadService.taskIdFor(url, path, attempt),
+                url: url.toString(),
+                baseDirectory: BaseDirectory.root,
+                directory: '${temp.path}/root/staging',
+                filename: target.target.split('/').last,
+                group: 'packs',
+                updates: Updates.statusAndProgress,
+                requiresWiFi: wifiOnly,
+                allowPause: true,
+                metaData: '$attempt:$path',
+              ),
+            ),
+            isTrue,
+          );
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+
+        final relaunched = await relaunch();
+        final kept = again(path, wifiOnly: false, attempt: 0);
+        final first = relaunched.download(kept, (_) {});
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        // The user turns "Wi-Fi only" on: the job stops and orders again.
+        await relaunched.cancel(kept);
+        expect(await first, isA<FileDownloadCanceled>());
+        await noTasksLeft();
+        server.bytesPerSecond.remove('/large.bin');
+
+        final outcome = await relaunched
+            .download(again(path, wifiOnly: true, attempt: 1), (_) {})
+            .timeout(const Duration(seconds: 20));
+
+        expect(
+          outcome,
+          isA<FileDownloaded>().having((o) => o.attempt, 'attempt', 2),
+        );
+        expect(await landed('staging/stopped-id.a2.bin').readAsBytes(), _large);
+      });
+
       test(
         'a stop after a relaunch stops the task the relaunch found',
         () async {
