@@ -8,12 +8,12 @@ corrected first.
 
 | | |
 | --- | --- |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-04 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **35 merged**: P1-01 to P1-32, P1-38 to P1-40, of which 16 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-32, P1-40). **Open**: P1-33 (#71), P1-34, P1-36 and P1-37 on their branches, P1-35 not started. The composition root is wired (#72, D-151). **No APK has been run on a device since the spike of 2026-10-12, and no real content is in the app** |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **35 merged**: P1-01 to P1-32, P1-38 to P1-40, of which 16 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-32, P1-40). **Open pull requests**: P1-33 (#71), P1-34 (#76, not ready), P1-36 (#78, draft), P1-37 (#77). P1-35 not started. The composition root is wired (#72, D-151). **No APK has been run on a device since the spike of 2026-10-12, and no real content is in the app** |
 | Stream B — content | In progress, by the planning session and the owner |
-| Working branch | One branch per task (`agent/p1-*`), with worktrees under `D:/projects/hq-wt` for parallel agents (D-132); never the temp folder, which was emptied after the session of 2026-10-29 |
-| Last session | 2026-11-02, local session on the owner's Windows machine. **Read `HANDOFF.md` first** |
+| Working branch | One branch per task (`agent/*`), worked by agents in GitHub Actions (D-159) |
+| Last session | 2026-11-04, local session on the owner's Windows machine, stopped for his move to a new account. **Read `HANDOFF.md` first**: it holds the queue, how to start agents and his rules |
 
 ## What is in the repository
 
@@ -360,13 +360,12 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   (the whole harness, 21 files), P1-37 `1032347`. P1-34 lost nothing; P1-35 had written
   nothing. 27 unreachable commits of 2026-10-27 to 2026-10-29, stashes of finished work,
   are kept on GitHub under `refs/archive/2026-10-orphans/`.
-- Open: **P1-33** (#71): CI green on the old SDK, not wired (`recitationDownloadRepository()`
-  has no caller, `locate` still returns null), no decision entry, no final review on
-  record. **P1-34**: flow tests on its branch, review interrupted, no pull request.
-  **P1-37**: launcher icon, launch screen and privacy guard on its branch, review fixes
-  interrupted, the rest of the task not done, no pull request. **P1-36**: harness recovered,
-  device protocol and records unfinished, no pull request.
-  **P1-35**: not started; its audit was interrupted.
+- Open, in `HANDOFF.md`'s order: **P1-37** (#77): CI green, the independent review of its
+  final head outstanding. **P1-33** (#71): wired to the player, D-155, CI green, the
+  independent review outstanding. **P1-34** (#76): the review's findings are in a comment on
+  the pull request and none is fixed; the device tests cannot pass as written. **P1-36**
+  (#78): draft, no report or self-review, measurements pending a device. **P1-35**: not
+  started; its audit was interrupted.
 - Local checks use `C:/SDK/flutter`, Flutter 3.47.9 (D-154); no second SDK is kept.
 
 Agent runs so far (estimates from the SDK): about $160 across both keys for M0.4
@@ -377,28 +376,18 @@ Stream B: the owner is extracting book 466. B0.11 (the pack pipeline) is on `mai
 
 ## Next actions — stream A (the implementing account)
 
-Work runs from a local session on the owner's machine (D-128): the lead delegates each
-task to the agent its task text names, reviews, commits, pushes, opens the task's pull
-request and merges it when review and CI pass. Decision numbers: take the number after
-the highest on `main` and every open pull request (D-076).
+Work runs through agents in GitHub Actions; the lead only manages them (D-159). The
+current queue, in order, with how to start a run, is `HANDOFF.md`, sections 2 and 3.
+Decision numbers: take the number after the highest on `main` and every open pull request
+(D-076); D-155 to D-159 are taken.
 
-1. Bring #71, P1-34, P1-36 and P1-37 up to the new `main` and fix what the upgrade
-   breaks in them.
-2. Finish P1-33 (#71): wire the locator and the download repository, decision entry,
-   review, merge. Then P1-34: finish its review, pull request, merge.
-3. First real run: an unapproved test pack on the owner's phone only, marked in the app
-   as unapproved, never uploaded or released; signing key on his machine (D-140 (8));
-   an APK for him with install steps and a short check list.
-4. Close the gaps that have no task: failed start stuck on the splash, first-run setup
-   (LV-01), the report sheet's send action (D-127), sleep timer and stop-after (AU-07,
-   AU-08), copy forms and several-ayat copy (SH-01), search modes (SR-02), tafsir search
-   (TF-07), unlimited repeat (AU-09), add to queue (AU-17).
-5. P1-35, P1-36, the rest of P1-37, on the finished screens.
-6. Golden images: after a push that adds or changes a golden test, start CI by hand
-   on the branch with the task `goldens`, pull the commit it pushes, and push again
-   (D-056, D-059). Off `ubuntu-24.04` run `flutter test --exclude-tags golden test
-   tools/gen/test`.
-7. Reorder after the owner's device results.
+The gaps that have no task, to write up and send to agents: failed start stuck on the
+splash, first-run setup (LV-01), the report sheet's send action (D-127), sleep timer and
+stop-after (AU-07, AU-08), copy forms and several-ayat copy (SH-01), search modes (SR-02),
+tafsir search (TF-07), unlimited repeat (AU-09), add to queue (AU-17). Check the possible
+stall in `audio_engine_service.dart:397-400` (comment on #76).
+
+The first real run on the owner's phone never goes through GitHub (`HANDOFF.md`, section 4).
 
 ## Next actions — stream B (planning session and the owner)
 
@@ -569,6 +558,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-11-04 | Local session, continued | Merged #75 after review and CI; recovered and advanced P1-33, P1-34, P1-36 and P1-37 to #71, #76, #78 and #77; reviewed #76. Agents and reviewers stopped on the account's usage limit. Tested both API keys, fixed how `agent.yml` reports read-only runs, and handed over for agents in Actions under a managing lead (D-159) | This branch |
 | 2026-11-02 | Local session (owner's Windows machine) | Audited the real state from the code; on the owner's approval upgraded Flutter to 3.47.9 and every direct package, with Gradle, AGP, Kotlin and the iOS target (D-154); pushed the local-only branches; pruned the dead worktree records; found why the session of 2026-10-29 stopped | #75 |
 | 2026-10-29 | Local session, continued (team lead with agents) | Merged P1-23, P1-26, P1-29 to P1-32, P1-40 and the composition root (#72) up to #74. Stopped at 08:57 on an authentication failure with P1-33 to P1-37 in flight; the status file was not updated | `main` 9fc6895 |
 | 2026-10-28 | Local session, continued (team lead with agents) | Merged #56, #57 (P1-39), #58 (P1-38), #52 (P1-25), #59 (player sheets reachable, D-138). #53 (P1-27) fixed after two code reviews and an identity audit, its last should-fix items in progress. P1-14 (three of six plan steps pushed) and P1-22 started in worktrees. Stopped for the owner's account switch; `HANDOFF.md` and `docs/plans/handoff/P1-14-architect-plan.md` written | `docs/handoff-2026-10-28`, #53, `agent/p1-14-reader-surah-screen`, `agent/p1-22-reader-targets` |
