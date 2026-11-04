@@ -11,7 +11,7 @@ from unittest import mock
 
 from hqpack import cli
 
-from tests.build_support import FONT, BuildCase
+from tests.build_support import FONT, TEST_COPY_ID, BuildCase, hafs_shaped_profiles
 
 PACK_PY = Path(__file__).resolve().parents[1] / "pack.py"
 
@@ -97,6 +97,58 @@ class BuildAndVerifyTest(CliCase):
         self.assertTrue((self.out / "synthetic-text" / "1" / "manifest.json").is_file())
 
 
+class UnapprovedTestCopyCliTest(CliCase):
+    def config(self, **overrides):
+        overrides.setdefault("riwaya", "hafs")
+        overrides.setdefault("id", TEST_COPY_ID)
+        overrides.setdefault("reviews", [])
+        return self.write_source(**overrides)
+
+    def build_copy(self, *extra):
+        return self.run_cli("build", "--config", self.config(), "--font", FONT, "--out", self.out, *extra)
+
+    def test_build_with_the_flag_says_what_it_built(self):
+        with hafs_shaped_profiles():
+            code, out, err = self.build_copy("--unapproved-test-copy")
+        self.assertEqual((code, err), (0, ""))
+        self.assertIn("unapproved test copy: the KFGQPC comparison was not run", out)
+        self.assertIn("verified", out)
+        self.assertTrue((self.out / TEST_COPY_ID / "1" / "manifest.json").is_file())
+
+    def test_build_without_the_flag_is_refused(self):
+        with hafs_shaped_profiles():
+            code, _, err = self.build_copy()
+        self.assertEqual(code, cli.EX_DATAERR)
+        self.assertIn("refused: id %s" % TEST_COPY_ID, err)
+        self.assertFalse(self.out.exists())
+
+    def test_the_real_hafs_profile_stays_refused_for_a_plain_build(self):
+        config = self.write_source(riwaya="hafs", id="base-hafs-tanzil")
+        code, _, err = self.run_cli("build", "--config", config, "--font", FONT, "--out", self.out)
+        self.assertEqual(code, cli.EX_DATAERR)
+        self.assertIn("KFGQPC", err)
+
+    def test_the_flag_with_reviews_exits_65(self):
+        review = [{"reviewer": "synthetic reviewer", "date": "2026-01-01", "scope": "synthetic"}]
+        with hafs_shaped_profiles():
+            code, _, err = self.run_cli(
+                "build", "--config", self.config(reviews=review), "--font", FONT, "--out", self.out,
+                "--unapproved-test-copy",
+            )
+        self.assertEqual(code, cli.EX_DATAERR)
+        self.assertIn("no reviews", err)
+
+    def test_the_flag_with_an_output_in_a_git_tree_exits_65(self):
+        (self.work / "tree" / ".git").mkdir(parents=True)
+        with hafs_shaped_profiles():
+            code, _, err = self.run_cli(
+                "build", "--config", self.config(), "--font", FONT, "--out", self.work / "tree" / "out",
+                "--unapproved-test-copy",
+            )
+        self.assertEqual(code, cli.EX_DATAERR)
+        self.assertIn("inside a Git working tree", err)
+
+
 @unittest.skipUnless(_openssl_ed25519(), "needs OpenSSL with Ed25519")
 class SignTest(CliCase):
     def keys(self, name):
@@ -124,6 +176,21 @@ class SignTest(CliCase):
         code, out, _ = self.run_cli("verify-signature", pack, "--public-key", other)
         self.assertEqual(code, cli.EX_DATAERR)
         self.assertIn("INVALID", out)
+
+    def test_a_test_copy_is_signed_with_a_pem_key_and_checked_with_its_public_key(self):
+        with hafs_shaped_profiles():
+            code, _, _ = self.run_cli(
+                "build", "--config", self.write_source(riwaya="hafs", id=TEST_COPY_ID, reviews=[]),
+                "--font", FONT, "--out", self.out, "--unapproved-test-copy",
+            )
+        self.assertEqual(code, 0)
+        pack = self.out / TEST_COPY_ID / "1"
+        private, public = self.keys("test-copy")
+        code, out, _ = self.run_cli(
+            "sign", pack, "--key", private, "--font", FONT, "--mark-table", self.source / "marks.json"
+        )
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.run_cli("verify-signature", pack, "--public-key", public)[0], 0)
 
     def test_sign_needs_the_font_and_the_mark_table(self):
         pack, _ = self.build()
