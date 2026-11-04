@@ -20,15 +20,18 @@ final _forbiddenPackages = RegExp(
   r'appcenter.*|amplitude.*|mixpanel.*|posthog.*|segment_analytics.*|'
   r'flutter_segment.*|appsflyer.*|'
   r'adjust_sdk|branch_sdk|flutter_branch_sdk|singular.*|kochava.*|matomo.*|'
-  r'countly.*|smartlook.*|clarity_flutter|flutter_facebook.*|'
+  r'countly.*|smartlook.*|clarity_flutter|flutter_clarity|'
+  r'(?:flutter_)?microsoft_clarity.*|microsoft_clarity_flutter|'
+  r'flutter_facebook.*|'
   r'facebook_app_events|'
   r'onesignal.*|usercentrics.*|google_analytics.*|amplify_analytics.*|'
   r'braze.*|clevertap.*|moengage.*|webengage.*|(?:flutter_)?uxcam|'
-  r'logrocket.*|fullstory.*|(?:flutter_)?bugfender|rollbar.*|flutter_rollbar|'
+  r'logrocket.*|fullstory.*|(?:flutter_|logging_)?bugfender|rollbar.*|'
+  r'flutter_rollbar|'
   r'raygun.*|newrelic.*|flutter_sentry|'
   // Advertising.
   r'google_mobile_ads|admob.*|applovin.*|unity_ads.*|ironsource.*|'
-  r'facebook_audience_network|(?:stack_)?appodeal.*|startapp.*|pangle.*|'
+  r'facebook_audience_network|(?:stack_|flutter_)?appodeal.*|startapp.*|pangle.*|'
   r'mintegral.*|'
   // Purchases and subscriptions.
   r'in_app_purchase.*|flutter_inapp_purchase|purchases_.*|adapty.*|'
@@ -287,8 +290,11 @@ const _settingsAccess = [
   '${_services}settings_store.dart',
 ];
 
+final _exportDirective = RegExp(r'^\s*export\s+([^;]+);', multiLine: true);
+
 /// Every file of [sources] reachable from [start] without going through one
-/// of [stops]; a stop is in the result but its imports are not followed.
+/// of [stops]; a stop is in the result and only its exports are followed,
+/// since a re-export hands its target to whoever imports the stop.
 Set<String> _closureStoppingAt(
   String start,
   Map<String, String> sources,
@@ -299,8 +305,14 @@ Set<String> _closureStoppingAt(
   while (pending.isNotEmpty) {
     final path = pending.removeLast();
     final source = sources[path];
-    if (source == null || !seen.add(path) || stops.contains(path)) continue;
-    for (final uri in _uris(source)) {
+    if (source == null || !seen.add(path)) continue;
+    final uris = stops.contains(path)
+        ? [
+            for (final directive in _exportDirective.allMatches(source))
+              for (final uri in _quoted.allMatches(directive[1]!)) uri[1]!,
+          ]
+        : _uris(source);
+    for (final uri in uris) {
       if (_resolve(path, uri) case final target?) pending.add(target);
     }
   }
@@ -319,6 +331,25 @@ List<String> _settingsOnlyOverreach(
           !_settingsAccess.contains(file) &&
           _userData.any((entry) => _covers(entry, file)))
         '$path -> $file',
+];
+
+/// What hands a DAO's whole database to its holder, with no import to show it:
+/// drift's `attachedDatabase` and `db`, or `database` on a DAO or store.
+final _databaseHandle = RegExp(
+  r'\battachedDatabase\b|\.db\b|'
+  r'\b\w*(?:[dD]ao|[sS]ettings|[sS]tore)\w*\.database\b',
+);
+
+/// The [settingsOnly] files that take the database out of a DAO, so that they
+/// could read tables the settings DAO does not own.
+List<String> _settingsOnlyDatabaseUse(
+  Map<String, String> sources,
+  List<String> settingsOnly,
+) => [
+  for (final path in settingsOnly)
+    if (sources[path] case final source?
+        when _databaseHandle.hasMatch(ScannedSource(source).code))
+      path,
 ];
 
 /// Files that read the user's database, or whose name says they hold what the
@@ -455,6 +486,10 @@ void main() {
         expect(lib, contains(path));
       }
       expect(_settingsOnlyOverreach(lib, _settingsOnly), isEmpty);
+    });
+
+    test('a settings-only file does not take the database out of a DAO', () {
+      expect(_settingsOnlyDatabaseUse(lib, _settingsOnly), isEmpty);
     });
 
     test('every user-data entry names a file or folder that exists', () {
@@ -655,6 +690,81 @@ void main() {
       );
     });
 
+    test('a settings DAO or store that re-exports another DAO or the '
+        'database', () {
+      const repository = 'lib/data/repositories/tafsir_repository.dart';
+      final base = {
+        repository: "import '../services/daos/settings_dao.dart';",
+        '${_services}daos/settings_dao.dart': "import '../user_database.dart';",
+        '${_services}daos/note_dao.dart': '',
+        '${_services}user_database.dart': '',
+      };
+      expect(_settingsOnlyOverreach(base, [repository]), isEmpty);
+      const exports = [
+        "export 'note_dao.dart';",
+        "export '../user_database.dart';",
+        "export 'package:holyquran/data/services/user_database.dart';",
+      ];
+      for (final directive in exports) {
+        final sources = {
+          ...base,
+          '${_services}daos/settings_dao.dart': directive,
+        };
+        expect(
+          _settingsOnlyOverreach(sources, [repository]),
+          isNotEmpty,
+          reason: directive,
+        );
+      }
+      final store = {
+        ...base,
+        repository: "import '../services/settings_store.dart';",
+        '${_services}settings_store.dart': "export 'daos/note_dao.dart';",
+      };
+      expect(_settingsOnlyOverreach(store, [repository]), [
+        '$repository -> ${_services}daos/note_dao.dart',
+      ]);
+    });
+
+    test('a settings DAO that re-exports the other settings file is fine', () {
+      const repository = 'lib/data/repositories/tafsir_repository.dart';
+      final sources = {
+        repository: "import '../services/daos/settings_dao.dart';",
+        '${_services}daos/settings_dao.dart':
+            "export '../settings_store.dart';\nimport '../user_database.dart';",
+        '${_services}settings_store.dart': "import 'user_database.dart';",
+        '${_services}user_database.dart': '',
+      };
+      expect(_settingsOnlyOverreach(sources, [repository]), isEmpty);
+    });
+
+    test('a settings-only file that takes the database out of a DAO', () {
+      const repository = 'lib/data/repositories/tafsir_repository.dart';
+      const other = 'lib/data/repositories/recitation_locator.dart';
+      const uses = [
+        'settings.attachedDatabase.select(settings.attachedDatabase.notes);',
+        'final d = settings.db;',
+        'final d = _settingsDao.database;',
+        'final d = store.database;',
+      ];
+      for (final use in uses) {
+        final sources = {repository: 'void f() { $use }', other: ''};
+        expect(_settingsOnlyDatabaseUse(sources, [repository, other]), [
+          repository,
+        ], reason: use);
+      }
+    });
+
+    test('a settings-only file with a pack database or a comment is fine', () {
+      const repository = 'lib/data/repositories/tafsir_repository.dart';
+      final sources = {
+        repository:
+            '// settings.attachedDatabase is not used\n'
+            "const s = 'x.db';\nvoid f() { book.database.close(); }",
+      };
+      expect(_settingsOnlyDatabaseUse(sources, [repository]), isEmpty);
+    });
+
     test('a settings-only file that uses only the settings DAO and store', () {
       const repository = 'lib/data/repositories/tafsir_repository.dart';
       final sources = {
@@ -719,6 +829,12 @@ void main() {
         'stack_appodeal_flutter',
         'appodeal_flutter',
         'appodeal',
+        'flutter_clarity',
+        'flutter_microsoft_clarity',
+        'microsoft_clarity_flutter',
+        'flutter_appodeal',
+        'flutter_appodeal_ads',
+        'logging_bugfender',
       ];
       for (final name in names) {
         expect(_forbiddenPackages.hasMatch(name), isTrue, reason: name);
@@ -733,6 +849,12 @@ void main() {
           'segmented_button_slide',
           'segmented_progress_bar',
           'clarity_chart',
+          'clarity_dialog',
+          'microsoft_graph_client',
+          'microsoft_fluent_ui',
+          'logging',
+          'logging_to_logcat',
+          'flutter_appdock',
           'adjust_brightness',
         ];
         for (final name in names) {
