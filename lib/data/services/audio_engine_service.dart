@@ -215,12 +215,14 @@ final class PluginAudioEngineService implements AudioEngineService {
   /// The track last given to [setNext], whether or not the player has it yet.
   EngineTrack? _wantedNext;
 
-  /// The current track, when it ended and was reported while its successor
-  /// was still being queued; the queueing starts the successor and drops it.
+  /// The current track, when it ended and was reported before its successor
+  /// was in the player. It stays first in [_tracks] until the successor is
+  /// started, and is then removed from the player.
   EngineTrack? _endedHead;
 
-  /// The successor the repository was told is playing when the head ended;
-  /// only that track may be started, not one a later [setNext] replaced.
+  /// The track wanted after the head when the head's end was reported, which
+  /// is the one the repository took to follow it. It alone is started, even
+  /// if a later [setNext] wants another; that one queues behind it.
   EngineTrack? _successor;
 
   /// What the player was given for each track, to find it again by identity:
@@ -364,6 +366,19 @@ final class PluginAudioEngineService implements AudioEngineService {
   bool get _successorPending =>
       _wantedNext != null && !_tracks.any((t) => identical(t, _wantedNext));
 
+  /// Whether the player already holds, right after the current track, the
+  /// track that is wanted there.
+  bool get _successorHeld =>
+      _tracks.length > 1 && identical(_tracks[1], _wantedNext);
+
+  /// Records that the current track ended before its successor could be
+  /// started, and which track that is.
+  void _headEndedBefore(EngineTrack successor) {
+    _endedHead = _tracks.first;
+    _successor = successor;
+    _events.add(TrackEnded(_tracks.first.id));
+  }
+
   /// Starts the track just queued after one that ended before it arrived,
   /// and drops the ended one.
   Future<void> _startQueued(int generation, EngineTrack next) async {
@@ -403,7 +418,7 @@ final class PluginAudioEngineService implements AudioEngineService {
     void Function()? then,
   }) {
     _tracks = tracks;
-    _wantedNext = null;
+    _wantedNext = tracks.length > 1 ? tracks[1] : null;
     _successor = null;
     _endedHead = null;
     final generation = ++_playlist;
@@ -490,16 +505,16 @@ final class PluginAudioEngineService implements AudioEngineService {
         _tracks.isEmpty) {
       return;
     }
-    if (_tracks.length > 1) {
+    if (_successorHeld) {
       final [ended, ...rest] = _tracks;
       _tracks = rest;
       _events.add(TrackEnded(ended.id));
       _inOrder(() => _drop(ended));
     } else if (_successorPending) {
-      // The player moved on before the queueing's reply reached us.
-      _endedHead = _tracks.first;
-      _successor = _wantedNext;
-      _events.add(TrackEnded(_tracks.first.id));
+      // The player moved on before the queueing's reply reached us, or into
+      // a track whose removal is in flight; the successor wanted now is the
+      // one that is started.
+      _headEndedBefore(_wantedNext!);
     }
   }
 
@@ -516,13 +531,18 @@ final class PluginAudioEngineService implements AudioEngineService {
       return;
     }
     final ended = _tracks.first;
-    if (_successorPending) {
-      _endedHead = ended;
-      _successor = _wantedNext;
+    if (_successorHeld) {
+      // The end reached us after the successor's queueing did.
+      final successor = _wantedNext!;
+      final generation = _playlist;
+      _headEndedBefore(successor);
+      _inOrder(() => _startQueued(generation, successor));
+    } else if (_successorPending) {
+      _headEndedBefore(_wantedNext!);
     } else {
       _invalidate();
+      _events.add(TrackEnded(ended.id));
     }
-    _events.add(TrackEnded(ended.id));
   }
 
   // A player failure does not say whether the network caused it (S3), so a
