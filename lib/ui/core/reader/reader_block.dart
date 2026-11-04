@@ -37,39 +37,44 @@ final class ReaderBlock extends StatelessWidget {
     return MediaQuery(
       data: MediaQuery.of(context)
           .copyWith(textScaler: layout.plan.style.scaler),
-      child: SizedBox(
-        width: layout.width,
-        height: layout.height,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned.fill(child: CustomPaint(painter: _BlockPainter(layout))),
-            for (final MapEntry(key: ayah, value: page)
-                in layout.pageMarks.entries)
-              Positioned.fromRect(
-                rect: layout.pageMarkRect(ayah)!,
-                child: Semantics(
-                  container: true,
-                  sortKey: OrdinalSortKey(readingOrder(ayah) - 1),
-                  child: PageMark(page: page),
+      child: FocusTraversalGroup(
+        policy: OrderedTraversalPolicy(),
+        child: SizedBox(
+          width: layout.width,
+          height: layout.height,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned.fill(
+                child: CustomPaint(painter: _BlockPainter(layout)),
+              ),
+              for (final MapEntry(key: ayah, value: page)
+                  in layout.pageMarks.entries)
+                Positioned.fromRect(
+                  rect: layout.pageMarkRect(ayah)!,
+                  child: Semantics(
+                    container: true,
+                    sortKey: OrdinalSortKey(readingOrder(ayah) - 1),
+                    child: PageMark(page: page),
+                  ),
                 ),
-              ),
-            for (final ayah in layout.ayat) ...[
-              Positioned.fromRect(
-                rect: layout.ayahRect(ayah)!,
-                child: ayahSemantics(
-                  layout.plan.text.ayat[ayah - 1],
-                  readingOrder(ayah).toDouble(),
-                  selected: ayah == selectedAyah ? true : null,
-                  onActivate: activate == null ? null : () => activate(ayah),
+              for (final ayah in layout.ayat) ...[
+                Positioned.fromRect(
+                  rect: layout.ayahRect(ayah)!,
+                  child: ayahSemantics(
+                    layout.plan.text.ayat[ayah - 1],
+                    readingOrder(ayah).toDouble(),
+                    selected: ayah == selectedAyah ? true : null,
+                    onActivate: activate == null ? null : () => activate(ayah),
+                  ),
                 ),
-              ),
-              Positioned.fromRect(
-                rect: layout.markerRect(ayah)!,
-                child: _marker(context, ayah, activate),
-              ),
+                Positioned.fromRect(
+                  rect: layout.markerRect(ayah)!,
+                  child: _marker(context, ayah, activate),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

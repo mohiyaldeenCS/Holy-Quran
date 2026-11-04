@@ -10,6 +10,33 @@ import 'screens.dart';
 
 // D-169 (1): the reader's ayat take keyboard focus, show the focus ring round
 // their rectangle, scroll into view, and Enter or Space activates them.
+/// The ayah a focus node stands for, as (surah, ayah), or null.
+(int, int)? ayahOf(FocusNode focus) {
+  final context = focus.context;
+  final block = context?.findAncestorWidgetOfExactType<ReaderBlock>();
+  if (context == null || block == null) return null;
+  final blockOrigin = _blockOrigin(context);
+  for (final ayah in block.layout.ayat) {
+    final rect = block.layout.ayahRect(ayah)!;
+    if ((blockOrigin + rect.topLeft - focus.rect.topLeft).distance < 1) {
+      return (block.layout.plan.text.surah, ayah);
+    }
+  }
+  return null;
+}
+
+Offset _blockOrigin(BuildContext context) {
+  late Offset origin;
+  context.visitAncestorElements((element) {
+    if (element.widget is ReaderBlock) {
+      origin = (element.renderObject! as RenderBox).localToGlobal(Offset.zero);
+      return false;
+    }
+    return true;
+  });
+  return origin;
+}
+
 void main() {
   final world = A11yWorld();
   setUpAll(world.open);
@@ -64,4 +91,34 @@ void main() {
       handle.dispose();
     });
   }
+
+  testWidgets('Tab moves through the ayat in their order', (tester) async {
+    final handle = tester.ensureSemantics();
+    final screen = world.screens.firstWhere((s) => s.name == 'reader');
+    await screen.pump(tester, phonePortrait, 1);
+
+    final reached = <(int, int)>[];
+    for (var i = 0; i < 24; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      final focus = FocusManager.instance.primaryFocus;
+      if (focus != null && inAyah(focus)) {
+        final ayah = ayahOf(focus);
+        expect(ayah, isNotNull, reason: 'a stop that is no ayah rectangle');
+        reached.add(ayah!);
+      }
+    }
+
+    expect(reached.length, greaterThan(4));
+    for (var i = 1; i < reached.length; i++) {
+      final (surah, ayah) = reached[i];
+      final (before, after) = reached[i - 1];
+      expect(
+        surah > before || (surah == before && ayah > after),
+        isTrue,
+        reason: 'stop ${i + 1} is $reached',
+      );
+    }
+    handle.dispose();
+  });
 }

@@ -205,7 +205,9 @@ double basmalaHeight(PackText basmala, ReaderStyle style, double width) {
 /// screen reader can activate it, and a keyboard can reach it: it takes
 /// focus inside the identity's `FocusRing` (square, round the ayah's
 /// rectangle), scrolls into view, and Enter or Space activates it (`AX-09`,
-/// D-169). [selected] true says it is the chosen ayah; null leaves the state
+/// D-169). Tab goes by [order], not by where the rectangles lie: ayat that
+/// share a line overlap, and geometry would put one before the other
+/// wrongly. [selected] true says it is the chosen ayah; null leaves the state
 /// out, as for every other ayah.
 Widget ayahSemantics(
   AyahText ayah,
@@ -222,16 +224,19 @@ Widget ayahSemantics(
   onTap: onActivate,
   child: onActivate == null
       ? const SizedBox.expand()
-      : RevealOnFocus(
-          child: FocusRing(
-            radius: BorderRadius.zero,
-            child: FocusableActionDetector(
-              actions: {
-                ActivateIntent: CallbackAction<ActivateIntent>(
-                  onInvoke: (_) => onActivate(),
-                ),
-              },
-              child: const SizedBox.expand(),
+      : FocusTraversalOrder(
+          order: NumericFocusOrder(order),
+          child: RevealOnFocus(
+            child: FocusRing(
+              radius: BorderRadius.zero,
+              child: FocusableActionDetector(
+                actions: {
+                  ActivateIntent: CallbackAction<ActivateIntent>(
+                    onInvoke: (_) => onActivate(),
+                  ),
+                },
+                child: const SizedBox.expand(),
+              ),
             ),
           ),
         ),

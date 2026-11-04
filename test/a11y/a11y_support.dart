@@ -49,10 +49,12 @@ Future<void> _expectGuideline(
 ) async {
   final evaluation = await guideline.evaluate(tester);
   if (evaluation.passed) return;
-  final failures = (evaluation.reason ?? '')
+  final nodes = (evaluation.reason ?? '')
       .split('\n')
       .where((line) => line.startsWith('SemanticsNode'))
-      .where((line) => !_insideText.hasMatch(line));
+      .toList();
+  expect(nodes, isNotEmpty, reason: 'unreadable failure: ${evaluation.reason}');
+  final failures = nodes.where((line) => !_insideText.hasMatch(line));
   expect(failures, isEmpty, reason: what);
 }
 

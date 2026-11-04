@@ -154,6 +154,12 @@ void main() {
         break;
       }
     }
+    expect(
+      FocusManager.instance.primaryFocus?.context
+          ?.findAncestorWidgetOfExactType<SeekTrack>(),
+      isNotNull,
+      reason: 'Tab reached no seek track',
+    );
     expect(focusRingDrawn(tester), isTrue);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);

@@ -7,8 +7,9 @@ import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/focus_ring.dart';
 import 'package:holyquran/ui/core/widgets/progress_bar.dart';
 
-// Not drawn: the track has no keyboard state in the board, so its focus ring
-// sits square round the target-min band, as the other bare targets' do.
+// `:focus-visible` (bundle.css) follows the element's `border-radius`; the
+// target-min band has none, so the ring sits square round it, as round the
+// other bare targets.
 const BorderRadius _focusRadius = BorderRadius.zero;
 
 /// The player-tone [ProgressBar] in a target-min band that seeks where it
