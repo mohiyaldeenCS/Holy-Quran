@@ -82,44 +82,33 @@ record for the head.
 **Spend this session**, by the SDK's estimates: $7.28 for six finished runs; caps of the runs
 out: $54.
 
-`main` holds 35 of 40 tasks (16 partial); see the status file. **No app build has real
-content yet and none has run on a device since the spike of 2026-10-12.** All four
-branches below were brought up to `main` from the outgoing session, because the workflow
-refuses an agent's merge that carries a `.github/` change. **Before the first run on a
-branch, check it:** `git merge-base --is-ancestor origin/main origin/<branch>`. If `main`
-changed `.github/` and the branch lacks it, merge `main` into the branch from your own
-session. D-155 (#71), D-157 (#78), D-158 (#77) and D-159 are written; D-156 is reserved for
-#76's `integration_test` decision. D-160 is reserved for #71's `SurahName` label and D-161 for the audio race; D-162 holds the owner's answers of 2026-11-04; the next free number is D-163.
+`main` holds 37 of 40 tasks (18 partial); see the status file. **No app build has real
+content yet and none has run on a device since the spike of 2026-10-12.** **Before the first
+run on a branch, check it:** `git merge-base --is-ancestor origin/main origin/<branch>`. If
+`main` changed `.github/` and the branch lacks it, merge `main` into the branch from your own
+session. Decision numbers: D-155 to D-159 and D-162 are written; D-157 (#78), D-160 (#71's
+`SurahName` label) and D-161 (#80) are on open branches; D-163 to D-165 are reserved for the
+test-copy tasks T1 to T3; the next free number is D-166.
 
-1. **#77, P1-37 release readiness.** CI green at last check. Its author reports its own
-   reviewers passed; the independent review of the final head died on a usage limit.
-   Start it (`code-reviewer`, weight on `test/guards/privacy_test.dart`, which changed
-   after the earlier review; D-158; the deny patterns `segment.*`, `clarity.*`). Then merge.
-2. **#71, P1-33 recitation downloads.** Wired to the player, D-155 written, CI green at last
-   check. Never had a final review on record, and that review died at its start. Start it:
-   the shared `DownloadService`, a start with no pack, integrity before playing, deleting
-   while downloading, catalogue paths. Known, stated in the PR: no OF-03 storage bar; the
-   reciter's own basmala and isti'adha find no file; a refused resume untested. Three
-   strings await the owner: `resourceStop`, `recitationDownloadWhole`,
-   `recitationQualityKbps`.
-3. **#76, P1-34 flow tests. Not ready: the review's findings are in a comment on the PR and
-   none is fixed.** The most serious: every device test fails in `setUpAll`, and the
-   lifecycle test never launches with the pack absent. Send it to `test-engineer`, then
-   review again.
-4. **#78, P1-36 performance harness.** Draft. Recovered, then continued; the last agent
-   stopped before its report, with no self-review. Send it to `test-engineer` to go through
-   the acceptance list, then review. It needs `flutter_driver`; #76 removes that from its
-   own branch, so run these two one after the other and expect a `pubspec` merge.
-5. **Check a possible stall** between ayat: `lib/data/services/audio_engine_service.dart:397-400`
-   (details in the comment on #76). Not reproduced. An `audio-builder` task, test first.
-6. **First real run on the owner's phone** (section 4).
-7. **The gaps that have no task** (status file, Next actions), written up and sent to agents.
-8. **P1-35 accessibility**, on the finished screens. Its audit died unfinished; nothing was
+The queue, after the table above:
+
+1. **#71, #80, #78:** each fix or finishing run, then an independent re-review, then merge
+   under D-136.
+2. **`agent/nf-14-guard-followup`:** the re-review of #77's should-fix and notes (task text
+   written; a `test-engineer` run when a slot frees).
+3. **The local test copy** by `docs/plans/TEST_COPY.md` (section 4): T3 and T2 first (T2 after
+   #71 merges: both edit `app_ar.arb`), then T1, then T4. Then guide the owner through its
+   local steps; that build is his first device session (D-162 (9)).
+4. **Stand mode's button** «وضع الحامل» in `ReaderPlayerBar` (D-162 (3)), and the 1:1 and 9:16
+   share cards (D-162 (6)); `ui-builder` tasks, the share images shown to the owner before merging.
+5. **Candidate recitations** for O-04 (D-162 (10)): a read-only proposal from `docs/SOURCES.md`.
+6. **The gaps that have no task** (status file, Next actions), written up and sent to agents.
+7. **P1-35 accessibility**, on the finished screens. Its audit died unfinished; nothing was
    written.
-9. **Stream B**: everything that does not wait for the owner, and section 6's list.
+8. **Stream B**: everything that does not wait for the owner, and section 6's list.
 
-After the APK reaches the owner: give install steps and a short check list, carry on with
-item 7 until his results arrive, then reorder by them.
+After the test copy reaches the owner's phone: give a short check list, carry on with item 6
+until his results arrive, then reorder by them.
 
 
 ## 4. The test pack: never on GitHub
@@ -128,20 +117,24 @@ The owner allowed a pack with text the proofreader has not approved, on these co
 in force: it stays on his phone only; the app shows that it is an unapproved copy; it is
 never uploaded to GitHub and never enters a release.
 
-**So no Actions agent, CI task or GitHub artefact may touch this pack, or an APK holding
-it. The CI `apk` task uploads to GitHub and must not be used for that build.**
+**So no Actions agent, CI task or GitHub artefact may touch this pack. The CI `apk` task
+uploads to GitHub and must not be used for that build.**
 
-- Agents build the code: the visible unapproved-copy marking, off unless a build flag asks
-  for it, and the local steps written out. Ask the owner about the marking's wording if the
-  identity and D-115 do not cover it.
-- The rest happens on his machine, by him with your guidance, or by a session running
-  there: fetch the source under `docs/SOURCES.md`'s conditions with `tools/packs`, run the
-  integrity suite, generate the signing key (D-140 (8): it never leaves the machine and is
-  never committed), sign, build the APK locally, install. The pack sits in `assets/packs/`
-  for that build: `.gitignore` covers that folder and `*.apk` so that "push after every
-  commit" cannot take it to GitHub; run `git status` before any commit there, never use
-  `git add -f` on it, and remove the folder afterwards. D-140 (6) and (10) do not apply to
-  this pack. Stop and report a failed hash or count.
+- **The route is `docs/plans/TEST_COPY.md`** (D-162 (13), (14); D-163 to D-165 when written).
+  It replaces the bundling this section used to describe: the pack is never put in
+  `assets/packs/` or an APK. A profile APK built with `--dart-define=HOLYQURAN_TEST_PACK=...`
+  and a throwaway test key (never the production key of D-140 (8)) reads the signed pack
+  from the phone's own files, pushed there with `adb`; a release build refuses the define.
+  The app shows «نسخة تجريبية غير معتمدة» on every screen; copied text ends with that line and
+  image sharing is off.
+- Agents build the code and `tools/test_copy/`. The rest happens on his machine, by him with
+  your guidance: fetch the Tanzil source under `docs/SOURCES.md`'s conditions, build the pack
+  with the pipeline's test-copy mode, run the integrity suite on it, sign with the throwaway
+  key, build the profile APK, install, push the pack, delete the key and the local copies.
+  Stop and report a failed hash or count.
+- `.gitignore` still covers `assets/packs/` and `*.apk`, and `agent.yml` refuses both: if
+  either ever appears in a working tree, run `git status` before any commit, never use
+  `git add -f` on it, and remove it. D-140 (6) and (10) do not apply to this pack.
 
 ## 5. What happened, and what is kept
 

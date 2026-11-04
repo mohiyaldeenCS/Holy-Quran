@@ -380,12 +380,12 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   play-range and download entries stay skipped on a device (no recitation file, no host).
   Reviewed by `code-reviewer` (opus) twice; nits left: one comment line over 80 characters
   in `test/ui/core/share/ayah_copy_text_test.dart:26`.
-- Open, in `HANDOFF.md`'s order: **P1-37** (#77): CI green, the independent review of its
-  final head outstanding. **P1-33** (#71): wired to the player, D-155, CI green, the
-  independent review outstanding. **P1-34** (#76): the review's findings are in a comment on
-  the pull request and none is fixed; the device tests cannot pass as written. **P1-36**
-  (#78): draft, no report or self-review, measurements pending a device. **P1-35**: not
-  started; its audit was interrupted.
+- Open, in `HANDOFF.md`'s order: **P1-33** (#71): its final review and identity audit found a
+  blocking `SurahName` misuse, a download that can hang after a relaunch and a sheet that
+  ignores reduce-motion; a data run then a UI run are fixing them. **AU-01** (#80): the
+  stall between ayat was real and is fixed (D-161); its review found a regression in one
+  interleaving, being fixed. **P1-36** (#78): being finished (merge of `main`, the font on a
+  device, the acceptance list). **P1-35**: not started; its audit was interrupted.
 - Local checks use `C:/SDK/flutter`, Flutter 3.47.9 (D-154); no second SDK is kept.
 
 Agent runs so far (estimates from the SDK): about $160 across both keys for M0.4
@@ -595,7 +595,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
-| 2026-11-04 | Cloud session, new account (managing lead, D-159) | Read the handover; confirmed `gh` can start workflows; reported to the owner. In Actions: final reviews of #77 and #71 and an identity audit of #71; fixes of #76's and #77's reviews; the audio stall reproduced and fixed (#80, D-161); re-reviews and the two #71 fix runs started. Put twelve decisions to the owner (D-162). Could not delete branches (proxy) | `claude/quran-app-leadership-kcenv4` |
+| 2026-11-04 | Cloud session, new account (managing lead, D-159) | Read the handover; confirmed `gh` can start workflows; reported to the owner. In Actions: final reviews of #77 and #71 and an identity audit of #71; fixes of #76's and #77's reviews; the audio stall reproduced and fixed (#80, D-161); re-reviews and the two #71 fix runs started. Put fourteen decisions to the owner (D-162); planned the local test copy (`docs/plans/TEST_COPY.md`). Could not delete branches (proxy) | `claude/quran-app-leadership-kcenv4` |
 | 2026-11-04 | Local session, continued | Merged #75 after review and CI; recovered and advanced P1-33, P1-34, P1-36 and P1-37 to #71, #76, #78 and #77; reviewed #76. Agents and reviewers stopped on the account's usage limit. Tested both API keys, fixed how `agent.yml` reports read-only runs, and handed over for agents in Actions under a managing lead (D-159) | This branch |
 | 2026-11-02 | Local session (owner's Windows machine) | Audited the real state from the code; on the owner's approval upgraded Flutter to 3.47.9 and every direct package, with Gradle, AGP, Kotlin and the iOS target (D-154); pushed the local-only branches; pruned the dead worktree records; found why the session of 2026-10-29 stopped | #75 |
 | 2026-10-29 | Local session, continued (team lead with agents) | Merged P1-23, P1-26, P1-29 to P1-32, P1-40 and the composition root (#72) up to #74. Stopped at 08:57 on an authentication failure with P1-33 to P1-37 in flight; the status file was not updated | `main` 9fc6895 |

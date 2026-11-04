@@ -6,6 +6,10 @@ and (14): Q1, build now with the provisional mark table; Q2, keep copy with a fi
 line and disable image sharing. So T1's `share_providers` part changes: the clipboard stays, the
 copy composer appends the line, and only the share-card export is withdrawn. Decision numbers:
 D-163 (T1), D-164 (T2), D-165 (T3). T2 waits until #71 is merged (both edit `app_ar.arb`).
+**The body below predates those answers:** its "Gated on Q1", "Only after Q2" and "Q1 and Q2
+are open" notes are lifted, and where it says copy and share are hidden (section 4, the
+`share_providers` part of T1, D-164 at the end), D-162 (14) holds instead. This route replaces
+the bundling in `assets/packs/` that D-159 (5) and the old `HANDOFF.md` section 4 described.
 
 I made the plan without editing anything. No commits, no file changes, and the only command I ran besides reading files was `flutter --version` (Flutter 3.47.9, stable). I ran no format, analyze or test commands because nothing changed.
 
