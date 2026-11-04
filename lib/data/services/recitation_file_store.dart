@@ -148,13 +148,25 @@ class RecitationFileStore {
     await for (final entity in staging.list()) {
       if (entity is! File) continue;
       final name = entity.uri.pathSegments.last;
-      final dot = name.indexOf('.');
-      if (dot <= 0) continue;
-      final extension = name.substring(name.lastIndexOf('.'));
-      if (await File('$audio/${name.substring(0, dot)}$extension').exists()) {
-        await _delete(entity.path);
+      for (final candidate in _finalNames(name)) {
+        if (await File('$audio/$candidate').exists()) {
+          await _delete(entity.path);
+          break;
+        }
       }
     }
+  }
+
+  /// The hash is hexadecimal, so it ends at the first dot; what follows may
+  /// be an attempt or the claim marker and then the extension. A marker
+  /// without an extension is also read as the extension, since a staged
+  /// name does not say which it is.
+  static final _staged = RegExp(r'^([^.]+)(\.(?:a\d+|claimed))?(\..*)?$');
+
+  static Iterable<String> _finalNames(String staged) {
+    final match = _staged.firstMatch(staged);
+    if (match == null) return const [];
+    return {staged, '${match[1]}${match[3] ?? ''}'};
   }
 
   /// Removes every copy of [file] from staging, the claimed one too.

@@ -146,6 +146,37 @@ void main() {
     );
   });
 
+  test(
+    'removeStale reads the copies of a file with no extension too',
+    () async {
+      final bare = RecitationFile(
+        qualityKbps: 64,
+        part: RecitationFilePart.ayah,
+        surah: 1,
+        ayah: 2,
+        path: 'q64/1_2',
+        bytes: _bytes.length,
+        sha256: _file.sha256,
+        duration: null,
+      );
+      await File('${temp.path}/$_pack/${bare.sha256}').writeAsBytes(_bytes);
+      for (final name in ['', '.a1', '.a12', '.claimed']) {
+        await File('$staging/${bare.sha256}$name').writeAsBytes(_late);
+      }
+      final other = File('$staging/${'0' * 64}.a1')..writeAsBytesSync(_bytes);
+
+      await store().removeStale(_pack);
+
+      expect(
+        [
+          for (final e in await Directory(staging).list().toList())
+            e.uri.pathSegments.last,
+        ],
+        [other.uri.pathSegments.last],
+      );
+    },
+  );
+
   test('removeStale does nothing without a staging folder', () async {
     await Directory(staging).delete();
 
