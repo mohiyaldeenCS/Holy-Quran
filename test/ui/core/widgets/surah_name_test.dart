@@ -245,4 +245,72 @@ void main() {
       );
     });
   });
+
+  group('labelled', () {
+    final l10n = lookupAppLocalizations(const Locale('ar'));
+    const childKey = Key('synthetic child');
+
+    testWidgets('speaks the template with the whole name in its format, as '
+        'one button', (tester) async {
+      final handle = tester.ensureSemantics();
+      var taps = 0;
+      await _pump(
+        tester,
+        SurahName.labelled(
+          _name,
+          template: l10n.resourceStopNamed,
+          onTap: () => taps++,
+          child: const Text('نص تجريبي', key: childKey),
+        ),
+      );
+
+      final label = l10n.resourceStopNamed(l10n.surahTitle(_value));
+      final node = tester.getSemantics(find.bySemanticsLabel(label));
+      expect(node.label, label);
+      expect(utf8.encode(node.label), utf8.encode(label));
+      expect(node.flagsCollection.isButton, isTrue);
+      expect(find.bySemanticsLabel('نص تجريبي'), findsNothing);
+      tester.semantics.tap(find.semantics.byLabel(label));
+      expect(taps, 1);
+      handle.dispose();
+    });
+
+    testWidgets('names the surah alone, and carries a value', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(
+        tester,
+        SurahName.labelled(
+          _name,
+          format: SurahNameFormat.name,
+          template: l10n.resourceDownloading,
+          value: 'قيمة تجريبية',
+          child: const SizedBox(key: childKey),
+        ),
+      );
+
+      final node = tester.getSemantics(
+        find.bySemanticsLabel(l10n.resourceDownloading(_value)),
+      );
+      expect(node.value, 'قيمة تجريبية');
+      expect(node.flagsCollection.isButton, isFalse);
+      handle.dispose();
+    });
+
+    test('names the surah only, without an ayah', () {
+      for (final format in SurahNameFormat.values) {
+        final named =
+            format == SurahNameFormat.name || format == SurahNameFormat.titled;
+        expect(
+          () => SurahName.labelled(
+            _name,
+            format: format,
+            template: l10n.resourceStopNamed,
+            child: const SizedBox(),
+          ),
+          named ? returnsNormally : throwsAssertionError,
+          reason: format.name,
+        );
+      }
+    });
+  });
 }

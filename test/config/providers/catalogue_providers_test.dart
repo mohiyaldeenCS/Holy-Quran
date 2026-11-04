@@ -3,15 +3,42 @@ import 'package:holyquran/config/catalogue_config.dart';
 import 'package:holyquran/config/dependencies.dart';
 import 'package:holyquran/config/providers/catalogue_providers.dart';
 import 'package:holyquran/data/repositories/catalogue_repository.dart';
+import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/data/repositories/pack_install_repository.dart';
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
+import 'package:holyquran/data/repositories/recitation_download_repository.dart';
 import 'package:holyquran/data/repositories/recitation_repository.dart';
+import 'package:holyquran/data/services/download_service.dart';
 import 'package:holyquran/domain/models/catalogue.dart';
+import 'package:holyquran/domain/models/recitation_target.dart';
 import 'package:holyquran/utils/result.dart';
 
 import '../../../testing/fakes/fake_catalogue_repository.dart';
 import '../../../testing/fakes/fake_pack_install_repository.dart';
 import '../../../testing/fakes/fake_pack_integrity_repository.dart';
+import '../../ui/features/resources/recitation_downloads_fixtures.dart';
+
+final class _NoDownloads implements DownloadService {
+  int starts = 0;
+
+  @override
+  Future<void> start() async => starts++;
+
+  @override
+  Future<FileDownloadOutcome> download(
+    FileOrder order,
+    void Function(FileTaskUpdate update) onUpdate,
+  ) => throw UnimplementedError();
+
+  @override
+  Future<bool> pause(FileOrder order) async => false;
+
+  @override
+  Future<void> resume(FileOrder order) async {}
+
+  @override
+  Future<void> cancel(FileOrder order) async {}
+}
 
 void main() {
   final messenger =
@@ -90,6 +117,8 @@ void main() {
       bool catalogue = true,
       bool installs = true,
       bool integrity = true,
+      DownloadService? downloads,
+      bool settings = false,
     }) async {
       late Dependencies provided;
       await buildDependencies(
@@ -109,6 +138,14 @@ void main() {
               final fake = FakePackIntegrityRepository();
               addTearDown(fake.dispose);
               dependencies.provideListenable<PackIntegrityRepository>(fake);
+            }
+            if (downloads != null) {
+              dependencies.provide<DownloadService>(downloads);
+            }
+            if (settings) {
+              final fake = InMemoryDownloadSettingsRepository();
+              addTearDown(fake.dispose);
+              dependencies.provideListenable<DownloadSettingsRepository>(fake);
             }
           },
           (dependencies) async => provideRecitations(dependencies),
@@ -136,6 +173,50 @@ void main() {
           await over(integrity: false),
         ]) {
           expect(dependencies.tryRead<RecitationRepository>(), isNull);
+        }
+      },
+    );
+
+    test('provides the downloads of the audio over the downloader and the '
+        'download choices', () async {
+      final provided = await over(downloads: _NoDownloads(), settings: true);
+
+      final downloads = provided.read<RecitationDownloadRepository>();
+      expect(downloads, isA<LocalRecitationDownloadRepository>());
+      expect(downloads.jobs, isEmpty);
+      expect(
+        await downloads.contents('synthetic-listed'),
+        isA<Failure<RecitationContents>>(),
+      );
+      expect(messages, isEmpty);
+    });
+
+    test('starts the downloader it was given, which the installer uses too, '
+        'for a recitation download', () async {
+      final shared = _NoDownloads();
+      final provided = await over(downloads: shared, settings: true);
+
+      final result = await provided
+          .read<RecitationDownloadRepository>()
+          .download(
+            RecitationTarget(syntheticContents(), 64, const RecitationSurah(1)),
+          );
+
+      // The store cannot open without a plugin here; the job got past the
+      // start of the downloader it was given.
+      expect(result, isA<Failure<void>>());
+      expect(shared.starts, 1);
+    });
+
+    test(
+      'provides no downloads without the downloader or the choices',
+      () async {
+        for (final dependencies in [
+          await over(settings: true),
+          await over(downloads: _NoDownloads()),
+          await over(),
+        ]) {
+          expect(dependencies.tryRead<RecitationDownloadRepository>(), isNull);
         }
       },
     );

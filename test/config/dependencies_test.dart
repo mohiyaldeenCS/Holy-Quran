@@ -20,6 +20,7 @@ import 'package:holyquran/config/providers/user_database_providers.dart';
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/data/repositories/bookmark_repository.dart';
 import 'package:holyquran/data/repositories/category_repository.dart';
+import 'package:holyquran/data/repositories/download_settings_repository.dart';
 import 'package:holyquran/data/repositories/integrity_log_repository.dart';
 import 'package:holyquran/data/repositories/keep_awake_repository.dart';
 import 'package:holyquran/data/repositories/listening_position_repository.dart';
@@ -29,6 +30,7 @@ import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/data/repositories/search_history_repository.dart';
 import 'package:holyquran/data/repositories/tag_repository.dart';
 import 'package:holyquran/data/services/clipboard_service.dart';
+import 'package:holyquran/data/services/download_service.dart';
 import 'package:holyquran/data/services/free_space_service.dart';
 import 'package:holyquran/data/services/link_service.dart';
 import 'package:holyquran/data/services/share_service.dart';
@@ -93,8 +95,10 @@ void main() {
     expect(providers.map((provider) => provider.runtimeType), [
       Provider<UserDatabase>,
       ListenableProvider<AppSettingsRepository>,
+      ListenableProvider<DownloadSettingsRepository>,
       ListenableProvider<ReadingPositionRepository>,
       Provider<FreeSpaceService>,
+      Provider<DownloadService>,
       ListenableProvider<PackInstallRepository>,
       ListenableProvider<BookmarkRepository>,
       ListenableProvider<NoteRepository>,
@@ -111,6 +115,10 @@ void main() {
     expect(
       provided.read<AppSettingsRepository>(),
       isA<LocalAppSettingsRepository>(),
+    );
+    expect(
+      provided.read<DownloadSettingsRepository>(),
+      isA<LocalDownloadSettingsRepository>(),
     );
     expect(
       File('${support.path}/${UserDatabase.fileName}').existsSync(),
