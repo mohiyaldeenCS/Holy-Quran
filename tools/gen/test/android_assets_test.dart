@@ -22,6 +22,11 @@ typedef _Shape = ({
 
 String _read(String path) => File(path).readAsStringSync();
 
+/// Whether [xml] writes a colour as a quoted attribute value or as element
+/// text.
+bool _hasColourLiteral(String xml) =>
+    RegExp(r'''["'>]\s*#[0-9A-Fa-f]{3,8}\s*["'<]''').hasMatch(xml);
+
 Map<String, String> _attributes(String element) => {
   for (final match in RegExp(
     r'([\w:-]+)="([^"]*)"',
@@ -209,10 +214,31 @@ void main() {
           if (file is File &&
               file.path.endsWith('.xml') &&
               !file.path.replaceAll(r'\', '/').endsWith('brand_colors.xml') &&
-              RegExp(r'"#[0-9A-Fa-f]{3,8}"').hasMatch(file.readAsStringSync()))
+              _hasColourLiteral(file.readAsStringSync()))
             file.path,
       ];
       expect(offenders, isEmpty);
+    });
+
+    test('the literal scan sees attribute values and element text', () {
+      const literals = [
+        '<vector android:fillColor="#FFFFFF"/>',
+        "<vector android:fillColor='#123'/>",
+        '<item name="android:statusBarColor">#FFFFFF</item>',
+        '<color name="x">#123456</color>',
+        '<color name="x">\n  #12345678\n</color>',
+      ];
+      for (final xml in literals) {
+        expect(_hasColourLiteral(xml), isTrue, reason: xml);
+      }
+      const clean = [
+        '<item name="android:statusBarColor">@color/brand_emerald_700</item>',
+        '<string name="app_name">Title #1</string>',
+        '<!-- see issue #123 -->',
+      ];
+      for (final xml in clean) {
+        expect(_hasColourLiteral(xml), isFalse, reason: xml);
+      }
     });
 
     test('every colour a resource references is a brand colour', () {

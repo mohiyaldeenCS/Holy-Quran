@@ -17,18 +17,22 @@ final _forbiddenPackages = RegExp(
   r'^(?:'
   // Analytics, crash reporting, attribution, session recording.
   r'firebase.*|cloud_firestore.*|sentry.*|bugsnag.*|datadog.*|instabug.*|'
-  r'appcenter.*|amplitude.*|mixpanel.*|posthog.*|segment.*|appsflyer.*|'
+  r'appcenter.*|amplitude.*|mixpanel.*|posthog.*|segment_analytics.*|'
+  r'flutter_segment.*|appsflyer.*|'
   r'adjust_sdk|branch_sdk|flutter_branch_sdk|singular.*|kochava.*|matomo.*|'
-  r'countly.*|smartlook.*|clarity.*|flutter_facebook.*|facebook_app_events|'
+  r'countly.*|smartlook.*|clarity_flutter|flutter_facebook.*|'
+  r'facebook_app_events|'
   r'onesignal.*|usercentrics.*|google_analytics.*|amplify_analytics.*|'
-  r'braze.*|clevertap.*|moengage.*|webengage.*|uxcam|logrocket|fullstory|'
-  r'bugfender|rollbar|raygun.*|newrelic.*|flutter_sentry|'
+  r'braze.*|clevertap.*|moengage.*|webengage.*|(?:flutter_)?uxcam|'
+  r'logrocket.*|fullstory.*|(?:flutter_)?bugfender|rollbar.*|flutter_rollbar|'
+  r'raygun.*|newrelic.*|flutter_sentry|'
   // Advertising.
   r'google_mobile_ads|admob.*|applovin.*|unity_ads.*|ironsource.*|'
-  r'facebook_audience_network|appodeal.*|startapp.*|pangle.*|mintegral.*|'
+  r'facebook_audience_network|(?:stack_)?appodeal.*|startapp.*|pangle.*|'
+  r'mintegral.*|'
   // Purchases and subscriptions.
   r'in_app_purchase.*|flutter_inapp_purchase|purchases_.*|adapty.*|'
-  r'qonversion.*|flutter_stripe|stripe_.*|apphud|superwall|'
+  r'qonversion.*|flutter_stripe|stripe_.*|apphud|superwall.*|'
   // Tracking identifiers.
   r'app_tracking_transparency|advertising_id|flutter_advertising_id'
   r')$',
@@ -270,8 +274,48 @@ final _userModelName = RegExp(
 
 /// Repositories that read the user's database for one setting only (the
 /// chosen tafsir book) and hold nothing the user wrote or read; they may sit
-/// beside the installer.
+/// beside the installer. D-158 (4) names the exception.
 const _settingsOnly = ['lib/data/repositories/tafsir_repository.dart'];
+
+/// The only user-data files a [_settingsOnly] file may reach.
+const _settingsAccess = [
+  '${_services}daos/settings_dao.dart',
+  '${_services}settings_store.dart',
+];
+
+/// Every file of [sources] reachable from [start] without going through one
+/// of [stops]; a stop is in the result but its imports are not followed.
+Set<String> _closureStoppingAt(
+  String start,
+  Map<String, String> sources,
+  List<String> stops,
+) {
+  final seen = <String>{};
+  final pending = [start];
+  while (pending.isNotEmpty) {
+    final path = pending.removeLast();
+    final source = sources[path];
+    if (source == null || !seen.add(path) || stops.contains(path)) continue;
+    for (final uri in _uris(source)) {
+      if (_resolve(path, uri) case final target?) pending.add(target);
+    }
+  }
+  return seen;
+}
+
+/// The user-data files that a [_settingsOnly] file reaches other than through
+/// the settings DAO and store, as `file -> reached`.
+List<String> _settingsOnlyOverreach(
+  Map<String, String> sources,
+  List<String> settingsOnly,
+) => [
+  for (final path in settingsOnly)
+    for (final file in _closureStoppingAt(path, sources, _settingsAccess))
+      if (file != path &&
+          !_settingsAccess.contains(file) &&
+          _userData.any((entry) => _covers(entry, file)))
+        '$path -> $file',
+];
 
 /// Files that read the user's database, or whose name says they hold what the
 /// user wrote or read, but that `_userData` does not list. A new one must be
@@ -281,8 +325,7 @@ List<String> _unlistedUserData(Map<String, String> sources) => [
     if (!path.endsWith('.g.dart') &&
         !_settingsOnly.contains(path) &&
         !_userData.any((entry) => _covers(entry, path)))
-      if ((path.startsWith('lib/data/repositories/') ||
-              path.startsWith('${_services}daos/')) &&
+      if (path.startsWith('lib/data/') &&
           _closure(path, sources).any(
             (file) =>
                 file == '${_services}user_database.dart' ||
@@ -298,7 +341,8 @@ List<String> _unlistedUserData(Map<String, String> sources) => [
 final _forbiddenNative = RegExp(
   r'google-services|firebase|crashlytics|play-services-(?:ads|analytics|'
   r'measurement)|gms\.ads|permission\.AD_ID|appsflyer|sentry|billingclient|'
-  r'admob|NSUserTrackingUsageDescription|SKAdNetwork|GoogleAnalytics',
+  r'admob|NSUserTrackingUsageDescription|SKAdNetwork|GoogleAnalytics|'
+  r'audience-network-sdk|hms:ads',
   caseSensitive: false,
 );
 
@@ -374,6 +418,8 @@ void main() {
                     _uris(lib[path]!).any(surface.importUri!.hasMatch)))
               surface.name,
       };
+      expect(used, contains('the share sheet'));
+      expect(used, contains('a platform channel'));
       expect(used, contains('a socket or HTTP call'));
       expect(used, contains('the downloader'));
       expect(used, contains('audio streaming'));
@@ -397,6 +443,14 @@ void main() {
       final files = _nativeFiles();
       expect(files, isNotEmpty);
       expect(_nativeViolations(files), isEmpty);
+    });
+
+    test('a settings-only file reaches the user data only through the settings '
+        'DAO and store', () {
+      for (final path in _settingsOnly) {
+        expect(lib, contains(path));
+      }
+      expect(_settingsOnlyOverreach(lib, _settingsOnly), isEmpty);
     });
 
     test('every user-data entry names a file or folder that exists', () {
@@ -563,6 +617,53 @@ void main() {
       ]);
     });
 
+    test('a service that holds the user database and shares it', () {
+      final sources = {
+        ...clean,
+        '${_services}user_database.dart': '',
+        _share: '',
+        '${_services}notes_export_service.dart':
+            "import 'user_database.dart';\nimport 'share_service.dart';",
+      };
+      expect(_unlistedUserData(sources), [
+        '${_services}notes_export_service.dart',
+      ]);
+    });
+
+    test('a settings-only file that reaches another DAO or a user model', () {
+      const repository = 'lib/data/repositories/tafsir_repository.dart';
+      final sources = {
+        repository:
+            "import '../services/daos/settings_dao.dart';\n"
+            "import '../services/daos/note_dao.dart';\n"
+            "import 'package:holyquran/domain/models/bookmark.dart';",
+        '${_services}daos/settings_dao.dart': "import '../user_database.dart';",
+        '${_services}daos/note_dao.dart': '',
+        '${_services}user_database.dart': '',
+        'lib/domain/models/bookmark.dart': '',
+      };
+      expect(
+        _settingsOnlyOverreach(sources, [repository]),
+        unorderedEquals([
+          '$repository -> ${_services}daos/note_dao.dart',
+          '$repository -> lib/domain/models/bookmark.dart',
+        ]),
+      );
+    });
+
+    test('a settings-only file that uses only the settings DAO and store', () {
+      const repository = 'lib/data/repositories/tafsir_repository.dart';
+      final sources = {
+        repository:
+            "import '../services/daos/settings_dao.dart';\n"
+            "import '../services/settings_store.dart';",
+        '${_services}daos/settings_dao.dart': "import '../user_database.dart';",
+        '${_services}settings_store.dart': "import 'user_database.dart';",
+        '${_services}user_database.dart': '',
+      };
+      expect(_settingsOnlyOverreach(sources, [repository]), isEmpty);
+    });
+
     test('a part file that holds a user type', () {
       final sources = {
         ...clean,
@@ -590,6 +691,61 @@ void main() {
         'android/app/src/main/AndroidManifest.xml',
         'android/build.gradle.kts',
         'ios/Podfile',
+      ]);
+    });
+
+    test('the vendors\' real pub.dev names', () {
+      const names = [
+        'segment_analytics',
+        'flutter_segment',
+        'clarity_flutter',
+        'flutter_uxcam',
+        'uxcam',
+        'fullstory_flutter',
+        'fullstory',
+        'flutter_bugfender',
+        'bugfender',
+        'rollbar_flutter',
+        'rollbar_dart',
+        'rollbar',
+        'logrocket_flutter',
+        'logrocket',
+        'superwallkit_flutter',
+        'superwall',
+        'stack_appodeal_flutter',
+        'appodeal_flutter',
+        'appodeal',
+      ];
+      for (final name in names) {
+        expect(_forbiddenPackages.hasMatch(name), isTrue, reason: name);
+      }
+    });
+
+    test(
+      'a widget package whose name only starts like a vendor is allowed',
+      () {
+        const names = [
+          'segment_display',
+          'segmented_button_slide',
+          'segmented_progress_bar',
+          'clarity_chart',
+          'adjust_brightness',
+        ];
+        for (final name in names) {
+          expect(_forbiddenPackages.hasMatch(name), isFalse, reason: name);
+        }
+      },
+    );
+
+    test('an ad SDK of Facebook or Huawei in a gradle file', () {
+      final files = {
+        'android/app/build.gradle.kts':
+            'implementation("com.facebook.android:audience-network-sdk:6.0")',
+        'android/build.gradle.kts': 'implementation("com.huawei.hms:ads:3.4")',
+      };
+      expect(_nativeViolations(files), [
+        'android/app/build.gradle.kts',
+        'android/build.gradle.kts',
       ]);
     });
 
