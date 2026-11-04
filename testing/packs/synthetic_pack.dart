@@ -339,7 +339,9 @@ CREATE TABLE search_form (
 /// Builds `<root>/<id>/<version>/` with `text.sqlite` and `manifest.json`
 /// as docs/CONTENT_PACKS.md defines them in [formatVersion], then applies
 /// [fault], if any. In format 2 every word has one synthetic form of each of
-/// [searchFormKinds], changed by [searchFormFault], if any.
+/// [searchFormKinds], changed by [searchFormFault], if any. The manifest
+/// carries the hash of [fontBytes], read from [amiriQuranFontPath] when not
+/// given: that path is relative to the repository, which a device lacks.
 Future<SyntheticPack> buildSyntheticPack(
   Directory root, {
   List<SyntheticSurah> surahs = defaultSyntheticSurahs,
@@ -351,6 +353,7 @@ Future<SyntheticPack> buildSyntheticPack(
   int formatVersion = packFormatVersion,
   List<String> searchFormKinds = defaultSyntheticSearchFormKinds,
   SyntheticSearchFormFault? searchFormFault,
+  Uint8List? fontBytes,
 }) async {
   if (formatVersion < 2 && searchFormFault != null) {
     throw ArgumentError.value(
@@ -455,7 +458,7 @@ Future<SyntheticPack> buildSyntheticPack(
       formatVersion: formatVersion,
       hasSearchForms: kinds.isNotEmpty,
       fontSha256: sha256
-          .convert(await File(amiriQuranFontPath).readAsBytes())
+          .convert(fontBytes ?? await File(amiriQuranFontPath).readAsBytes())
           .toString(),
       textSha256: sha256.convert(textBytes).toString(),
       textBytes: textBytes.length,
