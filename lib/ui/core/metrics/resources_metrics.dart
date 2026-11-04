@@ -62,23 +62,23 @@ const BorderRadius resourcesSheetHandleRadius = BorderRadius.all(
 const EdgeInsetsDirectional resourcesRowFootPadding =
     EdgeInsetsDirectional.only(bottom: 14);
 
-// A recitation's scope rows (P1-33) are `ResourceRow`'s own layout with a
+// `ResourceRow`'s values (index.jsx and `.qk-resource`), which the widget
+// reads from here. A recitation's scope rows (P1-33) are its layout with a
 // widget for the title, so that a surah's name reaches the screen through
-// `SurahName` only. The values below are `ResourceRow`'s (index.jsx and
-// `.qk-resource`), which keeps them private.
+// `SurahName` only.
 
 /// `.qk-resource`: `padding: 14px 0`.
-const double scopeRowPaddingVertical = 14;
+const double resourceRowPaddingVertical = 14;
 
 /// `.qk-resource-main`: `gap: 6px`.
-const double scopeRowMainGap = 6;
+const double resourceRowMainGap = 6;
 
 /// `ResourceRow` in index.jsx: `<Icon name="check" size={16} />`.
-const double scopeRowCheckSize = 16;
+const double resourceRowCheckSize = 16;
 
 /// `.qk-resource-title`: `font-size:17px; font-weight:600`, the body's IBM
 /// Plex Sans Arabic with its `normal` line height.
-const TextStyle scopeRowTitleStyle = TextStyle(
+const TextStyle resourceRowTitleStyle = TextStyle(
   inherit: false,
   fontFamily: AppFonts.sans,
   fontSize: 17,
@@ -88,18 +88,18 @@ const TextStyle scopeRowTitleStyle = TextStyle(
 );
 
 /// `.qk-resource-meta`: `font-size:14px`.
-final TextStyle scopeRowMetaStyle = scopeRowTitleStyle.copyWith(
+final TextStyle resourceRowMetaStyle = resourceRowTitleStyle.copyWith(
   fontSize: 14,
   fontWeight: FontWeight.w400,
 );
 
 /// `.qk-resource-meta.is-done`: `font-weight:500`.
-final TextStyle scopeRowDoneMetaStyle = scopeRowMetaStyle.copyWith(
+final TextStyle resourceRowDoneMetaStyle = resourceRowMetaStyle.copyWith(
   fontWeight: FontWeight.w500,
 );
 
 /// `.qk-resource-pct`: `font-size:15px; font-weight:600`.
-final TextStyle scopeRowPercentStyle = scopeRowTitleStyle.copyWith(
+final TextStyle resourceRowPercentStyle = resourceRowTitleStyle.copyWith(
   fontSize: 15,
 );
 
@@ -108,10 +108,9 @@ final TextStyle scopeRowPercentStyle = scopeRowTitleStyle.copyWith(
 /// panel; the gap is the sections' own (`resourcesBlockGap`).
 const double recitationPanelGap = resourcesBlockGap;
 
-/// A scope row's vertical padding as `ResourceRow` pads it.
-const EdgeInsetsDirectional scopeRowPadding = EdgeInsetsDirectional.symmetric(
-  vertical: scopeRowPaddingVertical,
-);
+/// `ResourceRow`'s padding: `.qk-resource`, `padding: 14px 0`.
+const EdgeInsetsDirectional resourceRowPadding =
+    EdgeInsetsDirectional.symmetric(vertical: resourceRowPaddingVertical);
 
 /// A fraction of a download as the whole percent `ResourceRow` writes.
 int percentOf(double fraction) => (fraction.clamp(0.0, 1.0) * 100).round();

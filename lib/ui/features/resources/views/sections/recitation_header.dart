@@ -61,20 +61,22 @@ class RecitationHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: scopeRowPadding,
+            padding: resourceRowPadding,
             child: Row(
               spacing: AppSpacing.space4,
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                    spacing: scopeRowMainGap,
+                    spacing: resourceRowMainGap,
                     children: [
                       Semantics(
                         header: true,
                         child: Text(
                           title,
-                          style: scopeRowTitleStyle.copyWith(color: colors.ink),
+                          style: resourceRowTitleStyle.copyWith(
+                            color: colors.ink,
+                          ),
                         ),
                       ),
                       if (status == RecitationStatus.downloaded)
@@ -83,13 +85,13 @@ class RecitationHeader extends StatelessWidget {
                           children: [
                             Icon(
                               IconName.check,
-                              size: scopeRowCheckSize,
+                              size: resourceRowCheckSize,
                               color: colors.success,
                             ),
                             Flexible(
                               child: Text(
                                 line,
-                                style: scopeRowDoneMetaStyle.copyWith(
+                                style: resourceRowDoneMetaStyle.copyWith(
                                   color: colors.success,
                                 ),
                               ),
@@ -99,7 +101,7 @@ class RecitationHeader extends StatelessWidget {
                       else
                         Text(
                           line,
-                          style: scopeRowMetaStyle.copyWith(
+                          style: resourceRowMetaStyle.copyWith(
                             color: colors.inkMuted,
                           ),
                         ),

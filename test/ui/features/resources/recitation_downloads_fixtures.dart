@@ -119,6 +119,9 @@ final class FakeRecitationDownloadRepository extends ChangeNotifier
       const Ok(null);
   Result<void> Function(RecitationTarget target) deletes = (_) =>
       const Ok(null);
+
+  /// Answers [deleteAudio]; by default it succeeds, and the files go.
+  Result<void> Function(String packId) deletesAudio = (_) => const Ok(null);
   final List<(String, String)> calls = [];
 
   /// While set, [present] waits for it before it answers.
@@ -184,6 +187,7 @@ final class FakeRecitationDownloadRepository extends ChangeNotifier
   @override
   Future<Result<void>> deleteAudio(String packId) async {
     calls.add(('deleteAudio', packId));
+    if (deletesAudio(packId) case final Failure<void> failure) return failure;
     onDevice = {};
     _revision++;
     notifyListeners();

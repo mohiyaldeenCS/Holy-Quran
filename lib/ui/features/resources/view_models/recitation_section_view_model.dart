@@ -188,14 +188,29 @@ final class RecitationSectionViewModel extends ChangeNotifier {
 
   /// Deletes all the recitation's audio, at every quality, and then its
   /// pack. A recitation with a job running is not deleted; its row offers no
-  /// delete.
+  /// delete. A failure shows under the whole recitation's row, as a row's own
+  /// delete shows it.
   Future<void> deleteRecitation(String recitationId) async {
     final entry = _entryOf(recitationId);
     if (entry == null) return;
-    if (await _downloads.deleteAudio(entry.id) case Failure()) return;
+    final audio = await _downloads.deleteAudio(entry.id);
+    if (audio is Failure<void>) return _refuseWhole(recitationId, audio.error);
     _tallies.removeWhere((key, _) => key.$1 == recitationId);
     _audioBytes.remove(entry.id);
-    await _installs.delete(entry.id);
+    _refused.removeWhere((key, _) => key.startsWith('$recitationId/'));
+    final pack = await _installs.delete(entry.id);
+    if (pack is Failure<void>) _refuseWhole(recitationId, pack.error);
+  }
+
+  void _refuseWhole(String recitationId, Exception error) {
+    final quality = _chosenQuality(recitationId);
+    final whole = _scopes.where((s) => s.kind == ScopeKind.whole).firstOrNull;
+    if (quality == null || whole == null) return;
+    final key = RecitationTarget.keyOf(recitationId, quality, whole.selection);
+    _refused[key] = error is RecitationDownloadFailure
+        ? error
+        : RecitationStoreFailed(key, '$error');
+    if (!_disposed) notifyListeners();
   }
 
   /// Installs the pack afresh, after it failed its check.

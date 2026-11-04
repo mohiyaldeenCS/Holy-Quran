@@ -475,6 +475,48 @@ void main() {
       },
     );
 
+    test('a failed delete of the recitation\'s audio is shown on the whole '
+        'row, and its pack is kept', () async {
+      final viewModel = await _viewModel();
+      _downloads.deletesAudio = (_) =>
+          const Failure(RecitationStoreFailed('k', 'synthetic'));
+
+      await viewModel.deleteRecitation(recitationId);
+
+      expect(_block(viewModel).whole!.failure, isA<RecitationStoreFailed>());
+      expect(_installs.calls, isEmpty);
+    });
+
+    test('a failed delete of the recitation\'s pack is shown on the whole '
+        'row', () async {
+      final viewModel = await _viewModel();
+      _installs.deletes = (_) => Failure(Exception('synthetic'));
+
+      await viewModel.deleteRecitation(recitationId);
+      await _settle();
+
+      expect(_block(viewModel).whole!.failure, isA<RecitationStoreFailed>());
+    });
+
+    test(
+      'deleting the recitation clears the failures its rows showed',
+      () async {
+        final viewModel = await _viewModel();
+        _downloads.arrive({for (var a = 1; a <= 4; a++) ayahPath(64, 1, a)});
+        await _settle();
+        _downloads.deletes = (_) =>
+            const Failure(RecitationStoreFailed('k', 'synthetic'));
+        await viewModel.delete(recitationId, _surah(_block(viewModel), 1));
+        expect(_surah(_block(viewModel), 1).failure, isNotNull);
+
+        await viewModel.deleteRecitation(recitationId);
+        await _settle();
+
+        expect(_surah(_block(viewModel), 1).failure, isNull);
+        expect(_block(viewModel).whole!.failure, isNull);
+      },
+    );
+
     test('the size to delete counts every quality and the pack on the '
         'device, not the latest of the catalogue', () async {
       final viewModel = await _viewModel(packBytes: 12345);

@@ -30,9 +30,9 @@ typedef RecitationListing = ({
 /// `AU-13`), over whichever repositories the app provides; with no
 /// recitation repository nothing is listed.
 ///
-/// With the audio downloads, a recitation is downloaded once some of its
-/// audio is on the device, and downloading while a job for it runs; without
-/// them, the state is that of its pack.
+/// With the audio downloads, a recitation is downloaded once its pack is
+/// installed and all of its audio is on the device, and downloading while a
+/// job for it runs; without them, the state is that of its pack.
 final class RecitationPickerViewModel extends ChangeNotifier {
   RecitationPickerViewModel({
     this._recitations,

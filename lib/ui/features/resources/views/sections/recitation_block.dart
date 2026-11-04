@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart' show showModalBottomSheet;
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/domain/models/resource_state.dart';
@@ -9,7 +8,9 @@ import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/l10n/megabytes.dart';
 import 'package:holyquran/ui/core/metrics/resources_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
+import 'package:holyquran/ui/core/widgets/labelled.dart';
 import 'package:holyquran/ui/core/widgets/level_switch.dart';
+import 'package:holyquran/ui/core/widgets/sheet_route.dart';
 import 'package:holyquran/ui/core/widgets/surah_name.dart';
 import 'package:holyquran/ui/features/resources/view_models/recitation_block_state.dart';
 import 'package:holyquran/ui/features/resources/view_models/recitation_section_view_model.dart';
@@ -103,29 +104,34 @@ class RecitationBlock extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final size = megabytes(l10n, await viewModel.sizeToDelete(block.id));
     if (!context.mounted) return;
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: context.colors.surface.withValues(alpha: 0),
-      elevation: 0,
-      barrierColor: context.colors.scrim,
-      builder: (context) => DeleteRecitationSheet(size: size),
+    final confirmed = await Navigator.of(context).push(
+      sheetRoute<bool>(
+        context,
+        builder: (context) => DeleteRecitationSheet(size: size),
+      ),
     );
     if (confirmed ?? false) await viewModel.deleteRecitation(block.id);
   }
 
   Widget _row(BuildContext context, ScopeRowState row, {required bool last}) {
     final l10n = AppLocalizations.of(context);
-    final style = scopeRowTitleStyle.copyWith(color: context.colors.ink);
-    final (Widget title, String label) = switch (row.kind) {
+    final style = resourceRowTitleStyle.copyWith(color: context.colors.ink);
+    // The words of a scope that is not a surah, which names itself.
+    ScopeLabeller named(String words) =>
+        (template, child, {value, onTap}) => labelled(
+          label: template(words),
+          value: value,
+          onTap: onTap,
+          child: child,
+        );
+    final (Widget title, ScopeLabeller labeller) = switch (row.kind) {
       ScopeKind.whole => (
         Text(l10n.recitationDownloadWhole, style: style),
-        l10n.recitationDownloadWhole,
+        named(l10n.recitationDownloadWhole),
       ),
       ScopeKind.juz => (
         Text(l10n.juzLabel(arabicDigits(row.number)), style: style),
-        l10n.juzLabel(arabicDigits(row.number)),
+        named(l10n.juzLabel(arabicDigits(row.number))),
       ),
       // The view model leaves out a surah the base pack does not name.
       ScopeKind.surah => (
@@ -134,18 +140,19 @@ class RecitationBlock extends StatelessWidget {
           style: style,
           format: SurahNameFormat.titled,
         ),
-        SurahName.span(
+        (template, child, {value, onTap}) => SurahName.labelled(
           viewModel.surahName(row.number)!,
-          format: SurahNameFormat.titled,
-          style: style,
-          l10n: l10n,
-        ).text!,
+          template: template,
+          child: child,
+          value: value,
+          onTap: onTap,
+        ),
       ),
     };
     return ScopeRow(
       key: ValueKey(row.key),
       title: title,
-      label: label,
+      labeller: labeller,
       row: row,
       canDelete: !block.hasJob,
       onDownload: () => viewModel.download(block.id, row),

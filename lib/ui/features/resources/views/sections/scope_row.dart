@@ -14,16 +14,27 @@ import 'package:holyquran/ui/core/widgets/progress_bar.dart';
 import 'package:holyquran/ui/core/widgets/small_button.dart';
 import 'package:holyquran/ui/features/resources/view_models/recitation_block_state.dart';
 
+/// Names a widget of a scope row for a screen reader: [template] is the ARB
+/// template of the words, which takes the scope's name. It is made where the
+/// name is known, so that a surah's name is spoken by `SurahName` only
+/// (D-160).
+typedef ScopeLabeller = Widget Function(
+  String Function(String name) template,
+  Widget child, {
+  String? value,
+  VoidCallback? onTap,
+});
+
 /// One scope of a recitation (`AU-13`): `ResourceRow`'s layout with the
 /// size still to download before it starts, a stop button while it waits or
 /// runs, and the failure of its last attempt under it. [title] is the
-/// scope's name and [label] the same in words, which names each button for
-/// a screen reader. A scope that is partly on the device offers to resume
+/// scope's name and [labeller] the same in words, which names each button
+/// and the track for a screen reader. A scope that is partly on the device offers to resume
 /// it. [canDelete] is false while a job of the recitation runs.
 class ScopeRow extends StatelessWidget {
   const ScopeRow({
     required this.title,
-    required this.label,
+    required this.labeller,
     required this.row,
     required this.canDelete,
     required this.onDownload,
@@ -34,7 +45,7 @@ class ScopeRow extends StatelessWidget {
   });
 
   final Widget title;
-  final String label;
+  final ScopeLabeller labeller;
   final ScopeRowState row;
   final bool canDelete;
   final VoidCallback onDownload;
@@ -46,8 +57,10 @@ class ScopeRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = context.colors;
-    Widget meta(String text) =>
-        Text(text, style: scopeRowMetaStyle.copyWith(color: colors.inkMuted));
+    Widget meta(String text) => Text(
+      text,
+      style: resourceRowMetaStyle.copyWith(color: colors.inkMuted),
+    );
     final Widget status = switch (row.status) {
       ScopeStatus.available => meta(
         l10n.resourceAvailableMeta(megabytes(l10n, row.missingBytes)),
@@ -55,11 +68,15 @@ class ScopeRow extends StatelessWidget {
       ScopeStatus.downloaded => Row(
         spacing: AppSpacing.space1,
         children: [
-          Icon(IconName.check, size: scopeRowCheckSize, color: colors.success),
+          Icon(
+            IconName.check,
+            size: resourceRowCheckSize,
+            color: colors.success,
+          ),
           Flexible(
             child: Text(
               l10n.resourceDownloadedMeta(megabytes(l10n, row.totalBytes)),
-              style: scopeRowDoneMetaStyle.copyWith(color: colors.success),
+              style: resourceRowDoneMetaStyle.copyWith(color: colors.success),
             ),
           ),
         ],
@@ -68,16 +85,23 @@ class ScopeRow extends StatelessWidget {
       ScopeStatus.waiting => meta(
         row.waitingForWifi ? l10n.waitingForWifi : l10n.waitingForNetwork,
       ),
-      ScopeStatus.downloading => ProgressBar(
-        value: row.progress,
-        label: l10n.resourceDownloading(label),
+      ScopeStatus.downloading => labeller(
+        l10n.resourceDownloading,
+        ProgressBar(value: row.progress),
+        value: l10n.percentValue(arabicDigits(percentOf(row.progress))),
       ),
     };
-    final stop = _button(
-      l10n.resourceStop,
-      l10n.resourceStopNamed(label),
-      onStop,
+    Widget button(
+      String text,
+      String Function(String name) template,
+      VoidCallback onPressed, {
+      bool filled = false,
+    }) => labeller(
+      template,
+      SmallButton(label: text, onPressed: onPressed, outlined: !filled),
+      onTap: onPressed,
     );
+    final stop = button(l10n.resourceStop, l10n.resourceStopNamed, onStop);
     final Widget? end = switch (row.status) {
       ScopeStatus.downloading => Row(
         spacing: AppSpacing.space3,
@@ -85,7 +109,7 @@ class ScopeRow extends StatelessWidget {
           ExcludeSemantics(
             child: Text(
               l10n.percentValue(arabicDigits(percentOf(row.progress))),
-              style: scopeRowPercentStyle.copyWith(color: colors.primary),
+              style: resourceRowPercentStyle.copyWith(color: colors.primary),
             ),
           ),
           stop,
@@ -94,21 +118,17 @@ class ScopeRow extends StatelessWidget {
       ScopeStatus.queued || ScopeStatus.waiting => stop,
       ScopeStatus.downloaded =>
         canDelete
-            ? _button(
-                l10n.resourceDelete,
-                l10n.resourceDeleteNamed(label),
-                onDelete,
-              )
+            ? button(l10n.resourceDelete, l10n.resourceDeleteNamed, onDelete)
             : null,
-      ScopeStatus.available when row.partial => _button(
+      ScopeStatus.available when row.partial => button(
         l10n.resourceResume,
-        l10n.resourceResumeNamed(label),
+        l10n.resourceResumeNamed,
         onDownload,
         filled: true,
       ),
-      ScopeStatus.available => _button(
+      ScopeStatus.available => button(
         l10n.resourceDownload,
-        l10n.resourceDownloadNamed(label),
+        l10n.resourceDownloadNamed,
         onDownload,
         filled: true,
       ),
@@ -118,10 +138,10 @@ class ScopeRow extends StatelessWidget {
         border: divider ? Border(bottom: BorderSide(color: colors.line)) : null,
       ),
       child: Padding(
-        padding: scopeRowPadding,
+        padding: resourceRowPadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: scopeRowMainGap,
+          spacing: resourceRowMainGap,
           children: [
             Row(
               spacing: AppSpacing.space4,
@@ -129,7 +149,7 @@ class ScopeRow extends StatelessWidget {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                    spacing: scopeRowMainGap,
+                    spacing: resourceRowMainGap,
                     children: [title, status],
                   ),
                 ),
@@ -143,22 +163,6 @@ class ScopeRow extends StatelessWidget {
       ),
     );
   }
-
-  /// A small button that a screen reader hears by [spoken], which names the
-  /// scope, where [text] is all that is drawn. Stop and delete are outlined.
-  static Widget _button(
-    String text,
-    String spoken,
-    VoidCallback onPressed, {
-    bool filled = false,
-  }) => Semantics(
-    container: true,
-    button: true,
-    label: spoken,
-    onTap: onPressed,
-    excludeSemantics: true,
-    child: SmallButton(label: text, onPressed: onPressed, outlined: !filled),
-  );
 }
 
 /// What a failed attempt shows. A file that failed its check offers to

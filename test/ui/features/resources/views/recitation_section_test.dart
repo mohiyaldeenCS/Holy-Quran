@@ -9,6 +9,8 @@ import 'package:holyquran/domain/models/recitation_target.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/l10n/megabytes.dart';
+import 'package:holyquran/ui/core/theme/motion.dart';
+import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/level_switch.dart';
 import 'package:holyquran/ui/core/widgets/progress_bar.dart';
@@ -513,6 +515,39 @@ void main() {
       expect(_downloads.calls, contains(('deleteAudio', recitationPackId)));
       expect(_installs.calls, contains(('delete', recitationPackId)));
     });
+
+    for (final (reduced, duration) in [
+      (false, motionNormal),
+      (true, Duration.zero),
+    ]) {
+      testWidgets('shows its confirmation over the scrim in the sheet route, '
+          '${reduced ? 'with no animation' : 'at the normal pace'} when the '
+          'system ${reduced ? '' : 'does not '}reduce${reduced ? 's' : ''} '
+          'motion', (tester) async {
+        tester.platformDispatcher.accessibilityFeaturesTestValue =
+            FakeAccessibilityFeatures(disableAnimations: reduced);
+        addTearDown(
+          tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+        );
+        await _pump(tester);
+
+        await tester.tap(inHeader(find.text(_l10n.resourceDelete)));
+        await tester.pumpAndSettle();
+
+        final route =
+            ModalRoute.of(tester.element(find.byType(DeleteRecitationSheet)))!
+                as ModalBottomSheetRoute<bool>;
+        expect(route.transitionDuration, duration);
+        expect(route.reverseTransitionDuration, duration);
+        expect(route.barrierColor, AppColors.paper.scrim);
+        expect(
+          route.barrierLabel,
+          MaterialLocalizations.of(
+            tester.element(find.byType(DeleteRecitationSheet)),
+          ).scrimLabel,
+        );
+      });
+    }
 
     testWidgets('is kept when the user leaves the confirmation', (
       tester,

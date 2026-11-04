@@ -1059,15 +1059,15 @@
   },
   "resourceStop": "إيقاف",
   "@resourceStop": {
-    "description": "P1-33. The action that stops a recitation download in progress; what arrived whole stays (AU-13). Wording awaits the lead's approval (D-128 (5))."
+    "description": "P1-33. The action that stops a recitation download in progress; what arrived whole stays (AU-13). Wording approved by the owner on 2026-11-04 (D-162)."
   },
   "recitationDownloadWhole": "المصحف كاملًا",
   "@recitationDownloadWhole": {
-    "description": "P1-33. The row that downloads a whole recitation. Source: docs/prd/PRD.ar.md (AU-13). Wording awaits the lead's approval (D-128 (5))."
+    "description": "P1-33. The row that downloads a whole recitation. Source: docs/prd/PRD.ar.md (AU-13). Wording approved by the owner on 2026-11-04 (D-162)."
   },
   "recitationQualityKbps": "{kbps} كيلوبت/ث",
   "@recitationQualityKbps": {
-    "description": "P1-33. A recitation's quality, a bit rate in kilobits per second; kbps is the number already written in Arabic-Indic digits (AU-14). Wording awaits the lead's approval (D-128 (5)).",
+    "description": "P1-33. A recitation's quality, a bit rate in kilobits per second; kbps is the number already written in Arabic-Indic digits (AU-14). Wording approved by the owner on 2026-11-04 (D-162).",
     "placeholders": {
       "kbps": {
         "type": "String"
