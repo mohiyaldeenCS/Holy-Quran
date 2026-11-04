@@ -108,12 +108,13 @@ brief or point to the file that has it.
 ## Tasks run by agents in GitHub Actions
 
 Since 2026-10-11 the owner has implementation tasks run by agents inside GitHub
-Actions, paid from his API accounts (D-092). The lead session plans, writes the task
+Actions, paid from his API accounts (D-092), paused from 2026-10-12 to 2026-11-04 and
+resumed by D-159. The lead session plans, writes the task
 texts, reviews the pull requests and keeps the documents; it does not write
 application code itself.
 
-- **Workflow.** `.github/workflows/agent.yml`, started by hand from the Actions tab
-  (Run workflow) with: the task text, a branch starting with `agent/`, the base branch
+- **Workflow.** `.github/workflows/agent.yml`, started from the Actions tab or with
+  `gh workflow run` with: the task text, a branch starting with `agent/`, the base branch
   it starts from and its pull request goes to (`main`, or the milestone branch when the
   task needs code that lives only there, such as `spike/`), the key slot
   (1 or 2, one per API account), a budget cap in dollars, the project agent for the
@@ -126,6 +127,9 @@ application code itself.
   request (a draft when anything failed) or comments on the open one; and starts
   `ci.yml` with the task `check`, because a pull request opened by the workflow token
   starts no `pull_request` run.
+- **A run without commits**, such as a review, comments its report on the branch's open
+  pull request, and every run prints the whole report in its log. A stray file a reviewer
+  leaves is committed like any other, so review tasks say to leave none.
 - **Parallel runs.** Several runs work at once on both keys, two or more per key: a
   wave's tasks may all be started together (D-100). If an account's rate limit
   throttles them, start two at a time, one per key, in the plan's order. Runs that
@@ -139,7 +143,10 @@ application code itself.
   version of a file under `.github/workflows/` that no longer matches the base. So
   while any run started from a base branch is in progress, the lead does not change
   `.github/workflows/` on that base. On 2026-10-11 a change to `ci.yml` on the
-  milestone branch made task D's finished push fail, and the run's work was lost.
+  milestone branch made task D's finished push fail, and the run's work was lost. The
+  workflow's own guard also refuses a change under `.github/` that arrives by merging the
+  base, so after any such change the lead merges the base into every open branch from his
+  own session before a run starts on it.
 - **The APK build never runs beside a test run.** The `apk` task of `ci.yml` is not
   started while an agent run's tests are running, and an agent that builds the APK
   does so alone, after its last commit, never beside its own tests. Learned in M0.4
