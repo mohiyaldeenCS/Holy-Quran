@@ -21,20 +21,25 @@ const double focusRingReach = _ringGap + _ringWidth;
 ///
 /// [FocusRing.lines] draws one ring round each of [lines] instead of one
 /// round [child]: the rects, in [child]'s coordinates, of what a focused
-/// element covers line by line (D-171).
+/// element covers line by line (D-171). With [behind] the ring is painted under
+/// [child] instead of over it, for a [child] whose own paint it must never
+/// cover, as the Quran text is never covered.
 class FocusRing extends StatefulWidget {
   const FocusRing({required this.child, required this.radius, super.key})
-    : lines = null;
+    : lines = null,
+      behind = false;
 
   const FocusRing.lines({
     required this.child,
     required List<Rect> this.lines,
+    this.behind = false,
     super.key,
   }) : radius = BorderRadius.zero;
 
   final Widget child;
   final BorderRadius radius;
   final List<Rect>? lines;
+  final bool behind;
 
   @override
   State<FocusRing> createState() => _FocusRingState();
@@ -69,27 +74,32 @@ class _FocusRingState extends State<FocusRing> {
   }
 
   @override
-  Widget build(BuildContext context) => CustomPaint(
-    foregroundPainter: _focused && _keyboard
-        ? _RingPainter(
+  Widget build(BuildContext context) {
+    final ring = _focused && _keyboard
+        ? FocusRingPainter(
             focus: context.colors.focus,
             ground: context.colors.ground,
             radius: widget.radius,
             lines: widget.lines,
           )
-        : null,
-    child: Focus(
-      canRequestFocus: false,
-      skipTraversal: true,
-      includeSemantics: false,
-      onFocusChange: _onFocusChange,
-      child: widget.child,
-    ),
-  );
+        : null;
+    return CustomPaint(
+      painter: widget.behind ? ring : null,
+      foregroundPainter: widget.behind ? null : ring,
+      child: Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        includeSemantics: false,
+        onFocusChange: _onFocusChange,
+        child: widget.child,
+      ),
+    );
+  }
 }
 
-final class _RingPainter extends CustomPainter {
-  _RingPainter({
+/// Paints the ring: the gap in `ground`, then the stroke in `focus`.
+final class FocusRingPainter extends CustomPainter {
+  FocusRingPainter({
     required this.focus,
     required this.ground,
     required this.radius,
@@ -123,7 +133,7 @@ final class _RingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RingPainter oldDelegate) =>
+  bool shouldRepaint(FocusRingPainter oldDelegate) =>
       oldDelegate.focus != focus ||
       oldDelegate.ground != ground ||
       oldDelegate.radius != radius ||

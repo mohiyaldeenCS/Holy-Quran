@@ -46,6 +46,17 @@ final class ReaderBlock extends StatelessWidget {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
+              for (final ayah in layout.ayat)
+                Positioned.fromRect(
+                  rect: layout.ayahRect(ayah)!,
+                  child: ayahSemantics(
+                    layout.plan.text.ayat[ayah - 1],
+                    readingOrder(ayah).toDouble(),
+                    selected: ayah == selectedAyah ? true : null,
+                    onActivate: activate == null ? null : () => activate(ayah),
+                    focusLines: activate == null ? const [] : _lines(ayah),
+                  ),
+                ),
               Positioned.fill(
                 child: CustomPaint(painter: _BlockPainter(layout)),
               ),
@@ -59,22 +70,11 @@ final class ReaderBlock extends StatelessWidget {
                     child: PageMark(page: page),
                   ),
                 ),
-              for (final ayah in layout.ayat) ...[
-                Positioned.fromRect(
-                  rect: layout.ayahRect(ayah)!,
-                  child: ayahSemantics(
-                    layout.plan.text.ayat[ayah - 1],
-                    readingOrder(ayah).toDouble(),
-                    selected: ayah == selectedAyah ? true : null,
-                    onActivate: activate == null ? null : () => activate(ayah),
-                    focusLines: activate == null ? const [] : _lines(ayah),
-                  ),
-                ),
+              for (final ayah in layout.ayat)
                 Positioned.fromRect(
                   rect: layout.markerRect(ayah)!,
                   child: _marker(context, ayah, activate),
                 ),
-              ],
             ],
           ),
         ),

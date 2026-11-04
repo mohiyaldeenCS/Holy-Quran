@@ -170,7 +170,11 @@ bool focusRingDrawn(WidgetTester tester) => tester
         matching: find.byType(CustomPaint),
       ),
     )
-    .any((paint) => paint.foregroundPainter != null);
+    .any(
+      (paint) =>
+          paint.foregroundPainter is FocusRingPainter ||
+          paint.painter is FocusRingPainter,
+    );
 
 /// The nodes a screen reader can tap, markers apart.
 int tappableCount(WidgetTester tester) => _nodes(_root(tester))

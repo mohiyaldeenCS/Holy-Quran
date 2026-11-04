@@ -125,6 +125,7 @@ void main() {
     final handle = tester.ensureSemantics();
     await _pump(tester, HomeHeader(onSearch: () {}));
     expect(find.bySemanticsLabel(_l10n.appIconLabel), findsNothing);
+    expect(find.bySemanticsLabel(_l10n.appTitle), findsOneWidget);
     expect(
       tester.getSemantics(find.text(_l10n.appTitle)),
       matchesSemantics(label: _l10n.appTitle, isHeader: true),
