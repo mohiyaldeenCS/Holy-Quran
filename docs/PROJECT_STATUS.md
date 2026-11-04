@@ -409,11 +409,14 @@ stall in `audio_engine_service.dart:397-400` (comment on #76).
 
 The first real run on the owner's phone never goes through GitHub (`HANDOFF.md`, section 4).
 
-From the owner's answers of 2026-11-04 (D-162), tasks to send to agents: the unapproved-copy
-marking «نسخة تجريبية غير معتمدة», off unless a build flag asks for it (D-159 (5)); the
-stand-mode button in `ReaderPlayerBar` (SY-05, its label to be approved first); the 1:1 and
-9:16 share cards (SH-02, SH-03); a proposal of candidate recitations with their permission
-conditions (O-04, stream B). Item 5 of the queue became #80 (D-161).
+From the owner's answers of 2026-11-04 (D-162), tasks to send to agents: the local test copy
+by `docs/plans/TEST_COPY.md` (T3 pipeline and T2 marking first, then T1 flag, device bundle and
+signature, then T4 guards and flow; D-163 to D-165; the pack is read from the phone's files,
+never bundled, and no APK holds it); the stand-mode button «وضع الحامل» in `ReaderPlayerBar`
+(SY-05); the 1:1 and 9:16 share cards (SH-02, SH-03); a proposal of candidate recitations with
+their permission conditions (O-04, stream B). Item 5 of the queue became #80 (D-161).
+Follow-up for B0.2 found by the plan: the bundled base pack's signature is not enforced in
+release builds, though D-108 says it must be.
 
 Branch deletion (D-162 (11)), for the owner to run on his machine, since the cloud session's
 proxy refuses it. It deletes only remote branches wholly contained in `main`:
