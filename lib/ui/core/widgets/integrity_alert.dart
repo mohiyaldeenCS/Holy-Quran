@@ -35,6 +35,7 @@ class IntegrityAlert extends StatelessWidget {
           Icon(IconName.alert, color: colors.error),
           Expanded(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               spacing: AppSpacing.space2,
               children: [

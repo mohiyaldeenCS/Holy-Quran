@@ -1076,35 +1076,35 @@
   },
   "resourceCancel": "إلغاء",
   "@resourceCancel": {
-    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). The button that leaves a confirmation without acting."
+    "description": "P1-33. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166). The button that leaves a confirmation without acting."
   },
   "deleteRecitationTitle": "حذف التلاوة",
   "@deleteRecitationTitle": {
-    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). Title of the sheet that confirms deleting a downloaded recitation (owner, 2026-10-29)."
+    "description": "P1-33. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166). Title of the sheet that confirms deleting a downloaded recitation (owner, 2026-10-29)."
   },
   "recitationScopeLabel": "نطاق التنزيل",
   "@recitationScopeLabel": {
-    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). Spoken name of the choice between the surahs and the juz of a recitation (AU-13)."
+    "description": "P1-33. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166). Spoken name of the choice between the surahs and the juz of a recitation (AU-13)."
   },
   "waitingForNetwork": "بانتظار الشبكة",
   "@waitingForNetwork": {
-    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). A download held until any network is up."
+    "description": "P1-33. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166). A download held until any network is up."
   },
   "resourceResume": "استئناف",
   "@resourceResume": {
-    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). The action that goes on with a download that was stopped part way (AU-13)."
+    "description": "P1-33. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166). The action that goes on with a download that was stopped part way (AU-13)."
   },
   "resourceQueued": "في قائمة الانتظار",
   "@resourceQueued": {
-    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). A download waiting behind another."
+    "description": "P1-33. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166). A download waiting behind another."
   },
   "recitationPartial": "تنزيل جزئي",
   "@recitationPartial": {
-    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). A recitation of which only some is on the device."
+    "description": "P1-33. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166). A recitation of which only some is on the device."
   },
   "resourceDownloadNamed": "تنزيل {title}",
   "@resourceDownloadNamed": {
-    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). Spoken name of a row download button; title names the surah or juz.",
+    "description": "P1-33. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166). Spoken name of a row download button; title names the surah or juz.",
     "placeholders": {
       "title": {
         "type": "String"
@@ -1113,7 +1113,7 @@
   },
   "resourceResumeNamed": "استئناف تنزيل {title}",
   "@resourceResumeNamed": {
-    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). Spoken name of a row resume button.",
+    "description": "P1-33. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166). Spoken name of a row resume button.",
     "placeholders": {
       "title": {
         "type": "String"
@@ -1122,7 +1122,7 @@
   },
   "resourceStopNamed": "إيقاف تنزيل {title}",
   "@resourceStopNamed": {
-    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). Spoken name of a row stop button.",
+    "description": "P1-33. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166). Spoken name of a row stop button.",
     "placeholders": {
       "title": {
         "type": "String"
@@ -1131,7 +1131,7 @@
   },
   "resourceDeleteNamed": "حذف {title}",
   "@resourceDeleteNamed": {
-    "description": "P1-33. Wording awaits the lead's approval (D-128 (5)). Spoken name of a row delete button.",
+    "description": "P1-33. Wording approved by the lead under the owner's delegation, 2026-11-04 (D-128 (5), D-166). Spoken name of a row delete button.",
     "placeholders": {
       "title": {
         "type": "String"
@@ -1817,5 +1817,9 @@
   "searchScopeJuzNumber": "رقم الجزء",
   "@searchScopeJuzNumber": {
     "description": "P1-29, for the lead's approval under D-128 (5). The hint and spoken name of the field for the number of the juz a search is limited to (SR-06)."
+  },
+  "unapprovedTestCopy": "نسخة تجريبية غير معتمدة",
+  "@unapprovedTestCopy": {
+    "description": "D-164. Wording approved by the owner (D-162 (4)). The title of the strip shown on every screen of the unapproved test copy; also the final line of copied text there (D-162 (14))."
   }
 }
