@@ -15,6 +15,7 @@ import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/quran_range.dart';
 import 'package:holyquran/domain/models/recitation.dart';
 import 'package:holyquran/domain/models/repeat_mode.dart';
+import 'package:holyquran/domain/models/stop_after.dart';
 
 import 'package:just_audio/just_audio.dart';
 
@@ -617,6 +618,47 @@ void main() {
       await pumpEventQueue();
       expect(repository.state.stopReason, StopReason.endOfPlan);
     }
+
+    /// Plays three ayat with the second queued, then turns stop-after on and
+    /// off while the removal that the first of those causes is in flight, so
+    /// that a located track 3 replaces the queued track 2 for the same ayah.
+    Future<(_Engine, EnginePlayerRepository)> toggling() async {
+      final e = await _started();
+      final repository = EnginePlayerRepository(
+        engine: e.engine,
+        locate: (recitation, source) async =>
+            (uri: Uri.parse('https://audio.test/$source'), streamed: true),
+        surahName: (surah) async => null,
+      );
+      addTearDown(repository.dispose);
+      await repository.play(plan(AyahSpan(QuranRange(a('1:1'), a('1:3')))));
+      await pumpEventQueue();
+      e.player.calls.clear();
+      e.player.hold('remove');
+      await repository.setStopAfter(StopAfter.ayah);
+      await repository.setStopAfter(null);
+      await pumpEventQueue();
+      return (e, repository);
+    }
+
+    test('an ayah whose successor was replaced by a stop-after toggle '
+        'plays when the head ends during the removal', () async {
+      final (e, repository) = await toggling();
+
+      await e.send(ProcessingState.completed);
+      e.player.release('remove');
+      await pumpEventQueue();
+
+      expect(e.ended, [1]);
+      expect(repository.state.segment?.address, a('1:2'));
+      expect(e.player.calls, [
+        'remove 1',
+        'add AyahFile(x:1:2)',
+        'seek 1',
+        'play',
+        'remove 0',
+      ]);
+    });
 
     test('an ayah range goes on when an ayah ends early', () async {
       final started = <PlaybackSegment>[];
