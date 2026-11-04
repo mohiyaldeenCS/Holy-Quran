@@ -122,6 +122,15 @@ void main() {
     handle.dispose();
   });
 
+  testWidgets('says nothing of itself without a label', (tester) async {
+    final handle = tester.ensureSemantics();
+    await _pump(tester, const ProgressBar(value: 0.5));
+
+    expect(tester.getSemantics(find.byType(ProgressBar)).label, isEmpty);
+    expect(find.bySemanticsLabel(RegExp('.+')), findsNothing);
+    handle.dispose();
+  });
+
   testWidgets('takes no focus', (tester) async {
     await _pump(tester, ProgressBar(value: 0.5, label: _l10n.playerPosition));
     expect(

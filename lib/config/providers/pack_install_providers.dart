@@ -15,14 +15,17 @@ import 'package:holyquran/data/services/manifest_signature.dart';
 import 'package:holyquran/data/services/pack_file_service.dart';
 
 /// Makes the installer of [packInstallProviders], given what it is told of
-/// the packs.
+/// the packs and the service that downloads its files.
 typedef InstallerFactory = LocalPackInstallRepository Function({
+  required DownloadService downloads,
   void Function(String packId)? onPackChanged,
   Set<String> reservedPackIds,
 });
 
 /// Provides the device's [FreeSpaceService], which the resource manager
-/// reads too, and the installer, and starts it: the installed packs are
+/// reads too, the [DownloadService] the installer and the recitation
+/// downloads share (the plugin keeps one callback for its group), and the
+/// installer, and starts it: the installed packs are
 /// read, and downloads cut short by the last session are picked up. The
 /// start does not delay the first frame. It fails as a result of the
 /// installer's `started`, and throws only an [Error], which is a bug and is
@@ -39,11 +42,16 @@ Future<void> providePackInstall(
   Dependencies dependencies, {
   required InstallerFactory create,
   ({String id, int version})? basePack = bundledBasePack,
+  DownloadService? downloads,
 }) async {
-  dependencies.provide<FreeSpaceService>(const DiskFreeSpaceService());
+  final service = downloads ?? BackgroundDownloadService.applicationSupport();
+  dependencies
+    ..provide<FreeSpaceService>(const DiskFreeSpaceService())
+    ..provide<DownloadService>(service);
   provideInstaller(
     dependencies,
     create(
+      downloads: service,
       onPackChanged: dependencies.tryRead<PackIntegrityRepository>()?.forget,
       reservedPackIds: {?basePack?.id},
     ),
@@ -64,11 +72,12 @@ void provideInstaller(
 /// whose signature was not checked accepted outside release builds (D-108).
 /// Nothing touches a plugin until [LocalPackInstallRepository.start].
 LocalPackInstallRepository packInstallRepository({
+  required DownloadService downloads,
   void Function(String packId)? onPackChanged,
   Set<String> reservedPackIds = const {},
 }) => LocalPackInstallRepository(
   openStore: InstalledPacksStore.openInApplicationSupport,
-  downloads: BackgroundDownloadService.applicationSupport(),
+  downloads: downloads,
   urlCheck: const HttpUrlCheck(),
   connectivity: PlusConnectivityService(),
   freeSpace: const DiskFreeSpaceService(),

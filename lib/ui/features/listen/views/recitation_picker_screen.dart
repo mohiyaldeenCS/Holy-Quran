@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart' hide Icon;
 import 'package:go_router/go_router.dart';
+import 'package:holyquran/domain/models/install_job.dart';
 import 'package:holyquran/domain/models/resource_state.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
@@ -64,13 +65,13 @@ class RecitationPickerScreen extends StatelessWidget {
                   separatorBuilder: (_, _) =>
                       const SizedBox(height: AppSpacing.space3),
                   itemBuilder: (context, index) {
-                    final (:recitation, :state) = listings[index];
+                    final (:recitation, :state, :partial) = listings[index];
                     final details = recitation.recitation;
                     return RecitationCard(
                       reciter: details.reciter,
                       details: [
                         details.style,
-                        ?_stateWord(l10n, state),
+                        ?_stateWord(l10n, state, partial: partial),
                         if (details.hasWordTiming) l10n.wordTimingTag,
                       ].join(l10n.dataSeparator),
                     );
@@ -85,13 +86,20 @@ class RecitationPickerScreen extends StatelessWidget {
   }
 }
 
-String? _stateWord(AppLocalizations l10n, ResourceState? state) =>
-    switch (state) {
-      ResourceDownloaded() ||
-      ResourceUpdateAvailable() => l10n.resourceDownloaded,
-      ResourceAvailable() => l10n.resourceAvailable,
-      ResourceDownloading(:final percent?) => l10n.percentValue(
-        arabicDigits(percent),
-      ),
-      ResourceDownloading() || null => null,
-    };
+String? _stateWord(
+  AppLocalizations l10n,
+  ResourceState? state, {
+  required bool partial,
+}) => switch (state) {
+  ResourceDownloaded() => l10n.resourceDownloaded,
+  ResourceUpdateAvailable() => l10n.updateAvailable,
+  ResourceAvailable() when partial => l10n.recitationPartial,
+  ResourceAvailable() => l10n.resourceAvailable,
+  ResourceDownloading(:final percent?) => l10n.percentValue(
+    arabicDigits(percent),
+  ),
+  ResourceDownloading(job: InstallQueued()) => l10n.resourceQueued,
+  ResourceDownloading(job: InstallWaitingForNetwork(:final wifiOnly)) =>
+    wifiOnly ? l10n.waitingForWifi : l10n.waitingForNetwork,
+  ResourceDownloading() || null => null,
+};

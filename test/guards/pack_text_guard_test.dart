@@ -10,6 +10,7 @@ import 'dart_source.dart';
 // literals are not scanned.
 
 const _packText = 'lib/domain/models/pack_text.dart';
+const _surahName = 'lib/ui/core/widgets/surah_name.dart';
 const _database = 'lib/data/services/pack_database.dart';
 const _allow = 'test/guards/allow/pack_text';
 
@@ -41,6 +42,13 @@ final _stringChange = RegExp(
   r'replaceAllMapped|replaceFirst|replaceFirstMapped|replaceRange|split|'
   r'splitMapJoin)\b',
 );
+final _spanCall = RegExp(r'\bSurahName\s*\.\s*span\s*\(');
+final _spanBinding = RegExp(
+  r'\b(\w+)\s*=\s*SurahName\s*\.\s*span\s*\(|'
+  r'\bSurahNameSpan\??\s+(\w+)',
+);
+const _spanRead = r'\s*[?!]?\s*\.\s*(text|toPlainText)\b';
+final _spanCast = RegExp(r'\bas\s+SurahNameSpan\s*\)' + _spanRead);
 final _directive = RegExp(r'^\s*(?:import|export)\s+([^;]+);', multiLine: true);
 final _quoted = RegExp('''['"]([^'"]+)['"]''');
 
@@ -68,6 +76,7 @@ Iterable<String> _violationsIn(String path, String text) sync* {
       yield '${at(match)}: VerifiedPack constructed outside verification';
     }
   }
+  if (path != _surahName) yield* _surahNameReads(path, source);
   for (final match in _normalising.allMatches(source.code)) {
     yield '${at(match)}: normalisation ${match[0]}';
   }
@@ -84,6 +93,45 @@ Iterable<String> _violationsIn(String path, String text) sync* {
       yield '${at(match)}: .${match[1]} in a file that carries pack text';
     }
   }
+}
+
+/// A surah name leaves `SurahName` only as drawn text or as a label made
+/// inside it (D-084, D-160): its span's `text` is never read.
+Iterable<String> _surahNameReads(String path, ScannedSource source) {
+  final code = source.code;
+  final reads = <int, String>{};
+  void flag(int offset, String? member) => reads[offset] =
+      '$path:${source.lineOf(offset)}: .$member of a surah '
+      'name span';
+  final read = RegExp(_spanRead);
+  for (final call in _spanCall.allMatches(code)) {
+    var depth = 1;
+    var end = call.end;
+    while (end < code.length && depth > 0) {
+      depth += switch (code[end]) {
+        '(' => 1,
+        ')' => -1,
+        _ => 0,
+      };
+      end++;
+    }
+    if (read.matchAsPrefix(code, end) case final match?) {
+      flag(call.start, match[1]);
+    }
+  }
+  for (final match in _spanCast.allMatches(code)) {
+    flag(match.start, match[1]);
+  }
+  final bound = {
+    for (final binding in _spanBinding.allMatches(code))
+      binding[1] ?? binding[2]!,
+  };
+  for (final name in bound) {
+    for (final match in RegExp('\\b$name$_spanRead').allMatches(code)) {
+      flag(match.start, match[1]);
+    }
+  }
+  return [for (final offset in reads.keys.toList()..sort()) reads[offset]!];
 }
 
 void main() {
@@ -242,6 +290,38 @@ final g = list.map((s) => s.trim);
         ..._sinks.targets,
         _packText,
       });
+    });
+
+    test('the text of a surah name span read outside SurahName', () {
+      expect(
+        _violations({
+          view: '''
+final a = SurahName.span(name, format: f, style: s, l10n: l).text!;
+final b = SurahName.span(name, format: f, style: s, l10n: l)?.text;
+final c = SurahName.span(
+  name,
+  format: SurahNameFormat.titled,
+  style: s,
+  l10n: l,
+).toPlainText();
+final span = SurahName.span(name, format: f, style: s, l10n: l);
+final d = span.text;
+final e = (spans[3] as SurahNameSpan).text;
+void f(SurahNameSpan after) => after!.text;
+final g = SurahName.span(name, format: f, style: s, l10n: l);
+final h = TextSpan(children: [g]);
+''',
+          _surahName: 'final a = SurahName.span(n).text!;',
+        }),
+        [
+          '$view:1: .text of a surah name span',
+          '$view:2: .text of a surah name span',
+          '$view:3: .toPlainText of a surah name span',
+          '$view:10: .text of a surah name span',
+          '$view:11: .text of a surah name span',
+          '$view:12: .text of a surah name span',
+        ],
+      );
     });
 
     test('nothing in comments or string literals', () {
