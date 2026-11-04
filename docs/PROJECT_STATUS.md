@@ -10,7 +10,7 @@ corrected first.
 | --- | --- |
 | Updated | 2026-11-04 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **35 merged**: P1-01 to P1-32, P1-38 to P1-40, of which 16 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-32, P1-40). **Open pull requests**: P1-33 (#71), P1-34 (#76, not ready), P1-36 (#78, draft), P1-37 (#77). P1-35 not started. The composition root is wired (#72, D-151). **No APK has been run on a device since the spike of 2026-10-12, and no real content is in the app** |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **36 merged**: P1-01 to P1-32, P1-34, P1-38 to P1-40, of which 17 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-32, P1-34, P1-40). **Open pull requests**: P1-33 (#71, being fixed), P1-36 (#78, being finished), P1-37 (#77, in re-review), the audio race (#80, in review). P1-35 not started. The composition root is wired (#72, D-151). **No APK has been run on a device since the spike of 2026-10-12, and no real content is in the app** |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/*`), worked by agents in GitHub Actions (D-159) |
 | Last session | 2026-11-04, cloud session on the owner's new account, managing agents in Actions (D-159). **Read `HANDOFF.md` first**: it holds the queue, the runs out, how to start agents and his rules |
@@ -360,6 +360,16 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   (the whole harness, 21 files), P1-37 `1032347`. P1-34 lost nothing; P1-35 had written
   nothing. 27 unreachable commits of 2026-10-27 to 2026-10-29, stashes of finished work,
   are kept on GitHub under `refs/archive/2026-10-orphans/`.
+- **P1-34 merged (#76), partial.** Whole-app flow tests over synthetic packs (NF-20): last position,
+  search, play a range with repeat 3, two-tap bookmark, pack delete and re-download with a
+  launch in between that keeps bookmarks and notes (a mutant that wipes them at that launch
+  fails the test), copied text equal to the pack for every ayah, and the same over any text
+  pack under `assets/packs/` or `HOLYQURAN_PACK_DIR`. `integration_test` added (D-156).
+  Partial: the device runs of `integration_test/critical_paths_test.dart`, which **erase the
+  app's data for `com.example.holyquran`** (run only on a phone with nothing to keep); its
+  play-range and download entries stay skipped on a device (no recitation file, no host).
+  Reviewed by `code-reviewer` (opus) twice; nits left: one comment line over 80 characters
+  in `test/ui/core/share/ayah_copy_text_test.dart:26`.
 - Open, in `HANDOFF.md`'s order: **P1-37** (#77): CI green, the independent review of its
   final head outstanding. **P1-33** (#71): wired to the player, D-155, CI green, the
   independent review outstanding. **P1-34** (#76): the review's findings are in a comment on
