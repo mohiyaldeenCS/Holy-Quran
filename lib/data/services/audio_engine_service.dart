@@ -215,13 +215,19 @@ final class PluginAudioEngineService implements AudioEngineService {
   /// The track last given to [setNext], whether or not the player has it yet.
   EngineTrack? _wantedNext;
 
-  /// The current track ended and was reported while its successor was still
-  /// being queued; the queueing starts the successor.
-  bool _headEnded = false;
+  /// The current track, when it ended and was reported while its successor
+  /// was still being queued; the queueing starts the successor and drops it.
+  EngineTrack? _endedHead;
 
   /// The successor the repository was told is playing when the head ended;
   /// only that track may be started, not one a later [setNext] replaced.
   EngineTrack? _successor;
+
+  /// What the player was given for each track, to find it again by identity:
+  /// indices shift while changes are in flight.
+  final _sourceOf = Expando<AudioSource>();
+
+  bool get _headEnded => _endedHead != null;
 
   AudioPlayer get _player =>
       (_handler ?? (throw StateError('the engine is not active'))).player;
@@ -301,7 +307,7 @@ final class PluginAudioEngineService implements AudioEngineService {
     _inOrder(() async {
       if (_tracks.length > 1) {
         final queued = _tracks[1];
-        await _player.removeAudioSourceAt(1);
+        await _drop(queued);
         if (generation != _playlist) return;
         _tracks = [
           for (final track in _tracks)
@@ -313,7 +319,7 @@ final class PluginAudioEngineService implements AudioEngineService {
       if (generation != _playlist) return;
       _tracks = [..._tracks, next];
       if (_headEnded && identical(next, _successor)) {
-        await _startQueued(generation);
+        await _startQueued(generation, next);
       }
     });
   }
@@ -348,7 +354,7 @@ final class PluginAudioEngineService implements AudioEngineService {
     _tracks = [];
     _wantedNext = null;
     _successor = null;
-    _headEnded = false;
+    _endedHead = null;
     _loaded = ++_playlist;
   }
 
@@ -360,14 +366,27 @@ final class PluginAudioEngineService implements AudioEngineService {
 
   /// Starts the track just queued after one that ended before it arrived,
   /// and drops the ended one.
-  Future<void> _startQueued(int generation) async {
-    _headEnded = false;
+  Future<void> _startQueued(int generation, EngineTrack next) async {
+    final ended = _endedHead!;
+    _endedHead = null;
     _successor = null;
-    _tracks = _tracks.sublist(1);
-    await _player.seek(Duration.zero, index: _player.audioSources.length - 1);
+    _tracks = [next];
+    await _player.seek(Duration.zero, index: _indexOf(next));
     if (generation != _playlist) return;
     if (_handler!.playing) _play();
-    await _player.removeAudioSourceAt(0);
+    await _drop(ended);
+  }
+
+  int _indexOf(EngineTrack track) {
+    final source = _sourceOf[track];
+    return source == null ? -1 : _player.audioSources.indexOf(source);
+  }
+
+  /// Removes [track] from the player if it still holds it: a removal already
+  /// in flight may have taken it.
+  Future<void> _drop(EngineTrack track) async {
+    final index = _indexOf(track);
+    if (index >= 0) await _player.removeAudioSourceAt(index);
   }
 
   // A failure while playing reaches errorStream, so the future's own error
@@ -386,7 +405,7 @@ final class PluginAudioEngineService implements AudioEngineService {
     _tracks = tracks;
     _wantedNext = null;
     _successor = null;
-    _headEnded = false;
+    _endedHead = null;
     final generation = ++_playlist;
     _playlistChanges = _setTracks(tracks, generation, from: from)
         .then((_) {
@@ -454,8 +473,10 @@ final class PluginAudioEngineService implements AudioEngineService {
 
   AudioSource _source(EngineTrack track) {
     final file = ProgressiveAudioSource(track.uri);
-    if (track.start == null && track.end == null) return file;
-    return ClippingAudioSource(child: file, start: track.start, end: track.end);
+    final source = track.start == null && track.end == null
+        ? file
+        : ClippingAudioSource(child: file, start: track.start, end: track.end);
+    return _sourceOf[track] = source;
   }
 
   // Replacing the playlist is reported as an advance too; only a move from
@@ -473,10 +494,10 @@ final class PluginAudioEngineService implements AudioEngineService {
       final [ended, ...rest] = _tracks;
       _tracks = rest;
       _events.add(TrackEnded(ended.id));
-      _inOrder(() => _player.removeAudioSourceAt(0));
+      _inOrder(() => _drop(ended));
     } else if (_successorPending) {
       // The player moved on before the queueing's reply reached us.
-      _headEnded = true;
+      _endedHead = _tracks.first;
       _successor = _wantedNext;
       _events.add(TrackEnded(_tracks.first.id));
     }
@@ -495,8 +516,8 @@ final class PluginAudioEngineService implements AudioEngineService {
       return;
     }
     final ended = _tracks.first;
-    if (_tracks.length == 1 && _successorPending) {
-      _headEnded = true;
+    if (_successorPending) {
+      _endedHead = ended;
       _successor = _wantedNext;
     } else {
       _invalidate();
