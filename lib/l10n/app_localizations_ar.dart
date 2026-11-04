@@ -1257,4 +1257,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get searchScopeJuzNumber => 'رقم الجزء';
+
+  @override
+  String get unapprovedTestCopy => 'نسخة تجريبية غير معتمدة';
 }

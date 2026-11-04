@@ -8,16 +8,25 @@ import 'package:holyquran/domain/models/ui_level.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/app_theme.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
+import 'package:holyquran/ui/core/widgets/unapproved_copy_banner.dart';
 import 'package:provider/provider.dart';
 
 /// The app, in the theme and at the level of the provided
 /// [AppSettingsRepository], rebuilt at once when either changes (`RD-08`,
 /// `LV-02`) and only then. Screens read the level as a [UiLevel] from above
 /// them.
+///
+/// With [unapprovedCopy] the [UnapprovedCopyBanner] sits above the navigator,
+/// so every route, sheet and dialog is under it (D-164).
 class QuranApp extends StatelessWidget {
-  const QuranApp({required this.router, super.key});
+  const QuranApp({
+    required this.router,
+    this.unapprovedCopy = false,
+    super.key,
+  });
 
   final GoRouter router;
+  final bool unapprovedCopy;
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +57,22 @@ class QuranApp extends StatelessWidget {
             Theme.of(context).brightness,
             ground: context.colors.ground,
           ),
-          child: child!,
+          child: unapprovedCopy
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const UnapprovedCopyBanner(),
+                    // The banner has used the status-bar inset.
+                    Expanded(
+                      child: MediaQuery.removePadding(
+                        context: context,
+                        removeTop: true,
+                        child: child!,
+                      ),
+                    ),
+                  ],
+                )
+              : child!,
         ),
       ),
     );
