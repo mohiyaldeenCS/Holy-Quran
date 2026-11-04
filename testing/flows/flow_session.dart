@@ -43,6 +43,7 @@ import 'flow_audio.dart';
 import 'flow_downloads.dart';
 import 'flow_pack.dart';
 import 'flow_server.dart';
+import 'flow_test_copy.dart';
 
 /// The screen wakelock plugin, doing nothing.
 final class _NoWakelock extends WakelockService {
@@ -81,6 +82,11 @@ typedef FlowSources = ({Directory bundle, FlowServer server});
 /// served catalogue carries a null signature, so the flows never exercise
 /// signature checking; and the player's file locator is a stand-in that finds
 /// a file for every segment.
+///
+/// With [start]'s `testCopy` the base pack is the unapproved test copy's: read
+/// through a `DevicePackBundle` from the folder the copy was built in, signed
+/// for the copy's own key, with the sharing area as the test copy's `main`
+/// sets it up.
 final class FlowSession {
   FlowSession._(this.providers, this._dependencies, this.engine);
 
@@ -89,6 +95,7 @@ final class FlowSession {
   static Future<FlowSession> start(
     FlowSources sources, {
     bool onDevice = false,
+    TestCopyPack? testCopy,
   }) async {
     final engine = RecordingEngine();
     late Dependencies dependencies;
@@ -104,22 +111,29 @@ final class FlowSession {
         ),
         settingsProviders,
         readingProviders,
-        (d) => provideQuran(
-          d,
-          basePack: BasePackService(
-            id: flowPackId,
-            version: flowPackVersion,
-            bundle: DirectoryBundle(sources.bundle),
-          ),
-          signatures: Ed25519ManifestVerifier(manifestPublicKeys),
-        ),
+        (d) => testCopy == null
+            ? provideQuran(
+                d,
+                basePack: BasePackService(
+                  id: flowPackId,
+                  version: flowPackVersion,
+                  bundle: DirectoryBundle(sources.bundle),
+                ),
+                signatures: Ed25519ManifestVerifier(manifestPublicKeys),
+              )
+            : provideTestCopy(
+                d,
+                testCopy.copy,
+                root: () async => testCopy.root,
+              ),
         (d) => providePackInstall(
           d,
           create: _installer,
           downloads: LoopbackDownloads(
             () async => (await getApplicationSupportDirectory()).path,
           ),
-          basePack: (id: flowPackId, version: flowPackVersion),
+          basePack:
+              testCopy?.copy.pack ?? (id: flowPackId, version: flowPackVersion),
         ),
         // The area provides the device's disk probe, a plugin.
         (d) async => d.replace<FreeSpaceService>(const RoomyDisk()),
@@ -149,7 +163,7 @@ final class FlowSession {
         (d) => provideAudio(d, createEngine: () => engine, locate: flowLocator),
         tafsirProviders,
         searchProviders,
-        shareProviders,
+        (d) => provideShare(d, unapprovedCopy: testCopy != null),
         addressProviders,
         linksProviders,
       ],

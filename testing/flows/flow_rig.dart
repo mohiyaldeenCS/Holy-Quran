@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holyquran/routing/routes/feature_routes.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../application_support.dart';
@@ -11,6 +12,7 @@ import 'flow_driver.dart';
 import 'flow_pack.dart';
 import 'flow_server.dart';
 import 'flow_session.dart';
+import 'flow_test_copy.dart';
 
 /// One run of a flow: a new application-support folder, which every session
 /// of the run shares, as the app's runs on one device do.
@@ -23,17 +25,31 @@ final class FlowRun {
   final Directory support;
 
   /// Starts the app, runs [body] with the user in front of it, and ends the
-  /// session, leaving the folder as it is: a second call is a restart.
+  /// session, leaving the folder as it is: a second call is a restart. With
+  /// [testCopy] the app is the unapproved test copy over that pack, as `main`
+  /// starts it, and not over the pack the rig bundles. [features] replace the
+  /// app's routes; see [testCopyFeatures].
   Future<void> session(
     WidgetTester tester,
-    Future<void> Function(FlowSession session) body,
-  ) async {
+    Future<void> Function(FlowSession session) body, {
+    TestCopyPack? testCopy,
+    List<FeatureRoutes>? features,
+  }) async {
     final session = await tester.runAsync(
-      () => FlowSession.start(rig.sources, onDevice: rig.onDevice),
+      () => FlowSession.start(
+        rig.sources,
+        onDevice: rig.onDevice,
+        testCopy: testCopy,
+      ),
     );
     final semantics = tester.ensureSemantics();
     try {
-      await pumpFlowApp(tester, session!.providers);
+      await pumpFlowApp(
+        tester,
+        session!.providers,
+        unapprovedCopy: testCopy != null,
+        features: features,
+      );
       await body(session);
     } finally {
       try {
