@@ -87,7 +87,7 @@ session only, so a run's task is in its log under "Task as given" or the workflo
 notification, which replaced the report: only the last message is kept, and the log shortens
 earlier messages. Every task text now ends with: run commands in the foreground, no background
 shells or Monitor, and repeat the whole report if woken after writing it.
-**Before pushing a merge of `main` into a branch**, run `flutter analyze` in the worktree: a clean textual merge can still break the build (#82 and the flow rig, 2026-11-04).
+**The owner's rule (2026-11-04): the lead's session spends nothing on checks.** No local `flutter analyze` or tests, no long log reading: merging `main` into a branch and checking the result is a task for an agent in Actions (a clean textual merge can still break the build, #82 and the flow rig). The lead only writes task texts, starts runs, reads the reports' verdicts, merges and keeps the records.
 **`action_required` CI runs.** Each agent push starts two CI runs: the `workflow_dispatch` check,
 which runs, and a `pull_request` run that waits for approval. The dispatch run is the check of
 record for the head.
