@@ -122,24 +122,35 @@ void main() {
       );
       expect(Directory(installedFile('')).existsSync(), isFalse);
       await expectUserDataUnchanged(bookmarks, notes);
+    });
 
-      await settle(
-        tester,
-        () =>
-            spokenNames(tester)
-                .any((name) => name.contains(flowL10n.resourceDownload)),
-      );
+    // The app is launched with the pack gone: nothing of the user's is lost,
+    // and the pack is offered again and downloaded again.
+    await run.session(tester, (session) async {
+      final installs = session.read<PackInstallRepository>();
+      final bookmarks = session.read<BookmarkRepository>();
+      final notes = session.read<NoteRepository>();
+      await real(tester, () => installs.started);
+      expect(installs.installed, isEmpty);
+      expect(Directory(installedFile('')).existsSync(), isFalse);
+      await expectUserDataUnchanged(bookmarks, notes);
+
+      await openResources(tester);
       await tapNamed(
         tester,
         flowL10n.resourceDownload,
         done: () => installs.installed.isNotEmpty,
       );
+      expect(
+        [for (final pack in installs.installed) (pack.id, pack.version)],
+        [(flowTafsirId, 1)],
+      );
       await expectInstalledAsServed();
       await expectUserDataUnchanged(bookmarks, notes);
     });
 
-    // After a restart the pack is still installed and the user's data is the
-    // same.
+    // After one more restart the pack is still installed and the user's data
+    // is the same.
     await run.session(tester, (session) async {
       final installs = session.read<PackInstallRepository>();
       await real(tester, () => installs.started);
