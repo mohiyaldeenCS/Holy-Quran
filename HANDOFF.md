@@ -73,7 +73,8 @@ session only, so a run's task is in its log under "Task as given" or the workflo
 | #78 P1-36 | First review's findings fixed (`60649a3`, `5a10b97`, $2.36). Re-review ($1.39): CHANGES REQUIRED, N-1 an error the framework catches during a frame still publishes a good result; N-2 duplicated log input counts twice; notes N-3 to N-7 | 41846379713: fix, `test-engineer` sonnet, $6, key 2. Then a re-review |
 | #81 records | **Merged** 2026-11-04 (`a412d79`) after two reviews (sonnet, $0.26) and green CI: D-162, `docs/plans/TEST_COPY.md` | none |
 | #83 T3 test copy | **Merged** 2026-11-04 (`9ca8b65`) after two reviews (the second PASS WITH NITS, $0.98; the first re-review run died on an API overload) and green CI. Its notes (S1: the dirty-tree message suggested a whole-tree `git clean -fd`; a killed run's key unnoticed; the pack check after signing) go to the follow-up below, which must merge before the owner uses the script | none |
-| T3 polish | The re-review's S1 and N1-N6 on `tools/test_copy/` | 41844920772: `content-engineer` sonnet, $4, key 2. Then a short review |
+| #84 T3 polish | **Merged** 2026-11-04 (`f10e248`) after a review (PASS WITH NITS, $0.10; the reviewer ran the mutation the author skipped) and green CI: per-file clean-up commands, a leftover key refused, the tree checked before signing. The script is ready; it waits for T1 and T2 in the app | none |
+| O-04 candidates | Read-only research: 8-12 Hafs recitations with layout, timing, terms and risks, a recommended five (two word-timed), and what the owner must confirm | 41850166495: `none` sonnet, $6, key 2 |
 
 **Lost reports.** Two runs (the #71 audit and #80) ended with a short reply to a late background
 notification, which replaced the report: only the last message is kept, and the log shortens
