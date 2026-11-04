@@ -68,7 +68,7 @@ session only, so a run's task is in its log under "Task as given" or the workflo
 | --- | --- | --- |
 | #77 P1-37 | **Merged** 2026-11-04 (`1b4fa07`) after a re-review (PASS WITH NITS, $0.74) and green CI on `53d4d51`. Follow-up for the re-review's should-fix and notes: task text ready, starts when a slot frees (new branch `agent/nf-14-guard-followup`) | none |
 | #76 P1-34 | **Merged** 2026-11-04 (`a917862`) after a re-review (PASS WITH NITS, $0.88) and green CI on `e5caf8c` | none |
-| #71 P1-33 | Review ($2.29) and identity audit ($0.52) found a blocking `SurahName` misuse, a download that hangs after a relaunch, two test gaps and a sheet that ignores reduce-motion; the owner chose fix-then-merge (D-162 (1)). Data findings fixed by `data-builder` (`8df5ec0`..`fb71981`, $1.05; the hang's test failed before the fix) | 41827908560: UI findings, D-160 and the three approved strings, `ui-builder` sonnet, $12, key 2. Then a re-review |
+| #71 P1-33 | Review ($2.29) and audit ($0.52) findings fixed: data by `data-builder` (`8df5ec0`..`fb71981`, $1.05), UI by `ui-builder` (`820eec6`, $1.38: `SurahName.labelled`, a guard against reading a surah-name span's text, a shared `sheetRoute`, D-160, three ARB descriptions). The workflow's checks and goldens passed (197) | 41836441259: re-review, `code-reviewer` opus, $8, key 1; then 41836486567 (queued): re-audit, `identity-auditor` sonnet, $4, key 1 |
 | #80 AU-01 | Stall fixed (D-161); first review's B1 and S1 fixed (`8dab48b`, `21547ae`, $0.37). Second review ($1.14): CHANGES REQUIRED, one more stall of B1's kind (`:498`, a completion during a removal with a replacement already wanted: stop-after on then off), one-line fix tried by the reviewer; a note on the advance-then-complete variant. A third, outside the diff, in `player_repository.dart:330-335` (a segment ending while `_refreshNext` awaits `_locate`) is a separate task to write | 41833804107: fix, `audio-builder` sonnet, $10, key 1. Then a re-review |
 | #78 P1-36 | Finished by `test-engineer` ($2.03). Review ($1.63): CHANGES REQUIRED. B1 search never types on a device in profile (test text input unregistered); B2 a phone run rewrites the app's data with no warning; B3 failed runs vanish so a budget can read MET; seven should-fix. The lead reversed his earlier call: nothing imports `flutter_driver`, so it is removed and D-156 stands; NF-05's «فتح» is measured from the tap to the first frame with the sheet visible, the slide's end reported beside it | 41835778640: fix and merge of `main`, `test-engineer` sonnet, $15, key 2. Then a re-review |
 | #81 records | **Merged** 2026-11-04 (`a412d79`) after two reviews (sonnet, $0.26) and green CI: D-162, `docs/plans/TEST_COPY.md` | none |
@@ -90,7 +90,7 @@ run on a branch, check it:** `git merge-base --is-ancestor origin/main origin/<b
 `main` changed `.github/` and the branch lacks it, merge `main` into the branch from your own
 session. Decision numbers: D-156, D-158, D-159 and D-162 are on `main`; D-155 and D-160 (#71), D-157
 (#78) and D-161 (#80) are on open branches; D-163 to D-165 are reserved for the
-test-copy tasks T1 to T3; the next free number is D-166.
+test-copy tasks T1 to T3; D-166 is the lead's approval of the pending wording (D-128 (5)); the next free number is D-167.
 
 The queue, after the table above:
 
