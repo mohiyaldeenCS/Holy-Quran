@@ -68,9 +68,11 @@ session only, so a run's task is in its log under "Task as given" or the workflo
 | --- | --- | --- |
 | #77 P1-37 | **Merged** 2026-11-04 (`1b4fa07`) after a re-review (PASS WITH NITS, $0.74) and green CI on `53d4d51`. Follow-up for the re-review's should-fix and notes: task text ready, starts when a slot frees (new branch `agent/nf-14-guard-followup`) | none |
 | #76 P1-34 | **Merged** 2026-11-04 (`a917862`) after a re-review (PASS WITH NITS, $0.88) and green CI on `e5caf8c` | none |
-| #71 P1-33 | Review ($2.29): blocking, a surah name leaves `SurahName` as a `String` in five button labels; should-fix, a relaunch can re-issue a stopped task id so a download never finishes (reproduced), two test gaps. Identity audit ($0.52): the delete sheet bypasses `SheetPage` (motion, reduce-motion). The owner chose fix-then-merge (D-162 (1)) | 41827857238: data findings, `data-builder` sonnet, $12, key 2; then 41827908560 (queued): UI findings, the `SurahName` label as D-160 and the three approved strings, `ui-builder` sonnet, $12, key 2. Then a re-review |
-| #80 AU-01 (item 5) | The stall was real and is fixed (`3317625`, `eba0735`, $2.07; D-161; 11 of the 19 new tests fail on main's code). Review ($1.39): CHANGES REQUIRED. B1, a completion during a pending removal is reported as the removed track (`_tracks.last`), a stall reachable by turning on stop-after at an ayah's end; S1, a replaced successor can start; both proved | 41829373362: fix, `audio-builder` sonnet, $10, key 1. Then a re-review |
+| #71 P1-33 | Review ($2.29) and identity audit ($0.52) found a blocking `SurahName` misuse, a download that hangs after a relaunch, two test gaps and a sheet that ignores reduce-motion; the owner chose fix-then-merge (D-162 (1)). Data findings fixed by `data-builder` (`8df5ec0`..`fb71981`, $1.05; the hang's test failed before the fix) | 41827908560: UI findings, D-160 and the three approved strings, `ui-builder` sonnet, $12, key 2. Then a re-review |
+| #80 AU-01 | Stall fixed (D-161); review found B1 (`_tracks.last`, a stall reachable through stop-after) and S1 (a replaced successor could start); both fixed by `audio-builder` (`8dab48b`, `21547ae`, $0.37), three new tests failing before | 41832390558: re-review, `code-reviewer` opus, $6, key 1 |
 | #78 P1-36 | Being finished: merge `main` (keep `flutter_driver` for `flutter drive`, amend D-157), the font from the bundle on a device, the acceptance list | 41828815745: `test-engineer` sonnet, $15, key 1. Then a review |
+| #81 records | **Merged** 2026-11-04 (`a412d79`) after two reviews (sonnet, $0.26) and green CI: D-162, `docs/plans/TEST_COPY.md` | none |
+| T3 test copy | The pipeline's test-copy mode and the owner's scripts (`tools/test_copy/`), D-165; no real text in Actions | 41832095481: `content-engineer` sonnet, $15, key 2 |
 
 **Lost reports.** Two runs (the #71 audit and #80) ended with a short reply to a late background
 notification, which replaced the report: only the last message is kept, and the log shortens
@@ -79,8 +81,8 @@ shells or Monitor, and repeat the whole report if woken after writing it.
 **`action_required` CI runs.** Each agent push starts two CI runs: the `workflow_dispatch` check,
 which runs, and a `pull_request` run that waits for approval. The dispatch run is the check of
 record for the head.
-**Spend this session**, by the SDK's estimates: $7.28 for six finished runs; caps of the runs
-out: $54.
+**Spend this session**, by the SDK's estimates: about $14.1 for fourteen finished runs, by
+13:30 UTC.
 
 `main` holds 37 of 40 tasks (18 partial); see the status file. **No app build has real
 content yet and none has run on a device since the spike of 2026-10-12.** **Before the first
