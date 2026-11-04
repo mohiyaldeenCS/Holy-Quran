@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:just_audio/just_audio.dart';
 
 import 'package:holyquran/data/repositories/player_repository.dart';
 import 'package:holyquran/data/services/audio_engine_service.dart';
@@ -12,11 +11,12 @@ import 'package:holyquran/domain/models/playback_plan_builder.dart';
 import 'package:holyquran/domain/models/playback_range.dart';
 import 'package:holyquran/domain/models/playback_rules.dart';
 import 'package:holyquran/domain/models/playback_segment.dart';
-import 'package:holyquran/domain/models/player_state.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/quran_range.dart';
 import 'package:holyquran/domain/models/recitation.dart';
 import 'package:holyquran/domain/models/repeat_mode.dart';
+
+import 'package:just_audio/just_audio.dart';
 
 /// A player whose events the test sends and whose playlist changes finish
 /// only when the test says so, as on a device where a change takes a moment
@@ -168,7 +168,12 @@ final class _FakePlayer extends Fake implements AudioPlayer {
   Future<void> setVolume(double volume) async {}
 
   @override
-  Future<void> dispose() async {}
+  Future<void> dispose() async {
+    await _states.close();
+    await _jumps.close();
+    await _errors.close();
+    await _playbackEvents.close();
+  }
 }
 
 EngineTrack _track(int id, {bool streamed = true}) => EngineTrack(
@@ -540,7 +545,10 @@ void main() {
 
       e.player.release('add');
       await pumpEventQueue();
-      expect(e.player.calls, containsAllInOrder(['add', 'seek 1', 'play']));
+      expect(
+        e.player.calls,
+        containsAllInOrder([startsWith('add'), 'seek 1', 'play']),
+      );
 
       await e.send(ProcessingState.completed);
       await pumpEventQueue();
