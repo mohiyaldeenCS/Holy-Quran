@@ -2,7 +2,7 @@
 // database, settings, installed packs and catalogue under application support
 // of com.example.holyquran, which is also the id of an installed build. Run it
 // only on a device or emulator that holds nothing to keep.
-//
+
 import 'package:flutter_test/flutter_test.dart';
 
 import '../test/flows/copy_scenario.dart';
