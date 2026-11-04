@@ -373,6 +373,68 @@ void main() {
     );
   });
 
+  group('a removal of the queued track that is still in flight', () {
+    test('a completion is reported as the track that ended', () async {
+      final e = await _started();
+      await e.playing(_track(1), next: _track(2));
+      e.player.hold('remove');
+      await e.engine.setNext(null);
+      await pumpEventQueue();
+
+      await e.send(ProcessingState.completed);
+
+      expect(e.ended, [1]);
+    });
+
+    test('a completion ends the playlist whatever the removal does', () async {
+      final e = await _started();
+      await e.playing(_track(1));
+      await e.engine.setNext(_track(2));
+      await pumpEventQueue();
+      e.player.hold('remove');
+      await e.engine.setNext(null);
+      await pumpEventQueue();
+
+      await e.send(ProcessingState.completed);
+      e.player.release('remove');
+      await pumpEventQueue();
+      await e.engine.setNext(_track(3));
+      await pumpEventQueue();
+
+      expect(e.ended, [1]);
+      expect(e.player.calls, ['add 2', 'remove 1']);
+    });
+  });
+
+  group('a successor replaced while the head ends', () {
+    test('only the successor wanted at the end is started', () async {
+      final e = await _started();
+      await e.playing(_track(1));
+      e.player.hold('add');
+      await e.engine.setNext(_track(2));
+      await pumpEventQueue();
+      await e.engine.setNext(null);
+      await e.engine.setNext(_track(3));
+      await e.send(ProcessingState.completed);
+
+      e.player.release('add');
+      await pumpEventQueue();
+      expect(e.player.calls, ['add 2', 'remove 1', 'add 3']);
+
+      e.player.release('add');
+      await pumpEventQueue();
+      expect(e.ended, [1]);
+      expect(e.player.calls, [
+        'add 2',
+        'remove 1',
+        'add 3',
+        'seek 1',
+        'play',
+        'remove 0',
+      ]);
+    });
+  });
+
   group('events of a playlist that is being replaced', () {
     Future<_Engine> replacing() async {
       final e = await _started();
