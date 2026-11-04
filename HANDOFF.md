@@ -65,7 +65,8 @@ repos/mohiyaldeenCS/Holy-Quran/actions/runs/<id>`):
 
 | Run | Branch | Agent, model, cap, key | Purpose |
 | --- | --- | --- | --- |
-| 41779572524 | `agent/p1-37-release-readiness` | `code-reviewer`, opus high, $10, 1 | Final review of #77 (item 1) |
+| 41779572524 | `agent/p1-37-release-readiness` | `code-reviewer`, opus high, $10, 1 | Final review of #77: **done, $1.15**, CHANGES REQUIRED (no blocking; five should-fix gaps in the guards, confirmed by probes and checked by the lead). Report is the last comment on #77 |
+| 41780413238 | `agent/p1-37-release-readiness` | `test-engineer`, sonnet high, $10, 1 | The five should-fix items of that review; may amend D-158 (4) to name the tafsir repository's settings-only exception (lead's decision). Then a short re-review |
 | 41779581640 | `agent/p1-33-recitation-downloads` | `code-reviewer`, opus high, $15, 2 | Final review of #71 (item 2); $15 for a 57-file diff |
 | 41779591923 | `agent/p1-33-recitation-downloads` | `identity-auditor`, sonnet high, $6, 1 | Identity audit of #71's screens; queued behind the review |
 | 41779654656 | `agent/p1-34-critical-path-tests` | `test-engineer`, sonnet high, $15, 2 | The seven findings of #76's review (item 3); may write D-156 |
