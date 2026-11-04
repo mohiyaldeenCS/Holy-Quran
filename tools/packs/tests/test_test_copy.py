@@ -185,6 +185,14 @@ class ScriptGuardTest(ScriptRepoCase):
                 self.assertNotEqual(done.returncode, 0)
                 self.assertIn("inside a Git working tree", done.stderr)
 
+    def test_a_work_folder_under_the_git_folder_is_refused(self):
+        for command in ("pack", "install"):
+            with self.subTest(command=command):
+                done = self.run_script(command, work=self.repo / ".git" / "x")
+                self.assertNotEqual(done.returncode, 0)
+                self.assertIn("inside the repository", done.stderr)
+        self.assertFalse((self.repo / ".git" / "x").exists())
+
     def test_a_work_folder_inside_the_repository_is_not_created(self):
         inside = self.repo / "deep" / "holyquran-test-copy"
         done = self.run_script("pack", work=inside)
@@ -250,7 +258,10 @@ esac
 STUB_FLUTTER = """#!/usr/bin/env bash
 echo "flutter $1" >>"$STUB_LOG"
 case "$1" in
-  test) [ "${STUB_DIRTY:-}" != test ] || echo stray >stray-from-test.txt ;;
+  test)
+    [ "${STUB_DIRTY:-}" != test ] || echo stray >stray-from-test.txt
+    [ -z "${STUB_MODIFY:-}" ] || echo changed >"$STUB_MODIFY"
+    ;;
   build)
     mkdir -p build/app/outputs/flutter-apk build/app/outputs/apk/profile
     for apk in build/app/outputs/flutter-apk/app-profile.apk build/app/outputs/apk/profile/app-profile.apk; do
@@ -333,9 +344,36 @@ class ScriptRunTest(ScriptRepoCase):
         self.assertEqual(self.calls()[-1], "python sign")
         self.assert_no_private_key()
 
+    def test_a_dirty_tree_message_names_one_exact_command_per_file(self):
+        self.make_signed_pack()
+        done = self.run_stubbed("install", STUB_DIRTY="build")
+        self.assertNotEqual(done.returncode, 0)
+        self.assertIn("  git clean -f -- stray-from-build.txt\n", done.stderr)
+        self.assertNotIn("git checkout -- .", done.stderr)
+        self.assertNotIn("git clean -fd", done.stderr)
+
+    def test_the_after_message_lists_modified_and_untracked_files_separately(self):
+        done = self.run_stubbed("pack", STUB_DIRTY="test", STUB_MODIFY="tools/test_copy/provisional_marks.json")
+        self.assertIn("  git checkout -- tools/test_copy/provisional_marks.json\n", done.stderr)
+        self.assertIn("  git clean -f -- stray-from-test.txt\n", done.stderr)
+        self.assertNotIn("git checkout -- .", done.stderr)
+
+    def test_pack_and_install_refuse_a_leftover_private_key(self):
+        self.make_signed_pack()
+        (self.keys / "test-copy.pem").write_text("left", encoding="utf-8")
+        for command in ("pack", "install"):
+            with self.subTest(command=command):
+                done = self.run_stubbed(command)
+                self.assertNotEqual(done.returncode, 0)
+                self.assertIn("test-copy.pem exists", done.stderr)
+                self.assertEqual(self.calls(), [])
+        self.assertTrue((self.keys / "test-copy.pem").exists())
+
     def test_pack_refuses_a_tree_the_tests_changed(self):
         done = self.run_stubbed("pack", STUB_DIRTY="test")
         self.assertNotEqual(done.returncode, 0)
+        self.assertNotIn("python sign", self.calls())
+        self.assertFalse((self.pack / "manifest.json.sig").exists())
         self.assertIn("stray-from-test.txt", done.stderr)
         self.assertIn("the build changed the Git working tree", done.stderr)
         self.assert_no_private_key()

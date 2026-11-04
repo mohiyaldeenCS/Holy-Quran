@@ -49,15 +49,28 @@ python_command() {
 }
 
 require_clean_tree() {
-  local when="$1" changes
+  local when="$1" changes entry path
   changes="$(git status --porcelain)"
   if [ -n "$changes" ]; then
     printf '%s\n' "$changes" >&2
     if [ "$when" = "before" ]; then
       die "the Git working tree is not clean (above). Commit or stash your own work first; the test copy is never built from a dirty tree."
     fi
-    die "the build changed the Git working tree (above). Run 'git checkout -- .' and 'git clean -fd' only for the files listed, and never commit them. Then run this command again."
+    printf 'test_copy: the build changed the Git working tree (above). Undo exactly these files, one by one, and never commit them:\n' >&2
+    while IFS= read -r -d '' entry; do
+      path="${entry:3}"
+      if [ "${entry:0:2}" = "??" ]; then
+        printf '  git clean -f -- %q\n' "$path" >&2
+      else
+        printf '  git checkout -- %q\n' "$path" >&2
+      fi
+    done < <(git status --porcelain -z)
+    die "Then run this command again."
   fi
+}
+
+require_no_private_key() {
+  [ ! -e "$KEYS/test-copy.pem" ] || die "$KEYS/test-copy.pem exists: a private key left by an interrupted run. Delete it (rm \"$KEYS/test-copy.pem\") and run again."
 }
 
 require_outside_git() {
@@ -91,6 +104,7 @@ pack_command() {
   local config="$WORK/build.json" pack
   require_clean_tree before
   require_outside_git "$WORK" "the work folder"
+  require_no_private_key
   python_command
   [ -f "$config" ] || die "$config is missing. Copy tools/test_copy/build.template.json there and fill it in (README, step 3)."
   if grep -q 'FILL_IN' "$config"; then
@@ -115,9 +129,9 @@ pack_command() {
   flutter test --exclude-tags golden \
     test/integrity test/flows/copy_text_flow_test.dart test/ui/core/share \
     --dart-define="HOLYQURAN_PACK_DIR=$pack_native"
+  require_clean_tree after
 
   sign_pack "$pack" "$pack_native" "$font_native" "$marks_native"
-  require_clean_tree after
   printf '\nThe pack is ready and signed: %s\nNext: tools/test_copy/test_copy.sh install\n' "$pack"
 }
 
@@ -142,6 +156,7 @@ install_command() {
   local pack key device
   require_clean_tree before
   require_outside_git "$WORK" "the work folder"
+  require_no_private_key
   pack="$(pack_dir)"
   [ -f "$pack/manifest.json.sig" ] || die "$pack is not a signed pack. Run 'test_copy.sh pack' first."
   [ -f "$KEYS/test-copy.pub.b64" ] || die "$KEYS/test-copy.pub.b64 is missing. Run 'test_copy.sh pack' first."
@@ -149,6 +164,8 @@ install_command() {
   device="/sdcard/Android/data/$APP_ID/files/test_copy/$PACK_ID/$PACK_VERSION"
   command -v adb >/dev/null 2>&1 || die "adb was not found"
 
+  # Git Bash would turn the device paths into Windows paths.
+  export MSYS_NO_PATHCONV=1
   trap remove_apks EXIT
   flutter build apk --profile \
     --dart-define="HOLYQURAN_TEST_PACK=$PACK_ID/$PACK_VERSION" \
@@ -156,14 +173,12 @@ install_command() {
   require_clean_tree after
   [ -f "$APK" ] || die "$APK was not built"
 
-  # Git Bash would turn the device paths into Windows paths.
-  export MSYS_NO_PATHCONV=1
   adb install -r "$(native "$REPO/$APK")"
   adb shell mkdir -p "$device"
   adb push "$(native "$pack")/." "$device/"
   remove_apks
   require_clean_tree after
-  printf '\nInstalled. Open the app: the unapproved-copy banner shows on every screen.\nThe pack is now on the phone at %s.\nClean up: rm -rf "%s/packs" "%s/keys"\n' "$device" "$WORK" "$WORK"
+  printf '\nInstalled. Open the app: once D-163 and D-164 are merged into this branch, the unapproved-copy banner shows on every screen.\nThe pack is now on the phone at %s.\nClean up: rm -rf "%s/packs" "%s/keys"\n' "$device" "$WORK" "$WORK"
 }
 
 case "${1:-}" in
