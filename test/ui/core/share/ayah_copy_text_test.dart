@@ -17,12 +17,13 @@ import 'package:holyquran/ui/core/widgets/quran_text.dart';
 import 'package:holyquran/utils/result.dart';
 
 import '../../../../testing/golden.dart';
+import '../../../integrity/installed_packs.dart';
 import '../../../integrity/pack_integrity_suite.dart';
 import 'share_test_pack.dart';
 
 // SH-01 and SH-05: the copied text is the pack's bytes in the ARB format,
-// for every ayah of the synthetic pack and of a pack given with
-// HOLYQURAN_PACK_DIR, and the copy sheet's preview, laid out, is that text.
+// for every ayah of the synthetic pack, of each text pack under assets/packs/
+// and of a pack given with HOLYQURAN_PACK_DIR, and the copy sheet's preview, laid out, is that text.
 // The format is read from the ARB file, so no template is typed here;
 // nothing of the text is ever printed.
 
@@ -89,17 +90,22 @@ void main() {
     return pack.directory;
   });
 
-  if (givenPackDirectory.isEmpty) {
+  final packs = {
+    ...installedTextPackDirectories(),
+    if (givenPackDirectory.isNotEmpty) givenPackDirectory,
+  };
+  if (packs.isEmpty) {
     test(
-      'the pack given with HOLYQURAN_PACK_DIR',
+      'a pack under $installedPacksRoot/ or the one given with '
+      'HOLYQURAN_PACK_DIR',
       () {},
-      skip: 'no --dart-define=HOLYQURAN_PACK_DIR=<pack-id/version> was given',
+      skip:
+          '$installedPacksRoot/ holds no text pack and no '
+          '--dart-define=HOLYQURAN_PACK_DIR=<pack-id/version> was given',
     );
-  } else {
-    _copiesEveryAyah(
-      'the pack HOLYQURAN_PACK_DIR=$givenPackDirectory',
-      () async => givenPackDirectory,
-    );
+  }
+  for (final directory in packs) {
+    _copiesEveryAyah('the pack $directory', () async => directory);
   }
 
   group('with the synthetic pack', () {

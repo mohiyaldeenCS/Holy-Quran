@@ -1,8 +1,6 @@
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
 
+import 'installed_packs.dart';
 import 'pack_integrity_suite.dart';
 import 'recitation_pack_integrity_suite.dart';
 import 'tafsir_pack_integrity_suite.dart';
@@ -13,28 +11,13 @@ import 'tafsir_pack_integrity_suite.dart';
 // A tafsir or recitation pack is checked against the text pack given with
 // `--dart-define=HOLYQURAN_TEXT_PACK_DIR=<pack-id/version>`, when there is one.
 
-const _packsRoot = 'assets/packs';
 const _givenPack = String.fromEnvironment('HOLYQURAN_PACK_DIR');
 const _givenTextPack = String.fromEnvironment('HOLYQURAN_TEXT_PACK_DIR');
-
-/// Every directory under [_packsRoot] that holds a `manifest.json`.
-List<String> _installedPacks() {
-  final root = Directory(_packsRoot);
-  if (!root.existsSync()) return const [];
-  return [
-    for (final file in root.listSync(recursive: true).whereType<File>())
-      if (file.uri.pathSegments.last == 'manifest.json')
-        file.parent.path.replaceAll(r'\', '/'),
-  ]..sort();
-}
 
 /// The suite of the kind the manifest names; the text suite when it names
 /// none it can read, whose verification then fails.
 void _defineSuite(String description, String directory) {
-  final kind = switch (_manifestJson(directory)) {
-    {'kind': final String kind} => kind,
-    _ => null,
-  };
+  final kind = packManifestKind(directory);
   Future<String?> textPack() async =>
       _givenTextPack.isEmpty ? null : _givenTextPack;
   switch (kind) {
@@ -55,21 +38,14 @@ void _defineSuite(String description, String directory) {
   }
 }
 
-Object? _manifestJson(String directory) {
-  try {
-    return jsonDecode(File('$directory/manifest.json').readAsStringSync());
-  } on Exception {
-    return null;
-  }
-}
-
 void main() {
-  final installed = _installedPacks();
+  final installed = installedPackDirectories();
   if (installed.isEmpty) {
     test(
-      'the packs under $_packsRoot/',
+      'the packs under $installedPacksRoot/',
       () {},
-      skip: '$_packsRoot/ holds no pack yet; the base pack comes from B0.2',
+      skip:
+          '$installedPacksRoot/ holds no pack yet; the base pack comes from B0.2',
     );
   }
   for (final directory in installed) {
