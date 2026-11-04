@@ -608,6 +608,82 @@ void main() {
     });
   });
 
+  group('a pause while the end of an ayah is on its way', () {
+    test('holds the next ayah, and resuming plays it with the one after '
+        'queued', () {
+      fakeAsync((async) {
+        final h = _Harness(async);
+        h.run((p) => p.play(_plan(_span('1:1', '1:3'))));
+        h.engine.log.clear();
+
+        h.engine.finish();
+        h.run((p) => p.pause());
+
+        expect(h.state.ayah, _a('1:2'));
+        expect(h.state.playing, isFalse);
+        expect(h.engine.playing, isFalse);
+        expect(h.engine.log, ['pause', 'next 1-3']);
+
+        h.run((p) => p.resume());
+
+        expect(h.state.playing, isTrue);
+        expect(h.engine.playing, isTrue);
+        expect(h.engine.log.last, 'resume');
+        expect(_brief(h.engine.next!), '1-3');
+      });
+    });
+
+    test('loads the next ayah held when it was not queued', () {
+      fakeAsync((async) {
+        final missing = {'1-2'};
+        final h = _Harness(async, missing: missing);
+        h.run((p) => p.play(_plan(_span('1:1', '1:3'))));
+        expect(h.engine.next, isNull);
+        missing.clear();
+        h.engine.log.clear();
+
+        h.engine.finish();
+        h.run((p) => p.pause());
+
+        expect(h.state.ayah, _a('1:2'));
+        expect(h.state.playing, isFalse);
+        expect(h.engine.log, ['pause', 'load 1-2', 'next 1-3']);
+
+        h.run((p) => p.resume());
+
+        expect(h.state.playing, isTrue);
+        expect(h.engine.heard, ['1-1', '1-2']);
+        expect(_brief(h.engine.next!), '1-3');
+      });
+    });
+
+    test('holds the silence that follows it', () {
+      fakeAsync((async) {
+        final h = _Harness(async);
+        h.run(
+          (p) => p.play(
+            _plan(_span('1:1', '1:2'), silence: const Duration(seconds: 4)),
+          ),
+        );
+
+        h.engine.finish();
+        h.run((p) => p.pause());
+        async.elapse(const Duration(seconds: 30));
+
+        expect(h.state.inSilence, isTrue);
+        expect(h.state.playing, isFalse);
+        expect(h.engine.log, contains('session paused'));
+
+        h.run((p) => p.resume());
+        async.elapse(const Duration(seconds: 4));
+
+        expect(h.state.inSilence, isFalse);
+        expect(h.state.ayah, _a('1:2'));
+        expect(h.engine.heard, ['1-1', '1-2']);
+      });
+    });
+  });
+
   test('a failed activation is reported, and resuming retries it', () {
     fakeAsync((async) {
       final h = _Harness(async);
