@@ -166,15 +166,34 @@ abstract interface class AudioEngineService {
   Future<void> dispose();
 }
 
+/// Makes the handler that owns the player, with [onCommand] as its way out.
+typedef AudioHandlerFactory = Future<AppAudioHandler> Function(
+  void Function(RemoteCommand command) onCommand,
+);
+
+Future<AppAudioHandler> _initAudioService(
+  void Function(RemoteCommand command) onCommand,
+) => AudioService.init(
+  builder: () => AppAudioHandler(onCommand),
+  config: const AudioServiceConfig(
+    androidNotificationChannelId: 'com.example.holyquran.playback',
+  ),
+);
+
 /// [AudioEngineService] over `just_audio` behind `audio_service`. The
 /// player holds the current track and at most the next one, so the next is
 /// preloaded and follows without a gap. Nothing touches a plugin before
 /// [activate].
 final class PluginAudioEngineService implements AudioEngineService {
+  /// [createHandler] is for tests, which run the engine over a fake player;
+  /// the app uses the media session.
+  PluginAudioEngineService({this._createHandler = _initAudioService});
+
   static const _permissionChannel = MethodChannel(
     'holyquran/notification_permission',
   );
 
+  final AudioHandlerFactory _createHandler;
   final _events = StreamController<EngineEvent>.broadcast();
   final List<StreamSubscription<Object?>> _subscriptions = [];
   AppAudioHandler? _handler;
@@ -214,13 +233,8 @@ final class PluginAudioEngineService implements AudioEngineService {
         // The same holds without the channel.
       }
     }
-    final handler = await AudioService.init(
-      builder: () => AppAudioHandler(
-        (command) => _events.add(RemoteCommandReceived(command)),
-      ),
-      config: const AudioServiceConfig(
-        androidNotificationChannelId: 'com.example.holyquran.playback',
-      ),
+    final handler = await _createHandler(
+      (command) => _events.add(RemoteCommandReceived(command)),
     );
     _handler = handler;
     final player = handler.player;
