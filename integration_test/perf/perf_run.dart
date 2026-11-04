@@ -70,18 +70,19 @@ Map<String, Object?> deviceDetails(WidgetTester tester) {
   };
 }
 
-final _processStart = DateTime.now().microsecondsSinceEpoch;
+final _firstResultAt = DateTime.now().microsecondsSinceEpoch;
 final _published = <String, int>{};
 
-/// Names one result across every copy of its log line: the process, the
-/// scenario and how many results of it the process made before.
+/// Names one result across every copy of its log line: the time of the
+/// process's first result, the device, the scenario and how many results of it
+/// the process made before.
 String _nextRunId(String scenario) {
   final repetition = _published.update(
     scenario,
     (count) => count + 1,
     ifAbsent: () => 0,
   );
-  return '$_processStart-$scenario-$repetition';
+  return '$_firstResultAt-$perfDeviceLabel-$scenario-$repetition';
 }
 
 PerfResult resultOf(
