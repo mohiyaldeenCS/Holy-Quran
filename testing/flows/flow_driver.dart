@@ -76,13 +76,18 @@ Future<void> settle(WidgetTester tester, [bool Function()? done]) async {
   await tester.pumpAndSettle();
 }
 
-/// Taps the control with the spoken name [label] and waits for [done].
+/// Taps the control with the spoken name [label], inside [within] when given,
+/// and waits for [done].
 Future<void> tapNamed(
   WidgetTester tester,
   Pattern label, {
+  Finder? within,
   bool Function()? done,
 }) async {
-  final target = find.bySemanticsLabel(label);
+  final named = find.bySemanticsLabel(label);
+  final target = within == null
+      ? named
+      : find.descendant(of: within, matching: named);
   expect(target, findsWidgets, reason: 'no control named "$label"');
   await tester.tap(target.first);
   await settle(tester, done);
