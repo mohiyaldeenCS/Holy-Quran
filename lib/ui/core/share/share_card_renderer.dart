@@ -19,39 +19,39 @@ final class ShareCardRenderer {
 
   final BuildContext context;
 
-  /// The fit test of [card]'s ayah, by laying the card out at each font size
-  /// asked. [card]'s own font size is ignored.
-  ///
-  /// [ShareCard] draws the 4:5 card; the other ratios keep its width and
-  /// paddings with the height from the ratio (D-089, 2), so the ayah's
-  /// column there gains or loses the difference in height.
+  /// The fit test of [card]'s ayah, by laying the card out at each ratio and
+  /// font size asked. [card]'s own ratio and font size are ignored.
   ShareCardFitTest fitTest(ShareCard card) {
-    final excess = <double, _Excess>{};
+    final overflow = <(ShareCardRatio, double), double>{};
     return (ratio, fontSize) {
-      final measured = excess[fontSize] ??= _measure(
+      final excess = overflow[(ratio, fontSize)] ??= _measure(
         ShareCard(
           ayah: card.ayah,
           surahName: card.surahName,
           ayahNumber: card.ayahNumber,
           ayahFontSize: fontSize,
           design: card.design,
+          ratio: ratio,
         ),
       );
-      final gained =
-          ratio.heightFor(measured.card.width) - measured.card.height;
-      return measured.overflow - gained <= precisionErrorTolerance;
+      return excess <= precisionErrorTolerance;
     };
   }
 
-  /// [card] painted as PNG bytes, [_exportWidth] pixels wide. Throws
+  /// [card] painted as PNG bytes, [_exportWidth] pixels wide and as tall as
+  /// its ratio gives. Throws
   /// [ShareCardPaintFailed] when the engine gives no bytes.
   Future<Uint8List> png(ShareCard card) async {
     final offscreen = _Offscreen();
     try {
       offscreen.mount(context, card, paint: true);
       final boundary = offscreen.boundary;
+      // The engine rounds the image's size up, and the 9:16 card's height
+      // times the ratio lands a rounding error above 1920; a hair less keeps
+      // every size at exactly 1080 wide.
       final image = await boundary.toImage(
-        pixelRatio: _exportWidth / boundary.size.width,
+        pixelRatio:
+            _exportWidth / boundary.size.width - precisionErrorTolerance,
       );
       try {
         final bytes =
@@ -69,7 +69,9 @@ final class ShareCardRenderer {
     }
   }
 
-  _Excess _measure(ShareCard card) {
+  /// How much taller than its column the ayah block of [card] is; negative
+  /// when it has room to spare.
+  double _measure(ShareCard card) {
     final offscreen = _Offscreen();
     try {
       offscreen.mount(context, card, paint: false);
@@ -82,19 +84,12 @@ final class ShareCardRenderer {
         bottom = math.max(bottom, data.offset.dy + child.size.height);
         child = data.nextSibling;
       }
-      return (
-        card: offscreen.boundary.size,
-        overflow: bottom - top - column.size.height,
-      );
+      return bottom - top - column.size.height;
     } finally {
       offscreen.dispose();
     }
   }
 }
-
-/// How much taller than its column the ayah block of a 4:5 card of [card]'s
-/// size is; negative when it has room to spare.
-typedef _Excess = ({Size card, double overflow});
 
 /// The vertical flex the card's [QuranText] sits in: the ayah block whose
 /// children must fit its height.
