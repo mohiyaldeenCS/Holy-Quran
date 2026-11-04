@@ -81,7 +81,7 @@ TC="$HOME/holyquran-test-copy"
    --exclude-tags golden test/integrity test/flows/copy_text_flow_test.dart
    test/ui/core/share` against the pack through `--dart-define=HOLYQURAN_PACK_DIR`;
    makes a throwaway Ed25519 key in `$TC/keys`, signs, checks the signature with the
-   public key, and deletes the private key (also when a step fails); checks the Git tree is still clean.
+   public key, and deletes the private key (also when a step fails); checks the Git tree is still clean. If a killed run left `$TC/keys/test-copy.pem`, both `pack` and `install` refuse to run until you delete it.
    Output: `$TC/packs/unapproved-hafs-tanzil/1/` and `$TC/keys/test-copy.pub.b64`.
    - If it stops on a `U+XXXX`, a count or a hash: **report the message to the lead,
      with the code point or number, and stop.** Never edit a source file, the mark
@@ -95,12 +95,12 @@ TC="$HOME/holyquran-test-copy"
    It checks the tree is clean, runs `flutter build apk --profile` (never release) with
    `--dart-define=HOLYQURAN_TEST_PACK=unapproved-hafs-tanzil/1` and
    `--dart-define=HOLYQURAN_TEST_PACK_KEY=<the public key>`, checks the tree is still
-   clean (if the build changed a file it stops: run `git checkout -- .` on the files it
-   lists, and never commit them), installs the APK with `adb install -r`, pushes the
+   clean (if the build changed a file it stops and prints one exact command per file, `git checkout -- <file>` for a
+   modified tracked file or `git clean -f -- <file>` for a new one; run only those, and never commit the files), installs the APK with `adb install -r`, pushes the
    pack to
    `/sdcard/Android/data/com.example.holyquran/files/test_copy/unapproved-hafs-tanzil/1/`,
    and deletes the APK, including Gradle's own copy under
-   `build/app/outputs/apk/profile/`. Open the app: «نسخة تجريبية غير معتمدة» shows on every screen.
+   `build/app/outputs/apk/profile/`. Open the app: once D-163 and D-164 are merged into the branch you are on, «نسخة تجريبية غير معتمدة» shows on every screen.
    Keep the pushed files while you use the copy; the app reads them at every start.
 
    What this does to the phone: USB debugging must be on and the phone authorised for
@@ -116,8 +116,10 @@ TC="$HOME/holyquran-test-copy"
    git status
    ```
    `git status` must still be clean. The pack now exists only on the phone. To remove
-   it there: `adb uninstall com.example.holyquran` (this also erases the copy's
-   bookmarks and settings). Keep `$TC/raw` and `$TC/build.json` if you want to build
+   it there without touching the app's data:
+   `adb shell rm -r /sdcard/Android/data/com.example.holyquran/files/test_copy`.
+   `adb uninstall com.example.holyquran` removes the pack too, but also erases the
+   app's bookmarks, notes and settings. Keep `$TC/raw` and `$TC/build.json` if you want to build
    again; they are outside the repository.
 
 `HQ_TEST_COPY_DIR` replaces `$HOME/holyquran-test-copy` as the work folder; it must be
