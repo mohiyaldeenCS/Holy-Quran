@@ -32,7 +32,11 @@ Future<void> _pump(
             textScaler: TextScaler.linear(textScale),
             padding: EdgeInsets.only(top: statusBar),
           ),
-          child: const SizedBox(width: 320, child: UnapprovedCopyBanner()),
+          // Loose, bounded 320 x 600: the banner must not grow to fill it.
+          child: const Align(
+            alignment: Alignment.topCenter,
+            child: SizedBox(width: 320, child: UnapprovedCopyBanner()),
+          ),
         ),
       ),
     ),
@@ -111,6 +115,47 @@ void main() {
     expect(banner.right - alert.right, AppSpacing.space4);
     expect(alert.top - banner.top, AppSpacing.space2);
     expect(banner.bottom - alert.bottom, AppSpacing.space2 + 1);
+  });
+
+  double contentHeight(WidgetTester tester) {
+    final icon = tester.getSize(find.byType(Icon)).height;
+    final text = tester.getSize(find.text(_l10n.unapprovedTestCopy)).height;
+    return icon > text ? icon : text;
+  }
+
+  testWidgets('is as tall as its content, padding and hairline', (
+    tester,
+  ) async {
+    await _pump(tester);
+    expect(
+      tester.getSize(find.byType(UnapprovedCopyBanner)).height,
+      contentHeight(tester) + AppSpacing.space2 * 2 + 1,
+    );
+    expect(
+      tester.getSize(find.byType(UnapprovedCopyBanner)).height,
+      lessThan(120),
+    );
+  });
+
+  testWidgets('at 200% text on 320 wide the title wraps and grows the strip', (
+    tester,
+  ) async {
+    await _pump(tester);
+    final normal = tester.getSize(find.byType(UnapprovedCopyBanner)).height;
+    final normalText = tester.getSize(find.text(_l10n.unapprovedTestCopy));
+    await _pump(tester, textScale: 2);
+    expect(tester.takeException(), isNull);
+    final text = tester.getSize(find.text(_l10n.unapprovedTestCopy));
+    expect(text.height, greaterThan(normalText.height * 2));
+    final banner = tester.getSize(find.byType(UnapprovedCopyBanner)).height;
+    expect(banner, greaterThan(normal));
+    expect(banner, contentHeight(tester) + AppSpacing.space2 * 2 + 1);
+    final bannerRect = tester.getRect(find.byType(UnapprovedCopyBanner));
+    final textRect = tester.getRect(find.text(_l10n.unapprovedTestCopy));
+    expect(bannerRect.contains(textRect.topLeft), isTrue);
+    expect(bannerRect.bottom - textRect.bottom, AppSpacing.space2 + 1);
+    expect(textRect.left, greaterThanOrEqualTo(bannerRect.left));
+    expect(textRect.right, lessThanOrEqualTo(bannerRect.right));
   });
 
   testWidgets('keeps clear of the status bar and draws under it', (
