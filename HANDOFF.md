@@ -71,7 +71,7 @@ session only, so a run's task is in its log under "Task as given" or the workflo
 | #82 (was #71) P1-33 | **Merged** 2026-11-04 (`bc73b54`) after a short review of the post-merge commits (PASS, $0.30) and green CI on `3b4b671` | none |
 | #87 T2 marking | Done by `ui-builder` ($0.80): `UnapprovedCopyBanner` (IntegrityAlert, «نسخة تجريبية غير معتمدة») above the navigator when `QuranApp(unapprovedCopy: true)`; D-164; eleven P1-33 descriptions under D-166. All 197 existing goldens unchanged; the four new images are being made | CI goldens 41861710692; then the lead looks at the images, an identity audit and a code review |
 | #86 NF-14 guard follow-up | Done ($0.41); review ($0.18) PASS WITH NITS: the name-based database-handle check can be bypassed (renaming, drift's inherited `customSelect`/`customStatement`/`transaction`), so the lead words D-158 (4) honestly after the merge and the extra pattern goes to the next small task; `clarity_web`, `clarity_support` unmatched | CI, then merge |
-| #80 AU-01 | Exhaustive interleaving test added ($3.04). Fourth review ($2.56): CHANGES REQUIRED. just_audio drops advances during a seek, which the fake did not model; with it the engine fails 72 orderings, and a plain seek as an ayah ends highlights the wrong ayah then plays the next twice (a bug already on `main`). The invariants missed an ignored pause and a double play. The lead chose one last comprehensive round, on opus: advances detected from the current index, `_seeking` in the fake, stronger invariants, and the repository's pause-while-an-end-is-in-flight race fixed as the reviewer specified | 41849625110: `audio-builder` opus, $15, key 1. Then a fifth review |
+| #80 AU-01 | Last round on opus ($14.63, near its $15 cap: `6cc4b87`, `0b23445`, `cf278c5`): advances hidden by a seek caught (`_catchUp`), the repository's paused-end race closed, a stricter walk (eight scenarios, 14,468 orderings, 0 failures, ~35 s) that also found and fixed a double play. The lead merged `main` (`533e01e`; analyze clean, 1,444 data/config/flow/guard tests pass locally) | 41867564788: fifth review, `code-reviewer` opus, $10, key 1 |
 | #78 P1-36 | **Merged** 2026-11-04 (`6f57d75`) after a third review (PASS WITH NITS, $1.09; seven findings closed and checked by mutation) and green CI | none |
 | #85 P1-36 follow-up | Done ($0.36); review ($0.16) PASS WITH NITS; the lead merged `main` (`e7fde89`; D-157 from the branch, D-158 from `main`; analyze and 107 perf tests clean locally) | CI, then merge |
 | #81 records | **Merged** 2026-11-04 (`a412d79`) after two reviews (sonnet, $0.26) and green CI: D-162, `docs/plans/TEST_COPY.md` | none |
@@ -87,8 +87,7 @@ shells or Monitor, and repeat the whole report if woken after writing it.
 **`action_required` CI runs.** Each agent push starts two CI runs: the `workflow_dispatch` check,
 which runs, and a `pull_request` run that waits for approval. The dispatch run is the check of
 record for the head.
-**Spend this session**, by the SDK's estimates: about $14.1 for fourteen finished runs, by
-13:30 UTC.
+**Spend this session**, by the SDK's estimates: about $77 by 17:00 UTC (the largest single run: #80's last round, $14.63). The owner asked to be told before the total passes $100.
 
 `main` holds 37 of 40 tasks (18 partial); see the status file. **No app build has real
 content yet and none has run on a device since the spike of 2026-10-12.** **Before the first
