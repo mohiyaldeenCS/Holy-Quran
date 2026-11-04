@@ -23,4 +23,10 @@ void main() {
 
     expect(back.runId, result.runId);
   });
+
+  testWidgets('the run id carries the device label', (tester) async {
+    final result = resultOf(tester, 'scroll', const {});
+
+    expect(result.runId, contains('-$perfDeviceLabel-scroll-'));
+  });
 }

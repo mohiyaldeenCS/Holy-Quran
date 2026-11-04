@@ -224,7 +224,9 @@ void main() {
   });
 
   group('a target that failed after a scroll', () {
-    // One install for both tests, as two processes of a phone share one.
+    // One install for all tests, as two processes of a phone share one. The
+    // tests are in pairs: the second of a pair reads what the teardown of the
+    // first left, which is what it checks, so they run in this order.
     late Directory install;
     const channel = MethodChannel('plugins.flutter.io/path_provider');
 
@@ -298,6 +300,50 @@ void main() {
         support: install,
       );
       expect(perf.packReused, isTrue, reason: 'the install of the first test');
+
+      final result = await scenarios.coldStart(tester, perf, saved: saved);
+
+      expect(result.details['shown'], '$saved');
+    });
+
+    testWidgets('a launch that never shows the reader still restores', (
+      tester,
+    ) async {
+      final saved = scenarios.middleOfLongSurah(_size);
+      final perf = await preparePerfApp(
+        tester,
+        size: _size,
+        seed: QuranAddress('hafs', perfLongSurah, 1),
+        reseed: true,
+        support: install,
+      );
+
+      Object? thrown;
+      try {
+        await launch(
+          tester,
+          perf,
+          showing: saved,
+          leaveSavedAt: saved,
+          timeout: const Duration(seconds: 1),
+        );
+      } on TimeoutException catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown, isA<TimeoutException>());
+    });
+
+    testWidgets('does not leave the cold start after it without its ayah', (
+      tester,
+    ) async {
+      final saved = scenarios.middleOfLongSurah(_size);
+      final perf = await preparePerfApp(
+        tester,
+        size: _size,
+        seed: QuranAddress('hafs', perfLongSurah, 1),
+        support: install,
+      );
 
       final result = await scenarios.coldStart(tester, perf, saved: saved);
 

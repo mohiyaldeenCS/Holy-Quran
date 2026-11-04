@@ -27,6 +27,10 @@ String _read(String path) => File(path).readAsStringSync();
 bool _hasColourLiteral(String xml) =>
     RegExp(r'''["'>]\s*#[0-9A-Fa-f]{3,8}\s*["'<]''').hasMatch(xml);
 
+/// Whether [xml] takes a colour from the platform (`@android:color/white`)
+/// instead of from the brand resource.
+bool _hasSystemColour(String xml) => RegExp(r'@android:color/').hasMatch(xml);
+
 Map<String, String> _attributes(String element) => {
   for (final match in RegExp(
     r'([\w:-]+)="([^"]*)"',
@@ -218,6 +222,36 @@ void main() {
             file.path,
       ];
       expect(offenders, isEmpty);
+    });
+
+    test('no resource takes a colour from the platform', () {
+      final offenders = [
+        for (final file in Directory(_res).listSync(recursive: true))
+          if (file is File &&
+              file.path.endsWith('.xml') &&
+              _hasSystemColour(file.readAsStringSync()))
+            file.path,
+      ];
+      expect(offenders, isEmpty);
+    });
+
+    test('the system-colour scan sees every way to name one', () {
+      const system = [
+        '<vector android:fillColor="@android:color/white"/>',
+        '<item name="android:statusBarColor">@android:color/black</item>',
+        '<item name="android:windowBackground">@android:color/black</item>',
+      ];
+      for (final xml in system) {
+        expect(_hasSystemColour(xml), isTrue, reason: xml);
+      }
+      const clean = [
+        '<item name="android:statusBarColor">@color/brand_emerald_700</item>',
+        '<item name="android:windowBackground">@drawable/launch</item>',
+        '<item name="android:windowBackground">@android:drawable/x</item>',
+      ];
+      for (final xml in clean) {
+        expect(_hasSystemColour(xml), isFalse, reason: xml);
+      }
     });
 
     test('the literal scan sees attribute values and element text', () {
