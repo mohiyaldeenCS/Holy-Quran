@@ -13,7 +13,16 @@ from hqpack.build import build_pack
 from hqpack.errors import PackError
 from hqpack.verify import Report, verify_pack
 
-from tests.build_support import FONT, OTHER_FONT, BuildCase, suras_with, surahs_with_ayah, surahs_with_basmala
+from tests.build_support import (
+    FONT,
+    OTHER_FONT,
+    TEST_COPY_ID,
+    BuildCase,
+    hafs_shaped_profiles,
+    suras_with,
+    surahs_with_ayah,
+    surahs_with_basmala,
+)
 
 
 class SyntheticBuildTest(BuildCase):
@@ -237,6 +246,114 @@ class RefusalTest(BuildCase):
         refused = Report(problems=["synthetic problem"], counts=None, signed=False)
         with mock.patch.object(build, "verify_pack", return_value=refused):
             self.assert_refused("fails verification: synthetic problem")
+
+
+class UnapprovedTestCopyTest(BuildCase):
+    """D-165: the mode skips the KFGQPC refusal and nothing else."""
+
+    def source_config(self, text_xml=None, **overrides):
+        overrides.setdefault("riwaya", "hafs")
+        overrides.setdefault("id", TEST_COPY_ID)
+        overrides.setdefault("reviews", [])
+        return self.write_source(text_xml=text_xml, **overrides)
+
+    def assert_refused(self, pattern, config, out=None, **kwargs):
+        out = out or self.out
+        with self.assertRaises(PackError) as caught:
+            build_pack(config, FONT, out, **kwargs)
+        self.assertRegex(str(caught.exception), pattern)
+        self.assert_safe_message(str(caught.exception))
+        self.assertEqual(sorted(out.iterdir()) if out.exists() else [], [])
+
+    def test_a_hafs_shaped_build_succeeds_outside_a_git_tree(self):
+        with hafs_shaped_profiles():
+            result = build_pack(self.source_config(), FONT, self.out, unapproved=True)
+        self.assertEqual(result.directory, self.out / TEST_COPY_ID / "1")
+        manifest = json.loads((result.directory / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual((manifest["id"], manifest["riwaya"], manifest["reviews"]), (TEST_COPY_ID, "hafs", []))
+        self.assertEqual(verify_pack(result.directory).problems, [])
+        self.assertEqual(sorted(p.name for p in result.directory.iterdir()), ["manifest.json", "text.sqlite"])
+
+    def test_the_text_is_stored_byte_for_byte(self):
+        with hafs_shaped_profiles():
+            pack = build_pack(self.source_config(), FONT, self.out, unapproved=True).directory
+        with sqlite3.connect(pack.joinpath("text.sqlite").as_uri() + "?mode=ro&immutable=1", uri=True) as db:
+            ayat = db.execute("SELECT surah, number, CAST(text AS BLOB) FROM ayah ORDER BY surah, number").fetchall()
+        expected = [
+            (s, a, text.encode("utf-8"))
+            for s, (_, _, texts) in enumerate(synthetic.SYNTHETIC_SURAHS, 1)
+            for a, text in enumerate(texts, 1)
+        ]
+        self.assertEqual(ayat, expected)
+
+    def test_without_the_flag_the_same_pack_is_still_refused(self):
+        with hafs_shaped_profiles():
+            self.assert_refused("exactly when it is built as an unapproved test copy", self.source_config())
+            self.assert_refused("KFGQPC", self.source_config(id="base-hafs-tanzil"))
+
+    def test_the_flag_without_the_prefix(self):
+        with hafs_shaped_profiles():
+            self.assert_refused(
+                "exactly when it is built as an unapproved test copy",
+                self.source_config(id="base-hafs-tanzil"),
+                unapproved=True,
+            )
+
+    def test_the_flag_for_a_riwaya_other_than_hafs(self):
+        self.assert_refused(
+            "hafs only, not synthetic",
+            self.write_source(id="synthetic-text"),
+            unapproved=True,
+        )
+        self.assert_refused(
+            "riwaya warsh has no profile",
+            self.source_config(riwaya="warsh", id="unapproved-warsh"),
+            unapproved=True,
+        )
+
+    def test_reviews_must_be_empty(self):
+        review = [{"reviewer": "synthetic reviewer", "date": "2026-01-01", "scope": "synthetic"}]
+        with hafs_shaped_profiles():
+            self.assert_refused("no reviews", self.source_config(reviews=review), unapproved=True)
+
+    def test_an_output_inside_a_git_working_tree(self):
+        for kind in ("folder", "file"):
+            with self.subTest(kind=kind):
+                tree = self.work / ("tree-" + kind)
+                tree.mkdir()
+                if kind == "folder":
+                    (tree / ".git").mkdir()
+                else:
+                    (tree / ".git").write_bytes(b"gitdir: elsewhere\n")
+                with hafs_shaped_profiles():
+                    self.assert_refused(
+                        "inside a Git working tree",
+                        self.source_config(),
+                        out=tree / "deep" / "out",
+                        unapproved=True,
+                    )
+                self.assertFalse((tree / "deep").exists())
+
+    def test_the_git_check_follows_symbolic_links(self):
+        tree = self.work / "tree"
+        (tree / ".git").mkdir(parents=True)
+        link = self.work / "link"
+        try:
+            link.symlink_to(tree, target_is_directory=True)
+        except OSError:
+            self.skipTest("symbolic links are not available")
+        with hafs_shaped_profiles():
+            self.assert_refused("inside a Git working tree", self.source_config(), out=link / "out", unapproved=True)
+
+    def test_every_other_check_still_runs_on_the_real_hafs_profile(self):
+        self.assert_refused("the text file has 3 surahs, not 114", self.source_config(), unapproved=True)
+
+    def test_every_other_check_still_runs_on_a_hafs_shaped_profile(self):
+        config = self.source_config(
+            text_xml=synthetic.synthetic_text_xml(notice="\nSynthetic notice\nVersion 2\n")
+        )
+        with hafs_shaped_profiles():
+            self.assert_refused("does not name Version 1", config, unapproved=True)
 
 
 if __name__ == "__main__":

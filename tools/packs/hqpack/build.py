@@ -42,11 +42,15 @@ class BuildResult:
     surah_sha256: dict
 
 
-def build_pack(config_path, font_path, out_root):
+def build_pack(config_path, font_path, out_root, unapproved=False):
+    """Builds the pack; `unapproved` builds a test copy (D-165), the one case
+    that skips the refusal below and nothing else."""
     sqlite_version = database.require_sqlite()
     config = read_build_config(config_path)
-    profile = profile_for(config.riwaya, config.pack_id)
-    if profile.needs_kfgqpc_comparison:
+    profile = profile_for(config.riwaya, config.pack_id, unapproved)
+    if unapproved:
+        _check_test_copy(config, out_root)
+    elif profile.needs_kfgqpc_comparison:
         raise PackError(
             "riwaya %s needs the character-by-character comparison with the "
             "KFGQPC text and the page-list comparison (PRD 9.4, "
@@ -140,6 +144,29 @@ def build_pack(config_path, font_path, out_root):
         manifest_sha256=digest.sha256_bytes(manifest_bytes),
         surah_sha256=surah_sha256,
     )
+
+
+def _check_test_copy(config, out_root):
+    if config.reviews:
+        raise PackError(
+            "an unapproved test copy has no reviews: a review would present "
+            "it as approved (reviews must be empty)"
+        )
+    tree = _git_tree(out_root)
+    if tree is not None:
+        raise PackError(
+            "the output %s is inside a Git working tree; an unapproved test "
+            "copy is written outside every repository" % out_root
+        )
+
+
+def _git_tree(path):
+    """The nearest directory above `path` that holds `.git` (a folder, or a file in a worktree or submodule), else None."""
+    here = Path(os.path.realpath(str(path)))
+    for directory in (here, *here.parents):
+        if os.path.lexists(str(directory / ".git")):
+            return directory
+    return None
 
 
 def _source_bytes(source):
