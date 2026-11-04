@@ -231,7 +231,12 @@ final class EnginePlayerRepository extends PlayerRepository {
     notifyListeners();
   }
 
-  Future<void> _start(PlaybackPlan plan, int startAt) async {
+  /// A plan that starts [paused] readies its first segment for [resume].
+  Future<void> _start(
+    PlaybackPlan plan,
+    int startAt, {
+    bool paused = false,
+  }) async {
     final rules =
         _rules?.handOver(plan, startAt: startAt) ??
         PlaybackRules(plan, clock: _now, startAt: startAt);
@@ -268,35 +273,43 @@ final class EnginePlayerRepository extends PlayerRepository {
       }
       _activated = true;
     }
-    await _apply(rules.start());
+    await _apply(rules.start(), paused: paused);
   }
 
-  Future<void> _handle(PlaybackInput input) async {
+  /// [paused] when the user paused while the end that [input] reports was
+  /// on its way: what follows starts paused.
+  Future<void> _handle(PlaybackInput input, {bool paused = false}) async {
     final rules = _rules;
     if (rules == null) return;
-    await _apply(rules.handle(input));
+    await _apply(rules.handle(input), paused: paused);
   }
 
-  Future<void> _apply(List<PlaybackOutput> outputs) async {
+  Future<void> _apply(
+    List<PlaybackOutput> outputs, {
+    bool paused = false,
+  }) async {
     for (final output in outputs) {
       switch (output) {
         case SegmentStarted(:final segment, :final index, :final serial):
-          await _segmentStarted(segment, index, serial);
+          await _segmentStarted(segment, index, serial, paused: paused);
         case AyahStarted(:final ayah):
           _update(_state.copyWith(ayah: ayah));
         case SilenceStarted(:final duration):
           await _startSilence(duration);
         case PlaybackStopped(:final reason, :final fade):
-          await _stopped(reason, fade: fade);
+          await _stopped(reason, fade: fade, paused: paused);
       }
     }
   }
 
+  /// A segment that starts [paused] is readied for [resume] without
+  /// playing.
   Future<void> _segmentStarted(
     PlaybackSegment segment,
     int index,
-    int serial,
-  ) async {
+    int serial, {
+    bool paused = false,
+  }) async {
     _serial = serial;
     _cancelSilence();
     _update(
@@ -304,7 +317,7 @@ final class EnginePlayerRepository extends PlayerRepository {
         segment: segment,
         segmentIndex: index,
         position: Duration.zero,
-        playing: true,
+        playing: !paused,
         inSilence: false,
       ),
     );
@@ -313,13 +326,18 @@ final class EnginePlayerRepository extends PlayerRepository {
     _preload = null;
     if (ahead != null && identical(ahead.segment, segment)) {
       _playingTrack = ahead.track.id;
-      if (ahead.held) await _engine.resume();
+      if (ahead.held && !paused) await _engine.resume();
       await _refreshNext();
     } else {
       final track = await _trackFor(segment);
       if (track == null) return;
       _playingTrack = track.id;
-      await _engine.play(track, next: await _nextTrack());
+      if (paused) {
+        await _engine.load(track);
+        await _refreshNext();
+      } else {
+        await _engine.play(track, next: await _nextTrack());
+      }
     }
     await _announce(segment.address.surah);
   }
@@ -413,6 +431,7 @@ final class EnginePlayerRepository extends PlayerRepository {
       _runSilence(duration);
     } else {
       _silenceLeft = duration;
+      await _engine.setSessionPlaying(false);
     }
     final upcoming = _rules!.upcoming;
     if (upcoming == null) return;
@@ -429,7 +448,10 @@ final class EnginePlayerRepository extends PlayerRepository {
     _silenceEnds = _now().add(duration);
     _silenceTimer = Timer(
       duration,
-      () => unawaited(_serially(() => _handle(SilenceEnded(serial)))),
+      // A pause handled after the timer fired holds what follows.
+      () => unawaited(
+        _serially(() => _handle(SilenceEnded(serial), paused: !_state.playing)),
+      ),
     );
   }
 
@@ -451,7 +473,13 @@ final class EnginePlayerRepository extends PlayerRepository {
     );
   }
 
-  Future<void> _stopped(StopReason reason, {required bool fade}) async {
+  /// [paused] when the user paused while the end that stopped the plan was
+  /// on its way: the next queued plan then starts paused.
+  Future<void> _stopped(
+    StopReason reason, {
+    required bool fade,
+    bool paused = false,
+  }) async {
     _cancelSilence();
     _sleepAlarm?.cancel();
     _preload = null;
@@ -469,7 +497,7 @@ final class EnginePlayerRepository extends PlayerRepository {
     if (reason == StopReason.endOfPlan && _state.queue.isNotEmpty) {
       final [next, ...rest] = _state.queue;
       _update(_state.copyWith(queue: rest));
-      return _start(next, 0);
+      return _start(next, 0, paused: paused);
     }
     if (fade) {
       await _engine.setNext(null);
@@ -645,7 +673,7 @@ final class EnginePlayerRepository extends PlayerRepository {
         _engineAhead = _preload;
         _preload = null;
         _playingTrack = _engineAhead?.track.id;
-        await _handle(SegmentEnded(_serial));
+        await _handle(SegmentEnded(_serial), paused: !_state.playing);
       case TrackEnded():
         break;
       case PositionChanged(:final position):
