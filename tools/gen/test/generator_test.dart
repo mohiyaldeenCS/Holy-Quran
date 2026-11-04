@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import '../lib/android_colors_writer.dart';
 import '../lib/generator.dart';
 import '../lib/icons_reader.dart';
 import '../lib/project_icons_reader.dart';
@@ -47,7 +48,12 @@ void main() {
   test('two runs over the real sources give identical bytes', () async {
     final first = await generateAll(_repoRoot);
     final second = await generateAll(_repoRoot);
-    expect(first.keys, [tokensOutputPath, rampsOutputPath, iconsOutputPath]);
+    expect(first.keys, [
+      tokensOutputPath,
+      rampsOutputPath,
+      iconsOutputPath,
+      androidColorsOutputPath,
+    ]);
     expect(second, first);
   });
 
@@ -70,8 +76,15 @@ void main() {
 
   test('every output starts with the generated-file header', () async {
     final outputs = await generateAll(_repoRoot);
-    for (final content in outputs.values) {
-      expect(content, startsWith('// GENERATED CODE. DO NOT EDIT BY HAND.\n'));
+    for (final MapEntry(key: path, value: content) in outputs.entries) {
+      // An XML resource carries the header inside a comment.
+      final opening = path.endsWith('.xml')
+          ? '<?xml version="1.0" encoding="utf-8"?>\n<!-- '
+          : '// ';
+      expect(
+        content,
+        startsWith('${opening}GENERATED CODE. DO NOT EDIT BY HAND.\n'),
+      );
       expect(content, contains('dart run tools/gen/bin/generate.dart'));
     }
   });
@@ -85,6 +98,7 @@ void main() {
         tokensOutputPath,
         rampsOutputPath,
         iconsOutputPath,
+        androidColorsOutputPath,
       ]);
       expect(File('${root.path}/$tokensOutputPath').existsSync(), isFalse);
     });
