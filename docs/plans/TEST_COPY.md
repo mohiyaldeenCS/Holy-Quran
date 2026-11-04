@@ -102,7 +102,7 @@ final class TestCopy {
 
 **Guards in the script (`tools/test_copy/test_copy.sh`, content-engineer):**
 - It refuses to run unless `git status --porcelain` is empty.
-- It runs the same check after `flutter build`. If the build rewrote anything (for example `pubspec.lock` on 3.47.9 against the CI pin), it stops and tells the owner to run `git checkout -- .`, never to commit.
+- It runs the same check after `flutter build`. If the build rewrote anything (for example `pubspec.lock` on 3.47.9 against the CI pin), it stops and prints one exact command per changed file (`git checkout -- <file>` or `git clean -f -- <file>`, never a whole-tree command; #84), never to commit.
 - It refuses a pack, key or output path inside the Git working tree (`git -C <path> rev-parse --show-toplevel` succeeds).
 - It deletes `build/app/outputs/flutter-apk/app-profile.apk*` after `adb install`.
 

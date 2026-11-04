@@ -10,7 +10,7 @@ corrected first.
 | --- | --- |
 | Updated | 2026-11-04 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **37 merged**: P1-01 to P1-32, P1-34, P1-37 to P1-40, of which 18 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-32, P1-34, P1-37, P1-40). **Open pull requests**: P1-33 (#71, being fixed), P1-36 (#78, being finished), the audio race (#80, being fixed). P1-35 not started. The composition root is wired (#72, D-151). **No APK has been run on a device since the spike of 2026-10-12, and no real content is in the app** |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **39 merged**: P1-01 to P1-34, P1-36 to P1-40, of which 20 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-34, P1-36, P1-37, P1-40). **Open pull request**: the audio race (#80, last round). P1-35 not started. The composition root is wired (#72, D-151). **No APK has been run on a device since the spike of 2026-10-12, and no real content is in the app** |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/*`), worked by agents in GitHub Actions (D-159) |
 | Last session | 2026-11-04, cloud session on the owner's new account, managing agents in Actions (D-159). **Read `HANDOFF.md` first**: it holds the queue, the runs out, how to start agents and his rules |
@@ -360,6 +360,41 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   (the whole harness, 21 files), P1-37 `1032347`. P1-34 lost nothing; P1-35 had written
   nothing. 27 unreachable commits of 2026-10-27 to 2026-10-29, stashes of finished work,
   are kept on GitHub under `refs/archive/2026-10-orphans/`.
+- **Follow-ups merged (#85, #86).** #85 closes the third review's notes on the performance harness
+  (a launch that fails before the reader shows restores the saved position; run ids carry the device
+  label). #86 closes the re-review's notes on the NF-14 guards: a settings stop file's re-exports are
+  followed, a settings-only file may not take the database out of a DAO (a name-based scan, D-158
+  (4)), Clarity, Appodeal and Bugfender wrappers by their pub.dev names, `@android:color/` refused.
+  Left for a later small task: drift's inherited `custom*` and `transaction` in that scan;
+  `clarity_web`, `clarity_support`.
+- **P1-33 merged (#82, which replaced #71), partial.** Recitation downloads by surah, juz or the
+  whole mushaf with the quality choice (AU-13, AU-14, D-155): one shared `DownloadService` for the
+  installer and the recitations, every file checked by SHA-256 and size before its final name, a
+  relaunch that never re-issues a stopped task id, deleting refused while a job of the pack runs,
+  catalogue paths confined; the player prefers the chosen quality on disk, then another on disk,
+  then streams. Surah names label the buttons through `SurahName.labelled` (D-160); delete sheets go
+  through the shared `sheetRoute`. The wording of `resourceStop`, `recitationDownloadWhole` and
+  `recitationQualityKbps` approved by the owner (D-162 (2)). Partial: no real recitation yet (D-167,
+  rights form pending); OF-03's storage bar; the reciter's own basmala and isti'adha find no file; a
+  real download, resume after a kill and Wi-Fi only on a device. Reviewed by `code-reviewer` (opus)
+  twice and once more after the merges (sonnet), `identity-auditor` twice. Follow-ups: the track's
+  spoken value untested; `SurahName.labelled`'s `template` can leak the name.
+- **P1-36 merged (#78), partial.** The performance harness (D-157): cold start to the saved ayah,
+  a 15,000 px scroll of the longest surah, offline search, and the word and ayah sheets, each
+  publishing JSON; `flutter drive --profile` with a `PERF_DEVICE` label; failures published and
+  counted as misses, minimum run counts (INCOMPLETE below them), figures only from a labelled phone
+  in profile or release, devices judged apart. **A phone run rewrites the app's data** (README
+  warning, `pm clear` step). Partial: every budget is a pending human check on the two reference
+  devices; page turning, NF-04, NF-09 and the whole-process cold start are not measured. Reviewed by
+  `code-reviewer` (opus) three times; a follow-up closes the third review's S-1 (a launch that fails
+  before the reader shows leaves the saved position moved) and notes.
+- **The test copy's pipeline merged (#83, D-165).** `tools/packs` builds a Hafs pack marked as an
+  unapproved test copy (id prefix `unapproved-`, no reviews, output outside any Git tree), skipping
+  only the KFGQPC comparison, with a provisional mark table from the Unicode chart (D-162 (13)).
+  `tools/test_copy/` holds the owner's script (`pack`, `install`: throwaway key removed on every
+  exit, both APK copies deleted, dirty-tree checks, profile only) and his steps. Reviewed twice by
+  `code-reviewer` (opus); the follow-up #84 that closes the re-review's notes is merged. Nothing runs end to end until T1 and T2 (D-163,
+  D-164) are merged; the real build is on his machine only.
 - **P1-37 merged (#77), partial.** Android release readiness (M1.11): adaptive launcher icon and
   monochrome layer from the logo SVGs, launch screen in `emerald-700` with the lockup, bars in
   all four style folders, native colours generated by `tools/gen/`, and the NF-14 privacy guard
@@ -380,12 +415,9 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   play-range and download entries stay skipped on a device (no recitation file, no host).
   Reviewed by `code-reviewer` (opus) twice; nits left: one comment line over 80 characters
   in `test/ui/core/share/ayah_copy_text_test.dart:26`.
-- Open, in `HANDOFF.md`'s order: **P1-33** (#71): its final review and identity audit found a
-  blocking `SurahName` misuse, a download that can hang after a relaunch and a sheet that
-  ignores reduce-motion; a data run then a UI run are fixing them. **AU-01** (#80): the
-  stall between ayat was real and is fixed (D-161); its review found a regression in one
-  interleaving, being fixed. **P1-36** (#78): being finished (merge of `main`, the font on a
-  device, the acceptance list). **P1-35**: not started; its audit was interrupted.
+- Open, in `HANDOFF.md`'s order: **AU-01** (#80): the stall between ayat fixed with an exhaustive
+  interleaving test, in its fifth review. **T2** (#87): the unapproved test copy's banner (D-164), a
+  sizing fix after its audit. **P1-35**: not started; its audit was interrupted.
 - Local checks use `C:/SDK/flutter`, Flutter 3.47.9 (D-154); no second SDK is kept.
 
 Agent runs so far (estimates from the SDK): about $160 across both keys for M0.4
@@ -417,6 +449,10 @@ never bundled, and no APK holds it); the stand-mode button «وضع الحامل
 their permission conditions (O-04, stream B). Item 5 of the queue became #80 (D-161).
 Follow-up for B0.2 found by the plan: the bundled base pack's signature is not enforced in
 release builds, though D-108 says it must be.
+
+Recitations (D-167): the owner chose four, Minshawi and Abdul Basit, murattal and mujawwad,
+all word-timed, replacing the PRD's suggested five; he fills `docs/content/RECITATION_RIGHTS_FORM.md`
+from his papers (part of B0.1). Stream B then builds the recitation packs and measures drift.
 
 Branch deletion (D-162 (11)), for the owner to run on his machine, since the cloud session's
 proxy refuses it. It deletes only remote branches wholly contained in `main`:

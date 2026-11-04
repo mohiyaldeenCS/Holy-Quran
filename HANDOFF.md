@@ -68,36 +68,43 @@ session only, so a run's task is in its log under "Task as given" or the workflo
 | --- | --- | --- |
 | #77 P1-37 | **Merged** 2026-11-04 (`1b4fa07`) after a re-review (PASS WITH NITS, $0.74) and green CI on `53d4d51`. Follow-up for the re-review's should-fix and notes: task text ready, starts when a slot frees (new branch `agent/nf-14-guard-followup`) | none |
 | #76 P1-34 | **Merged** 2026-11-04 (`a917862`) after a re-review (PASS WITH NITS, $0.88) and green CI on `e5caf8c` | none |
-| #71 P1-33 | Review ($2.29): blocking, a surah name leaves `SurahName` as a `String` in five button labels; should-fix, a relaunch can re-issue a stopped task id so a download never finishes (reproduced), two test gaps. Identity audit ($0.52): the delete sheet bypasses `SheetPage` (motion, reduce-motion). The owner chose fix-then-merge (D-162 (1)) | 41827857238: data findings, `data-builder` sonnet, $12, key 2; then 41827908560 (queued): UI findings, the `SurahName` label as D-160 and the three approved strings, `ui-builder` sonnet, $12, key 2. Then a re-review |
-| #80 AU-01 (item 5) | The stall was real and is fixed (`3317625`, `eba0735`, $2.07; D-161; 11 of the 19 new tests fail on main's code). Review ($1.39): CHANGES REQUIRED. B1, a completion during a pending removal is reported as the removed track (`_tracks.last`), a stall reachable by turning on stop-after at an ayah's end; S1, a replaced successor can start; both proved | 41829373362: fix, `audio-builder` sonnet, $10, key 1. Then a re-review |
-| #78 P1-36 | Being finished: merge `main` (keep `flutter_driver` for `flutter drive`, amend D-157), the font from the bundle on a device, the acceptance list | 41828815745: `test-engineer` sonnet, $15, key 1. Then a review |
+| #82 (was #71) P1-33 | **Merged** 2026-11-04 (`bc73b54`) after a short review of the post-merge commits (PASS, $0.30) and green CI on `3b4b671` | none |
+| #87 T2 marking | Done by `ui-builder` ($0.80): `UnapprovedCopyBanner` (IntegrityAlert, «نسخة تجريبية غير معتمدة») above the navigator when `QuranApp(unapprovedCopy: true)`; D-164; eleven P1-33 descriptions under D-166. All 197 existing goldens unchanged; the four new images are being made | CI goldens 41861710692; then the lead looks at the images, an identity audit and a code review |
+| #86 NF-14 guard follow-up | **Merged** 2026-11-04 (`695c5c8`) after a review (PASS WITH NITS) and green CI; D-158 (4) now says the database-handle check is name-based | none |
+| #80 AU-01 | Last round on opus ($14.63, near its $15 cap: `6cc4b87`, `0b23445`, `cf278c5`): advances hidden by a seek caught (`_catchUp`), the repository's paused-end race closed, a stricter walk (eight scenarios, 14,468 orderings, 0 failures, ~35 s) that also found and fixed a double play. The lead merged `main` (`533e01e`; analyze clean, 1,444 data/config/flow/guard tests pass locally) | 41867564788: fifth review, `code-reviewer` opus, $10, key 1 |
+| #78 P1-36 | **Merged** 2026-11-04 (`6f57d75`) after a third review (PASS WITH NITS, $1.09; seven findings closed and checked by mutation) and green CI | none |
+| #85 P1-36 follow-up | **Merged** 2026-11-04 (`ad545cc`) after a review (PASS WITH NITS) and green CI | none |
+| #81 records | **Merged** 2026-11-04 (`a412d79`) after two reviews (sonnet, $0.26) and green CI: D-162, `docs/plans/TEST_COPY.md` | none |
+| #83 T3 test copy | **Merged** 2026-11-04 (`9ca8b65`) after two reviews (the second PASS WITH NITS, $0.98; the first re-review run died on an API overload) and green CI. Its notes (S1: the dirty-tree message suggested a whole-tree `git clean -fd`; a killed run's key unnoticed; the pack check after signing) go to the follow-up below, which must merge before the owner uses the script | none |
+| #84 T3 polish | **Merged** 2026-11-04 (`f10e248`) after a review (PASS WITH NITS, $0.10; the reviewer ran the mutation the author skipped) and green CI: per-file clean-up commands, a leftover key refused, the tree checked before signing. The script is ready; it waits for T1 and T2 in the app | none |
+| O-04 candidates | Research done ($0.83), kept in `docs/content/RECITATION_CANDIDATES.md`. The owner chose four (D-167): Minshawi and Abdul Basit, murattal and mujawwad, all word-timed; the PRD's five replaced by his decision. He fills `docs/content/RECITATION_RIGHTS_FORM.md` | none |
 
 **Lost reports.** Two runs (the #71 audit and #80) ended with a short reply to a late background
 notification, which replaced the report: only the last message is kept, and the log shortens
 earlier messages. Every task text now ends with: run commands in the foreground, no background
 shells or Monitor, and repeat the whole report if woken after writing it.
+**Before pushing a merge of `main` into a branch**, run `flutter analyze` in the worktree: a clean textual merge can still break the build (#82 and the flow rig, 2026-11-04).
 **`action_required` CI runs.** Each agent push starts two CI runs: the `workflow_dispatch` check,
 which runs, and a `pull_request` run that waits for approval. The dispatch run is the check of
 record for the head.
-**Spend this session**, by the SDK's estimates: $7.28 for six finished runs; caps of the runs
-out: $54.
+**Spend this session**, by the SDK's estimates: about $60 for 46 runs by 17:00 UTC, summed from the run logs (the largest single run: #80's last round, $14.63). The owner asked to be told before the total passes $100.
 
 `main` holds 37 of 40 tasks (18 partial); see the status file. **No app build has real
 content yet and none has run on a device since the spike of 2026-10-12.** **Before the first
 run on a branch, check it:** `git merge-base --is-ancestor origin/main origin/<branch>`. If
 `main` changed `.github/` and the branch lacks it, merge `main` into the branch from your own
-session. Decision numbers: D-156, D-158, D-159 and D-162 are on `main`; D-155 and D-160 (#71), D-157
-(#78) and D-161 (#80) are on open branches; D-163 to D-165 are reserved for the
-test-copy tasks T1 to T3; the next free number is D-166.
+session. Decision numbers: D-155 to D-160, D-162 and D-165 are on `main`; D-166 and D-167 on the
+lead's records pull request; D-161 (#80) and D-164 (#87) on open branches; D-163 is reserved for T1;
+the next free number is D-168.
 
 The queue, after the table above:
 
-1. **#71, #80, #78:** each fix or finishing run, then an independent re-review, then merge
+1. **#80, #87:** each fix run, then an independent re-review, then merge
    under D-136.
 2. **`agent/nf-14-guard-followup`:** the re-review of #77's should-fix and notes (task text
    written; a `test-engineer` run when a slot frees).
-3. **The local test copy** by `docs/plans/TEST_COPY.md` (section 4): T3 and T2 first (T2 after
-   #71 merges: both edit `app_ar.arb`), then T1, then T4. Then guide the owner through its
+3. **The local test copy** by `docs/plans/TEST_COPY.md` (section 4): T3 is merged (#83, #84);
+   T2 is #87; then T1, then T4. Then guide the owner through its
    local steps; that build is his first device session (D-162 (9)).
 4. **Stand mode's button** «وضع الحامل» in `ReaderPlayerBar` (D-162 (3)), and the 1:1 and 9:16
    share cards (D-162 (6)); `ui-builder` tasks, the share images shown to the owner before merging.
@@ -120,7 +127,7 @@ never uploaded to GitHub and never enters a release.
 **So no Actions agent, CI task or GitHub artefact may touch this pack. The CI `apk` task
 uploads to GitHub and must not be used for that build.**
 
-- **The route is `docs/plans/TEST_COPY.md`** (D-162 (13), (14); D-163 to D-165 when written).
+- **The route is `docs/plans/TEST_COPY.md`** (D-162 (13), (14); D-163 (T1) and D-164 (T2) when merged; D-165 is written).
   It replaces the bundling this section used to describe: the pack is never put in
   `assets/packs/` or an APK. A profile APK built with `--dart-define=HOLYQURAN_TEST_PACK=...`
   and a throwaway test key (never the production key of D-140 (8)) reads the signed pack
@@ -158,7 +165,7 @@ Given to him on 2026-11-04; his answers are D-162. Still his to do:
 - **B0.1, first (D-162 (12)):** the rights register, read clause by clause from the permission papers.
 - **His phone:** the device checks in the status file, in one session on the local test-pack
   build (D-162 (9)); the lead guides the build when the marking task is merged.
-- **O-04:** choose from the candidates an agent will propose (D-162 (10)).
+- **O-04:** chosen (D-167). Fill `docs/content/RECITATION_RIGHTS_FORM.md` from the permission papers and send it back.
 - **O-16:** the proofreader's sign-off, once the base pack is built.
 - **The religious reviewer:** the linking pages of books 183, 514, 276, 471, 473 and 440,
   and the honorific table (D-140 (7)) when the lead has derived it.
