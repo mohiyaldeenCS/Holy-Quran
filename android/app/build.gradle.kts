@@ -1,3 +1,5 @@
+import java.util.Base64
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -41,7 +43,7 @@ val carriesTestCopy = (project.findProperty("dart-defines")?.toString() ?: "")
     .split(',')
     .filter { it.isNotEmpty() }
     .any {
-        runCatching { String(java.util.Base64.getDecoder().decode(it), Charsets.UTF_8) }
+        runCatching { String(Base64.getDecoder().decode(it), Charsets.UTF_8) }
             .getOrDefault("")
             .startsWith("HOLYQURAN_TEST_PACK")
     }
