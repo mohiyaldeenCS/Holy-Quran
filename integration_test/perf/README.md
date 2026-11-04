@@ -118,8 +118,8 @@ low-power mode is on; whether the phone was warm from other use; the commit
    The output has one line per check, with the median, the worst run and the limit.
    A line begins with `MET`, `MISSED`, `INCOMPLETE`, `INFORMATIVE` or `NOTMEASURED`.
    A run found twice (the driver's log and `adb logcat`) counts once, by its `runId`.
-   Runs of a device that cannot be compared (a debug build) are summarised apart, as
-   `<name> (informative)`, and never change the verdict of the device's other runs.
+   Runs of a device that cannot be compared (a debug build) are, when the device also
+   has comparable runs, summarised apart, as `<name> (informative)`, and never change the verdict of the device's other runs.
 
 6. Clean up. The app on the phone now holds the harness's data and its id is the real
    app's. Clear it: `adb shell pm clear com.example.holyquran` (Android; on an iPhone

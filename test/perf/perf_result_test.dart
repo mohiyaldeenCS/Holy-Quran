@@ -257,6 +257,21 @@ void main() {
       );
     });
 
+    test('a met device beside a debug group does not fail the report', () {
+      final outcomes = evaluate([
+        _run('search', 'resultsShownMs', 100),
+        _run('search', 'resultsShownMs', 900, mode: 'debug'),
+      ], checks: _oneRunSuffices);
+
+      expect(
+        outcomes
+            .where((o) => o.check.scenario == 'search')
+            .map((o) => o.verdict),
+        [Verdict.met, Verdict.informative],
+      );
+      expect(reportFails(outcomes), isFalse);
+    });
+
     test('a debug run does not turn the miss of its device informative', () {
       final outcomes = evaluate([
         for (var i = 0; i < 3; i++) _run('search', 'resultsShownMs', 900),
@@ -279,6 +294,10 @@ void main() {
       ], checks: _oneRunSuffices);
 
       expect({for (final o in outcomes) o.device}, {'test phone'});
+      expect(
+        outcomes.firstWhere((o) => o.check.scenario == 'search').verdict,
+        Verdict.met,
+      );
     });
 
     test('a device with only debug runs is one informative device', () {
