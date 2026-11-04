@@ -13,6 +13,7 @@ import 'package:holyquran/data/services/clipboard_service.dart';
 import 'package:holyquran/data/services/share_service.dart';
 import 'package:holyquran/data/services/user_database.dart';
 import 'package:holyquran/domain/models/copy_form.dart';
+import 'package:holyquran/domain/models/unapproved_copy_mark.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/router.dart';
 import 'package:holyquran/routing/routes.dart';
@@ -37,6 +38,33 @@ void main() {
     );
     expect(provided.read<ClipboardService>(), isA<SystemClipboardService>());
     expect(provided.read<ShareService>(), isA<SystemShareService>());
+  });
+
+  test('an approved build provides both, and no mark', () async {
+    late Dependencies provided;
+    await buildDependencies(
+      areas: [
+        (dependencies) => provideShare(dependencies, unapprovedCopy: false),
+        (dependencies) async => provided = dependencies,
+      ],
+    );
+    expect(provided.read<ClipboardService>(), isA<SystemClipboardService>());
+    expect(provided.read<ShareService>(), isA<SystemShareService>());
+    expect(provided.tryRead<UnapprovedCopyMark>(), isNull);
+  });
+
+  test('the unapproved test copy keeps the clipboard, marks itself and '
+      'offers no share as an image', () async {
+    late Dependencies provided;
+    await buildDependencies(
+      areas: [
+        (dependencies) => provideShare(dependencies, unapprovedCopy: true),
+        (dependencies) async => provided = dependencies,
+      ],
+    );
+    expect(provided.read<ClipboardService>(), isA<SystemClipboardService>());
+    expect(provided.tryRead<UnapprovedCopyMark>(), isNotNull);
+    expect(provided.tryRead<ShareService>(), isNull);
   });
 
   group('the sheets through the composition root', () {
@@ -84,8 +112,23 @@ void main() {
 
     // The app's own providers; no base pack is bundled yet (B0.2), so the
     // synthetic pack stands in for the Quran area's repository.
-    Future<GoRouter> pumpApp(WidgetTester tester) async {
-      final providers = (await tester.runAsync(buildDependencies))!;
+    Future<GoRouter> pumpApp(
+      WidgetTester tester, {
+      bool unapprovedCopy = false,
+    }) async {
+      final providers = (await tester.runAsync(
+        () => buildDependencies(
+          areas: [
+            for (final area in appAreas)
+              area == shareProviders
+                  ? (dependencies) => provideShare(
+                      dependencies,
+                      unapprovedCopy: unapprovedCopy,
+                    )
+                  : area,
+          ],
+        ),
+      ))!;
       final router = createRouter();
       addTearDown(router.dispose);
       await tester.pumpWidget(
@@ -126,6 +169,48 @@ void main() {
       expect(clipboard.map(utf8.encode), [
         utf8.encode((expected as Ok<String>).value),
       ]);
+    });
+
+    testWidgets('in the unapproved test copy the copy sheet copies the copy of '
+        'an approved build and the marking line after it', (tester) async {
+      final router = await pumpApp(tester, unapprovedCopy: true);
+      final address = ayat[3].address;
+      unawaited(router.push(Routes.copySheet(address)));
+      await tester.pumpAndSettle();
+      expect(find.byType(CopySheet), findsOneWidget);
+
+      final copy = find.widgetWithText(Button, _l10n.copyAction);
+      await tester.ensureVisible(copy);
+      await tester.pumpAndSettle();
+      await tester.tap(copy);
+      await tester.pumpAndSettle();
+      final approved = await AyahCopyText(
+        pack.openRepository(),
+        _l10n,
+      ).compose(address, CopyForm.withSurahAndNumber);
+      expect(clipboard.map(utf8.encode), [
+        [
+          ...utf8.encode((approved as Ok<String>).value),
+          0x0A,
+          ...utf8.encode(_l10n.unapprovedTestCopy),
+        ],
+      ]);
+    });
+
+    testWidgets('in the unapproved test copy the share sheet does not open', (
+      tester,
+    ) async {
+      final router = await pumpApp(tester, unapprovedCopy: true);
+      unawaited(
+        router.push(
+          Routes.shareSheet(shortestAndLongest(ayat, 1).first.address),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ShareCard), findsNothing);
+      expect(find.widgetWithText(Button, _l10n.toolbarShare), findsNothing);
+      expect(shares, isEmpty);
     });
 
     testWidgets('the share sheet shares through the share service', (

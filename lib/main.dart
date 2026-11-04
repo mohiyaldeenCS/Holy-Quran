@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:holyquran/config/dependencies.dart';
+import 'package:holyquran/config/test_copy.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/router.dart';
 import 'package:holyquran/ui/core/app.dart';
@@ -12,15 +13,26 @@ import 'package:provider/single_child_widget.dart';
 void main() {
   // Areas start before runApp and may call plugins at once.
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(AppStart(dependencies: buildDependencies()));
+  // Read first: a release build given the test copy's defines stops here.
+  final unapprovedCopy = testCopy != null;
+  runApp(
+    AppStart(dependencies: buildDependencies(), unapprovedCopy: unapprovedCopy),
+  );
 }
 
 /// Shows the identity's splash at once, and the app once [dependencies] are
 /// built (M1.1).
 class AppStart extends StatefulWidget {
-  const AppStart({required this.dependencies, super.key});
+  const AppStart({
+    required this.dependencies,
+    this.unapprovedCopy = false,
+    super.key,
+  });
 
   final Future<List<SingleChildWidget>> dependencies;
+
+  /// Whether this build is the unapproved test copy (D-163, D-164).
+  final bool unapprovedCopy;
 
   @override
   State<AppStart> createState() => _AppStartState();
@@ -62,7 +74,7 @@ class _AppStartState extends State<AppStart> {
     }
     return MultiProvider(
       providers: providers,
-      child: QuranApp(router: _router),
+      child: QuranApp(router: _router, unapprovedCopy: widget.unapprovedCopy),
     );
   }
 }

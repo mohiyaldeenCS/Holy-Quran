@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/data/services/clipboard_service.dart';
 import 'package:holyquran/data/services/share_service.dart';
+import 'package:holyquran/domain/models/unapproved_copy_mark.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/routing/routes/feature_routes.dart';
@@ -33,6 +34,7 @@ final shareRoutes = FeatureRoutes(
               copyText: AyahCopyText(
                 context.read<QuranTextRepository>(),
                 AppLocalizations.of(context),
+                unapprovedCopy: context.read<UnapprovedCopyMark?>() != null,
               ),
               copyToClipboard: context.read<ClipboardService>().copyText,
             ),

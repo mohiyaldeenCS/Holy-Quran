@@ -4,6 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/config/base_pack.dart';
 
 void main() {
+  test('the base pack in use is the bundled one outside a test copy', () {
+    expect(basePackInUse, bundledBasePack);
+  });
+
   test('a bundled base pack has its manifest and signature in the assets', () {
     if (bundledBasePack case (:final id, :final version)) {
       final directory = 'assets/packs/$id/$version';
