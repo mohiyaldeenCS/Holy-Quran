@@ -388,6 +388,13 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   devices; page turning, NF-04, NF-09 and the whole-process cold start are not measured. Reviewed by
   `code-reviewer` (opus) three times; a follow-up closes the third review's S-1 (a launch that fails
   before the reader shows leaves the saved position moved) and notes.
+- **The local test copy is complete on `main` (#83, #84, #87, #90; D-163 to D-165).** The pipeline's
+  test-copy mode and the owner's script (`tools/test_copy/`), the banner «نسخة تجريبية غير معتمدة» on
+  every screen, and the app reading the signed pack from the phone's files (`DevicePackBundle`,
+  `SignatureRequired` with a throwaway key, production keys refused, release builds refused at start
+  and by Gradle), copy with its final marking line, no share card. The owner builds it on his machine
+  by `tools/test_copy/README.md`; T4 (guards, a flow test) follows. The audio fix (#80, D-161) and the
+  share sizes (#89, D-170) are merged too.
 - **The test copy's pipeline merged (#83, D-165).** `tools/packs` builds a Hafs pack marked as an
   unapproved test copy (id prefix `unapproved-`, no reviews, output outside any Git tree), skipping
   only the KFGQPC comparison, with a provisional mark table from the Unicode chart (D-162 (13)).
