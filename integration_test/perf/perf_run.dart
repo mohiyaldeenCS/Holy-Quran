@@ -50,10 +50,16 @@ void markTimeline(String name) => developer.Timeline.instantSync('perf:$name');
 
 double millis(Duration duration) => duration.inMicroseconds / 1000;
 
+/// The name of the phone, given as `--dart-define=PERF_DEVICE=<name>`. Without
+/// it two phones of one platform and OS version could not be told apart, so a
+/// run without it is informative.
+const perfDeviceLabel = String.fromEnvironment('PERF_DEVICE');
+
 /// What a run knows about its device, for the result's details.
 Map<String, Object?> deviceDetails(WidgetTester tester) {
   final view = tester.view;
   return {
+    'device': perfDeviceLabel,
     'os': Platform.operatingSystemVersion,
     'processors': Platform.numberOfProcessors,
     'refreshRateHz': view.display.refreshRate,

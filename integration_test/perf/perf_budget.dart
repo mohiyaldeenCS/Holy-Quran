@@ -25,6 +25,7 @@ final class PerfCheck {
     required this.unit,
     required this.source,
     required this.measures,
+    required this.minSamples,
     this.everyRun = false,
   });
 
@@ -42,6 +43,12 @@ final class PerfCheck {
   /// What the harness times to get the metric, in words.
   final String measures;
 
+  /// How many measurements the device protocol asks for
+  /// (`integration_test/perf/README.md`): ten cold starts, five searches,
+  /// three scrolls, ten openings of each sheet. A verdict from fewer is
+  /// incomplete, not met.
+  final int minSamples;
+
   /// Whether every run must hold, not just the median: for a validity check,
   /// where one bad run among good ones is a bad run.
   final bool everyRun;
@@ -56,7 +63,8 @@ const _prd = 'PRD §11';
 
 /// The budgets the harness measures (`docs/ARCHITECTURE.md`, "Budgets"), on
 /// the two reference devices of Phase 0. `NF-04` and `NF-09` need a recitation
-/// and the player, which a harness over a synthetic text pack does not have.
+/// and the player, which a harness over a synthetic text pack does not have;
+/// `NF-02`'s page turning is not measured either (D-157).
 const List<PerfCheck> perfChecks = [
   PerfCheck(
     id: 'NF-01',
@@ -65,10 +73,15 @@ const List<PerfCheck> perfChecks = [
     comparison: Comparison.atMost,
     limit: 2000,
     unit: 'ms',
+    minSamples: 10,
     source: '$_prd, NF-01: cold start to the last reading position, 2 s',
     measures:
-        'From the start of the app (before its dependencies are built) to '
-        'the first frame in which the reader shows the saved ayah.',
+        'A stand-in for the product\'s figure: from the first frame of the '
+        'app (the splash, before its dependencies are built) to the first '
+        'frame in which the saved ayah\'s rectangle is inside the reader\'s '
+        'viewport. The engine\'s start-up before Dart runs, and the audio, '
+        'download, catalogue and tafsir areas of the real start-up, are not '
+        'in the figure.',
   ),
   PerfCheck(
     id: 'NF-02',
@@ -77,6 +90,7 @@ const List<PerfCheck> perfChecks = [
     comparison: Comparison.atLeast,
     limit: 59,
     unit: 'fps',
+    minSamples: 3,
     source:
         '$_prd, NF-02: 60 frames per second; one frame per second of '
         'tolerance covers the rounding of a rate counted from vsync times '
@@ -88,14 +102,15 @@ const List<PerfCheck> perfChecks = [
   PerfCheck(
     id: 'NF-02',
     scenario: 'scroll',
-    metric: 'p99FrameMs',
+    metric: 'over32MsShare',
     comparison: Comparison.atMost,
-    limit: 32,
-    unit: 'ms',
+    limit: 0.01,
+    unit: 'of frames',
+    minSamples: 3,
     source: '$_prd, NF-02: 99% of frames under 32 ms',
     measures:
-        'The 99th percentile of the frame total (vsync to raster end) over '
-        'the same scroll.',
+        'The share of frames whose total (vsync to raster end) is over 32 ms, '
+        'over the same scroll: at most 1% means 99% are not over.',
   ),
   PerfCheck(
     id: 'NF-02',
@@ -105,9 +120,10 @@ const List<PerfCheck> perfChecks = [
     limit: 0.95,
     everyRun: true,
     unit: 'of the span',
+    minSamples: 3,
     source:
-        'NF-02, harness validity: frames are only those of a scroll if the list moved '
-        'for the whole span',
+        'NF-02, harness validity: frames are only those of a scroll if the '
+        'list moved for the whole span',
     measures:
         'The distance the list moved, over the distance 1500 px/s asks for. '
         'Below the limit the longest surah is too short for the span.',
@@ -119,11 +135,13 @@ const List<PerfCheck> perfChecks = [
     comparison: Comparison.atMost,
     limit: 300,
     unit: 'ms',
+    minSamples: 5,
     source: '$_prd, NF-03: offline text search results, 300 ms',
     measures:
         'From submitting the first query on the search screen to the first '
         'frame showing a result. The index is built when the screen opens; '
-        'that time is reported beside it as screenReadyMs.',
+        'that time is reported beside it as screenReadyMs and is not '
+        'budgeted.',
   ),
   PerfCheck(
     id: 'NF-03',
@@ -132,6 +150,7 @@ const List<PerfCheck> perfChecks = [
     comparison: Comparison.atMost,
     limit: 300,
     unit: 'ms',
+    minSamples: 5,
     source: '$_prd, NF-03: offline text search results, 300 ms',
     measures: 'The same, for the second query of the same screen.',
   ),
@@ -142,10 +161,12 @@ const List<PerfCheck> perfChecks = [
     comparison: Comparison.atMost,
     limit: 200,
     unit: 'ms',
+    minSamples: 10,
     source: '$_prd, NF-05: word or ayah sheet opens, 200 ms',
     measures:
         'From tapping a word in the reader to the first frame in which the '
-        'word sheet shows its word.',
+        'sheet\'s word is on the screen (the slide-in has begun). The time '
+        'to the end of the slide is reported beside it as sheetSettledMs.',
   ),
   PerfCheck(
     id: 'NF-05',
@@ -154,14 +175,11 @@ const List<PerfCheck> perfChecks = [
     comparison: Comparison.atMost,
     limit: 200,
     unit: 'ms',
+    minSamples: 10,
     source: '$_prd, NF-05: word or ayah sheet opens, 200 ms',
     measures:
         'From pressing the study button of the toolbar to the first frame in '
-        'which the mini ayah sheet shows its ayah.',
+        'which the mini ayah sheet\'s ayah is on the screen. The time to the '
+        'end of the slide is reported beside it as sheetSettledMs.',
   ),
-];
-
-/// The scenarios the checks name, in the order the harness runs them.
-List<String> get perfScenarios => [
-  ...{for (final check in perfChecks) check.scenario},
 ];

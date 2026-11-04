@@ -11,7 +11,11 @@ PerfResult _run(String scenario, String metric, num value) => PerfResult(
   buildMode: 'profile',
   platform: 'android',
   metrics: {metric: value},
-  details: const {'os': 'synthetic', 'refreshRateHz': 60.0},
+  details: const {
+    'device': 'test phone',
+    'os': 'synthetic',
+    'refreshRateHz': 60.0,
+  },
 );
 
 void main() {
@@ -41,8 +45,9 @@ void main() {
     'a log whose runs are within every budget it measures exits 0',
     () async {
       final log = logOf([
-        _run('cold_start', 'savedAyahShownMs', 1500),
-        _run('search', 'resultsShownMs', 120),
+        for (var i = 0; i < 10; i++)
+          _run('cold_start', 'savedAyahShownMs', 1500),
+        for (var i = 0; i < 5; i++) _run('search', 'resultsShownMs', 120),
       ]);
 
       final outcome = await drive([log.path]);
@@ -88,30 +93,33 @@ void main() {
       buildMode: 'profile',
       platform: 'ios',
       metrics: {'sheetOpenMs': ms},
-      details: {'os': os},
+      details: {'device': os, 'repetitions': 10},
     );
     final log = logOf([on('phone A', 150), on('phone B', 250)]);
 
     final outcome = await drive([log.path]);
 
     expect(outcome.code, 1);
-    expect(outcome.report, contains('MET          [ios phone A] NF-05'));
-    expect(outcome.report, contains('MISSED       [ios phone B] NF-05'));
+    expect(outcome.report, contains('MET          [phone A] NF-05'));
+    expect(outcome.report, contains('MISSED       [phone B] NF-05'));
   });
 
   test('--out writes the report with the verdicts and the devices', () async {
-    final log = logOf([_run('cold_start', 'savedAyahShownMs', 1500)]);
+    final log = logOf([
+      for (var i = 0; i < 10; i++) _run('cold_start', 'savedAyahShownMs', 1500),
+    ]);
     final out = File('${directory.path}/report.json');
 
     final outcome = await drive(['--out', out.path, log.path]);
 
     expect(outcome.code, 0);
     final json = jsonDecode(out.readAsStringSync()) as Map<String, Object?>;
-    expect(json['results'], 1);
+    expect(json['results'], 10);
     expect(json['devices'], [
       {
         'platform': 'android',
         'buildMode': 'profile',
+        'device': 'test phone',
         'os': 'synthetic',
         'processors': null,
         'refreshRateHz': 60.0,
@@ -150,5 +158,46 @@ void main() {
 
     expect(outcome.code, 2);
     expect(outcome.errors, contains('perf_summary.dart'));
+  });
+
+  test(
+    'a short set of runs is reported incomplete and still exits 0',
+    () async {
+      final log = logOf([
+        for (var i = 0; i < 6; i++)
+          _run('cold_start', 'savedAyahShownMs', 1500),
+      ]);
+
+      final outcome = await drive([log.path]);
+
+      expect(outcome.code, 0);
+      expect(
+        outcome.report,
+        contains(
+          'INCOMPLETE   NF-01 cold_start.savedAyahShownMs: median 1500 ms over '
+          '6 runs, worst 1500, only 6 of the 10 measurements the protocol '
+          'asks for',
+        ),
+      );
+    },
+  );
+
+  test('a failed run is reported as a miss and exits 1', () async {
+    const failed = PerfResult(
+      scenario: 'search',
+      buildMode: 'profile',
+      platform: 'android',
+      metrics: {},
+      details: {'device': 'test phone', 'failed': true},
+    );
+    final log = logOf([failed]);
+
+    final outcome = await drive([log.path]);
+
+    expect(outcome.code, 1);
+    expect(
+      outcome.report,
+      contains('MISSED       NF-03 search.resultsShownMs: 1 failed run '),
+    );
   });
 }

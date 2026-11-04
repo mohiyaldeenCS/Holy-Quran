@@ -73,17 +73,37 @@ void main() {
     }
   });
 
-  test('the text is synthetic: Arabic-script words and pause marks, and no '
-      'other letter', () {
-    final allowed = RegExp(
-      '^[\\u0621-\\u064A\\u06D6\\u06D7\\u06DA ]+\$',
-      unicode: true,
-    );
-    for (final surah in perfSurahs(PerfPackSize.small)) {
-      for (final ayah in surah.ayat) {
-        expect(ayah.text, matches(allowed));
+  test('the text is made of the six synthetic words, the three pause marks '
+      'and nothing else, in every ayah and basmala of the full pack', () {
+    const synthetic = {
+      '\u{646}\u{635}',
+      '\u{62A}\u{62C}\u{631}\u{64A}\u{628}\u{64A}',
+      '\u{643}\u{644}\u{645}',
+      '\u{633}\u{637}\u{631}',
+      '\u{645}\u{62B}\u{627}\u{644}',
+      '\u{639}\u{64A}\u{646}\u{629}',
+      '\u{6D6}',
+      '\u{6D7}',
+      '\u{6DA}',
+      // The basmala field's own word.
+      '\u{627}\u{641}\u{62A}\u{62A}\u{627}\u{62D}',
+    };
+    final seen = <String>{};
+    void check(String text) {
+      for (final token in text.split(' ')) {
+        expect(synthetic, contains(token));
+        seen.add(token);
       }
+    }
+
+    for (final surah in surahs) {
+      for (final ayah in surah.ayat) {
+        check(ayah.text);
+      }
+      if (surah.basmala case final basmala?) check(basmala);
       expect(surah.name, startsWith('Synthetic '));
     }
+
+    expect(seen, synthetic, reason: 'every token of the set is used');
   });
 }

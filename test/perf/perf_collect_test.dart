@@ -66,4 +66,45 @@ void main() {
     });
     expect(folder.listSync(), hasLength(2));
   });
+
+  test('a run that published nothing says so and is not written', () async {
+    final output = StringBuffer();
+
+    final written = await writeRunResults(null, folder: folder, output: output);
+
+    expect(written, isFalse);
+    expect(output.toString(), contains('No performance result was written'));
+    expect(output.toString(), contains('reported no performance result'));
+    expect(folder.listSync(), isEmpty);
+  });
+
+  test('a run that published results says where they are', () async {
+    final output = StringBuffer();
+
+    final written = await writeRunResults(
+      _data([_result('cold_start')]),
+      folder: folder,
+      output: output,
+    );
+
+    expect(written, isTrue);
+    expect(output.toString(), contains('Performance results written to'));
+    expect(folder.listSync(), hasLength(1));
+  });
+
+  test('a failed result is written like any other', () async {
+    const failed = PerfResult(
+      scenario: 'search',
+      buildMode: 'profile',
+      platform: 'android',
+      metrics: {},
+      details: {'failed': true, 'reason': 'timed out'},
+    );
+
+    final file = await saveResults(_data([failed]), folder: folder);
+
+    final back = parsePerfLog(file.readAsStringSync()).single;
+    expect(back.failed, isTrue);
+    expect(back.details['reason'], 'timed out');
+  });
 }

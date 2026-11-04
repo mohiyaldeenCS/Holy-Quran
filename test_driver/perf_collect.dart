@@ -31,3 +31,25 @@ Future<File> saveResults(
   await file.writeAsString('${lines.join('\n')}\n');
   return file;
 }
+
+/// Writes the results of a run and says where, or says that there were none.
+/// Returns whether a file was written; a run that published nothing is a
+/// failed run and the driver must end with an error.
+Future<bool> writeRunResults(
+  Map<String, Object?>? data, {
+  required Directory folder,
+  required StringSink output,
+}) async {
+  try {
+    final file = await saveResults(data, folder: folder);
+    output.writeln('Performance results written to ${file.path}');
+    return true;
+  } on FormatException catch (error) {
+    output.writeln(
+      'No performance result was written: ${error.message}. The target '
+      'ended before it published anything; the failure details above say '
+      'why.',
+    );
+    return false;
+  }
+}

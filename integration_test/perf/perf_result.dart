@@ -69,17 +69,35 @@ final class PerfResult {
   /// rate, the marks of a start.
   final Map<String, Object?> details;
 
-  /// Whether the run stands for a reference device (PRD §11): a phone, not a
-  /// debug build, and not frames that were the cost of each pump of a widget
-  /// test. A profile run on a computer is informative (D-157).
+  /// The name the owner gave the phone (`--dart-define=PERF_DEVICE=`).
+  String get deviceLabel => '${details['device'] ?? ''}'.trim();
+
+  /// Whether the run stands for a reference device (PRD §11): a labelled
+  /// phone, not a debug build, and not frames that were the cost of each pump
+  /// of a widget test. A profile run on a computer is informative (D-157).
   bool get comparable =>
       (platform == 'android' || platform == 'ios') &&
+      deviceLabel.isNotEmpty &&
       buildMode != 'debug' &&
       details['frameSource'] != 'pump-wall-clock';
 
   /// What the run's numbers are held apart by: two phones are two devices and
-  /// each has to meet the budgets.
-  String get device => '$platform ${details['os']}';
+  /// each has to meet the budgets, even of the same platform and OS version.
+  String get device =>
+      deviceLabel.isEmpty ? '$platform ${details['os']}' : deviceLabel;
+
+  /// Whether the run ended in an error before it measured. It is a miss of
+  /// every check of its scenario.
+  bool get failed => details['failed'] == true;
+
+  /// How many measurements the run stands for: a sheet's median is of its
+  /// repetitions, every other run is one.
+  int get samples => failed
+      ? 0
+      : switch (details['repetitions']) {
+          final num count => count.toInt(),
+          _ => 1,
+        };
 
   /// Whether the run is held against the budgets. The launch that built the
   /// pack is not: its caches are not those of a start that finds one.
@@ -123,9 +141,13 @@ enum Verdict {
   /// Measured in a profile or release build, outside the limit.
   missed,
 
-  /// Measured only in a debug build, or with a frame source that cannot
-  /// stand for the device: the number is informative.
+  /// Measured only in a debug build, on a computer, without a device label,
+  /// or with a frame source that cannot stand for the device: the number is
+  /// informative.
   informative,
+
+  /// Within the limit, but from fewer runs than the protocol asks for.
+  incomplete,
 
   /// No run of the scenario reported the metric.
   notMeasured,
@@ -137,6 +159,8 @@ final class CheckOutcome {
     required this.check,
     required this.verdict,
     required this.runs,
+    this.samples = 0,
+    this.failures = 0,
     this.device,
     this.median,
     this.worst,
@@ -148,6 +172,13 @@ final class CheckOutcome {
   final String? device;
   final Verdict verdict;
   final int runs;
+
+  /// The measurements behind the verdict ([PerfResult.samples]), against
+  /// [PerfCheck.minSamples].
+  final int samples;
+
+  /// The runs of the scenario that ended in an error.
+  final int failures;
 
   /// The median of the runs, which the verdict is given on.
   final num? median;
@@ -163,6 +194,9 @@ final class CheckOutcome {
     'limit': '${check.comparison.words} ${check.limit} ${check.unit}',
     'verdict': verdict.name,
     'runs': runs,
+    'samples': samples,
+    'neededSamples': check.minSamples,
+    'failures': failures,
     'median': median,
     'worst': worst,
     'source': check.source,
@@ -194,18 +228,30 @@ CheckOutcome _outcome(
   Iterable<PerfResult> results,
   String? device,
 ) {
-  final runs = [
+  final counted = [
     for (final result in results)
-      if (result.counts &&
-          result.scenario == check.scenario &&
-          result.metrics.containsKey(check.metric))
-        result,
+      if (result.counts && result.scenario == check.scenario) result,
   ];
-  if (runs.isEmpty) {
+  final failures = counted.where((run) => run.failed).length;
+  final runs = [
+    for (final run in counted)
+      if (!run.failed && run.metrics.containsKey(check.metric)) run,
+  ];
+  if (runs.isEmpty && failures == 0) {
     return CheckOutcome(
       check: check,
       verdict: Verdict.notMeasured,
       runs: 0,
+      device: device,
+    );
+  }
+  final comparable = counted.every((run) => run.comparable);
+  if (runs.isEmpty) {
+    return CheckOutcome(
+      check: check,
+      verdict: comparable ? Verdict.missed : Verdict.informative,
+      runs: 0,
+      failures: failures,
       device: device,
     );
   }
@@ -216,15 +262,21 @@ CheckOutcome _outcome(
   final worst = check.comparison == Comparison.atMost
       ? values.last
       : values.first;
-  final verdict = !runs.every((run) => run.comparable)
+  final samples = runs.fold<int>(0, (sum, run) => sum + run.samples);
+  final holds = check.holds(check.everyRun ? worst : median);
+  final verdict = !comparable
       ? Verdict.informative
-      : check.holds(check.everyRun ? worst : median)
-      ? Verdict.met
-      : Verdict.missed;
+      : failures > 0 || !holds
+      ? Verdict.missed
+      : samples < check.minSamples
+      ? Verdict.incomplete
+      : Verdict.met;
   return CheckOutcome(
     check: check,
     verdict: verdict,
     runs: runs.length,
+    samples: samples,
+    failures: failures,
     device: device,
     median: median,
     worst: worst,

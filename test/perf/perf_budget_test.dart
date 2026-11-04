@@ -34,9 +34,12 @@ void main() {
   test('NF-02 is 99% of frames under 32 ms and 60 fps', () {
     expect(row('NF-02'), contains('60 fps'));
     expect(row('NF-02'), contains('99% of frames under 32 ms'));
-    final p99 = checksOf('NF-02').singleWhere((c) => c.metric == 'p99FrameMs');
-    expect(p99.comparison, Comparison.atMost);
-    expect(p99.limit, 32);
+    final share = checksOf('NF-02')
+        .singleWhere((c) => c.metric == 'over32MsShare');
+    expect(share.comparison, Comparison.atMost);
+    expect(share.limit, 0.01);
+    expect(share.holds(0.01), isTrue, reason: '1% over is 99% not over');
+    expect(share.holds(0.011), isFalse);
   });
 
   test('NF-02 holds the frame rate to 60 less a stated tolerance', () {
@@ -96,14 +99,27 @@ void main() {
     expect(share.holds(0.6), isFalse);
   });
 
-  test('the scenarios are listed once each, in order', () {
-    expect(perfScenarios, [
-      'cold_start',
-      'scroll',
-      'search',
-      'search_warm',
-      'word_sheet',
-      'ayah_sheet',
-    ]);
+  test('each check asks for the counts of the device protocol', () {
+    final samples = {
+      for (final check in perfChecks) check.scenario: check.minSamples,
+    };
+
+    expect(samples, {
+      'cold_start': 10,
+      'scroll': 3,
+      'search': 5,
+      'search_warm': 5,
+      'word_sheet': 10,
+      'ayah_sheet': 10,
+    });
+  });
+
+  test('the README states the counts the checks ask for', () {
+    final readme = File('integration_test/perf/README.md').readAsStringSync();
+
+    expect(readme, contains('ten cold starts'));
+    expect(readme, contains('five searches'));
+    expect(readme, contains('three scrolls'));
+    expect(readme, contains('ten openings'));
   });
 }

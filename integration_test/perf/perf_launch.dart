@@ -51,11 +51,8 @@ Future<PerfApp> preparePerfApp(
 }) async {
   final support = await perfSupportFolder();
   final perf = (await tester.runAsync(
-    () async => PerfApp.open(
-      size: size,
-      support: support,
-      fontBytes: await perfFontBytes(),
-    ),
+    () async =>
+        PerfApp.open(size: size, support: support, loadFont: perfFontBytes),
   ))!;
   if (reseed || !perf.packReused) {
     await tester.runAsync(() async {
@@ -94,8 +91,10 @@ final class Launched {
   );
 
   /// Takes the app out of the tree and closes what it opened, after the
-  /// reads and writes the reader started on its way out have ended.
-  Future<void> close(WidgetTester tester) async {
+  /// reads and writes the reader started on its way out have ended. With
+  /// [leaveSavedAt] the saved reading position is set to it last, so that the
+  /// next launch of the install, whatever ran before it, starts from there.
+  Future<void> close(WidgetTester tester, {QuranAddress? leaveSavedAt}) async {
     _closed = true;
     await tester.pumpWidget(const SizedBox());
     // The reader's reads of the user database are a chain of a few queries,
@@ -106,13 +105,45 @@ final class Launched {
       );
       await tester.pump();
     }
+    if (leaveSavedAt != null) {
+      await tester.runAsync(() => start.positions!.save(leaveSavedAt));
+    }
     await tester.runAsync(start.close);
   }
 }
 
+/// The screen, in logical pixels.
+Rect screenRect(WidgetTester tester) =>
+    Offset.zero & (tester.view.physicalSize / tester.view.devicePixelRatio);
+
+/// Whether the rectangle of [ayah] in a block of the reader overlaps the
+/// reader's viewport: the ayah is on the screen, not merely built.
+bool ayahInViewport(WidgetTester tester, QuranAddress ayah) {
+  final scrollable = find.descendant(
+    of: find.byType(MushafScreen),
+    matching: find.byType(Scrollable),
+  );
+  if (scrollable.evaluate().isEmpty) return false;
+  final viewport = tester
+      .getRect(scrollable.first)
+      .intersect(screenRect(tester));
+  final blocks = find.byType(ReaderBlock);
+  for (final block in blocks.evaluate()) {
+    final layout = (block.widget as ReaderBlock).layout;
+    if (layout.plan.text.surah != ayah.surah) continue;
+    final rect = layout.ayahRect(ayah.ayah);
+    if (rect == null) continue;
+    final origin = (block.renderObject! as RenderBox).localToGlobal(
+      Offset.zero,
+    );
+    if (viewport.overlaps(rect.shift(origin))) return true;
+  }
+  return false;
+}
+
 /// Whether the reader shows text: ready, with a block drawn, and, when it was
-/// to open away from the top of the surah, scrolled there.
-bool readerShown(WidgetTester tester, {required bool scrolled}) {
+/// to open at [ayah], with that ayah on the screen.
+bool readerShown(WidgetTester tester, {QuranAddress? ayah}) {
   if (find.byType(MushafScreen).evaluate().isEmpty) return false;
   final reader = Provider.of<MushafViewModel>(
     tester.element(find.byType(MushafScreen)),
@@ -122,13 +153,7 @@ bool readerShown(WidgetTester tester, {required bool scrolled}) {
       find.byType(ReaderBlock).evaluate().isEmpty) {
     return false;
   }
-  if (!scrolled) return true;
-  final scrollable = find.descendant(
-    of: find.byType(MushafScreen),
-    matching: find.byType(Scrollable),
-  );
-  return scrollable.evaluate().isNotEmpty &&
-      tester.state<ScrollableState>(scrollable.first).position.pixels > 0;
+  return ayah == null || ayahInViewport(tester, ayah);
 }
 
 /// Starts the app as `main` does, over [perf], and waits for the reader to
@@ -138,7 +163,7 @@ bool readerShown(WidgetTester tester, {required bool scrolled}) {
 Future<Launched> launch(
   WidgetTester tester,
   PerfApp perf, {
-  required bool scrolled,
+  QuranAddress? showing,
 }) async {
   if (!isLiveBinding(tester)) {
     // A phone, as a device would give; a plain widget test has a tiny view.
@@ -159,7 +184,7 @@ Future<Launched> launch(
   final shown = await pumpUntilFrame(
     tester,
     clock,
-    () => readerShown(tester, scrolled: scrolled),
+    () => readerShown(tester, ayah: showing),
   );
   markTimeline('readerShown');
   final launched = Launched._(start, (

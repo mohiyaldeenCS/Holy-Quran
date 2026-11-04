@@ -10,6 +10,7 @@ Map<String, Object?> buildReport(List<PerfResult> results) => {
 
 List<Map<String, Object?>> _devices(List<PerfResult> results) {
   const keys = [
+    'device',
     'os',
     'processors',
     'refreshRateHz',
@@ -36,11 +37,18 @@ String formatReport(List<CheckOutcome> outcomes) {
   final lines = <String>[];
   for (final outcome in outcomes) {
     final check = outcome.check;
+    final failed = outcome.failures == 0
+        ? ''
+        : '${outcome.failures} failed run${outcome.failures == 1 ? '' : 's'}';
     final measured = outcome.median == null
-        ? 'not measured'
+        ? (failed.isEmpty ? 'not measured' : failed)
         : 'median ${_number(outcome.median!)} ${check.unit} over '
               '${outcome.runs} run${outcome.runs == 1 ? '' : 's'}, '
-              'worst ${_number(outcome.worst!)}';
+              'worst ${_number(outcome.worst!)}'
+              '${failed.isEmpty ? '' : ', $failed'}'
+              '${outcome.verdict == Verdict.incomplete ? ', only '
+                        '${outcome.samples} of the ${check.minSamples} '
+                        'measurements the protocol asks for' : ''}';
     lines.add(
       '${outcome.verdict.name.toUpperCase().padRight(12)} '
       '${several ? '[${outcome.device}] ' : ''}${check.id} '
@@ -55,8 +63,9 @@ String _number(num value) => value == value.roundToDouble()
     ? '${value.round()}'
     : value.toStringAsFixed(1);
 
-/// Whether the report should fail a script: a check was missed. A check that
-/// was not measured or only informative never passes for a pass, but does not
-/// fail a run that measured something else.
+/// Whether the report should fail a script: a check was missed, which a failed
+/// run is. A check that was not measured, is incomplete or only informative
+/// never passes for a pass, but does not fail a run that measured something
+/// else.
 bool reportFails(List<CheckOutcome> outcomes) =>
     outcomes.any((outcome) => outcome.verdict == Verdict.missed);

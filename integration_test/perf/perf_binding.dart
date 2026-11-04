@@ -6,6 +6,9 @@ import 'perf_result.dart';
 IntegrationTestWidgetsFlutterBinding? _binding;
 final _published = <PerfResult>[];
 
+/// What the run has published so far.
+List<PerfResult> get publishedResults => List.unmodifiable(_published);
+
 /// Initialises the binding the harness runs under. Its frames are drawn at the
 /// display's pace, which the frame timings of the scroll need.
 void initPerfBinding() {

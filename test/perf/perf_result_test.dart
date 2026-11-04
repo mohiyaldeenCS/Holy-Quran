@@ -17,15 +17,49 @@ PerfResult _run(
   buildMode: mode,
   platform: platform,
   metrics: {metric: value},
-  details: details,
+  details: {'device': 'test phone', ...details},
 );
+
+PerfResult _failure(String scenario, {Map<String, Object?>? details}) =>
+    PerfResult(
+      scenario: scenario,
+      buildMode: 'profile',
+      platform: 'android',
+      metrics: const {},
+      details: {
+        'device': 'test phone',
+        'failed': true,
+        'reason': 'timed out',
+        ...?details,
+      },
+    );
+
+/// The budgets with the protocol's counts relaxed to one run, for the tests of
+/// the limits and of the median; the tests of the counts use the real ones.
+final _oneRunSuffices = [
+  for (final c in perfChecks)
+    PerfCheck(
+      id: c.id,
+      scenario: c.scenario,
+      metric: c.metric,
+      comparison: c.comparison,
+      limit: c.limit,
+      unit: c.unit,
+      source: c.source,
+      measures: c.measures,
+      minSamples: 1,
+      everyRun: c.everyRun,
+    ),
+];
 
 CheckOutcome _outcomeOf(
   List<PerfResult> results,
   String scenario,
-  String metric,
-) => evaluate(
+  String metric, {
+  List<PerfCheck>? checks,
+}) => evaluate(
   results,
+  checks: checks ?? _oneRunSuffices,
 ).singleWhere((o) => o.check.scenario == scenario && o.check.metric == metric);
 
 Object? _json(String line) =>
@@ -278,15 +312,15 @@ void main() {
     });
 
     test('each device is held to the budgets on its own', () {
-      final outcomes = evaluate([
-        _run('search', 'resultsShownMs', 100, details: {'os': 'phone A'}),
-        _run('search', 'resultsShownMs', 900, details: {'os': 'phone B'}),
-      ]).where((o) => o.check.scenario == 'search').toList();
+      final outcomes = evaluate(
+        [
+          _run('search', 'resultsShownMs', 100, details: {'device': 'phone A'}),
+          _run('search', 'resultsShownMs', 900, details: {'device': 'phone B'}),
+        ],
+        checks: _oneRunSuffices,
+      ).where((o) => o.check.scenario == 'search').toList();
 
-      expect(
-        [for (final o in outcomes) o.device],
-        ['android phone A', 'android phone B'],
-      );
+      expect([for (final o in outcomes) o.device], ['phone A', 'phone B']);
       expect(
         [for (final o in outcomes) o.verdict],
         [Verdict.met, Verdict.missed],
@@ -312,6 +346,224 @@ void main() {
       expect(json['verdict'], 'met');
       expect(json['source'], contains('NF-01'));
       expect(json['measures'], isNotEmpty);
+    });
+  });
+
+  group('the counts of the protocol', () {
+    List<PerfResult> coldStarts(int count, [num ms = 1500]) => [
+      for (var i = 0; i < count; i++)
+        _run('cold_start', 'savedAyahShownMs', ms),
+    ];
+
+    test('ten cold starts within the limit meet it', () {
+      final outcome = _outcomeOf(
+        coldStarts(10),
+        'cold_start',
+        'savedAyahShownMs',
+        checks: perfChecks,
+      );
+
+      expect(outcome.verdict, Verdict.met);
+      expect(outcome.samples, 10);
+    });
+
+    test('six good cold starts of ten are incomplete, not met', () {
+      final outcome = _outcomeOf(
+        coldStarts(6),
+        'cold_start',
+        'savedAyahShownMs',
+        checks: perfChecks,
+      );
+
+      expect(outcome.verdict, Verdict.incomplete);
+      expect(outcome.samples, 6);
+      expect(outcome.failures, 0);
+    });
+
+    test('eleven cold starts with four timeouts are a miss, not a met', () {
+      final results = [
+        _run(
+          'cold_start',
+          'savedAyahShownMs',
+          9000,
+          details: const {'prepared': true},
+        ),
+        ...coldStarts(6),
+        for (var i = 0; i < 4; i++) _failure('cold_start'),
+      ];
+
+      final outcome = _outcomeOf(
+        results,
+        'cold_start',
+        'savedAyahShownMs',
+        checks: perfChecks,
+      );
+
+      expect(outcome.verdict, Verdict.missed);
+      expect(outcome.failures, 4);
+      expect(outcome.runs, 6);
+    });
+
+    test('a failed run misses every check of its scenario', () {
+      final outcomes = evaluate([
+        for (var i = 0; i < 3; i++)
+          _run('scroll', 'framesPerSecond', 60, details: {'frameSource': 'x'}),
+        _failure('scroll'),
+      ]).where((o) => o.check.scenario == 'scroll');
+
+      expect(outcomes, hasLength(3));
+      expect(outcomes.every((o) => o.verdict == Verdict.missed), isTrue);
+    });
+
+    test('a run that failed before any figure is a miss with no median', () {
+      final outcome = _outcomeOf(
+        [_failure('search')],
+        'search',
+        'resultsShownMs',
+        checks: perfChecks,
+      );
+
+      expect(outcome.verdict, Verdict.missed);
+      expect(outcome.failures, 1);
+      expect(outcome.median, isNull);
+      expect(outcome.toJson()['failures'], 1);
+    });
+
+    test('a failure of the run that built the pack is not counted', () {
+      final outcome = _outcomeOf(
+        [
+          _failure('search', details: const {'prepared': true}),
+        ],
+        'search',
+        'resultsShownMs',
+        checks: perfChecks,
+      );
+
+      expect(outcome.verdict, Verdict.notMeasured);
+    });
+
+    test('a failure in a debug build is informative', () {
+      final outcome = _outcomeOf(
+        [
+          const PerfResult(
+            scenario: 'search',
+            buildMode: 'debug',
+            platform: 'android',
+            metrics: {},
+            details: {'device': 'test phone', 'failed': true},
+          ),
+        ],
+        'search',
+        'resultsShownMs',
+        checks: perfChecks,
+      );
+
+      expect(outcome.verdict, Verdict.informative);
+    });
+
+    test('a figure over the limit is a miss even from fewer runs', () {
+      final outcome = _outcomeOf(
+        coldStarts(3, 2500),
+        'cold_start',
+        'savedAyahShownMs',
+        checks: perfChecks,
+      );
+
+      expect(outcome.verdict, Verdict.missed);
+    });
+
+    test('one run of ten openings meets the sheets budget, three do not', () {
+      PerfResult sheet(int openings) => _run(
+        'word_sheet',
+        'sheetOpenMs',
+        120,
+        details: {'repetitions': openings},
+      );
+
+      expect(
+        _outcomeOf(
+          [sheet(10)],
+          'word_sheet',
+          'sheetOpenMs',
+          checks: perfChecks,
+        ).verdict,
+        Verdict.met,
+      );
+      expect(
+        _outcomeOf(
+          [sheet(3)],
+          'word_sheet',
+          'sheetOpenMs',
+          checks: perfChecks,
+        ).verdict,
+        Verdict.incomplete,
+      );
+    });
+
+    test('the runs of a scroll that built the pack leave two of three', () {
+      final outcome = _outcomeOf(
+        [
+          _run(
+            'scroll',
+            'framesPerSecond',
+            60,
+            details: const {'prepared': true},
+          ),
+          _run('scroll', 'framesPerSecond', 60),
+          _run('scroll', 'framesPerSecond', 60),
+        ],
+        'scroll',
+        'framesPerSecond',
+        checks: perfChecks,
+      );
+
+      expect(outcome.verdict, Verdict.incomplete);
+    });
+  });
+
+  group('the device label', () {
+    test('two phones of one platform and OS are two devices', () {
+      final outcomes = evaluate([
+        _run(
+          'search',
+          'resultsShownMs',
+          100,
+          platform: 'ios',
+          details: {'device': 'iPhone 8', 'os': 'iOS 15'},
+        ),
+        _run(
+          'search',
+          'resultsShownMs',
+          900,
+          platform: 'ios',
+          details: {'device': 'iPhone SE', 'os': 'iOS 15'},
+        ),
+      ], checks: _oneRunSuffices).where((o) => o.check.scenario == 'search');
+
+      expect(
+        [for (final o in outcomes) (o.device, o.verdict)],
+        [('iPhone 8', Verdict.met), ('iPhone SE', Verdict.missed)],
+      );
+    });
+
+    test('a run without a label is informative whatever its number', () {
+      for (final label in [null, '', '  ']) {
+        final outcome = _outcomeOf(
+          [
+            _run(
+              'search',
+              'resultsShownMs',
+              10,
+              details: {'device': label, 'os': 'Android 14'},
+            ),
+          ],
+          'search',
+          'resultsShownMs',
+        );
+
+        expect(outcome.verdict, Verdict.informative, reason: '$label');
+        expect(outcome.device, 'android Android 14');
+      }
     });
   });
 }

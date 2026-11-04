@@ -85,11 +85,12 @@ final class PerfApp {
   /// an earlier run may have built the pack.
   ///
   /// A device has no repository to read the pinned font from, so it passes
-  /// [fontBytes] from its bundle.
+  /// [loadFont], which reads it from its bundle; it is called only when the
+  /// pack has to be built.
   static Future<PerfApp> open({
     required PerfPackSize size,
     required Directory support,
-    Uint8List? fontBytes,
+    Future<Uint8List?> Function()? loadFont,
   }) async {
     final root = Directory('${support.path}/perf_bundle/${size.name}');
     final bundle = Directory('${root.path}/$_packId/1');
@@ -99,7 +100,7 @@ final class PerfApp {
         root,
         size,
         searchFormKinds: SearchKinds.all,
-        fontBytes: fontBytes,
+        fontBytes: await loadFont?.call(),
       );
     }
     return PerfApp._(support, bundle, size, reused);

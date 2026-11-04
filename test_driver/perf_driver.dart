@@ -8,12 +8,16 @@ import 'package:integration_test/integration_test_driver.dart';
 
 import 'perf_collect.dart';
 
-// A run that fails part-way still writes the runs that finished, which the
-// summary counts as the runs they are.
+// A run that fails part-way still writes the runs that finished and the
+// failure it published, which the summary counts as a miss.
 Future<void> main() => integrationDriver(
   writeResponseOnFailure: true,
   responseDataCallback: (data) async {
-    final file = await saveResults(data, folder: Directory('build/perf'));
-    print('Performance results written to ${file.path}');
+    final written = await writeRunResults(
+      data,
+      folder: Directory('build/perf'),
+      output: stdout,
+    );
+    if (!written) exit(1);
   },
 );
