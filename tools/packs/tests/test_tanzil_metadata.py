@@ -121,6 +121,23 @@ class AcceptedTest(TanzilMetadataTestCase):
             data[notice.offset : notice.offset + notice.length], b" synthetic notice "
         )
 
+    def test_no_comment_is_the_published_form(self):
+        meta = read_tanzil_metadata(document(before=""))
+        self.assertIsNone(meta.notice)
+        self.assertEqual(len(meta.suras), 2)
+
+    def test_the_root_version_is_returned_with_its_offset(self):
+        data = document(before="")
+        meta = read_tanzil_metadata(data)
+        self.assertEqual(meta.version.value, "1.0")
+        self.assertEqual(
+            data[meta.version.offset : meta.version.offset + meta.version.length],
+            b"1.0",
+        )
+
+    def test_no_root_version_is_returned_as_none(self):
+        self.assertIsNone(read_tanzil_metadata(document(root="<quran>")).version)
+
     def test_root_without_attributes(self):
         meta = read_tanzil_metadata(document(root="<quran>"))
         self.assertEqual(len(meta.suras), 2)
@@ -197,11 +214,10 @@ class StructureRefusalTest(TanzilMetadataTestCase):
             "inside manzil 1",
         )
 
-    def test_no_comment(self):
-        self.assert_refused(document(before=""), "0 comments")
-
     def test_two_comments(self):
-        self.assert_refused(document(after="<!-- %s -->" % SECRET), "2 comments")
+        self.assert_refused(
+            document(after="<!-- %s -->" % SECRET), "2 comments", "not zero or one"
+        )
 
 
 class ItemRefusalTest(TanzilMetadataTestCase):

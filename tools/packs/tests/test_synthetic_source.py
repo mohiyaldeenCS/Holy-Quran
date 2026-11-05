@@ -245,16 +245,28 @@ class MetadataXmlTest(unittest.TestCase):
     def setUp(self):
         self.xml = synthetic_source.synthetic_metadata_xml().decode("utf-8")
 
-    def test_has_one_notice_before_the_root(self):
-        notice = "<!--%s-->" % synthetic_source.METADATA_NOTICE
+    def test_has_no_comment_and_the_root_version_like_the_published_file(self):
         self.assertTrue(
-            self.xml.startswith('<?xml version="1.0" encoding="utf-8" ?>\n' + notice + "\n")
+            self.xml.startswith(
+                '<?xml version="1.0" encoding="utf-8" ?>\n<quran type="metadata" '
+            )
         )
-        self.assertEqual(self.xml.count("<!--"), 1)
+        self.assertNotIn("<!--", self.xml)
         self.assertIn(
             '<quran type="metadata" version="1.0" copyright="Synthetic" license="synthetic">',
             self.xml,
         )
+
+    def test_a_notice_is_one_comment_before_the_root(self):
+        xml = synthetic_source.synthetic_metadata_xml(notice="\nA notice\n").decode("utf-8")
+        self.assertTrue(
+            xml.startswith('<?xml version="1.0" encoding="utf-8" ?>\n<!--\nA notice\n-->\n<quran ')
+        )
+        self.assertEqual(xml.count("<!--"), 1)
+
+    def test_the_version_can_be_given(self):
+        xml = synthetic_source.synthetic_metadata_xml(version="9.9").decode("utf-8")
+        self.assertIn('version="9.9"', xml)
 
     def test_groups_come_in_order(self):
         groups = re.findall(r"^  <(\w+)[ >]", self.xml, re.M)

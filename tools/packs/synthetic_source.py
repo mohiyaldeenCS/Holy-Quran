@@ -22,7 +22,7 @@ MARK_TABLE_FILE = "marks.json"
 BUILD_FILE = "build.json"
 
 TEXT_NOTICE = "\nSynthetic text source for tests. Not Quran text.\nVersion 1\n"
-METADATA_NOTICE = "\nSynthetic metadata source for tests.\nVersion 1\n"
+METADATA_VERSION = "1.0"
 
 _OPENING = "Synthetic opening line"
 
@@ -97,17 +97,20 @@ def synthetic_metadata_xml(
     rukus=SYNTHETIC_RUKUS,
     pages=SYNTHETIC_PAGES,
     sajdas=SYNTHETIC_SAJDAS,
-    notice=METADATA_NOTICE,
+    version=METADATA_VERSION,
+    notice=None,
 ) -> bytes:
-    lines = [
-        _DECLARATION,
-        _comment(notice),
+    """Tanzil's quran-data.xml has no comment; [notice] adds one before the root to test that form."""
+    lines = [_DECLARATION]
+    if notice is not None:
+        lines.append(_comment(notice))
+    lines.append(
         _start_tag(
             "quran",
-            (("type", "metadata"), ("version", "1.0"), ("copyright", "Synthetic"),
+            (("type", "metadata"), ("version", version), ("copyright", "Synthetic"),
              ("license", "synthetic")),
-        ),
-    ]
+        )
+    )
     sura_fields = ("ayas", "start", "name", "tname", "ename", "type", "order", "rukus")
     lines.extend(
         _group(
@@ -162,6 +165,7 @@ def synthetic_build_config(text_sha256: str, metadata_sha256: str) -> dict:
             "edition_map": _source(
                 METADATA_FILE, metadata_sha256, 4, "Synthetic metadata source",
                 "https://example.invalid/synthetic/metadata",
+                METADATA_VERSION,
             ),
         },
         "mark_table": MARK_TABLE_FILE,
@@ -196,7 +200,7 @@ def write_synthetic_source(
     return build
 
 
-def _source(file, sha256, registry_row, name, url) -> dict:
+def _source(file, sha256, registry_row, name, url, version="1") -> dict:
     return {
         "file": file,
         "file_sha256": sha256,
@@ -204,7 +208,7 @@ def _source(file, sha256, registry_row, name, url) -> dict:
         "name": name,
         "publisher": "Synthetic publisher",
         "url": url,
-        "version": "1",
+        "version": version,
         "fetched_on": "2026-01-01",
         "trust_grade": "A",
         "licence": {

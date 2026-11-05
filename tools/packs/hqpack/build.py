@@ -72,6 +72,7 @@ def build_pack(config_path, font_path, out_root, unapproved=False):
     metadata = read_tanzil_metadata(metadata_bytes)
 
     source_checks.check_notice(text.notice, config.text.version, "text")
+    source_checks.check_metadata_version(metadata, config.edition_map.version)
     source_checks.check_structure(profile, text, metadata)
     places = source_checks.revelation(metadata)
     ayah_counts = {sura.index: len(sura.ayat) for sura in text.suras}
@@ -116,7 +117,7 @@ def build_pack(config_path, font_path, out_root, unapproved=False):
                         config.edition_map,
                         metadata_bytes,
                         options_from_url(config.edition_map.url),
-                        metadata.notice.value,
+                        None if metadata.notice is None else metadata.notice.value,
                     ),
                 ],
                 text_sha256=text_sha256,
