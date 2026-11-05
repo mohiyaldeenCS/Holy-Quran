@@ -45,31 +45,31 @@ TC="$HOME/holyquran-test-copy"
    terms on tanzil.net first.
    ```
    mkdir -p "$TC/raw"
-   curl -fL -o "$TC/raw/quran-uthmani.xml" 'https://tanzil.net/pub/download/index.php?quranType=uthmani&outType=xml&marks=true&sajdah=true&rub=false&agree=true'
+   curl -fL -o "$TC/raw/quran-uthmani.xml" 'https://tanzil.net/pub/download/index.php?quranType=uthmani&outType=xml&marks=true&sajdah=true&agree=true'
+   curl -fL -o "$TC/raw/quran-data.xml" 'https://tanzil.net/res/text/metadata/quran-data.xml'
    sha256sum "$TC"/raw/*
    ```
-   `rub=false` is D-079. The text address above follows Tanzil's download form. **The
-   metadata address is not in the template: nobody has confirmed it, so the template
-   holds a `FILL_IN` placeholder and the pack step refuses it until you fill it in.** Take the
-   metadata file from Tanzil's own download page, save it as `$TC/raw/quran-data.xml`
-   (for example `curl -fL -o "$TC/raw/quran-data.xml" '<the address the page gives>'`),
-   and put the same address in the `url` of the `edition_map` source in `build.json` in
-   step 3 (you fill it in there; the address is recorded in the pack's manifest). The metadata `version`
-   comes from the notice at the head of that file, not from the page. Do not edit, save again or re-encode either file: open
-   nothing in an editor.
+   The text address follows Tanzil's download form (D-079): a checkbox that is off is
+   left out of the address, because the server reads whether a parameter is there, not
+   its value, so `rub=false` would switch the rub-el-hizb sign **on**. `rub`, `tatweel`
+   and `stanween` are therefore omitted; the pipeline refuses `=false` on any of the five
+   boxes. The metadata address is the one on Tanzil's Quran Metadata page
+   (tanzil.net/docs/Quran_Metadata, "Latest release: ver 1.0") and is already in the
+   template. Do not edit, save again or re-encode either file: open nothing in an editor.
 
 3. **Write the build description.**
    ```
    cp tools/test_copy/build.template.json "$TC/build.json"
-   head -c 600 "$TC/raw/quran-data.xml"
+   head -c 400 "$TC/raw/quran-data.xml"
    ```
-   The second command shows the notice at the head of the metadata file; it names a
-   `Version`. Open `$TC/build.json` and replace every `FILL_IN…`: the metadata `url` (the address you took from
-   Tanzil's page in step 2), `fetched_on` of both
-   sources (the date of step 2, `YYYY-MM-DD`), `file_sha256` of each (the two hashes
-   printed by `sha256sum`), and the metadata `version` (the one in the notice). Leave
-   `reviews` as `[]`, and everything else as it is. The build stops if a hash, a
-   version or a notice does not match.
+   The second command shows the head of the metadata file: it has no notice comment, and
+   its root element `<quran type="metadata" version="1.0" ...>` names the metadata
+   `version` (`1.0` for the current file). Open `$TC/build.json` and replace every
+   `FILL_IN…`: `fetched_on` of both sources (the date of step 2, `YYYY-MM-DD`),
+   `file_sha256` of each (the two hashes printed by `sha256sum`), and the metadata
+   `version` (the root element's `version` attribute, `1.0`). Leave `reviews` as `[]`, and
+   everything else as it is. The build stops if a hash or a version does not match, or if
+   the metadata file has no `version` attribute.
 
 4. **Build, verify, test and sign the pack.**
    ```
