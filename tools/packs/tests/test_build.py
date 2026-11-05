@@ -84,8 +84,8 @@ class SyntheticBuildTest(BuildCase):
 
     def test_sources_carry_options_notice_and_hashes(self):
         text, edition_map = self.manifest["sources"]
-        self.assertEqual(text["options"], {"marks": "true", "sajdah": "true", "rub": "false", "outType": "xml"})
-        self.assertEqual(list(text["options"]), ["marks", "sajdah", "rub", "outType"])
+        self.assertEqual(text["options"], {"marks": "true", "sajdah": "true", "outType": "xml"})
+        self.assertEqual(list(text["options"]), ["marks", "sajdah", "outType"])
         self.assertIsNone(edition_map["options"])
         self.assertEqual(text["licence"]["notice"], synthetic.TEXT_NOTICE)
         self.assertIsNone(edition_map["licence"]["notice"])
@@ -228,6 +228,17 @@ class RefusalTest(BuildCase):
             mark_table=b'{"code_points": ["U+06D6", "U+06D7", "U+06DA", "U+06DE", "U+06E9"]}\n',
         )
         self.assert_refused(r"U\+06DE", config)
+
+    def test_a_checkbox_option_with_a_value_other_than_true_stops_before_the_files_are_read(self):
+        config = self.write_source()
+        self.edit_config(
+            config,
+            lambda c: c["sources"]["text"].update(
+                url="https://example.invalid/synthetic/text?marks=true&sajdah=true&rub=false&agree=true"
+            ),
+        )
+        (self.source / synthetic.TEXT_FILE).unlink()
+        self.assert_refused(r"rub=false would include what it names: the URL must omit rub", config)
 
     def test_a_sign_the_profile_excludes_whatever_the_url_says(self):
         config = self.write_source(

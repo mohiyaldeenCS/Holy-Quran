@@ -4,7 +4,7 @@ from hqpack.errors import PackError
 from hqpack.options import option_problems, options_from_url
 
 TANZIL_STYLE = (
-    "https://example.invalid/download?marks=true&sajdah=true&rub=false"
+    "https://example.invalid/download?marks=true&sajdah=true"
     "&outType=xml&agree=true"
 )
 NOON = "\u0646"
@@ -18,7 +18,28 @@ class OptionsFromUrlTest(unittest.TestCase):
         options = options_from_url(TANZIL_STYLE)
         self.assertEqual(
             list(options.items()),
-            [("marks", "true"), ("sajdah", "true"), ("rub", "false"), ("outType", "xml")],
+            [("marks", "true"), ("sajdah", "true"), ("outType", "xml")],
+        )
+
+    def test_a_checkbox_present_with_true_is_on(self):
+        options = options_from_url("https://example.invalid/d?rub=true&tatweel=true&stanween=true")
+        self.assertEqual(options, {"rub": "true", "tatweel": "true", "stanween": "true"})
+
+    def test_refuses_a_checkbox_with_any_value_other_than_true(self):
+        for name in ("marks", "sajdah", "rub", "tatweel", "stanween"):
+            for value in ("false", "TRUE", "1", "", "yes"):
+                with self.subTest(name=name, value=value):
+                    with self.assertRaises(PackError) as caught:
+                        options_from_url("https://example.invalid/d?a=1&%s=%s" % (name, value))
+                    message = str(caught.exception)
+                    self.assertIn("reads the presence of a checkbox parameter", message)
+                    self.assertIn("the URL must omit %s" % name, message)
+                    self.assertIn("%s=%s" % (name, value), message)
+
+    def test_a_value_other_than_true_on_a_name_that_is_not_a_checkbox_is_kept(self):
+        self.assertEqual(
+            options_from_url("https://example.invalid/d?outType=false&x="),
+            {"outType": "false", "x": ""},
         )
 
     def test_none_without_choices(self):
@@ -37,7 +58,7 @@ class OptionsFromUrlTest(unittest.TestCase):
         self.assertEqual(options_from_url("https://example.invalid/d?a=1#b=2"), {"a": "1"})
 
     def test_refuses_repeated_name(self):
-        for query in ("rub=true&rub=false", "agree=true&agree=true", "a=1&b=2&a=1"):
+        for query in ("rub=true&rub=true", "agree=true&agree=true", "a=1&b=2&a=1"):
             with self.subTest(query=query):
                 with self.assertRaises(PackError) as caught:
                     options_from_url("https://example.invalid/d?" + query)
@@ -72,7 +93,30 @@ class OptionProblemsTest(unittest.TestCase):
 
     def test_unknown_options_are_not_checked(self):
         options = {"outType": "xml", "quranType": "uthmani"}
-        self.assertEqual(option_problems(options, [("ayah 1:1", RUB)]), [])
+        self.assertEqual(option_problems(options, [("ayah 1:1", NOON)]), [])
+
+    def test_rub_absent_from_the_url_means_off(self):
+        texts = [
+            ("ayah 1:1", NOON + PAUSES[0] + SAJDA),
+            ("ayah 1:2", RUB + RUB),
+            ("ayah 1:3", RUB),
+        ]
+        options = options_from_url(TANZIL_STYLE)
+        self.assertNotIn("rub", options)
+        self.assertEqual(
+            option_problems(options, texts),
+            [
+                "option rub is absent from the URL, so Tanzil leaves it off, "
+                "but ayah 1:2 holds U+06DE (3 in all)"
+            ],
+        )
+
+    def test_rub_absent_and_not_in_the_text_is_fine(self):
+        self.assertEqual(option_problems({"marks": "true"}, [("ayah 1:1", PAUSES[0])]), [])
+
+    def test_other_absent_options_are_not_checked(self):
+        texts = [("ayah 1:1", NOON + PAUSES[0] + SAJDA)]
+        self.assertEqual(option_problems({"outType": "xml"}, texts), [])
 
     def test_agreeing_file(self):
         texts = [
@@ -85,11 +129,11 @@ class OptionProblemsTest(unittest.TestCase):
     def test_false_reports_first_occurrence_and_total(self):
         texts = iter([
             ("ayah 1:1", NOON),
-            ("ayah 1:2", RUB + " " + NOON + " " + RUB),
-            ("ayah 1:3", RUB),
+            ("ayah 1:2", SAJDA + " " + NOON + " " + SAJDA),
+            ("ayah 1:3", SAJDA),
         ])
-        problems = option_problems({"rub": "false"}, texts)
-        self.assertEqual(problems, ["option rub=false, but ayah 1:2 holds U+06DE (3 in all)"])
+        problems = option_problems({"sajdah": "false"}, texts)
+        self.assertEqual(problems, ["option sajdah=false, but ayah 1:2 holds U+06E9 (3 in all)"])
 
     def test_false_reports_each_code_point(self):
         texts = [("ayah 2:1", PAUSES[3]), ("ayah 2:2", PAUSES[1] + PAUSES[3])]
@@ -133,19 +177,20 @@ class OptionProblemsTest(unittest.TestCase):
 
     def test_messages_are_ascii_and_hide_the_text(self):
         texts = [("ayah 3:4", "zebra" + RUB + NOON)]
-        for problem in option_problems({"rub": "false", "sajdah": "true"}, texts):
+        for problem in option_problems({"outType": "xml", "sajdah": "true"}, texts):
             problem.encode("ascii")
             self.assertNotIn("zebra", problem)
 
     def test_texts_read_once(self):
         texts = (pair for pair in [("ayah 1:1", SAJDA + RUB)])
-        problems = option_problems({"sajdah": "true", "rub": "false", "marks": "true"}, texts)
+        problems = option_problems({"sajdah": "true", "marks": "true"}, texts)
         self.assertEqual(
             problems,
             [
-                "option rub=false, but ayah 1:1 holds U+06DE (1 in all)",
                 "option marks=true, but no text holds any of U+06D6, U+06D7, U+06D8, "
                 "U+06D9, U+06DA, U+06DB",
+                "option rub is absent from the URL, so Tanzil leaves it off, "
+                "but ayah 1:1 holds U+06DE (1 in all)",
             ],
         )
 

@@ -108,10 +108,12 @@ class TemplateTest(unittest.TestCase):
             "https://tanzil.net/res/text/metadata/quran-data.xml",
         )
 
-    def test_the_source_options_are_those_of_d079(self):
+    def test_the_source_options_are_those_of_d079_with_the_unwanted_boxes_unticked(self):
         url = self.template["sources"]["text"]["url"]
-        for option in ("marks=true", "sajdah=true", "rub=false", "outType=xml", "quranType=uthmani"):
+        for option in ("marks=true", "sajdah=true", "outType=xml", "quranType=uthmani"):
             self.assertIn(option, url)
+        for left_out in ("rub", "tatweel", "stanween"):
+            self.assertNotIn(left_out, url)
         self.assertEqual(self.template["reviews"], [])
 
     def test_the_licences_keep_the_credit_conditions_of_the_register(self):

@@ -175,7 +175,7 @@ class SyntheticSourceTest(unittest.TestCase):
         self.assertEqual(
             document["sources"]["text"]["url"],
             "https://example.invalid/synthetic/text"
-            "?marks=true&sajdah=true&rub=false&outType=xml&agree=true",
+            "?marks=true&sajdah=true&outType=xml&agree=true",
         )
         self.assertIsNone(document["sources"]["text"]["licence"]["text"])
 

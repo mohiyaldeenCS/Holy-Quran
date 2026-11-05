@@ -160,7 +160,7 @@ def synthetic_build_config(text_sha256: str, metadata_sha256: str) -> dict:
             "text": _source(
                 TEXT_FILE, text_sha256, 1, "Synthetic text source",
                 "https://example.invalid/synthetic/text"
-                "?marks=true&sajdah=true&rub=false&outType=xml&agree=true",
+                "?marks=true&sajdah=true&outType=xml&agree=true",
             ),
             "edition_map": _source(
                 METADATA_FILE, metadata_sha256, 4, "Synthetic metadata source",
