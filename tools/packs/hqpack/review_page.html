@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مراجعة الفروق بين نص تنزيل ونص مجمع الملك فهد</title>
+<style>
+@font-face { font-family: "HQ Tanzil"; src: url("${tanzil_font}") format("truetype"); font-display: block; }
+@font-face { font-family: "HQ KFGQPC"; src: url("${kfgqpc_font}") format("truetype"); font-display: block; }
+body { font-family: system-ui, sans-serif; color: #111; background: #fff; line-height: 1.7; margin: 0 auto; max-width: 64rem; padding: 1rem; }
+header { border-bottom: 2px solid #444; margin-bottom: 1.5rem; padding-bottom: 1rem; }
+h1 { font-size: 1.5rem; }
+h2 { border-top: 2px solid #444; font-size: 1.3rem; margin-top: 2.5rem; padding-top: 1rem; }
+h3 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+.question { background: #f3f3f3; padding: 0.5rem 0.75rem; }
+.warning { background: #fff0c2; border: 1px solid #c90; padding: 0.5rem 0.75rem; }
+.inputs { color: #444; font-family: monospace; font-size: 0.8rem; overflow-wrap: anywhere; }
+.reviewer { background: #f3f3f3; margin-top: 1rem; padding: 0.75rem; position: sticky; top: 0; z-index: 1; }
+.reviewer input { font-size: 1rem; min-width: 14rem; }
+.reviewer button { font-size: 1rem; margin-inline-start: 1rem; padding: 0.25rem 1rem; }
+.place, .card { border: 1px solid #bbb; margin: 1rem 0; padding: 0.75rem; }
+.card > .place { border-style: dashed; }
+.address { color: #555; direction: ltr; font-family: monospace; font-size: 0.85rem; unicode-bidi: isolate; }
+.label { color: #333; font-size: 0.9rem; font-weight: bold; }
+.text { font-size: 1.9rem; line-height: 2.6; margin: 0 0 0.5rem; white-space: pre-wrap; }
+.text.tanzil { font-family: "HQ Tanzil"; }
+.text.kfgqpc { font-family: "HQ KFGQPC"; }
+mark { background: #ffd966; color: inherit; outline: 2px solid #c90; }
+.code-points { display: grid; gap: 0 1rem; grid-template-columns: 1fr 1fr; }
+.code-points ul { direction: ltr; font-family: monospace; font-size: 0.85rem; list-style: none; margin: 0; padding: 0; text-align: left; }
+.choice { border: 1px solid #888; margin-top: 0.75rem; }
+.choice label { display: inline-block; margin-inline-end: 1.25rem; }
+.choice textarea { box-sizing: border-box; display: block; margin-top: 0.5rem; min-height: 2.5rem; width: 100%; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #bbb; padding: 0.4rem; text-align: start; vertical-align: top; }
+td .choice { border: 0; margin: 0; padding: 0; }
+</style>
+</head>
+<body>
+<header>
+<h1>مراجعة الفروق بين نص تنزيل ونص مجمع الملك فهد لطباعة المصحف الشريف (رواية حفص)</h1>
+<p>هذه الصفحة أداة لمراجعة القارئ المجاز. تعرض كل موضع يختلف فيه نص تنزيل، وهو النص الذي يعرضه التطبيق، عن نص مجمع الملك فهد في علامات الوقف أو الحروف، وأنماط الترميز المختلفة مع أمثلة منها، وفروق تقسيم الصفحات والأجزاء والأرباع.</p>
+<p>النصان معروضان كما وردا في مصدريهما تمامًا، بلا أي تغيير، كلٌّ بخط مصدره: نص تنزيل بخط أميري قرآن الذي يستعمله التطبيق، ونص المجمع بخط المجمع نفسه مع علامات العرض التي فيه كرقم الآية. الكلمة التي فيها الفرق مظلَّلة في النصين، وتحت كل موضع رموز الفرق بأسمائها في Unicode.</p>
+<p>قابِل كل موضع ونمط وصف بمصحف المدينة النبوية المطبوع، واختر «موافق للمصحف المطبوع» أو «غير موافق» أو «لم أتحقق»، واكتب ملاحظتك إن كانت. تُحفظ اختياراتك في هذا المتصفح على هذا الجهاز وحده.</p>
+<p>للحفظ والإرسال: اكتب اسمك في الحقل أدناه، ثم اضغط «حفظ ملف القرارات»، فيُحفظ ملف على جهازك. أرسل هذا الملف إلى صاحب المشروع وحده. يمكنك الحفظ في أي وقت والمتابعة لاحقًا من المتصفح نفسه. لا ترسل الصفحة شيئًا عبر الشبكة، فلا تنشرها ولا تنشر ملف القرارات ولا ترفعهما إلى أي موقع.</p>
+<p id="font-warning" class="warning">تنبيه: لم يتأكد بعدُ تحميل الخطين. إن بقي هذا التنبيه فلا تعتمد على الصفحة، وأبلغ صاحب المشروع.</p>
+<p id="storage-warning" class="warning" hidden>تنبيه: لا يستطيع المتصفح حفظ اختياراتك على الجهاز. احفظ ملف القرارات قبل إغلاق الصفحة.</p>
+${problems}<p>${counts}</p>
+<div class="inputs">${inputs}</div>
+<div class="reviewer">
+<label>اسم المراجع: <input id="reviewer" type="text" autocomplete="name"></label>
+<button id="save" type="button">حفظ ملف القرارات</button>
+<span id="progress"></span>
+</div>
+</header>
+<main>
+${sections}
+</main>
+<script type="application/json" id="review-data">${data}</script>
+<script>
+(function (root) {
+  "use strict";
+  var CHOICES = ["agrees", "disagrees", "unchecked"];
+
+  function decisionsFile(data, items, reviewer, savedAt) {
+    return {
+      format: data.decisions.format,
+      version: data.decisions.version,
+      reviewer: reviewer,
+      saved_at: savedAt,
+      inputs: data.inputs,
+      decisions: data.items.map(function (item) {
+        var saved = items[item.id] || {};
+        var decision = {};
+        Object.keys(item).forEach(function (key) { decision[key] = item[key]; });
+        decision.choice = CHOICES.indexOf(saved.choice) >= 0 ? saved.choice : "unchecked";
+        decision.note = typeof saved.note === "string" ? saved.note : "";
+        return decision;
+      })
+    };
+  }
+  root.decisionsFile = decisionsFile;
+  if (typeof document === "undefined") { return; }
+
+  var data = JSON.parse(document.getElementById("review-data").textContent);
+  var state = { reviewer: "", items: {} };
+  try {
+    var stored = JSON.parse(root.localStorage.getItem(data.storage_key) || "null");
+    if (stored && typeof stored === "object") {
+      if (typeof stored.reviewer === "string") { state.reviewer = stored.reviewer; }
+      if (stored.items && typeof stored.items === "object") { state.items = stored.items; }
+    }
+  } catch (e) {
+    document.getElementById("storage-warning").hidden = false;
+  }
+
+  function store() {
+    try {
+      root.localStorage.setItem(data.storage_key, JSON.stringify(state));
+    } catch (e) {
+      document.getElementById("storage-warning").hidden = false;
+    }
+  }
+
+  function progress() {
+    var done = data.items.filter(function (item) {
+      var saved = state.items[item.id];
+      return saved && saved.choice && saved.choice !== "unchecked";
+    }).length;
+    document.getElementById("progress").textContent =
+      "تم التحقق من " + done.toLocaleString("ar-EG") + " من " + data.items.length.toLocaleString("ar-EG");
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll("fieldset.choice"), function (fieldset) {
+    var id = fieldset.getAttribute("data-id");
+    var saved = state.items[id] || {};
+    var note = fieldset.querySelector("textarea");
+    Array.prototype.forEach.call(fieldset.querySelectorAll("input[type=radio]"), function (radio) {
+      if (radio.value === saved.choice) { radio.checked = true; }
+      radio.addEventListener("change", function () {
+        state.items[id] = { choice: radio.value, note: note.value };
+        store();
+        progress();
+      });
+    });
+    if (typeof saved.note === "string") { note.value = saved.note; }
+    note.addEventListener("input", function () {
+      var checked = fieldset.querySelector("input[type=radio]:checked");
+      state.items[id] = { choice: checked ? checked.value : "unchecked", note: note.value };
+      store();
+    });
+  });
+
+  var reviewer = document.getElementById("reviewer");
+  reviewer.value = state.reviewer;
+  reviewer.addEventListener("input", function () {
+    state.reviewer = reviewer.value;
+    store();
+  });
+
+  document.getElementById("save").addEventListener("click", function () {
+    if (!reviewer.value.trim()) {
+      root.alert("اكتب اسمك في حقل «اسم المراجع» قبل حفظ ملف القرارات.");
+      reviewer.focus();
+      return;
+    }
+    var now = new Date().toISOString();
+    var file = decisionsFile(data, state.items, reviewer.value, now);
+    var blob = new Blob([JSON.stringify(file, null, 2) + "\n"], { type: "application/json" });
+    var link = document.createElement("a");
+    link.href = root.URL.createObjectURL(blob);
+    link.download = "kfgqpc-review-decisions-" + now.slice(0, 10) + ".json";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    root.setTimeout(function () { root.URL.revokeObjectURL(link.href); }, 1000);
+  });
+
+  if (document.fonts && document.fonts.load) {
+    Promise.all([document.fonts.load('1em "HQ Tanzil"'), document.fonts.load('1em "HQ KFGQPC"')])
+      .then(function (loaded) {
+        if (loaded[0].length && loaded[1].length) { document.getElementById("font-warning").hidden = true; }
+      })
+      .catch(function () {});
+  }
+  progress();
+}(typeof window !== "undefined" ? window : globalThis));
+</script>
+</body>
+</html>

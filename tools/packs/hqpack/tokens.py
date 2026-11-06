@@ -22,6 +22,27 @@ def is_letter(cp: int) -> bool:
     return unicodedata.category(chr(cp)).startswith("L")
 
 
+def token_spans(text: str) -> list:
+    """(start, end, is_word) of every token, in code points, half-open; nothing is
+    refused, so it also serves a witness text that holds other white space."""
+    result = []
+    start = None
+    for index, c in enumerate(text):
+        if ord(c) == _SEPARATOR:
+            if start is not None:
+                result.append(_token(text, start, index))
+                start = None
+        elif start is None:
+            start = index
+    if start is not None:
+        result.append(_token(text, start, len(text)))
+    return result
+
+
+def _token(text, start, end):
+    return (start, end, any(is_letter(ord(c)) for c in text[start:end]))
+
+
 @dataclass(frozen=True)
 class Spans:
     words: list

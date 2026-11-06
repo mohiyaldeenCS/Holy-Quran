@@ -13,8 +13,10 @@ from unittest import mock
 
 import synthetic_source as synthetic
 from hqpack import cli
+from hqpack.review_page import KFGQPC_FONT_NAME
 
 from tests.build_support import FONT, HAFS_ID, TEST_COPY_ID, BuildCase, hafs_shaped_profiles
+from tests.test_review_page import synthetic_kfgqpc_font
 
 PACK_PY = Path(__file__).resolve().parents[1] / "pack.py"
 
@@ -191,11 +193,63 @@ class KfgqpcCliTest(CliCase):
         code, out, report = self.compare(entries)
         self.assertEqual(code, cli.EX_DATAERR)
         self.assertIn("undocumented differences 1 in 1 patterns", out)
+        self.assertEqual(out.splitlines()[-1], "problems found: the comparison fails")
+        self.assertNotIn("no undocumented difference", out)
         self.assertEqual(report["differences"][0]["address"], "hafs:1:4")
         self.assertEqual(report["patterns"][0]["kfgqpc"], ["U+06E1"])
 
     def test_compare_needs_every_input(self):
         self.assertEqual(self.run_cli("compare", "--text", "t", "--metadata", "m", "--kfgqpc", "k", "--table", "x")[0], cli.EX_USAGE)
+
+    def review_page(self, out):
+        self.write_source()
+        font = self.work / KFGQPC_FONT_NAME
+        font.write_bytes(synthetic_kfgqpc_font())
+        entries = synthetic.synthetic_kfgqpc_entries()
+        entries[3]["aya_text"] = entries[3]["aya_text"].replace("\u064e", "\u06e1")
+        with hafs_shaped_profiles():
+            return self.run_cli(
+                "review-page",
+                "--text", self.source / synthetic.TEXT_FILE,
+                "--metadata", self.source / synthetic.METADATA_FILE,
+                "--kfgqpc", self.write_kfgqpc(entries),
+                "--table", self.write_table(),
+                "--tanzil-font", FONT,
+                "--kfgqpc-font", font,
+                "--out", out,
+            )
+
+    def test_review_page_writes_the_page(self):
+        out = self.work / "review"
+        code, printed, err = self.review_page(out)
+        self.assertEqual(code, 0, err)
+        lines = printed.splitlines()
+        self.assertEqual(lines[0], "page %s" % (out / "review.html"))
+        self.assertTrue((out / "review.html").is_file())
+        text_sha256 = hashlib.sha256((self.source / synthetic.TEXT_FILE).read_bytes()).hexdigest()
+        self.assertIn("tanzil text sha256 %s" % text_sha256, lines)
+        self.assertIn("table version 2", lines)
+        self.assertRegex(printed, r"kfgqpc font sha256 [0-9a-f]{64}")
+        self.assertIn("undocumented differences 1 in 1 patterns", printed)
+        self.assertIn(
+            "section A places 1, section B patterns 0 (places 0), section C patterns 0 (places 0), "
+            "section D rows 3 (surah-opening quarter starts 3)",
+            lines,
+        )
+        self.assertIn("never commit or upload them", lines[-1])
+
+    def test_review_page_refuses_a_folder_in_a_git_tree(self):
+        (self.work / ".git").mkdir()
+        code, _, err = self.review_page(self.work / "review")
+        self.assertEqual(code, cli.EX_DATAERR)
+        self.assertIn("refused: the output folder", err)
+        self.assertIn("is inside the Git working tree", err)
+        self.assertFalse((self.work / "review").exists())
+
+    def test_review_page_needs_every_input(self):
+        code, _, err = self.run_cli("review-page", "--text", "t", "--metadata", "m", "--kfgqpc", "k", "--table", "x")
+        self.assertEqual(code, cli.EX_USAGE)
+        self.assertIn("--tanzil-font", err)
 
     def test_build_of_a_hafs_pack_with_the_comparison(self):
         config = self.write_source(riwaya="hafs", id=HAFS_ID)

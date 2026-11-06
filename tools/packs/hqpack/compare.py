@@ -17,12 +17,13 @@ import bisect
 import difflib
 import json
 from collections import OrderedDict
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import digest, kfgqpc, source_checks
 from .errors import PackError, code_point
 from .known_differences import EVERY_AYAH, read_table
-from .tokens import is_letter
+from .tokens import token_spans
 
 FORMAT = "holyquran-kfgqpc-comparison"
 CONTEXT = 2
@@ -31,7 +32,34 @@ SEQUENCE_CAP = 8
 QUARTER_CONTEXT = 2
 
 
-def run_comparison(text, metadata, kfgqpc_path, table_path, profile, tanzil_sha256):
+@dataclass(frozen=True)
+class Place:
+    """One difference with the two whole ayat, for the review page only: it holds
+    text and never enters the report. `kfgqpc` and `tanzil` are half-open
+    code-point ranges in `kfgqpc_text` (the ayah as published, before the table)
+    and in `tanzil_text`; the sequences are those of the report, uncapped."""
+
+    address: tuple
+    word: int
+    in_mark: bool
+    kfgqpc: tuple
+    tanzil: tuple
+    kfgqpc_sequence: str
+    tanzil_sequence: str
+    kfgqpc_text: str
+    tanzil_text: str
+
+
+@dataclass
+class Trace:
+    """What the review page needs beyond the report: every difference as a Place,
+    and the surah openings P-3 accepted as quarter starts."""
+
+    places: list = field(default_factory=list)
+    surah_opening_quarters: list = field(default_factory=list)
+
+
+def run_comparison(text, metadata, kfgqpc_path, table_path, profile, tanzil_sha256, trace=None):
     """Reads the KFGQPC file and the table, compares, and returns the report with
     every input recorded; `tanzil_sha256` is {"text": hex, "metadata": hex}."""
     witness, kfgqpc_sha256 = kfgqpc.read_kfgqpc_file(kfgqpc_path, profile.ayat)
@@ -53,12 +81,13 @@ def run_comparison(text, metadata, kfgqpc_path, table_path, profile, tanzil_sha2
     report["table"] = OrderedDict(
         [("version", table.version), ("sha256", digest.sha256_bytes(table_bytes))]
     )
-    report.update(compare(text, metadata, witness, table))
+    report.update(compare(text, metadata, witness, table, trace))
     return report
 
 
-def compare(text, metadata, witness, table):
-    """The comparison of the parsed Tanzil text and metadata with the parsed KFGQPC ayat under `table`."""
+def compare(text, metadata, witness, table, trace=None):
+    """The comparison of the parsed Tanzil text and metadata with the parsed KFGQPC ayat
+    under `table`; with a Trace, also fills it."""
     tanzil = [(aya.surah, aya.number, aya.text.value) for sura in text.suras for aya in sura.ayat]
     _check_addresses(tanzil, witness)
     ayah_counts = {sura.index: len(sura.ayat) for sura in text.suras}
@@ -86,6 +115,7 @@ def compare(text, metadata, witness, table):
     patterns = OrderedDict()
     page_differences = []
     juz_differences = []
+    surah_opening_quarters = []
 
     for (surah, number, tanzil_text), aya in zip(tanzil, witness):
         address = (surah, number)
@@ -93,13 +123,19 @@ def compare(text, metadata, witness, table):
         side = aya.text
         if table.ayah_end is not None:
             side = _ayah_end(table, side, address, label, presentation_problems, applied)
+        front = len(side)
         if table.quarter_start is not None:
             side = _opening(
-                table, side, address, label, quarter_starts, kfgqpc_quarters, presentation_problems, applied
+                table, side, address, label, quarter_starts, kfgqpc_quarters, presentation_problems, applied,
+                surah_opening_quarters,
             )
-        side = _equivalences(table.equivalences, side, address, applied, applied_at)
+        front -= len(side)
+        side, origin = _equivalences(table.equivalences, side, address, applied, applied_at)
         if side != tanzil_text:
-            _differences(label, side, tanzil_text, differences, patterns)
+            place = None
+            if trace is not None:
+                place = _place_recorder(trace, address, aya.text, tanzil_text, side, front, origin)
+            _differences(label, side, tanzil_text, differences, patterns, place)
         for kind, found, expected, problems in (
             ("page", aya.page, page_of[address], page_differences),
             ("juz", aya.juz, juz_of[address], juz_differences),
@@ -119,6 +155,8 @@ def compare(text, metadata, witness, table):
         )
     else:
         quarter_differences = _quarter_differences(kfgqpc_quarters, quarter_starts)
+    if trace is not None:
+        trace.surah_opening_quarters.extend(surah_opening_quarters)
     for rule in table.equivalences:
         if rule.applies_to == EVERY_AYAH:
             if not applied[rule.id]:
@@ -269,10 +307,10 @@ def _ayah_end(table, side, address, label, problems, applied):
     return side
 
 
-def _opening(table, side, address, label, quarter_starts, kfgqpc_quarters, problems, applied):
+def _opening(table, side, address, label, quarter_starts, kfgqpc_quarters, problems, applied, accepted):
     """Removes the quarter sign and its separator where both open the ayah, and
     records KFGQPC's quarter starts: the ayat that open with the sign, and the
-    surah openings the table accepts without it."""
+    surah openings the table accepts without it (also added to `accepted`)."""
     rule = table.quarter_start
     sign = chr(rule.code_points["sign"])
     separator = chr(rule.code_points["separator"])
@@ -303,6 +341,7 @@ def _opening(table, side, address, label, quarter_starts, kfgqpc_quarters, probl
             )
         elif address in quarter_starts:
             kfgqpc_quarters.add(address)
+            accepted.append(address)
             applied[opening.id] += 1
     return side
 
@@ -337,31 +376,68 @@ def _around(starts, address):
 
 
 def _equivalences(rules, side, address, applied, applied_at):
-    """One pass from left to right; at each position the first listed rule that matches wins."""
+    """One pass from left to right; at each position the first listed rule that matches wins.
+
+    Returns the rewritten side and, when a rule is active, `origin`: for each code point
+    of the result, the range of `side` it comes from (every code point of a rewritten
+    sequence comes from all it replaced); None means unchanged."""
     active = [
         (rule, "".join(chr(c) for c in rule.code_points["kfgqpc"]), "".join(chr(c) for c in rule.code_points["tanzil"]))
         for rule in rules
         if rule.applies_to == EVERY_AYAH or address in rule.applies_to
     ]
     if not active:
-        return side
+        return side, None
     out = []
+    origin = []
     index = 0
     while index < len(side):
         for rule, kfgqpc_sequence, tanzil_sequence in active:
             if side.startswith(kfgqpc_sequence, index):
                 out.append(tanzil_sequence)
+                origin.extend([(index, index + len(kfgqpc_sequence))] * len(tanzil_sequence))
                 index += len(kfgqpc_sequence)
                 applied[rule.id] += 1
                 applied_at[rule.id].add(address)
                 break
         else:
             out.append(side[index])
+            origin.append((index, index + 1))
             index += 1
-    return "".join(out)
+    origin.append((len(side), len(side)))
+    return "".join(out), origin
 
 
-def _differences(label, side, tanzil_text, differences, patterns):
+def _place_recorder(trace, address, kfgqpc_text, tanzil_text, side, front, origin):
+    """A callback that adds each difference of this ayah to `trace` as a Place, its
+    KFGQPC range carried back through the equivalences (widened to the whole of any
+    sequence a rule rewrote) and the removed opening."""
+
+    def published(i1, i2):
+        if origin is None:
+            return front + i1, front + i2
+        end = origin[i2 - 1][1] if i2 > i1 else origin[i1][0]
+        return front + origin[i1][0], front + end
+
+    def record(i1, i2, j1, j2, word, in_mark):
+        trace.places.append(
+            Place(
+                address=address,
+                word=word,
+                in_mark=in_mark,
+                kfgqpc=published(i1, i2),
+                tanzil=(j1, j2),
+                kfgqpc_sequence=side[i1:i2],
+                tanzil_sequence=tanzil_text[j1:j2],
+                kfgqpc_text=kfgqpc_text,
+                tanzil_text=tanzil_text,
+            )
+        )
+
+    return record
+
+
+def _differences(label, side, tanzil_text, differences, patterns, place=None):
     words = _word_numbers(tanzil_text)
     matcher = difflib.SequenceMatcher(None, side, tanzil_text, autojunk=False)
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
@@ -384,6 +460,8 @@ def _differences(label, side, tanzil_text, differences, patterns):
         entry["count"] += 1
         if label not in entry["first"] and len(entry["first"]) < FIRST_ADDRESSES:
             entry["first"].append(label)
+        if place is not None:
+            place(i1, i2, j1, j2, word, in_mark)
 
 
 def _word_numbers(text):
@@ -391,23 +469,15 @@ def _word_numbers(text):
     result = []
     current = (0, False)
     word = 0
-    index = 0
-    while index < len(text):
-        if text[index] == " ":
-            result.append(current)
-            index += 1
-            continue
-        end = index
-        while end < len(text) and text[end] != " ":
-            end += 1
-        if any(is_letter(ord(c)) for c in text[index:end]):
+    for start, end, is_word in token_spans(text):
+        result.extend([current] * (start - len(result)))
+        if is_word:
             word += 1
             current = (word, False)
         else:
             current = (word, True)
-        result.extend([current] * (end - index))
-        index = end
-    result.append(current)
+        result.extend([current] * (end - start))
+    result.extend([current] * (len(text) + 1 - len(result)))
     return result
 
 

@@ -1,4 +1,4 @@
-"""The command line: build, verify, sign, verify-signature, compare and kfgqpc-counts.
+"""The command line: build, verify, sign, verify-signature, compare, review-page and kfgqpc-counts.
 
 Output is paths, counts, hashes and `U+XXXX` only, never a text value. Exit
 codes: 0 done, 64 usage, 65 a source or a pack breaks a rule, 70 anything
@@ -11,7 +11,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import compare
+from . import compare, review_page
 from .build import build_pack
 from .digest import sha256_bytes
 from .errors import PackError
@@ -109,6 +109,20 @@ def _parser():
     comparison.add_argument("--table", required=True, type=Path, help="the table of known differences")
     comparison.add_argument("--report", required=True, type=Path, help="where the report (JSON, code points only) is written")
     comparison.set_defaults(run=_compare)
+
+    review = commands.add_parser(
+        "review-page",
+        help="run the KFGQPC comparison and write the reciter's review page (D-176, D-178) into an "
+        "empty folder outside every Git working tree",
+    )
+    review.add_argument("--text", required=True, type=Path, help="the Tanzil text XML")
+    review.add_argument("--metadata", required=True, type=Path, help="Tanzil's quran-data.xml")
+    review.add_argument("--kfgqpc", required=True, type=Path, help="KFGQPC's hafsData_v2-0.json")
+    review.add_argument("--table", required=True, type=Path, help="the table of known differences")
+    review.add_argument("--tanzil-font", required=True, type=Path, help="Amiri Quran, the font of the Tanzil text")
+    review.add_argument("--kfgqpc-font", required=True, type=Path, help="KFGQPC's uthmanic_hafs_v20.ttf")
+    review.add_argument("--out", required=True, type=Path, help="a new or empty folder outside every Git working tree")
+    review.set_defaults(run=_review_page)
 
     counts = commands.add_parser(
         "kfgqpc-counts", help="write the ayah counts per surah of the KFGQPC Hafs file (docs/CONTENT_PACKS.md P5)"
@@ -211,6 +225,47 @@ def _compare(args, out):
         print("problems found: the comparison fails", file=out)
         return EX_DATAERR
     print("no undocumented difference", file=out)
+    return 0
+
+
+def _review_page(args, out):
+    result = review_page.write_review_page(
+        args.text,
+        args.metadata,
+        args.kfgqpc,
+        args.table,
+        args.tanzil_font,
+        args.kfgqpc_font,
+        args.out,
+        PROFILES["hafs"],
+    )
+    sections = result.sections
+    print("page %s" % (result.directory / review_page.PAGE_FILE), file=out)
+    for key, value in result.inputs.items():
+        print("%s %s" % (key.replace("_", " "), value), file=out)
+    print(compare.summary(result.report), file=out)
+    print(
+        "section A places %d, section B patterns %d (places %d), section C patterns %d (places %d), "
+        "section D rows %d (surah-opening quarter starts %d)"
+        % (
+            len(sections.a),
+            len(sections.b),
+            sum(len(card.places) for card in sections.b),
+            len(sections.c),
+            sum(len(card.places) for card in sections.c),
+            len(result.report["page_differences"])
+            + len(result.report["juz_differences"])
+            + len(result.report["quarter_differences"])
+            + len(result.surah_opening_quarters),
+            len(result.surah_opening_quarters),
+        ),
+        file=out,
+    )
+    print(
+        "the folder holds Quran text: keep it and the reviewer's decisions file on this machine, "
+        "outside every Git working tree; never commit or upload them",
+        file=out,
+    )
     return 0
 
 
