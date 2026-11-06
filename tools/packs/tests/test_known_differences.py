@@ -202,6 +202,22 @@ class PresentationRuleTest(unittest.TestCase):
         rule["code_points"] = {"separator": "U+0020", "first_number_glyph": "U+FC00"}
         self.assert_refused("P-4 code_points has a key other than separator", document)
 
+    def test_the_address_rule_separator_is_a_space_character(self):
+        for value in ("U+0041", "U+FC00", "U+200B", "U+000A", "U+2028"):
+            with self.subTest(value=value):
+                document, rule = self.rule("P-4")
+                rule["code_points"] = {"separator": value}
+                self.assert_refused(
+                    "rule P-4: the separator %s is not a space character \\(Unicode category Zs\\)" % value.replace("+", "\\+"),
+                    document,
+                )
+        for value in ("U+0020", "U+2009", "U+3000"):
+            with self.subTest(value=value):
+                document, rule = self.rule("P-4")
+                rule["code_points"] = {"separator": value}
+                (separator,) = read_table(_bytes(document)).ayah_end_separators
+                self.assertEqual(separator.code_points["separator"], int(value[2:], 16))
+
     def test_the_address_rule_lists_sorted_addresses(self):
         for applies_to, pattern in (
             ([], "applies_to is an empty list"),

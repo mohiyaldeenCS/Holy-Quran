@@ -2,7 +2,7 @@
 
 A strict JSON file, ASCII only, so that no Quran text can enter it:
 
-    {"format": "holyquran-known-differences", "version": 1, "rules": [rule, ...]}
+    {"format": "holyquran-known-differences", "version": 2, "rules": [rule, ...]}
 
 Every rule has `id`, `kind`, `code_points`, `applies_to`, `reason`,
 `approved_by` and `date`. Two kinds:
@@ -15,8 +15,9 @@ Every rule has `id`, `kind`, `code_points`, `applies_to`, `reason`,
   sign and the separator where KFGQPC starts a quarter),
   `surah_opening_quarter_start` (`{"sign"}`, the quarter_start rule's sign:
   a quarter start of the metadata that is the first ayah of a surah carries
-  no sign) or a sorted list of addresses (`{"separator"}`: at those ayat the
-  ayah_end separator is this one instead). At most one rule of each named
+  no sign) or a sorted list of addresses (`{"separator"}`, a space character
+  of Unicode category Zs: at those ayat the ayah_end separator is this one
+  instead). At most one rule of each named
   kind; an address is listed by one rule at most.
 - `equivalence`: `{"kfgqpc": [...], "tanzil": [...]}`, a KFGQPC sequence that
   stands for a Tanzil sequence. `applies_to` is `every_ayah` or a sorted list
@@ -29,9 +30,10 @@ from __future__ import annotations
 import datetime
 import json
 import re
+import unicodedata
 from dataclasses import dataclass
 
-from .errors import PackError
+from .errors import PackError, code_point
 
 FORMAT = "holyquran-known-differences"
 PRESENTATION = "presentation"
@@ -198,6 +200,11 @@ def _rule(rule, index):
             )
         code_points = _code_point_object(rule["code_points"], keys, where)
         code_points = {key: value[0] for key, value in code_points.items()}
+        if keys == _SEPARATOR_AT_ADDRESSES and unicodedata.category(chr(code_points["separator"])) != "Zs":
+            raise PackError(
+                "%s: the separator %s is not a space character (Unicode category Zs)"
+                % (where, code_point(code_points["separator"]))
+            )
     elif kind == EQUIVALENCE:
         applies_to = _equivalence_scope(rule["applies_to"], where)
         code_points = _code_point_object(rule["code_points"], ("kfgqpc", "tanzil"), where, lists=True)

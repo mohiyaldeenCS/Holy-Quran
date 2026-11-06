@@ -15,7 +15,7 @@ BOM = b"\xef\xbb\xbf"
 
 
 def _json(entries):
-    return json.dumps(entries, ensure_ascii=False).encode("utf-8")
+    return json.dumps(entries, ensure_ascii=False, indent="\t").encode("utf-8")
 
 
 class KfgqpcReaderTest(unittest.TestCase):
@@ -56,15 +56,25 @@ class KfgqpcReaderTest(unittest.TestCase):
         # The CSV is published with a BOM, the JSON without one.
         self.assert_refused("begins with a UTF-8 BOM, which the published file does not", BOM + synthetic.synthetic_kfgqpc_json())
 
+    def test_the_published_opening_bytes(self):
+        message = "does not begin with '\\[', a line feed and a tab \\(5B 0A 09\\), as the published file does"
+        for data in (
+            json.dumps(self.entries(), ensure_ascii=False).encode("utf-8"),
+            json.dumps(self.entries(), ensure_ascii=False, indent=4).encode("utf-8"),
+            b"\n" + synthetic.synthetic_kfgqpc_json(),
+            b"[\r\n\t" + synthetic.synthetic_kfgqpc_json()[3:],
+            b"{}",
+            b"",
+        ):
+            with self.subTest(data=data[:6]):
+                self.assert_refused(message, data)
+
     def test_malformed_utf8(self):
-        self.assert_refused(r"malformed UTF-8 at byte 1", b"[\xff]")
+        self.assert_refused(r"malformed UTF-8 at byte 3", b"[\n\t\xff]")
 
     def test_invalid_json(self):
-        self.assert_refused(r"invalid JSON at line 1 column \d+", b"[{]")
-        self.assert_refused("invalid JSON", b"[] []")
-
-    def test_not_an_array(self):
-        self.assert_refused("not an array", b"{}")
+        self.assert_refused(r"invalid JSON at line 2 column \d+", b"[\n\t{]")
+        self.assert_refused("invalid JSON", b"[\n\t] []")
 
     def test_another_number_of_entries(self):
         self.assert_refused("holds 8 entries, not 9", synthetic.synthetic_kfgqpc_json(), ayat=9)
