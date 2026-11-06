@@ -2,7 +2,10 @@
 
 The structure is that of the published file; anything else is refused. The
 build, not this reader, maps the surah `type` and checks the lists against
-the text.
+the text and the root `version` against the build description.
+
+The published file has no notice comment; the reader accepts none or one
+(never two) and returns the comment verbatim when there is one.
 """
 
 from __future__ import annotations
@@ -51,7 +54,8 @@ class TanzilMetadata:
     rukus: list
     pages: list
     sajdas: list
-    notice: SourceValue
+    version: object
+    notice: object
 
 
 _ROOT_ATTRIBUTES = ("type", "version", "copyright", "license")
@@ -104,7 +108,8 @@ def _read(data):
         rukus=rukus,
         pages=pages,
         sajdas=sajdas,
-        notice=strict_xml.only_comment(document),
+        version=root.attributes.get("version"),
+        notice=strict_xml.at_most_one_comment(document),
     )
 
 

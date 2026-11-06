@@ -88,6 +88,16 @@ def only_comment(document):
     return document.comments[0]
 
 
+def at_most_one_comment(document):
+    """The comment outside the root element, or None; refuses two or more."""
+    if len(document.comments) > 1:
+        raise PackError(
+            "%d comments outside the root element, not zero or one"
+            % len(document.comments)
+        )
+    return document.comments[0] if document.comments else None
+
+
 def _fail(what, at):
     raise PackError("XML: %s at byte %d" % (what, at))
 

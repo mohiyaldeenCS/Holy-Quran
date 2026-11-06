@@ -62,6 +62,8 @@ def build_pack(config_path, font_path, out_root, unapproved=False):
     if destination.exists():
         raise PackError("%s exists; a pack version is never rebuilt in place" % destination)
 
+    text_options = options_from_url(config.text.url)
+    edition_map_options = options_from_url(config.edition_map.url)
     text_bytes = _source_bytes(config.text)
     metadata_bytes = _source_bytes(config.edition_map)
     marks = read_mark_table(config.mark_table.read_bytes())
@@ -72,6 +74,7 @@ def build_pack(config_path, font_path, out_root, unapproved=False):
     metadata = read_tanzil_metadata(metadata_bytes)
 
     source_checks.check_notice(text.notice, config.text.version, "text")
+    source_checks.check_metadata_version(metadata, config.edition_map.version)
     source_checks.check_structure(profile, text, metadata)
     places = source_checks.revelation(metadata)
     ayah_counts = {sura.index: len(sura.ayat) for sura in text.suras}
@@ -84,7 +87,6 @@ def build_pack(config_path, font_path, out_root, unapproved=False):
     ]
     drawn = list(_drawn_texts(text))
     source_checks.check_profile_signs(profile, drawn)
-    text_options = options_from_url(config.text.url)
     problems = option_problems(text_options, drawn)
     if problems:
         raise PackError("the text does not match its options: " + "; ".join(problems))
@@ -115,8 +117,8 @@ def build_pack(config_path, font_path, out_root, unapproved=False):
                     _source_entry(
                         config.edition_map,
                         metadata_bytes,
-                        options_from_url(config.edition_map.url),
-                        metadata.notice.value,
+                        edition_map_options,
+                        None if metadata.notice is None else metadata.notice.value,
                     ),
                 ],
                 text_sha256=text_sha256,

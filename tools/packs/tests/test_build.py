@@ -84,11 +84,11 @@ class SyntheticBuildTest(BuildCase):
 
     def test_sources_carry_options_notice_and_hashes(self):
         text, edition_map = self.manifest["sources"]
-        self.assertEqual(text["options"], {"marks": "true", "sajdah": "true", "rub": "false", "outType": "xml"})
-        self.assertEqual(list(text["options"]), ["marks", "sajdah", "rub", "outType"])
+        self.assertEqual(text["options"], {"marks": "true", "sajdah": "true", "outType": "xml"})
+        self.assertEqual(list(text["options"]), ["marks", "sajdah", "outType"])
         self.assertIsNone(edition_map["options"])
         self.assertEqual(text["licence"]["notice"], synthetic.TEXT_NOTICE)
-        self.assertEqual(edition_map["licence"]["notice"], synthetic.METADATA_NOTICE)
+        self.assertIsNone(edition_map["licence"]["notice"])
         self.assertEqual(text["file_sha256"], hashlib.sha256(synthetic.synthetic_text_xml()).hexdigest())
 
     def test_font_and_file_hashes(self):
@@ -151,6 +151,31 @@ class RefusalTest(BuildCase):
         config = self.write_source(text_xml=synthetic.synthetic_text_xml().split(b"\n<!--")[0] + b"\n")
         self.assert_refused("0 comments outside the root element", config)
 
+    def test_a_metadata_notice_comment_is_kept_verbatim(self):
+        notice = "\nOne metadata notice\n"
+        result = build_pack(self.write_source(metadata_xml=synthetic.synthetic_metadata_xml(notice=notice)), FONT, self.out)
+        manifest = json.loads((result.directory / "manifest.json").read_text(encoding="utf-8"))
+        edition_map = manifest["sources"][1]
+        self.assertEqual(edition_map["role"], "edition_map")
+        self.assertEqual(edition_map["licence"]["notice"], notice)
+
+    def test_a_metadata_with_two_comments(self):
+        two = synthetic.synthetic_metadata_xml(notice="\nOne\n").replace(b"</quran>\n", b"</quran>\n<!-- two -->\n")
+        self.assert_refused("2 comments outside the root element, not zero or one", self.write_source(metadata_xml=two))
+
+    def test_a_metadata_version_other_than_the_description(self):
+        self.assert_refused(
+            r"sources\.edition_map: the file is version 2\.0, the description names version 1\.0",
+            self.metadata(version="2.0"),
+        )
+
+    def test_a_metadata_without_a_root_version(self):
+        bare = synthetic.synthetic_metadata_xml().replace(b'" version="1.0" copyright', b'" copyright')
+        self.assert_refused(
+            r"sources\.edition_map: the root element of the file has no version attribute; the description names version 1\.0",
+            self.write_source(metadata_xml=bare),
+        )
+
     def test_a_surah_count_other_than_the_profile(self):
         self.assert_refused("has 2 surahs, not 3", self.text(surahs=synthetic.SYNTHETIC_SURAHS[:2]))
 
@@ -203,6 +228,17 @@ class RefusalTest(BuildCase):
             mark_table=b'{"code_points": ["U+06D6", "U+06D7", "U+06DA", "U+06DE", "U+06E9"]}\n',
         )
         self.assert_refused(r"U\+06DE", config)
+
+    def test_a_checkbox_option_with_a_value_other_than_true_stops_before_the_files_are_read(self):
+        config = self.write_source()
+        self.edit_config(
+            config,
+            lambda c: c["sources"]["text"].update(
+                url="https://example.invalid/synthetic/text?marks=true&sajdah=true&rub=false&agree=true"
+            ),
+        )
+        (self.source / synthetic.TEXT_FILE).unlink()
+        self.assert_refused(r"rub=false would include what it names: the URL must omit rub", config)
 
     def test_a_sign_the_profile_excludes_whatever_the_url_says(self):
         config = self.write_source(

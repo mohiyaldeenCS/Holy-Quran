@@ -64,8 +64,7 @@ class TemplateTest(unittest.TestCase):
             source = data["sources"][role]
             source["file_sha256"] = "0" * 64
             source["fetched_on"] = "2026-11-04"
-        data["sources"]["edition_map"]["version"] = "1"
-        data["sources"]["edition_map"]["url"] = "https://example.invalid/metadata.xml"
+        data["sources"]["edition_map"]["version"] = "1.0"
         path = Path(directory) / "build.json"
         path.write_text(json.dumps(data), encoding="utf-8")
         return path
@@ -82,7 +81,6 @@ class TemplateTest(unittest.TestCase):
             [
                 ("edition_map", "fetched_on"),
                 ("edition_map", "file_sha256"),
-                ("edition_map", "url"),
                 ("edition_map", "version"),
                 ("text", "fetched_on"),
                 ("text", "file_sha256"),
@@ -104,10 +102,18 @@ class TemplateTest(unittest.TestCase):
             with self.assertRaises(PackError):
                 read_build_config(path)
 
-    def test_the_source_options_are_those_of_d079(self):
+    def test_the_metadata_address_is_tanzils_published_one(self):
+        self.assertEqual(
+            self.template["sources"]["edition_map"]["url"],
+            "https://tanzil.net/res/text/metadata/quran-data.xml",
+        )
+
+    def test_the_source_options_are_those_of_d079_with_the_unwanted_boxes_unticked(self):
         url = self.template["sources"]["text"]["url"]
-        for option in ("marks=true", "sajdah=true", "rub=false", "outType=xml", "quranType=uthmani"):
+        for option in ("marks=true", "sajdah=true", "outType=xml", "quranType=uthmani"):
             self.assertIn(option, url)
+        for left_out in ("rub", "tatweel", "stanween"):
+            self.assertNotIn(left_out, url)
         self.assertEqual(self.template["reviews"], [])
 
     def test_the_licences_keep_the_credit_conditions_of_the_register(self):
