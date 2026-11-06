@@ -280,9 +280,13 @@ esac
 """
 
 STUB_ADB = """#!/usr/bin/env bash
-echo "adb $1" >>"$STUB_LOG"
-[ "${STUB_FAIL:-}" != "adb $1" ] || exit 7
+call="adb $1"
+[ "$1" != shell ] || call="adb shell $2"
+echo "$call" >>"$STUB_LOG"
+echo "$*" >>"$STUB_ADB_ARGS"
+[ "${STUB_FAIL:-}" != "$call" ] || exit 7
 [ "${STUB_DIRTY:-}" != adb ] || echo stray >stray-from-adb.txt
+[ "$call" != "adb shell stat" ] || printf '%s\\r\\n' "${STUB_MODE:-2775}"
 exit 0
 """
 
@@ -302,6 +306,7 @@ class ScriptRunTest(ScriptRepoCase):
             stub.write_text(body, encoding="utf-8")
             stub.chmod(0o755)
         self.log = self.stubs / "log.txt"
+        self.adb_args = self.stubs / "adb_args.txt"
         self.keys = self.outside / "keys"
         self.pack = self.outside / "packs" / self.PACK_ID / "1"
         (self.outside / "raw").mkdir(parents=True)
@@ -315,6 +320,7 @@ class ScriptRunTest(ScriptRepoCase):
             "STUB_LOG": str(self.log),
             "STUB_PACK": str(self.pack),
             "STUB_KEYS": str(self.keys),
+            "STUB_ADB_ARGS": str(self.adb_args),
         }
         env.update(extra)
         return self.run_script(command, path=str(self.stubs) + os.pathsep + os.environ["PATH"], extra=env)
@@ -322,8 +328,15 @@ class ScriptRunTest(ScriptRepoCase):
     def calls(self):
         return self.log.read_text(encoding="utf-8").split("\n")[:-1] if self.log.exists() else []
 
+    def adb_calls(self):
+        return self.adb_args.read_text(encoding="utf-8").split("\n")[:-1]
+
+    def assert_no_apk(self):
+        self.assertEqual(list((self.repo / "build").rglob("*.apk*")), [])
+
     def make_signed_pack(self):
         self.pack.mkdir(parents=True)
+        (self.pack / "manifest.json").write_text("{}", encoding="utf-8")
         (self.pack / "manifest.json.sig").write_text("sig", encoding="utf-8")
         self.keys.mkdir(parents=True)
         (self.keys / "test-copy.pub.b64").write_text("key", encoding="utf-8")
@@ -389,9 +402,65 @@ class ScriptRunTest(ScriptRepoCase):
         done = self.run_stubbed("install")
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertEqual(
-            self.calls(), ["flutter build", "adb install", "adb shell", "adb push"]
+            self.calls(),
+            [
+                "flutter build",
+                "adb install",
+                "adb shell mkdir",
+                "adb push",
+                "adb shell chmod",
+                "adb shell chmod",
+                "adb shell stat",
+            ],
         )
-        self.assertEqual(list((self.repo / "build").rglob("*.apk*")), [])
+        self.assert_no_apk()
+
+    def test_install_opens_exactly_the_three_folders_it_creates_and_closes_the_files(self):
+        self.make_signed_pack()
+        done = self.run_stubbed("install")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        files = "/sdcard/Android/data/com.example.holyquran/files"
+        root = files + "/test_copy"
+        version = root + "/" + self.PACK_ID + "/1"
+        chmods = [call for call in self.adb_calls() if call.startswith("shell chmod ")]
+        self.assertEqual(
+            chmods,
+            [
+                "shell chmod 2775 %s %s/%s %s" % (root, root, self.PACK_ID, version),
+                "shell chmod 0644 %s/manifest.json %s/manifest.json.sig" % (version, version),
+            ],
+        )
+        self.assertEqual(self.adb_calls()[-1], "shell stat -c %a " + version)
+        for call in self.adb_calls():
+            self.assertNotIn(files + " ", call + " ")
+
+    def test_install_that_fails_to_open_the_folders_stops_and_deletes_every_apk(self):
+        self.make_signed_pack()
+        done = self.run_stubbed("install", STUB_FAIL="adb shell chmod")
+        self.assertNotEqual(done.returncode, 0)
+        self.assertIn("could not set the mode of the pack folders", done.stderr)
+        self.assertEqual(self.calls()[-1], "adb shell chmod")
+        self.assertNotIn("Installed.", done.stdout)
+        self.assert_no_apk()
+
+    def test_install_stops_naming_the_folder_when_its_mode_did_not_change(self):
+        self.make_signed_pack()
+        done = self.run_stubbed("install", STUB_MODE="2770")
+        self.assertNotEqual(done.returncode, 0)
+        self.assertIn(
+            "/sdcard/Android/data/com.example.holyquran/files/test_copy/%s/1 has mode '2770'" % self.PACK_ID,
+            done.stderr,
+        )
+        self.assertNotIn("Installed.", done.stdout)
+        self.assert_no_apk()
+
+    def test_install_refuses_a_pack_holding_a_folder(self):
+        self.make_signed_pack()
+        (self.pack / "sub").mkdir()
+        done = self.run_stubbed("install")
+        self.assertNotEqual(done.returncode, 0)
+        self.assertIn("is not a file", done.stderr)
+        self.assertEqual(self.calls(), [])
 
     def test_install_refuses_a_tree_the_build_changed_and_deletes_every_apk(self):
         self.make_signed_pack()

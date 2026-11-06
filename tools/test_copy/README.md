@@ -99,9 +99,20 @@ TC="$HOME/holyquran-test-copy"
    modified tracked file or `git clean -f -- <file>` for a new one; run only those, and never commit the files), installs the APK with `adb install -r`, pushes the
    pack to
    `/sdcard/Android/data/com.example.holyquran/files/test_copy/unapproved-hafs-tanzil/1/`,
-   and deletes the APK, including Gradle's own copy under
+   sets the three folders it created (`test_copy`, `unapproved-hafs-tanzil`, `1`) to mode
+   2775 and the pack files to 0644, checks with `stat` that the `1` folder now has 2775
+   (else it stops, naming the folder), and deletes the APK, including Gradle's own copy under
    `build/app/outputs/apk/profile/`. Open the app: once D-163 and D-164 are merged into the branch you are on, «نسخة تجريبية غير معتمدة» shows on every screen.
    Keep the pushed files while you use the copy; the app reads them at every start.
+   The folders are opened because `adb` creates them owned by `shell` with mode 2770,
+   and the app's own user cannot enter them: the app would find no pack and show
+   «نص المصحف لم يجتز التحقق» (D-173). A copy installed before this fix is repaired
+   without reinstalling:
+   ```
+   adb shell chmod 2775 /sdcard/Android/data/com.example.holyquran/files/test_copy /sdcard/Android/data/com.example.holyquran/files/test_copy/unapproved-hafs-tanzil /sdcard/Android/data/com.example.holyquran/files/test_copy/unapproved-hafs-tanzil/1
+   ```
+   Under Git Bash, run `export MSYS_NO_PATHCONV=1` first, so that the paths reach the
+   phone unchanged.
 
    What this does to the phone: USB debugging must be on and the phone authorised for
    this computer. `adb install -r` **replaces** any installed `com.example.holyquran`,
