@@ -30,8 +30,8 @@ class Profile:
     forbidden_code_points: frozenset
     required_code_points: tuple
     # PRD 9.4 compares a Hafs text with the KFGQPC text character by character,
-    # and P2 compares the page list with the KFGQPC file; until B0.2 adds that
-    # step, a profile that needs it cannot be built.
+    # and P2 compares the page list with the KFGQPC file (compare.py, D-175);
+    # a build of a profile that needs it takes the KFGQPC file and the table.
     needs_kfgqpc_comparison: bool
 
 

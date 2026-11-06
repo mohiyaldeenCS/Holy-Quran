@@ -17,6 +17,8 @@ OTHER_FONT = REPO / "assets" / "fonts" / "IBMPlexSansArabic-Regular.ttf"
 
 
 TEST_COPY_ID = "unapproved-hafs-tanzil"
+HAFS_ID = "base-hafs-tanzil"
+TABLE = Path(__file__).resolve().parents[1] / "known_differences.json"
 
 
 def hafs_shaped_profiles():
@@ -61,6 +63,13 @@ class BuildCase(unittest.TestCase):
         return synthetic.write_synthetic_source(
             self.source, text_xml=text_xml, metadata_xml=metadata_xml, mark_table=mark_table, **overrides
         )
+
+    def write_kfgqpc(self, entries=None):
+        """A synthetic KFGQPC-shaped file under its published name in the source directory."""
+        self.source.mkdir(parents=True, exist_ok=True)
+        path = self.source / synthetic.KFGQPC_FILE
+        path.write_bytes(synthetic.synthetic_kfgqpc_json(entries))
+        return path
 
     def edit_config(self, config, change):
         data = json.loads(config.read_text(encoding="utf-8"))

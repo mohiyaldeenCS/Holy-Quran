@@ -1,0 +1,24 @@
+{
+  "format": "holyquran-known-differences",
+  "version": 1,
+  "rules": [
+    {
+      "id": "P-1",
+      "kind": "presentation",
+      "code_points": {"separator": "U+00A0", "first_number_glyph": "U+FC00"},
+      "applies_to": "ayah_end",
+      "reason": "KFGQPC read.me, update 2.0: 'Adding non-breaking space before aya mark' and 'Adding Aya mark as Symbol'. Every KFGQPC ayah ends with U+00A0 and the glyph of its own number, U+FC00 + n - 1, which the font draws as the ayah mark. Tanzil has no ayah mark in the text; the app draws it. Removed from the KFGQPC side only after checking that the glyph is the ayah's own number.",
+      "approved_by": "lead (presentation, D-175)",
+      "date": "2026-11-06"
+    },
+    {
+      "id": "P-2",
+      "kind": "presentation",
+      "code_points": {"sign": "U+06DE", "separator": "U+00A0"},
+      "applies_to": "quarter_start",
+      "reason": "KFGQPC read.me, update 2.0: 'Adding non-breaking space after jozz/hizb symbol'. The KFGQPC ayah that opens a quarter begins with U+06DE and U+00A0. The base pack's Tanzil file is downloaded without the rub-el-hizb sign (D-079, D-172) and the app draws quarter marks from the division table. Removed from the KFGQPC side only after checking that the ayat holding it are exactly the quarter starts of Tanzil's metadata.",
+      "approved_by": "lead (presentation, D-175)",
+      "date": "2026-11-06"
+    }
+  ]
+}

@@ -37,7 +37,11 @@ All under `hqpack/`. Each raises `errors.PackError` with a message as above.
 | `build.py` | The pipeline: hash and read the sources, run every build check, write into a temporary directory, read back, write the manifest, run the verifier, then move into `<out>/<id>/<version>/` | `build_pack(config_path, font_path, out_root, unapproved=False) -> BuildResult` |
 | `verify.py` | An independent verifier of a pack directory, sharing no code with the writer beyond `errors.py`: everything the app and its integrity suite check, recomputed from the stored bytes | `verify_pack(directory, mark_code_points=None, font=None) -> Report(problems, counts, signed)` |
 | `signing.py` | The signing seam (D-080, O-03): `Signer` with `sign(data) -> 64 bytes`; `OpenSslEd25519Signer(key_path)` runs `openssl pkeyutl -sign -rawin`; `sign_pack` writes `manifest.json.sig` for a pack that verifies; `verify_signature` checks it with a public key | `sign_pack(directory, signer)`, `verify_signature(directory, public_key_path)` |
-| `cli.py` | `build` (with `--unapproved-test-copy`), `verify`, `sign`, `verify-signature`; prints counts, hashes, paths and `U+XXXX` only | `main(argv) -> exit code` |
+| `cli.py` | `build` (with `--unapproved-test-copy`, `--kfgqpc`, `--table`), `verify`, `sign`, `verify-signature`, `compare`, `kfgqpc-counts`; prints counts, hashes, paths and `U+XXXX` only | `main(argv) -> exit code` |
+| `kfgqpc.py` | KFGQPC's `hafsData_v2-0.json` (registry row 2, B0.2, D-175): UTF-8 with a BOM, an array of objects with exactly the read.me's eleven columns, integers and strings typed strictly, ids 1..n in order, ayat in mushaf order; the published file name | `read_kfgqpc(data, ayat) -> [KfgqpcAya(id, surah, number, juz, page, text)]`, `read_kfgqpc_file(path, ayat) -> (ayat, sha256)` |
+| `known_differences.py` | The table of known encoding differences, `tools/packs/known_differences.json` | `read_table(data) -> Table(version, ayah_end, quarter_start, equivalences)` |
+| `compare.py` | The comparison of PRD 9.4 and the page and juz comparison of P2; the report | `run_comparison(text, metadata, kfgqpc_path, table_path, profile) -> report`, `compare(...)`, `summary(report)`, `encode_report(report) -> bytes` |
+| `kfgqpc_counts.py` | The P5 reference counts from the KFGQPC file alone (B0.3) | `kfgqpc_counts(path, date, profile)`, `encode_counts(counts) -> bytes` |
 
 `pack.py` (next to this file) runs the CLI; `synthetic_source.py` writes the synthetic
 source files, mark table and build description into a directory.
@@ -71,14 +75,19 @@ python3 tools/packs/pack.py build --unapproved-test-copy --config <build.json> -
 python3 tools/packs/pack.py verify <out>/<id>/<version> [--font <ttf>] [--mark-table <marks.json>]
 python3 tools/packs/pack.py sign <out>/<id>/<version> --key <ed25519 private key> --font <ttf> --mark-table <marks.json> [--openssl openssl]
 python3 tools/packs/pack.py verify-signature <out>/<id>/<version> --public-key <ed25519 public key> [--openssl openssl]
+python3 tools/packs/pack.py build --config <build.json> --font assets/fonts/AmiriQuran-Regular.ttf --out data/build --kfgqpc <hafsData_v2-0.json> --table tools/packs/known_differences.json
+python3 tools/packs/pack.py compare --text <tanzil xml> --metadata <quran-data.xml> --kfgqpc <hafsData_v2-0.json> --table tools/packs/known_differences.json --report <out.json>
+python3 tools/packs/pack.py kfgqpc-counts --kfgqpc <hafsData_v2-0.json> --date <YYYY-MM-DD> --out testing/reference/kfgqpc-hafs-counts.json
 ```
 
 | Command | Does |
 | --- | --- |
-| `build` | Reads the build description, runs every build check below, and writes `<out>/<id>/<version>/` with `manifest.json` and `text.sqlite`, unsigned. An existing version directory is refused: a released pack is never rebuilt in place. `--unapproved-test-copy` builds the owner's local test copy (see "Test-copy mode") |
+| `build` | Reads the build description, runs every build check below, and writes `<out>/<id>/<version>/` with `manifest.json` and `text.sqlite`, unsigned. An existing version directory is refused: a released pack is never rebuilt in place. A `hafs` build needs `--kfgqpc` and `--table` and runs the KFGQPC comparison after every other check; any other build refuses both. Today a `hafs` build stops there even when the comparison passes (see "The KFGQPC comparison"). `--unapproved-test-copy` builds the owner's local test copy (see "Test-copy mode") |
 | `verify` | Runs the independent verifier on a pack directory; with `--font` and `--mark-table` it also checks the font pair and every mark |
 | `sign` | Verifies the pack, with its font and mark table (both required), then writes `manifest.json.sig` with OpenSSL (D-080). Refuses a pack that already has one |
 | `verify-signature` | Checks `manifest.json.sig` against a public key |
+| `compare` | Runs the KFGQPC comparison against the `hafs` profile (6,236 ayat) and writes the report; exits 65 when the report has any problem, 0 when it has none |
+| `kfgqpc-counts` | Writes the P5 reference counts of the KFGQPC file; `--date` is the day they are taken, so the same file and date give the same bytes |
 
 To try it on the synthetic source:
 
@@ -114,7 +123,7 @@ it into place, so every verifier check is also a build check.
 | §9.4 check | Where |
 | --- | --- |
 | 114 surahs; ayat and words as in the source | `profiles.py`: `hafs` needs 114 surahs and 6,236 ayat (registry row 1), and 30 juz, 60 hizb, 240 rub and 604 pages. `source_checks.check_structure`: the text file's surahs and ayat per surah equal the metadata's `ayas` and `start`. The word and mark rows are counted from the tokens and recounted independently by the verifier |
-| Tanzil compared with KFGQPC character by character under a table of known differences | **Not built** (B0.2, with B0.3's KFGQPC file and B0.4's table). `build.py` therefore refuses every `hafs` build with a message saying so, except an unapproved test copy (below). The synthetic profile does not need it |
+| Tanzil compared with KFGQPC character by character under a table of known differences | `compare.py` with `known_differences.json` (B0.2, D-175; see "The KFGQPC comparison"). A `hafs` build runs it and refuses on any undocumented difference; it then stops because manifest format 1 cannot record the KFGQPC file. The unapproved test copy skips it (below); the synthetic profile does not need it |
 | Displayed text equals pack text | App side (`test/integrity/`). The pipeline's part: every stored text is read back as bytes and compared with the source bytes at its offset |
 | No Unicode normalisation in code | `tests/test_guards.py`: no `normalize` or `casefold` call, no lossy decoding, no tolerant XML parser in the pipeline; every Python file is ASCII, so test data is written as `\u` escapes |
 | Every record points to an existing address | `source_checks.divisions`, `sajdas`, `check_points` (juz, quarter, page, manzil, ruku, sajda, each after the one before); verifier: divisions, sajdas, words and marks, plus `foreign_key_check` |
@@ -130,7 +139,7 @@ it into place, so every verifier check is also a build check.
 | `encoding`, `application_id`, `user_version`, `STRICT`, no WAL, `VACUUM` | `database.py`; verifier: header bytes 18, 19, 36, 56, 60, 68 and the schema through `pragma_table_list` and `pragma_table_xinfo` |
 | Words and marks (D-078, D-083): only U+0020 separates (categories Z and Cc, and the zero-width U+200B and U+2060, are refused); a token with a letter (category L) is a word, any other a mark; UTF-16 offsets; `after_word` | `tokens.py`; the verifier recomputes every span and compares row by row |
 | P3: a letterless token outside the mark table stops the build | `tokens.spans` with `mark_table.py` |
-| P2: juz, quarters and pages from the metadata; a hizb is every fourth quarter by position | `source_checks.divisions`; refuses a quarter count that is not a multiple of 4. Comparing the pages with the KFGQPC file is the step not built yet (see above) |
+| P2: juz, quarters and pages from the metadata; a hizb is every fourth quarter by position | `source_checks.divisions`; refuses a quarter count that is not a multiple of 4. `compare.py` compares the page and the juz of every ayah with the KFGQPC file's `page` and `jozz`, and the quarter starts with the ayat that open with KFGQPC's quarter sign; any difference stops |
 | P4: basmala from the separate field; none for surahs 1 and 9, present elsewhere | `tanzil_text.py` (only on ayah 1); `source_checks.check_structure` with the profile's `without_basmala` |
 | P6: revelation place through a fixed table, others refused; order from the metadata | `source_checks.revelation`: `Meccan` to `makki`, `Medinan` to `madani`; the orders must be 1 to n, each once |
 | D-077: `options` from the source | `options.options_from_url` |
@@ -153,8 +162,8 @@ ones; and, with `--font`, code points the font lacks.
 ### Test-copy mode (D-165)
 
 `build --unapproved-test-copy` builds a Hafs pack for the owner's own phone before B0.2
-to B0.4 exist (D-162 (13)). It skips the one refusal above, the KFGQPC comparison, and
-nothing else: the totals, the Tanzil notice and version, the options, the font
+to B0.4 exist (D-162 (13)). It skips the KFGQPC comparison, and nothing else. It
+refuses `--kfgqpc` and `--table`, so a test copy cannot appear compared: the totals, the Tanzil notice and version, the options, the font
 coverage, the mark check, the read-back, the digests and the independent verifier all
 run as for any pack. It has its own refusals, each a `PackError` (exit 65) before
 anything is written, and each proved by a test:
@@ -182,6 +191,114 @@ synthetic source's totals (`tests/build_support.hafs_shaped_profiles`) and use t
 synthetic source. No real Quran text or metadata is in the repository or fetched by
 any test.
 
+## The KFGQPC comparison (B0.2, B0.3, D-175)
+
+PRD 9.4: a `hafs` pack is approved only if the Tanzil text equals the KFGQPC Hafs
+text character by character, except for differences listed in a documented table;
+P2: the page of every ayah agrees between the two sources. The KFGQPC file is a
+witness. Nothing of it reaches a pack.
+
+### Inputs
+
+- The Tanzil text XML and `quran-data.xml`, read by the same readers as `build`.
+- `hafsData_v2-0.json` from `UthmanicHafs_v2-0.zip`, KFGQPC Hafs update 2.0 (read.me:
+  "Version: 2.0, Date: 2022-09-07, Update: 13.0"), under that name. `kfgqpc.py` reads
+  `id`, `jozz`, `page`, `sura_no`, `aya_no` and `aya_text`. It type-checks
+  `sura_name_en`, `sura_name_ar`, `line_start`, `line_end` and `aya_text_emlaey`
+  but does not compare them. The report records the file's SHA-256, registry
+  row 2 and version "2.0 (update 13.0)". The published MD5 and SHA-1 are of the
+  zip; whoever extracts the JSON checks them first.
+- `known_differences.json`, the table.
+
+### The table
+
+ASCII only, strict JSON: `{"format": "holyquran-known-differences", "version": n,
+"rules": [...]}`. Every rule has `id`, `kind`, `code_points` (each written `U+XXXX`),
+`applies_to`, `reason`, `approved_by` and `date`; nothing else.
+
+| Kind | `applies_to` | `code_points` | What the comparison does |
+| --- | --- | --- | --- |
+| `presentation` | `ayah_end` | `separator`, `first_number_glyph` | Checks that the KFGQPC ayah n ends with the separator and the code point `first_number_glyph + n - 1`, then removes both. Any other ending is a problem, and the ending is then left in place, so it also shows as a difference |
+| `presentation` | `quarter_start` | `sign`, `separator` | Removes the sign and the separator where they open an ayah, and checks that the ayat that open with them are exactly the quarter starts of Tanzil's metadata. Each extra or missing one is a problem |
+| `equivalence` | `every_ayah`, or a sorted list of `hafs:S:A` | `kfgqpc` (a non-empty sequence), `tanzil` (a sequence, possibly empty) | On the KFGQPC side, after presentation, rewrites each occurrence of the KFGQPC sequence as the Tanzil sequence, in one pass from left to right. At each position the first listed rule that matches wins, and rewritten code points are not matched again. A rule that applies in no ayah, or not in one of its listed ayat, is a problem |
+
+Version 1 ships the two presentation rules, P-1 and P-2, approved by
+`lead (presentation, D-175)`. They come from KFGQPC's read.me ("Adding non-breaking
+space before aya mark", "Adding Aya mark as Symbol", "Adding non-breaking space after
+jozz/hizb symbol") and from D-079, which keeps U+06DE out of the base text. It has
+no equivalence rule.
+
+**Adding an equivalence rule.** The orthographic differences between the two files
+(for example KFGQPC's U+06E1 where Tanzil has another sukun form, or Tanzil's U+06DF)
+are not for the pipeline or the lead to decide. The lead runs `compare`. The owner
+and his proofreader read the `patterns` of the report, in the mushaf where needed,
+and approve each one. Then, for each approved pattern:
+
+1. Add a rule with a new `id`, `kind: "equivalence"`, the two sequences exactly as
+   the report gives them, `applies_to` as narrow as the approval (the listed
+   addresses, or `every_ayah` only if the approval covers every ayah), the
+   `reason`, `approved_by` naming the people who approved it, and the `date`.
+2. Raise `version` by one.
+3. Run `compare` again: the pattern must be gone and the rule must be applied. Record
+   the new version and SHA-256 with the approval (D-175).
+
+The reader refuses an equivalence whose `approved_by` begins with "lead". That only
+catches a slip; the safeguard is the review of the table's change and the approval
+recorded with D-175.
+
+### Comparing
+
+Per ayah: P-1, then P-2, then the equivalences, then `difflib.SequenceMatcher`
+(no junk heuristic) over the code points of the two sides. Nothing is normalised;
+canonically equivalent orders are a difference. The two files must list the same
+ayat in the same order, and the metadata's juz, quarter and page lists must be valid
+points from 1:1, or the command stops before comparing. The page and juz of every
+ayah (the last metadata start at or before it) must equal the KFGQPC `page` and
+`jozz`. Tanzil's basmala attribute has no counterpart in the KFGQPC table and is not
+compared.
+
+### The report
+
+JSON, ASCII only: `encode_report` refuses any other byte, so no character of either
+text can be written. Each list has one entry per line.
+
+| Key | Holds |
+| --- | --- |
+| `format`, `tanzil`, `kfgqpc`, `table` | `holyquran-kfgqpc-comparison`; the SHA-256 of the Tanzil text and metadata files compared, so an approval made from the report can be tied to the files a pack is built from; the KFGQPC file's registry row, name, version and SHA-256; the table's version and SHA-256 |
+| `ayat`, `rules` | Ayat compared; each rule with how many times it applied |
+| `presentation_problems` | `address`, `rule`, `problem`, and the two code points `found` at the ayah's end when P-1 fails |
+| `table_problems` | Equivalences that did not apply |
+| `differences` | Per difference: `address` (`hafs:S:A`), `word` (the D-083 word number in the Tanzil ayah where it begins; 0 before the first word), `in_mark` (it begins in a mark token, after that word), and for `kfgqpc` (after the table) and `tanzil` the `sequence` with up to two code points `before` and `after` |
+| `patterns` | Each distinct KFGQPC-to-Tanzil pair with its `count` and its `first` three addresses, by count, then by code points |
+| `page_differences`, `juz_differences` | `address`, the KFGQPC value, the metadata's value |
+| `passed` | True only when every list above is empty |
+
+### In the build, and what stops it
+
+A non-test `hafs` build runs every other check, then the comparison. On any problem
+it refuses with the summary counts and points to `compare` for the report. On a
+pass it still refuses. Manifest format 1 (`docs/CONTENT_PACKS.md`) allows the source
+roles `text` and `edition_map` only and has no field for the table, so neither the
+KFGQPC file nor the table's version can be recorded in the pack. The format is not
+changed here; the lead decides (D-175).
+
+### The P5 counts
+
+`kfgqpc-counts` reads the KFGQPC file alone, against the `hafs` profile (114 surahs,
+6,236 ayat), and writes:
+
+```json
+{
+  "kfgqpc_file": {"registry_row": 2, "name": "hafsData_v2-0.json", "version": "2.0 (update 13.0)", "sha256": "<hex>"},
+  "date": "YYYY-MM-DD",
+  "surahs": {"1": 0, "2": 0},
+  "total": 0
+}
+```
+
+with all 114 surahs. The lead runs it where the KFGQPC file is, and commits the
+result as `testing/reference/kfgqpc-hafs-counts.json`.
+
 ## Signing (D-080) and what O-03 must decide
 
 The format keeps `manifest.json.sig` absent until D-024 is decided, and the
@@ -205,9 +322,23 @@ be replaced. Another kind of signer, such as a hardware token, would be another
 
 ## Not done here
 
-- The KFGQPC comparison of PRD §9.4 and the page-list comparison of P2 (B0.2).
-  Until then, no approved `hafs` pack is built; only the unapproved test copy (D-165,
+- Recording the KFGQPC file and the table in the manifest. Format 1 has no place for
+  them, so a `hafs` build stops after a passing comparison (D-175). Until the lead
+  decides, no approved `hafs` pack is built; only the unapproved test copy (D-165,
   "Test-copy mode"), which never leaves the owner's machine.
+- Equivalence rules. The comparison has not been run on the real files in this
+  repository. The orthographic differences it reports are approved, or not, by the
+  owner and his proofreader. The lead's measurements suggest the shipped table will
+  not pass the real file as it is: KFGQPC has 199 quarter signs against Tanzil's
+  240 quarters, and 6,434 U+00A0 against the 6,435 that 6,236 ayah ends and 199
+  signs would need. The report will list those ayat; how to treat them is the
+  lead's decision, not a guess in the table.
+- `testing/reference/kfgqpc-hafs-counts.json` itself (P5): the tool is here; the file
+  is made from the real KFGQPC file.
+- Reading the JSON straight from `UthmanicHafs_v2-0.zip`, where the published MD5 and
+  SHA-1 could be checked by the tool.
+- The basmala of surahs 2 to 114 (without 9) has no counterpart in the KFGQPC table
+  and is not compared.
 - The real mark table of code points (B0.4). The test copy uses the provisional
   table of `tools/test_copy/`, from the Unicode chart, until then.
 - The structure of the real `quran-data.xml` (no notice comment, root `version="1.0"`) and

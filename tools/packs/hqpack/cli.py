@@ -1,4 +1,4 @@
-"""The command line: build, verify, sign and verify-signature.
+"""The command line: build, verify, sign, verify-signature, compare and kfgqpc-counts.
 
 Output is paths, counts, hashes and `U+XXXX` only, never a text value. Exit
 codes: 0 done, 64 usage, 65 a source or a pack breaks a rule, 70 anything
@@ -11,10 +11,16 @@ import argparse
 import sys
 from pathlib import Path
 
+from . import compare
 from .build import build_pack
+from .digest import sha256_bytes
 from .errors import PackError
 from .font import read_font
+from .kfgqpc_counts import encode_counts, kfgqpc_counts
 from .mark_table import read_mark_table
+from .profiles import PROFILES
+from .tanzil_metadata import read_tanzil_metadata
+from .tanzil_text import read_tanzil_text
 from .signing import SIGNATURE_FILE, OpenSslEd25519Signer, sign_pack, verify_signature
 from .verify import verify_pack
 
@@ -74,6 +80,8 @@ def _parser():
         "for the owner's own phone (D-165): the id begins with unapproved-, reviews are "
         "empty and the output is outside every Git working tree",
     )
+    build.add_argument("--kfgqpc", type=Path, help="KFGQPC's hafsData_v2-0.json; required for a hafs pack (PRD 9.4)")
+    build.add_argument("--table", type=Path, help="the table of known differences; required with --kfgqpc")
     build.set_defaults(run=_build)
 
     verify = commands.add_parser("verify", help="verify a pack directory <id>/<version>")
@@ -91,6 +99,24 @@ def _parser():
     check.add_argument("--public-key", required=True, type=Path, help="Ed25519 public key (PEM)")
     check.add_argument("--openssl", default="openssl", help="the OpenSSL 3 executable")
     check.set_defaults(run=_verify_signature)
+
+    comparison = commands.add_parser(
+        "compare", help="compare the Tanzil text and metadata with the KFGQPC Hafs file (PRD 9.4, P2)"
+    )
+    comparison.add_argument("--text", required=True, type=Path, help="the Tanzil text XML")
+    comparison.add_argument("--metadata", required=True, type=Path, help="Tanzil's quran-data.xml")
+    comparison.add_argument("--kfgqpc", required=True, type=Path, help="KFGQPC's hafsData_v2-0.json")
+    comparison.add_argument("--table", required=True, type=Path, help="the table of known differences")
+    comparison.add_argument("--report", required=True, type=Path, help="where the report (JSON, code points only) is written")
+    comparison.set_defaults(run=_compare)
+
+    counts = commands.add_parser(
+        "kfgqpc-counts", help="write the ayah counts per surah of the KFGQPC Hafs file (docs/CONTENT_PACKS.md P5)"
+    )
+    counts.add_argument("--kfgqpc", required=True, type=Path, help="KFGQPC's hafsData_v2-0.json")
+    counts.add_argument("--date", required=True, help="the day the counts are taken, YYYY-MM-DD")
+    counts.add_argument("--out", required=True, type=Path, help="where the counts file is written")
+    counts.set_defaults(run=_kfgqpc_counts)
     return parser
 
 
@@ -101,7 +127,14 @@ def _pack_inputs(parser, required=False):
 
 
 def _build(args, out):
-    result = build_pack(args.config, args.font, args.out, unapproved=args.unapproved_test_copy)
+    result = build_pack(
+        args.config,
+        args.font,
+        args.out,
+        unapproved=args.unapproved_test_copy,
+        kfgqpc=args.kfgqpc,
+        table=args.table,
+    )
     counts = result.counts
     print("pack %s" % result.directory, file=out)
     print("sqlite %s" % result.sqlite_version, file=out)
@@ -153,6 +186,41 @@ def _verify_signature(args, out):
         return 0
     print("signature INVALID", file=out)
     return EX_DATAERR
+
+
+def _compare(args, out):
+    text_bytes = args.text.read_bytes()
+    metadata_bytes = args.metadata.read_bytes()
+    tanzil_sha256 = {"text": sha256_bytes(text_bytes), "metadata": sha256_bytes(metadata_bytes)}
+    report = compare.run_comparison(
+        read_tanzil_text(text_bytes),
+        read_tanzil_metadata(metadata_bytes),
+        args.kfgqpc,
+        args.table,
+        PROFILES["hafs"],
+        tanzil_sha256,
+    )
+    args.report.write_bytes(compare.encode_report(report))
+    print("report %s" % args.report, file=out)
+    print("tanzil text sha256 %s" % tanzil_sha256["text"], file=out)
+    print("tanzil metadata sha256 %s" % tanzil_sha256["metadata"], file=out)
+    print("kfgqpc sha256 %s" % report["kfgqpc"]["sha256"], file=out)
+    print("table version %d sha256 %s" % (report["table"]["version"], report["table"]["sha256"]), file=out)
+    print(compare.summary(report), file=out)
+    if not report["passed"]:
+        print("undocumented differences: the comparison fails", file=out)
+        return EX_DATAERR
+    print("no undocumented difference", file=out)
+    return 0
+
+
+def _kfgqpc_counts(args, out):
+    counts = kfgqpc_counts(args.kfgqpc, args.date, PROFILES["hafs"])
+    args.out.write_bytes(encode_counts(counts))
+    print("counts %s" % args.out, file=out)
+    print("kfgqpc sha256 %s" % counts["kfgqpc_file"]["sha256"], file=out)
+    print("surahs %d ayat %d" % (len(counts["surahs"]), counts["total"]), file=out)
+    return 0
 
 
 def _report(args):

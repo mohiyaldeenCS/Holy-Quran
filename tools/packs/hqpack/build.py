@@ -15,7 +15,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import database, digest, manifest, source_checks
+from . import compare, database, digest, manifest, source_checks
 from .config import read_build_config
 from .errors import PackError, code_point
 from .font import read_font
@@ -42,20 +42,30 @@ class BuildResult:
     surah_sha256: dict
 
 
-def build_pack(config_path, font_path, out_root, unapproved=False):
+def build_pack(config_path, font_path, out_root, unapproved=False, kfgqpc=None, table=None):
     """Builds the pack; `unapproved` builds a test copy (D-165), the one case
-    that skips the refusal below and nothing else."""
+    that skips the KFGQPC comparison and nothing else. `kfgqpc` and `table`
+    are the KFGQPC Hafs file and the table of known differences, given
+    exactly when the profile needs the comparison."""
     sqlite_version = database.require_sqlite()
     config = read_build_config(config_path)
     profile = profile_for(config.riwaya, config.pack_id, unapproved)
+    compares = profile.needs_kfgqpc_comparison and not unapproved
+    given = (kfgqpc is not None, table is not None)
     if unapproved:
         _check_test_copy(config, out_root)
-    elif profile.needs_kfgqpc_comparison:
+    if compares and given != (True, True):
         raise PackError(
             "riwaya %s needs the character-by-character comparison with the "
             "KFGQPC text and the page-list comparison (PRD 9.4, "
-            "docs/CONTENT_PACKS.md P2); the pipeline does not have them yet "
-            "(B0.2), so it builds no %s pack" % (config.riwaya, config.riwaya)
+            "docs/CONTENT_PACKS.md P2); give the KFGQPC file and the table of "
+            "known differences (--kfgqpc, --table)" % config.riwaya
+        )
+    if not compares and given != (False, False):
+        raise PackError(
+            "this build does not run the KFGQPC comparison (riwaya %s%s); "
+            "it takes no KFGQPC file or table"
+            % (config.riwaya, ", unapproved test copy" if unapproved else "")
         )
     out_root = Path(out_root)
     destination = out_root / config.pack_id / str(config.version)
@@ -93,6 +103,12 @@ def build_pack(config_path, font_path, out_root, unapproved=False):
     source_checks.check_sajda_signs(text_options, sajda_rows, ayat)
     source_checks.check_font_coverage(font, drawn)
     surah_rows = _surah_rows(text, metadata, places, marks)
+    if compares:
+        tanzil_sha256 = {
+            "text": digest.sha256_bytes(text_bytes),
+            "metadata": digest.sha256_bytes(metadata_bytes),
+        }
+        _compare_with_kfgqpc(text, metadata, kfgqpc, table, profile, tanzil_sha256)
 
     out_root.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix=".build-", dir=str(out_root)))
@@ -145,6 +161,29 @@ def build_pack(config_path, font_path, out_root, unapproved=False):
         text_sha256=text_sha256,
         manifest_sha256=digest.sha256_bytes(manifest_bytes),
         surah_sha256=surah_sha256,
+    )
+
+
+def _compare_with_kfgqpc(text, metadata, kfgqpc, table, profile, tanzil_sha256):
+    """PRD 9.4 and P2. Even when it passes, the build stops: manifest format 1
+    has no place for the KFGQPC file or the table's version (D-175)."""
+    report = compare.run_comparison(text, metadata, kfgqpc, table, profile, tanzil_sha256)
+    if not report["passed"]:
+        raise PackError(
+            "the KFGQPC comparison fails (%s); pack.py compare writes the full report"
+            % compare.summary(report)
+        )
+    raise PackError(
+        "the KFGQPC comparison passes (%s; KFGQPC file %s, table version %d, "
+        "table SHA-256 %s), but manifest format 1 has no place to record the "
+        "KFGQPC file or the table, so no pack is built until the format "
+        "records them (D-175)"
+        % (
+            compare.summary(report),
+            report["kfgqpc"]["sha256"],
+            report["table"]["version"],
+            report["table"]["sha256"],
+        )
     )
 
 

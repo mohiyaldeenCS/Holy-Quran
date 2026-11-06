@@ -1,6 +1,8 @@
 """The command line, in process and once as a script."""
 
+import hashlib
 import io
+import json
 import shutil
 import subprocess
 import sys
@@ -9,9 +11,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import synthetic_source as synthetic
 from hqpack import cli
 
-from tests.build_support import FONT, TEST_COPY_ID, BuildCase, hafs_shaped_profiles
+from tests.build_support import FONT, HAFS_ID, TABLE, TEST_COPY_ID, BuildCase, hafs_shaped_profiles
 
 PACK_PY = Path(__file__).resolve().parents[1] / "pack.py"
 
@@ -147,6 +150,83 @@ class UnapprovedTestCopyCliTest(CliCase):
             )
         self.assertEqual(code, cli.EX_DATAERR)
         self.assertIn("inside a Git working tree", err)
+
+
+class KfgqpcCliTest(CliCase):
+    def compare(self, entries=None):
+        self.write_source()
+        report = self.work / "report.json"
+        with hafs_shaped_profiles():
+            code, out, err = self.run_cli(
+                "compare",
+                "--text", self.source / synthetic.TEXT_FILE,
+                "--metadata", self.source / synthetic.METADATA_FILE,
+                "--kfgqpc", self.write_kfgqpc(entries),
+                "--table", TABLE,
+                "--report", report,
+            )
+        data = report.read_bytes()
+        self.assert_safe_message(data.decode("ascii"))
+        return code, out, json.loads(data)
+
+    def test_compare_passes_on_equal_texts(self):
+        code, out, report = self.compare()
+        self.assertEqual(code, 0, out)
+        self.assertTrue(report["passed"])
+        self.assertIn("no undocumented difference", out)
+        self.assertRegex(out, r"kfgqpc sha256 [0-9a-f]{64}")
+        text_sha256 = hashlib.sha256((self.source / synthetic.TEXT_FILE).read_bytes()).hexdigest()
+        self.assertIn("tanzil text sha256 %s" % text_sha256, out)
+        self.assertEqual(report["tanzil"]["text_sha256"], text_sha256)
+        self.assertEqual(
+            report["tanzil"]["metadata_sha256"],
+            hashlib.sha256((self.source / synthetic.METADATA_FILE).read_bytes()).hexdigest(),
+        )
+        self.assertRegex(out, r"table version 1 sha256 [0-9a-f]{64}")
+
+    def test_compare_writes_the_report_and_exits_65_on_a_difference(self):
+        entries = synthetic.synthetic_kfgqpc_entries()
+        entries[3]["aya_text"] = entries[3]["aya_text"].replace("\u064e", "\u06e1")
+        code, out, report = self.compare(entries)
+        self.assertEqual(code, cli.EX_DATAERR)
+        self.assertIn("undocumented differences 1 in 1 patterns", out)
+        self.assertEqual(report["differences"][0]["address"], "hafs:1:4")
+        self.assertEqual(report["patterns"][0]["kfgqpc"], ["U+06E1"])
+
+    def test_compare_needs_every_input(self):
+        self.assertEqual(self.run_cli("compare", "--text", "t", "--metadata", "m", "--kfgqpc", "k", "--table", "x")[0], cli.EX_USAGE)
+
+    def test_build_of_a_hafs_pack_with_the_comparison(self):
+        config = self.write_source(riwaya="hafs", id=HAFS_ID)
+        with hafs_shaped_profiles():
+            code, _, err = self.run_cli(
+                "build", "--config", config, "--font", FONT, "--out", self.out,
+                "--kfgqpc", self.write_kfgqpc(), "--table", TABLE,
+            )
+        self.assertEqual(code, cli.EX_DATAERR)
+        self.assertIn("refused: the KFGQPC comparison passes", err)
+        self.assertIn("manifest format 1 has no place", err)
+        self.assertFalse((self.out / HAFS_ID).exists())
+
+    def test_kfgqpc_counts(self):
+        out_file = self.work / "counts.json"
+        with hafs_shaped_profiles():
+            code, out, _ = self.run_cli(
+                "kfgqpc-counts", "--kfgqpc", self.write_kfgqpc(), "--date", "2026-11-06", "--out", out_file
+            )
+        self.assertEqual(code, 0, out)
+        self.assertIn("surahs 3 ayat 8", out)
+        counts = json.loads(out_file.read_bytes())
+        self.assertEqual((counts["surahs"], counts["total"]), ({"1": 4, "2": 3, "3": 1}, 8))
+
+    def test_kfgqpc_counts_on_the_real_profile_refuses_a_short_file(self):
+        out_file = self.work / "counts.json"
+        code, _, err = self.run_cli(
+            "kfgqpc-counts", "--kfgqpc", self.write_kfgqpc(), "--date", "2026-11-06", "--out", out_file
+        )
+        self.assertEqual(code, cli.EX_DATAERR)
+        self.assertIn("not 6236", err)
+        self.assertFalse(out_file.exists())
 
 
 @unittest.skipUnless(_openssl_ed25519(), "needs OpenSSL with Ed25519")

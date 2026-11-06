@@ -15,7 +15,9 @@ from hqpack.verify import Report, verify_pack
 
 from tests.build_support import (
     FONT,
+    HAFS_ID,
     OTHER_FONT,
+    TABLE,
     TEST_COPY_ID,
     BuildCase,
     hafs_shaped_profiles,
@@ -282,6 +284,72 @@ class RefusalTest(BuildCase):
         refused = Report(problems=["synthetic problem"], counts=None, signed=False)
         with mock.patch.object(build, "verify_pack", return_value=refused):
             self.assert_refused("fails verification: synthetic problem")
+
+
+class KfgqpcComparisonBuildTest(BuildCase):
+    """A hafs pack is built only after the KFGQPC comparison (PRD 9.4, P2, D-175)."""
+
+    def assert_refused(self, pattern, config=None, **kwargs):
+        config = config or self.write_source(riwaya="hafs", id=HAFS_ID)
+        with self.assertRaises(PackError) as caught:
+            build_pack(config, FONT, self.out, **kwargs)
+        message = str(caught.exception)
+        self.assertRegex(message, pattern)
+        self.assert_safe_message(message)
+        self.assert_out_empty()
+        return message
+
+    def test_a_hafs_pack_needs_both_inputs(self):
+        with hafs_shaped_profiles():
+            for given in ({}, {"kfgqpc": self.write_kfgqpc()}, {"table": TABLE}):
+                with self.subTest(given=sorted(given)):
+                    self.assert_refused(r"KFGQPC .*--kfgqpc, --table", **given)
+
+    def test_a_passing_comparison_still_stops_at_the_manifest(self):
+        with hafs_shaped_profiles():
+            message = self.assert_refused(
+                "the KFGQPC comparison passes .* manifest format 1 has no place",
+                kfgqpc=self.write_kfgqpc(),
+                table=TABLE,
+            )
+        self.assertIn("undocumented differences 0", message)
+        self.assertIn("table version 1", message)
+
+    def test_an_undocumented_difference_stops(self):
+        entries = synthetic.synthetic_kfgqpc_entries()
+        entries[1]["aya_text"] = entries[1]["aya_text"].replace("\u06d6", "\u06d7")
+        with hafs_shaped_profiles():
+            self.assert_refused(
+                "the KFGQPC comparison fails .*undocumented differences 1 in 1 patterns.*pack.py compare",
+                kfgqpc=self.write_kfgqpc(entries),
+                table=TABLE,
+            )
+
+    def test_a_page_difference_stops(self):
+        entries = synthetic.synthetic_kfgqpc_entries()
+        entries[0]["page"] = 2
+        with hafs_shaped_profiles():
+            self.assert_refused("page differences 1", kfgqpc=self.write_kfgqpc(entries), table=TABLE)
+
+    def test_the_other_checks_run_first(self):
+        config = self.write_source(
+            riwaya="hafs",
+            id=HAFS_ID,
+            text_xml=synthetic.synthetic_text_xml(notice="\nSynthetic notice\nVersion 2\n"),
+        )
+        with hafs_shaped_profiles():
+            self.assert_refused("does not name Version 1", config, kfgqpc=self.write_kfgqpc(), table=TABLE)
+
+    def test_a_build_without_the_comparison_takes_no_kfgqpc_file(self):
+        self.assert_refused(
+            r"riwaya synthetic\); it takes no KFGQPC file",
+            self.write_source(),
+            kfgqpc=self.write_kfgqpc(),
+            table=TABLE,
+        )
+        config = self.write_source(riwaya="hafs", id=TEST_COPY_ID, reviews=[])
+        with hafs_shaped_profiles():
+            self.assert_refused(r"unapproved test copy\); it takes no KFGQPC file", config, unapproved=True, table=TABLE)
 
 
 class UnapprovedTestCopyTest(BuildCase):
