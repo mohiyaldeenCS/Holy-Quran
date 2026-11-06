@@ -371,6 +371,8 @@ written, whatever the comparison found.
 | --- | --- |
 | An output folder inside a Git working tree (itself or a parent holds `.git`, links followed), this repository included, as `test_copy.sh` refuses its work folder | `test_an_output_folder_inside_a_git_tree`, `..._inside_a_worktree_or_submodule`, `test_this_repository`, `test_review_page_refuses_a_folder_in_a_git_tree` |
 | An output that exists and is not an empty folder | `test_a_non_empty_output_folder`, `test_an_output_that_is_a_file` |
+| An output that is a link to nothing, or a folder that cannot be created (each a `PackError`, exit 65, not 70) | `test_an_output_that_is_a_dangling_link`, `test_an_output_folder_that_cannot_be_created` |
+| An output folder that is no longer new or empty when the page is about to be written: the folder is checked again just before writing | `test_the_output_folder_is_checked_again_before_writing` |
 | A KFGQPC font not named `uthmanic_hafs_v20.ttf` (its name in KFGQPC's zip); a Tanzil font other than Amiri Quran | `test_the_kfgqpc_font_under_another_name`, `test_a_tanzil_font_other_than_amiri_quran` |
 | A shown code point the font of its source lacks, since a browser would draw it in another font | `test_a_font_that_lacks_a_shown_code_point` |
 | A shown text holding U+0000 or U+000D, which HTML parsing would change | `test_a_text_html_would_change` |
@@ -412,7 +414,11 @@ back through the equivalences and the removed opening (`compare.Place`). The tex
 reaches the page only as three slices at those offsets; `check_parts` refuses the page
 unless they join to the source text, and the only other change is HTML escaping of
 `&`, `<` and `>`, which the browser undoes. `test_every_marked_word_reconstitutes_its_source`
-parses every text back out of the page and compares it with its source.
+parses every text back out of the page and compares it with its source. `EscapingTest`
+does the same with synthetic `<`, `&` and `</p>` in one ayah of each source, `<` in a
+surah name and `</script>` in an input value, and checks that the header's inputs and
+the script's data parse back exactly; `_script_json` writes `<` as `\u003c`, so nothing in
+the data can close the script element (`ScriptJsonTest`).
 
 ### The decisions
 
@@ -425,7 +431,11 @@ difference is one of encoding only; in D, whether KFGQPC's value agrees with the
 printed mushaf, and for the surah openings, whether a quarter starts at that ayah.
 
 The choices are kept in the browser's `localStorage` (under a key derived from the
-inputs' hashes; a browser that refuses storage shows a warning). «حفظ ملف القرارات»
+inputs' hashes; a browser that refuses storage shows a warning, and so does saved
+state of any other shape than the page writes, an `items` that is not a plain object
+included, which is then not used: `loadState`, `test_saved_state_of_another_shape_is_refused`).
+The progress counter counts the choices the decisions file would save as other than
+`unchecked` (`checkedCount`), so the two always agree. «حفظ ملف القرارات»
 needs the reviewer's name, typed at the top, and saves through a `Blob` download,
 with no network, `kfgqpc-review-decisions-<date>.json`:
 

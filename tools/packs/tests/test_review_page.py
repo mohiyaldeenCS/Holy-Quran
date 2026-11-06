@@ -1,7 +1,9 @@
 """The reciter's review page (D-178) on synthetic sources: no Quran text, mark code points as escapes."""
 
+import dataclasses
 import html
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -12,7 +14,7 @@ from pathlib import Path
 from unittest import mock
 
 import synthetic_source as synthetic
-from hqpack import compare, review_html, review_page
+from hqpack import compare, kfgqpc, review_html, review_page
 from hqpack.errors import PackError
 from hqpack.profiles import PROFILES
 from hqpack.tanzil_text import read_tanzil_text
@@ -23,22 +25,26 @@ from tests.test_font import cmap_table, format12, sfnt, windows_names
 SUKUN = "\u0652"
 KFGQPC_SUKUN = "\u06e1"
 PAUSE = "\u06d6"
+# Letter runs that are not words: one with a sukun, one ending in alef maksura.
+SUKUN_RUN = "\u0632\u0652\u0637"
+MAKSURA_RUN = "\u0637\u0638\u0649"
+YEH_RUN = "\u0637\u0638\u064a"
 SURAHS = (
     (
         "Synthetic surah one",
         "Synthetic opening line",
         (
-            "Synthetic one \u0645\u0652\u0646 \u06d6 end",
-            "Synthetic two \u0645\u0652\u0646 \u06d7 end \u06e9",
-            "Synthetic three \u0645\u0652\u0646 \u06d6 end",
-            "Synthetic four \u0639\u0644\u0649 \u06d6 end",
+            "Synthetic one " + SUKUN_RUN + " \u06d6 end",
+            "Synthetic two " + SUKUN_RUN + " \u06d7 end \u06e9",
+            "Synthetic three " + SUKUN_RUN + " \u06d6 end",
+            "Synthetic four " + MAKSURA_RUN + " \u06d6 end",
         ),
     ),
     (
         "Synthetic surah two",
         None,
         (
-            "Synthetic five \u0645\u0652\u0646 \u06d6 end",
+            "Synthetic five " + SUKUN_RUN + " \u06d6 end",
             "Synthetic six \u06d6 end",
             "Synthetic seven \u06d6 end \u06e9",
         ),
@@ -249,10 +255,10 @@ class WrittenPageTest(ReviewPageCase):
         parser.feed(self.page())
         for source, address, pieces in parser.texts:
             marks.setdefault((source, address), set()).update(data for in_mark, data in pieces if in_mark)
-        self.assertEqual(marks[("tanzil", "hafs:1:4")], {"\u0639\u0644\u0649"})
-        self.assertEqual(marks[("kfgqpc", "hafs:1:4")], {"\u0639\u0644\u064a"})
+        self.assertEqual(marks[("tanzil", "hafs:1:4")], {MAKSURA_RUN})
+        self.assertEqual(marks[("kfgqpc", "hafs:1:4")], {YEH_RUN})
         # A pause mark is marked with the word it follows.
-        self.assertIn("\u0645\u0652\u0646 \u06d7", marks[("tanzil", "hafs:1:2")])
+        self.assertIn(SUKUN_RUN + " \u06d7", marks[("tanzil", "hafs:1:2")])
         # C: the word and the pause mark, with the space between them in Tanzil only.
         self.assertIn("six " + PAUSE, marks[("tanzil", "hafs:2:2")])
         self.assertIn("six" + PAUSE, marks[("kfgqpc", "hafs:2:2")])
@@ -430,6 +436,7 @@ class RefusalTest(ReviewPageCase):
 
     def test_this_repository(self):
         inside = Path(__file__).resolve().parent / "review-output-never-written"
+        self.addCleanup(shutil.rmtree, str(inside), True)
         self.assert_refused("inside the Git working tree", out=inside)
         self.assertFalse(inside.exists())
 
@@ -442,6 +449,30 @@ class RefusalTest(ReviewPageCase):
         self.out.write_bytes(b"")
         with self.assertRaisesRegex(PackError, "exists and is not a folder"):
             self.write()
+
+    def test_an_output_that_is_a_dangling_link(self):
+        os.symlink(str(self.work / "nowhere"), str(self.out))
+        with self.assertRaisesRegex(PackError, "is a link to nothing"):
+            self.write()
+        self.assertFalse((self.work / "nowhere").exists())
+
+    def test_an_output_folder_that_cannot_be_created(self):
+        blocker = self.work / "a-file"
+        blocker.write_bytes(b"")
+        with self.assertRaisesRegex(PackError, "cannot be created"):
+            self.write(out=blocker / "review")
+        self.assertEqual(blocker.read_bytes(), b"")
+
+    def test_the_output_folder_is_checked_again_before_writing(self):
+        render = review_html.render
+
+        def render_while_the_folder_fills(page):
+            self.out.mkdir()
+            (self.out / ".keep").write_bytes(b"")
+            return render(page)
+
+        with mock.patch.object(review_html, "render", render_while_the_folder_fills):
+            self.assert_refused("is not empty")
 
     def test_an_empty_output_folder_is_used(self):
         self.out.mkdir()
@@ -492,6 +523,174 @@ class ReconstitutionMutationTest(ReviewPageCase):
         with self.assertRaisesRegex(PackError, pattern):
             self.write()
         self.assertFalse(self.out.exists())
+
+
+# Markup and references as whole tokens with letters, so that the word count and the marked words do not change.
+HOSTILE_BEFORE = "<i>&amp;</p>"
+HOSTILE_AFTER = "&lt;/p&gt;</p>&x"
+HOSTILE_NAME = "Synthetic <b>surah</b> &amp; one"
+HOSTILE_VERSION = "synthetic </script><b>&amp;"
+
+
+def hostile_ayah(text):
+    hostile = text.replace("four ", "four %s " % HOSTILE_BEFORE, 1).replace(" end", " end " + HOSTILE_AFTER, 1)
+    assert hostile.count(HOSTILE_BEFORE) == 1 and hostile.count(HOSTILE_AFTER) == 1
+    return hostile
+
+
+def _replace_value(source_value, value):
+    return dataclasses.replace(source_value, value=value)
+
+
+class _Fragment(HTMLParser):
+    """The character data of a fragment and the tags in it."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.data = []
+        self.tags = []
+
+    def handle_starttag(self, tag, attrs):
+        self.tags.append(tag)
+
+    def handle_endtag(self, tag):
+        self.tags.append("/" + tag)
+
+    def handle_data(self, data):
+        self.data.append(data)
+
+
+class EscapingTest(ReviewPageCase):
+    """`<`, `&` and `</p>` in an ayah of each source, `<` in a surah name and in an input value.
+
+    The Tanzil reader refuses `<` and `&` in a value, so the Tanzil ayah and the surah name are
+    set after reading; the page must still show every text exactly."""
+
+    def write_hostile(self):
+        read_text = review_page.read_tanzil_text
+        read_metadata = review_page.read_tanzil_metadata
+
+        def text_with_hostile_ayah(data):
+            text = read_text(data)
+            sura = text.suras[0]
+            ayat = list(sura.ayat)
+            ayat[3] = dataclasses.replace(ayat[3], text=_replace_value(ayat[3].text, hostile_ayah(ayat[3].text.value)))
+            return dataclasses.replace(text, suras=[dataclasses.replace(sura, ayat=ayat)] + list(text.suras[1:]))
+
+        def metadata_with_hostile_name(data):
+            metadata = read_metadata(data)
+            first = dataclasses.replace(metadata.suras[0], name=_replace_value(metadata.suras[0].name, HOSTILE_NAME))
+            return dataclasses.replace(metadata, suras=[first] + list(metadata.suras[1:]))
+
+        entries = review_entries()
+        entries[_index(1, 4)]["aya_text"] = hostile_ayah(entries[_index(1, 4)]["aya_text"])
+        with mock.patch.object(review_page, "read_tanzil_text", text_with_hostile_ayah), mock.patch.object(
+            review_page, "read_tanzil_metadata", metadata_with_hostile_name
+        ), mock.patch.object(kfgqpc, "VERSION", HOSTILE_VERSION):
+            result = self.write(entries=entries)
+        sources = self.sources(entries)
+        sources[("tanzil", "hafs:1:4")] = hostile_ayah(sources[("tanzil", "hafs:1:4")])
+        return result, self.page(), sources
+
+    def test_both_texts_parse_back_exactly(self):
+        result, page, sources = self.write_hostile()
+        self.assertEqual(len(result.report["differences"]), 12)
+        texts = self.assert_reconstitutes(page, sources)
+        shown = {(source, address) for source, address, _ in texts}
+        self.assertIn(("tanzil", "hafs:1:4"), shown)
+        self.assertIn(("kfgqpc", "hafs:1:4"), shown)
+
+    def test_the_surah_name_is_escaped(self):
+        _, page, _ = self.write_hostile()
+        self.assertIn(html.escape(HOSTILE_NAME, quote=False) + " (\u0661)", page)
+        self.assertNotIn(HOSTILE_NAME, page)
+
+    def test_the_input_values_parse_back_exactly(self):
+        result, page, _ = self.write_hostile()
+        fragment = _Fragment()
+        fragment.feed(re.search(r'<div class="inputs">(.*?)</div>', page, re.S).group(1))
+        fragment.close()
+        self.assertEqual(set(fragment.tags), {"br"})
+        self.assertEqual(
+            "".join(fragment.data).split("\n"), ["%s: %s" % item for item in result.inputs.items()]
+        )
+        self.assertEqual(result.inputs["kfgqpc_version"], HOSTILE_VERSION)
+
+    def test_the_script_data_parses_back_exactly(self):
+        result, page, _ = self.write_hostile()
+        self.assertEqual(page.count("</script>"), 2)
+        self.assertEqual(self.data(page)["inputs"], dict(result.inputs))
+
+
+class ScriptJsonTest(unittest.TestCase):
+    def test_nothing_in_it_can_close_the_script_element(self):
+        value = ["</script>", "<!--", "</SCRIPT >"]
+        encoded = review_html._script_json(value)
+        self.assertNotIn("</", encoded)
+        self.assertNotIn("<", encoded)
+        self.assertEqual(json.loads(encoded), value)
+
+
+@unittest.skipUnless(shutil.which("node"), "needs node to run the page's script")
+class PageScriptTest(ReviewPageCase):
+    def run_script(self, statements):
+        self.write()
+        page = self.page()
+        script = re.search(r"<script>\n(.*?)</script>", page, re.S).group(1)
+        program = script + "\nvar data = %s;\n%s\n" % (json.dumps(self.data(page)), statements)
+        run = subprocess.run(["node", "-e", program], capture_output=True, check=True)
+        return json.loads(run.stdout.decode("utf-8"))
+
+    def test_the_counter_counts_what_the_decisions_file_saves(self):
+        result = self.run_script(
+            "var ids = data.items.map(function (item) { return item.id; });\n"
+            "var items = {};\n"
+            "items[ids[0]] = {choice: 'agrees'};\n"
+            "items[ids[1]] = {choice: 'invented'};\n"
+            "items[ids[2]] = {choice: 'disagrees'};\n"
+            "items[ids[3]] = {choice: 'unchecked'};\n"
+            "items[ids[4]] = {choice: 'toString'};\n"
+            "items['not-an-item'] = {choice: 'agrees'};\n"
+            "var file = globalThis.decisionsFile(data, items, 'Synthetic reviewer', '2026-01-01T00:00:00.000Z');\n"
+            "process.stdout.write(JSON.stringify([globalThis.checkedCount(data, items), file.decisions.filter("
+            "function (d) { return d.choice !== 'unchecked'; }).length]));"
+        )
+        self.assertEqual(result, [2, 2])
+
+    def test_saved_state_of_another_shape_is_refused(self):
+        cases = [
+            None,
+            '{"reviewer":"Synthetic reviewer","items":{"x":{"choice":"agrees","note":""}}}',
+            '{"reviewer":"Synthetic reviewer","items":[]}',
+            '{"reviewer":"Synthetic reviewer","items":[{"choice":"agrees"}]}',
+            '{"reviewer":"Synthetic reviewer","items":null}',
+            '{"reviewer":"Synthetic reviewer","items":"synthetic"}',
+            '{"reviewer":"Synthetic reviewer"}',
+            '{"reviewer":7,"items":{}}',
+            "[]",
+            "null",
+            "not json",
+        ]
+        result = self.run_script(
+            "process.stdout.write(JSON.stringify(%s.map(globalThis.loadState)));" % json.dumps(cases)
+        )
+        self.assertEqual(
+            result,
+            [
+                {"reviewer": "", "items": {}},
+                {"reviewer": "Synthetic reviewer", "items": {"x": {"choice": "agrees", "note": ""}}},
+            ]
+            + [None] * (len(cases) - 2),
+        )
+
+    def test_a_refused_state_shows_the_storage_warning(self):
+        self.write()
+        script = re.search(r"<script>\n(.*?)</script>", self.page(), re.S).group(1)
+        self.assertRegex(
+            script,
+            r'if \(state === null\) \{\n\s*state = \{ reviewer: "", items: \{\} \};\n'
+            r'\s*document\.getElementById\("storage-warning"\)\.hidden = false;',
+        )
 
 
 def _place(kfgqpc_sequence, tanzil_sequence, address=(1, 1), kfgqpc_text="", tanzil_text="", kfgqpc=(0, 0), tanzil=(0, 0)):

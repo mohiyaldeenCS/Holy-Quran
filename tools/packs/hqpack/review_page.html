@@ -79,18 +79,44 @@ ${sections}
       })
     };
   }
+  // Counted from the decisions file itself, so that the counter and the saved file always agree.
+  function checkedCount(data, items) {
+    return decisionsFile(data, items, "", "").decisions.filter(function (decision) {
+      return decision.choice !== "unchecked";
+    }).length;
+  }
+
+  function isPlainObject(value) {
+    return Object.prototype.toString.call(value) === "[object Object]";
+  }
+
+  // The saved state, or null when what is stored is not the shape store() writes.
+  function loadState(text) {
+    var state = { reviewer: "", items: {} };
+    if (text === null) { return state; }
+    var stored;
+    try { stored = JSON.parse(text); } catch (e) { return null; }
+    if (!isPlainObject(stored) || !isPlainObject(stored.items) || typeof stored.reviewer !== "string") {
+      return null;
+    }
+    state.reviewer = stored.reviewer;
+    state.items = stored.items;
+    return state;
+  }
   root.decisionsFile = decisionsFile;
+  root.checkedCount = checkedCount;
+  root.loadState = loadState;
   if (typeof document === "undefined") { return; }
 
   var data = JSON.parse(document.getElementById("review-data").textContent);
-  var state = { reviewer: "", items: {} };
+  var state = null;
   try {
-    var stored = JSON.parse(root.localStorage.getItem(data.storage_key) || "null");
-    if (stored && typeof stored === "object") {
-      if (typeof stored.reviewer === "string") { state.reviewer = stored.reviewer; }
-      if (stored.items && typeof stored.items === "object") { state.items = stored.items; }
-    }
+    state = loadState(root.localStorage.getItem(data.storage_key));
   } catch (e) {
+    state = null;
+  }
+  if (state === null) {
+    state = { reviewer: "", items: {} };
     document.getElementById("storage-warning").hidden = false;
   }
 
@@ -103,10 +129,7 @@ ${sections}
   }
 
   function progress() {
-    var done = data.items.filter(function (item) {
-      var saved = state.items[item.id];
-      return saved && saved.choice && saved.choice !== "unchecked";
-    }).length;
+    var done = checkedCount(data, state.items);
     document.getElementById("progress").textContent =
       "تم التحقق من " + done.toLocaleString("ar-EG") + " من " + data.items.length.toLocaleString("ar-EG");
   }

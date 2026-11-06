@@ -16,6 +16,7 @@ differences and the surah openings P-3 accepts as quarter starts.
 
 from __future__ import annotations
 
+import os
 from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
@@ -121,10 +122,14 @@ def write_review_page(text_path, metadata_path, kfgqpc_path, table_path, tanzil_
     )
 
     page_bytes = page.encode("utf-8")
-    out.mkdir(parents=True, exist_ok=True)
-    (out / TANZIL_FONT_FILE).write_bytes(tanzil_font_bytes)
-    (out / KFGQPC_FONT_FILE).write_bytes(kfgqpc_font_bytes)
-    (out / PAGE_FILE).write_bytes(page_bytes)
+    _check_out(out)
+    try:
+        out.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise PackError("the output folder %s cannot be created: %s" % (out, e.strerror or e)) from None
+    _write(out / TANZIL_FONT_FILE, tanzil_font_bytes)
+    _write(out / KFGQPC_FONT_FILE, kfgqpc_font_bytes)
+    _write(out / PAGE_FILE, page_bytes)
     return ReviewResult(
         directory=out,
         report=report,
@@ -192,11 +197,20 @@ def _check_out(out):
             "the output folder %s is inside the Git working tree %s; the page holds Quran text "
             "and is written outside every repository" % (out, tree)
         )
+    if os.path.islink(str(out)) and not out.exists():
+        raise PackError("the output %s is a link to nothing; give a new or empty folder" % out)
     if out.exists():
         if not out.is_dir():
             raise PackError("the output %s exists and is not a folder" % out)
         if any(out.iterdir()):
             raise PackError("the output folder %s is not empty; give a new or empty folder" % out)
+
+
+def _write(path, data):
+    try:
+        path.write_bytes(data)
+    except OSError as e:
+        raise PackError("%s cannot be written: %s" % (path, e.strerror or e)) from None
 
 
 def _check_showable(places):
