@@ -27,13 +27,17 @@ CONTEXT = 2
 FIRST_ADDRESSES = 3
 
 
-def run_comparison(text, metadata, kfgqpc_path, table_path, profile):
-    """Reads the KFGQPC file and the table, compares, and returns the report with both inputs recorded."""
+def run_comparison(text, metadata, kfgqpc_path, table_path, profile, tanzil_sha256):
+    """Reads the KFGQPC file and the table, compares, and returns the report with
+    every input recorded; `tanzil_sha256` is {"text": hex, "metadata": hex}."""
     witness, kfgqpc_sha256 = kfgqpc.read_kfgqpc_file(kfgqpc_path, profile.ayat)
     table_bytes = Path(table_path).read_bytes()
     table = read_table(table_bytes)
     report = OrderedDict()
     report["format"] = FORMAT
+    report["tanzil"] = OrderedDict(
+        [("text_sha256", tanzil_sha256["text"]), ("metadata_sha256", tanzil_sha256["metadata"])]
+    )
     report["kfgqpc"] = OrderedDict(
         [
             ("registry_row", kfgqpc.REGISTRY_ROW),

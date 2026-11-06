@@ -22,6 +22,7 @@ Every rule has `id`, `kind`, `code_points`, `applies_to`, `reason`,
 
 from __future__ import annotations
 
+import datetime
 import json
 import re
 from dataclasses import dataclass
@@ -129,6 +130,10 @@ def _rule(rule, index):
             raise PackError("%s: %s is empty or not a string" % (where, key))
     if not isinstance(rule["date"], str) or not _DATE.match(rule["date"]):
         raise PackError("%s: date is not YYYY-MM-DD" % where)
+    try:
+        datetime.date.fromisoformat(rule["date"])
+    except ValueError:
+        raise PackError("%s: date %s is not a day of the calendar" % (where, rule["date"])) from None
     kind = rule["kind"]
     if kind == PRESENTATION:
         applies_to = rule["applies_to"]

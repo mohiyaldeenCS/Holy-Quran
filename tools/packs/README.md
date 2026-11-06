@@ -242,7 +242,9 @@ and approve each one. Then, for each approved pattern:
 3. Run `compare` again: the pattern must be gone and the rule must be applied. Record
    the new version and SHA-256 with the approval (D-175).
 
-The reader refuses an equivalence whose `approved_by` begins with "lead".
+The reader refuses an equivalence whose `approved_by` begins with "lead". That only
+catches a slip; the safeguard is the review of the table's change and the approval
+recorded with D-175.
 
 ### Comparing
 
@@ -262,7 +264,7 @@ text can be written. Each list has one entry per line.
 
 | Key | Holds |
 | --- | --- |
-| `format`, `kfgqpc`, `table` | `holyquran-kfgqpc-comparison`; the KFGQPC file's registry row, name, version and SHA-256; the table's version and SHA-256 |
+| `format`, `tanzil`, `kfgqpc`, `table` | `holyquran-kfgqpc-comparison`; the SHA-256 of the Tanzil text and metadata files compared, so an approval made from the report can be tied to the files a pack is built from; the KFGQPC file's registry row, name, version and SHA-256; the table's version and SHA-256 |
 | `ayat`, `rules` | Ayat compared; each rule with how many times it applied |
 | `presentation_problems` | `address`, `rule`, `problem`, and the two code points `found` at the ayah's end when P-1 fails |
 | `table_problems` | Equivalences that did not apply |

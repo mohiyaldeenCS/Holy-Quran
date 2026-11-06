@@ -1,5 +1,6 @@
 """The command line, in process and once as a script."""
 
+import hashlib
 import io
 import json
 import shutil
@@ -174,6 +175,13 @@ class KfgqpcCliTest(CliCase):
         self.assertTrue(report["passed"])
         self.assertIn("no undocumented difference", out)
         self.assertRegex(out, r"kfgqpc sha256 [0-9a-f]{64}")
+        text_sha256 = hashlib.sha256((self.source / synthetic.TEXT_FILE).read_bytes()).hexdigest()
+        self.assertIn("tanzil text sha256 %s" % text_sha256, out)
+        self.assertEqual(report["tanzil"]["text_sha256"], text_sha256)
+        self.assertEqual(
+            report["tanzil"]["metadata_sha256"],
+            hashlib.sha256((self.source / synthetic.METADATA_FILE).read_bytes()).hexdigest(),
+        )
         self.assertRegex(out, r"table version 1 sha256 [0-9a-f]{64}")
 
     def test_compare_writes_the_report_and_exits_65_on_a_difference(self):

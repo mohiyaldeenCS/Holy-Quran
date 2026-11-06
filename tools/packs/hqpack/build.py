@@ -104,7 +104,11 @@ def build_pack(config_path, font_path, out_root, unapproved=False, kfgqpc=None, 
     source_checks.check_font_coverage(font, drawn)
     surah_rows = _surah_rows(text, metadata, places, marks)
     if compares:
-        _compare_with_kfgqpc(text, metadata, kfgqpc, table, profile)
+        tanzil_sha256 = {
+            "text": digest.sha256_bytes(text_bytes),
+            "metadata": digest.sha256_bytes(metadata_bytes),
+        }
+        _compare_with_kfgqpc(text, metadata, kfgqpc, table, profile, tanzil_sha256)
 
     out_root.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix=".build-", dir=str(out_root)))
@@ -160,10 +164,10 @@ def build_pack(config_path, font_path, out_root, unapproved=False, kfgqpc=None, 
     )
 
 
-def _compare_with_kfgqpc(text, metadata, kfgqpc, table, profile):
+def _compare_with_kfgqpc(text, metadata, kfgqpc, table, profile, tanzil_sha256):
     """PRD 9.4 and P2. Even when it passes, the build stops: manifest format 1
     has no place for the KFGQPC file or the table's version (D-175)."""
-    report = compare.run_comparison(text, metadata, kfgqpc, table, profile)
+    report = compare.run_comparison(text, metadata, kfgqpc, table, profile, tanzil_sha256)
     if not report["passed"]:
         raise PackError(
             "the KFGQPC comparison fails (%s); pack.py compare writes the full report"

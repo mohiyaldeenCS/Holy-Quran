@@ -116,6 +116,7 @@ class TableReaderTest(unittest.TestCase):
             ({"reason": " "}, "reason is empty"),
             ({"approved_by": None}, "approved_by is empty or not a string"),
             ({"date": "2026-1-6"}, "date is not YYYY-MM-DD"),
+            ({"date": "2026-02-30"}, "date 2026-02-30 is not a day of the calendar"),
             ({"applies_to": "every_ayah"}, "a presentation rule applies to ayah_end or quarter_start"),
             ({"code_points": {"separator": "U+00A0"}}, "code_points lacks first_number_glyph"),
             ({"code_points": {"sign": "U+06DE", "separator": "U+00A0"}}, "code_points lacks"),

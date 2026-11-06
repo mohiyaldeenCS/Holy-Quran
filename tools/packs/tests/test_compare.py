@@ -320,8 +320,10 @@ class RunComparisonTest(unittest.TestCase):
         path.write_bytes(synthetic.synthetic_kfgqpc_json())
         text = read_tanzil_text(synthetic.synthetic_text_xml())
         metadata = read_tanzil_metadata(synthetic.synthetic_metadata_xml())
-        report = compare.run_comparison(text, metadata, path, SHIPPED, PROFILES["synthetic"])
+        tanzil = {"text": "a" * 64, "metadata": "b" * 64}
+        report = compare.run_comparison(text, metadata, path, SHIPPED, PROFILES["synthetic"], tanzil)
         self.assertEqual(report["format"], "holyquran-kfgqpc-comparison")
+        self.assertEqual(report["tanzil"], {"text_sha256": "a" * 64, "metadata_sha256": "b" * 64})
         self.assertEqual(
             report["kfgqpc"],
             {

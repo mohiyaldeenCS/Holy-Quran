@@ -13,6 +13,7 @@ from pathlib import Path
 
 from . import compare
 from .build import build_pack
+from .digest import sha256_bytes
 from .errors import PackError
 from .font import read_font
 from .kfgqpc_counts import encode_counts, kfgqpc_counts
@@ -188,11 +189,21 @@ def _verify_signature(args, out):
 
 
 def _compare(args, out):
-    text = read_tanzil_text(args.text.read_bytes())
-    metadata = read_tanzil_metadata(args.metadata.read_bytes())
-    report = compare.run_comparison(text, metadata, args.kfgqpc, args.table, PROFILES["hafs"])
+    text_bytes = args.text.read_bytes()
+    metadata_bytes = args.metadata.read_bytes()
+    tanzil_sha256 = {"text": sha256_bytes(text_bytes), "metadata": sha256_bytes(metadata_bytes)}
+    report = compare.run_comparison(
+        read_tanzil_text(text_bytes),
+        read_tanzil_metadata(metadata_bytes),
+        args.kfgqpc,
+        args.table,
+        PROFILES["hafs"],
+        tanzil_sha256,
+    )
     args.report.write_bytes(compare.encode_report(report))
     print("report %s" % args.report, file=out)
+    print("tanzil text sha256 %s" % tanzil_sha256["text"], file=out)
+    print("tanzil metadata sha256 %s" % tanzil_sha256["metadata"], file=out)
     print("kfgqpc sha256 %s" % report["kfgqpc"]["sha256"], file=out)
     print("table version %d sha256 %s" % (report["table"]["version"], report["table"]["sha256"]), file=out)
     print(compare.summary(report), file=out)
