@@ -21,6 +21,13 @@ HAFS_ID = "base-hafs-tanzil"
 TABLE = Path(__file__).resolve().parents[1] / "known_differences.json"
 
 
+def synthetic_table_document():
+    """The shipped table without its address-listed rules, which name ayat the synthetic text does not have."""
+    document = json.loads(TABLE.read_text(encoding="ascii"))
+    document["rules"] = [r for r in document["rules"] if not isinstance(r["applies_to"], list)]
+    return document
+
+
 def hafs_shaped_profiles():
     """Patches PROFILES so that "hafs" has the synthetic source's totals and still needs the KFGQPC comparison."""
     shaped = dataclasses.replace(PROFILES["synthetic"], needs_kfgqpc_comparison=True)
@@ -69,6 +76,11 @@ class BuildCase(unittest.TestCase):
         self.source.mkdir(parents=True, exist_ok=True)
         path = self.source / synthetic.KFGQPC_FILE
         path.write_bytes(synthetic.synthetic_kfgqpc_json(entries))
+        return path
+
+    def write_table(self):
+        path = self.work / "known_differences.json"
+        path.write_bytes(json.dumps(synthetic_table_document()).encode("ascii"))
         return path
 
     def edit_config(self, config, change):

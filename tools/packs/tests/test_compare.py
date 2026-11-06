@@ -1,4 +1,9 @@
-"""The KFGQPC comparison (PRD 9.4, P2) on the synthetic source and a synthetic KFGQPC-shaped file."""
+"""The KFGQPC comparison (PRD 9.4, P2) on the synthetic source and a synthetic KFGQPC-shaped file.
+
+The synthetic KFGQPC file has the published presentation: every ayah ends with
+U+00A0 and its number glyph, and U+06DE U+00A0 opens every quarter start but
+the three that open a surah (1:1, 2:1, 3:1), which carry no sign (P-3).
+"""
 
 import hashlib
 import json
@@ -17,19 +22,25 @@ from hqpack.profiles import PROFILES
 from hqpack.tanzil_metadata import read_tanzil_metadata
 from hqpack.tanzil_text import read_tanzil_text
 
-from tests.build_support import surahs_with_ayah
+from tests.build_support import TABLE as SHIPPED, surahs_with_ayah, synthetic_table_document
 
-SHIPPED = Path(__file__).resolve().parents[1] / "known_differences.json"
 AYAT = 8
 NBSP = "\u00a0"
 SIGN = "\u06de"
 FEWER_QUARTERS = ((1, 1), (1, 3), (2, 1), (3, 1))
+EVERY_LIST = ("presentation_problems", "table_problems", "differences", "page_differences", "juz_differences", "quarter_differences")
 
 
 def _table(*extra_rules, drop=()):
-    document = json.loads(SHIPPED.read_text(encoding="ascii"))
+    """The shipped table without P-4 (it names hafs:2:286), less `drop`, plus `extra_rules`."""
+    document = synthetic_table_document()
     document["rules"] = [r for r in document["rules"] if r["id"] not in drop] + list(extra_rules)
     return read_table(json.dumps(document).encode("ascii"))
+
+
+def _shipped_rule(rule_id, **fields):
+    (rule,) = [r for r in json.loads(SHIPPED.read_text(encoding="ascii"))["rules"] if r["id"] == rule_id]
+    return dict(rule, **fields)
 
 
 def _equivalence(kfgqpc, tanzil, applies_to, rule_id="E-1"):
@@ -49,15 +60,15 @@ def _id(surah, ayah):
 
 
 class CompareCase(unittest.TestCase):
-    def run_compare(self, entries=None, table=None, surahs=None, quarters=None):
+    def run_compare(self, entries=None, table=None, surahs=None, quarters=None, ayat=AYAT, **metadata_lists):
         text = read_tanzil_text(
             synthetic.synthetic_text_xml(**({} if surahs is None else {"surahs": surahs}))
         )
-        metadata = read_tanzil_metadata(
-            synthetic.synthetic_metadata_xml(**({} if quarters is None else {"quarters": quarters}))
-        )
+        if quarters is not None:
+            metadata_lists["quarters"] = quarters
+        metadata = read_tanzil_metadata(synthetic.synthetic_metadata_xml(**metadata_lists))
         entries = synthetic.synthetic_kfgqpc_entries() if entries is None else entries
-        witness = read_kfgqpc(synthetic.synthetic_kfgqpc_json(entries), AYAT)
+        witness = read_kfgqpc(synthetic.synthetic_kfgqpc_json(entries), ayat)
         report = compare.compare(text, metadata, witness, _table() if table is None else table)
         data = compare.encode_report(report)
         self.assert_no_text(data.decode("ascii"))
@@ -77,7 +88,7 @@ class CompareCase(unittest.TestCase):
     def assert_fails_with(self, report, key, count=1):
         self.assertFalse(report["passed"])
         self.assertEqual(len(report[key]), count, report[key])
-        for other in ("presentation_problems", "table_problems", "differences", "page_differences", "juz_differences"):
+        for other in EVERY_LIST:
             if other != key:
                 self.assertEqual(report[other], [], other)
 
@@ -87,7 +98,11 @@ class EqualTextsTest(CompareCase):
         report = self.run_compare()
         self.assertTrue(report["passed"])
         self.assertEqual(report["ayat"], AYAT)
-        self.assertEqual([(r["id"], r["applied"]) for r in report["rules"]], [("P-1", AYAT), ("P-2", AYAT)])
+        self.assertEqual(
+            [(r["id"], r["applied"]) for r in report["rules"]], [("P-1", AYAT), ("P-2", 5), ("P-3", 3)]
+        )
+        for key in EVERY_LIST:
+            self.assertEqual(report[key], [], key)
         self.assertEqual(report["differences"], [])
         self.assertEqual(report["patterns"], [])
 
@@ -95,7 +110,7 @@ class EqualTextsTest(CompareCase):
         self.assertEqual(
             compare.summary(self.run_compare()),
             "ayat 8, undocumented differences 0 in 0 patterns, presentation problems 0, "
-            "table problems 0, page differences 0, juz differences 0",
+            "table problems 0, page differences 0, juz differences 0, quarter differences 0",
         )
 
     def test_the_report_is_deterministic(self):
@@ -144,34 +159,172 @@ class AyahEndRuleTest(CompareCase):
         self.assertEqual(report["patterns"][0]["count"], 3)
 
 
+class AyahEndSeparatorRuleTest(CompareCase):
+    """Rule (ii): P-4's form, an ayah-end separator named for listed addresses only."""
+
+    def table(self, address="hafs:2:3"):
+        return _table(_shipped_rule("P-4", applies_to=[address]))
+
+    def entries(self, separator=" ", glyph="\ufc02"):
+        return self.entries_with_text(2, 3, lambda t: t[:-2] + separator + glyph)
+
+    def test_the_listed_ayah_passes_with_its_separator(self):
+        report = self.run_compare(self.entries(), self.table())
+        self.assertTrue(report["passed"], report)
+        applied = {r["id"]: r["applied"] for r in report["rules"]}
+        self.assertEqual((applied["P-1"], applied["P-4"]), (AYAT - 1, 1))
+        self.assertEqual(report["rules"][1]["applies_to"], ["hafs:2:3"])
+
+    def test_without_the_rule_it_stops(self):
+        report = self.run_compare(self.entries())
+        self.assertFalse(report["passed"])
+        (problem,) = report["presentation_problems"]
+        self.assertEqual((problem["address"], problem["rule"]), ("hafs:2:3", "P-1"))
+        self.assertEqual(problem["found"], ["U+0020", "U+FC02"])
+
+    def test_the_listed_ayah_with_the_usual_separator_stops(self):
+        report = self.run_compare(table=self.table())
+        (problem,) = report["presentation_problems"]
+        self.assertEqual((problem["address"], problem["rule"]), ("hafs:2:3", "P-4"))
+        self.assertIn("does not end with U+0020 and the number glyph U+FC02", problem["problem"])
+        self.assertFalse(report["passed"])
+
+    def test_the_glyph_is_still_checked(self):
+        report = self.run_compare(self.entries(glyph="\ufc03"), self.table())
+        (problem,) = report["presentation_problems"]
+        self.assertEqual((problem["address"], problem["rule"]), ("hafs:2:3", "P-4"))
+        self.assertIn("U+FC03, not U+FC02 for ayah 3", problem["problem"])
+
+    def test_it_applies_at_its_address_only(self):
+        entries = self.entries_with_text(2, 2, lambda t: t[:-2] + " " + t[-1])
+        report = self.run_compare(entries, self.table())
+        problems = [(p["address"], p["rule"]) for p in report["presentation_problems"]]
+        self.assertEqual(problems, [("hafs:2:2", "P-1"), ("hafs:2:3", "P-4")])
+
+    def test_the_shipped_address_is_not_in_the_synthetic_text(self):
+        with self.assertRaisesRegex(PackError, "rule P-4 applies to hafs:2:286, not an ayah of the text"):
+            self.run_compare(table=_table(_shipped_rule("P-4")))
+
+
 class QuarterRuleTest(CompareCase):
-    def test_the_sign_at_an_ayah_that_is_not_a_quarter_start_stops(self):
+    def test_the_sign_at_an_ayah_that_is_not_a_quarter_start_is_a_quarter_difference(self):
+        # The kind of hafs:15:49: a division difference (P2), not a presentation problem.
         report = self.run_compare(quarters=FEWER_QUARTERS)
-        self.assert_fails_with(report, "presentation_problems", 4)
+        self.assert_fails_with(report, "quarter_differences", 4)
         self.assertEqual(
-            [p["address"] for p in report["presentation_problems"]],
+            [d["address"] for d in report["quarter_differences"]],
             ["hafs:1:2", "hafs:1:4", "hafs:2:2", "hafs:2:3"],
         )
-        self.assertIn("is not a quarter start", report["presentation_problems"][0]["problem"])
+        self.assertEqual(
+            report["quarter_differences"][0],
+            {
+                "address": "hafs:1:2",
+                "kfgqpc_quarter_start": True,
+                "tanzil_quarter_start": False,
+                "kfgqpc_quarters": [
+                    {"quarter": 1, "start": "hafs:1:1"},
+                    {"quarter": 2, "start": "hafs:1:2"},
+                    {"quarter": 3, "start": "hafs:1:3"},
+                    {"quarter": 4, "start": "hafs:1:4"},
+                ],
+                "tanzil_quarters": [
+                    {"quarter": 1, "start": "hafs:1:1"},
+                    {"quarter": 2, "start": "hafs:1:3"},
+                    {"quarter": 3, "start": "hafs:2:1"},
+                ],
+            },
+        )
+        self.assertEqual(
+            [q["start"] for q in report["quarter_differences"][3]["tanzil_quarters"]],
+            ["hafs:1:3", "hafs:2:1", "hafs:3:1"],
+        )
+        self.assertEqual(
+            [q["quarter"] for q in report["quarter_differences"][3]["kfgqpc_quarters"]], [5, 6, 7, 8]
+        )
 
-    def test_a_quarter_start_without_the_sign_stops(self):
+    def test_a_quarter_start_without_the_sign_is_a_quarter_difference(self):
         entries = self.entries_with_text(2, 2, lambda t: t[2:])
         report = self.run_compare(entries)
-        self.assert_fails_with(report, "presentation_problems")
-        self.assertEqual(report["presentation_problems"][0]["address"], "hafs:2:2")
-        self.assertIn("does not open with the quarter sign", report["presentation_problems"][0]["problem"])
+        self.assert_fails_with(report, "quarter_differences")
+        (difference,) = report["quarter_differences"]
+        self.assertEqual(
+            (difference["address"], difference["kfgqpc_quarter_start"], difference["tanzil_quarter_start"]),
+            ("hafs:2:2", False, True),
+        )
 
     def test_the_sign_without_its_separator_is_not_removed(self):
         entries = self.entries_with_text(1, 3, lambda t: SIGN + t[2:])
         report = self.run_compare(entries)
         self.assertFalse(report["passed"])
-        self.assertEqual(report["presentation_problems"][0]["address"], "hafs:1:3")
+        (problem,) = report["presentation_problems"]
+        self.assertEqual((problem["address"], problem["rule"]), ("hafs:1:3", "P-2"))
+        self.assertIn("opens with the quarter sign U+06DE not followed by U+00A0", problem["problem"])
         self.assertEqual(report["differences"][0]["kfgqpc"]["sequence"], ["U+06DE"])
+        # Still a KFGQPC quarter start: the ayah opens with the sign.
+        self.assertEqual(report["quarter_differences"], [])
 
-    def test_without_the_rule_every_quarter_start_differs(self):
-        report = self.run_compare(table=_table(drop=("P-2",)))
-        self.assert_fails_with(report, "differences", AYAT)
+    def test_the_sign_and_separator_inside_an_ayah_are_not_removed(self):
+        entries = self.entries_with_text(1, 2, lambda t: t[:4] + SIGN + NBSP + t[4:])
+        report = self.run_compare(entries)
+        self.assert_fails_with(report, "differences")
+        (difference,) = report["differences"]
+        self.assertEqual(difference["address"], "hafs:1:2")
+        self.assertEqual(difference["kfgqpc"]["sequence"], ["U+06DE", "U+00A0"])
+        self.assertEqual({r["id"]: r["applied"] for r in report["rules"]}["P-2"], 5)
+
+    def test_without_the_rule_every_sign_differs_and_quarters_are_not_compared(self):
+        report = self.run_compare(table=_table(drop=("P-2", "P-3")))
+        self.assertFalse(report["passed"])
+        self.assertEqual(len(report["differences"]), 5)
         self.assertEqual(report["patterns"][0]["kfgqpc"], ["U+06DE", "U+00A0"])
+        self.assertEqual(
+            report["table_problems"],
+            [{"rule": None, "problem": "no presentation rule at quarter_start, so KFGQPC's quarters are not known"}],
+        )
+        self.assertEqual(report["quarter_differences"], [])
+
+
+class SurahOpeningQuarterRuleTest(CompareCase):
+    """Rule (i), P-3: a quarter start at the first ayah of a surah carries no sign in KFGQPC."""
+
+    def test_without_the_rule_the_surah_openings_are_quarter_differences(self):
+        report = self.run_compare(table=_table(drop=("P-3",)))
+        self.assert_fails_with(report, "quarter_differences", 3)
+        self.assertEqual(
+            [(d["address"], d["kfgqpc_quarter_start"], d["tanzil_quarter_start"]) for d in report["quarter_differences"]],
+            [("hafs:1:1", False, True), ("hafs:2:1", False, True), ("hafs:3:1", False, True)],
+        )
+
+    def test_a_surah_opening_quarter_start_with_the_sign_stops(self):
+        entries = self.entries_with_text(2, 1, lambda t: SIGN + NBSP + t)
+        report = self.run_compare(entries)
+        self.assert_fails_with(report, "presentation_problems")
+        (problem,) = report["presentation_problems"]
+        self.assertEqual((problem["address"], problem["rule"]), ("hafs:2:1", "P-3"))
+        self.assertIn("opens a surah with the quarter sign", problem["problem"])
+
+    def test_a_surah_opening_that_is_no_quarter_start_and_has_no_sign_passes(self):
+        quarters = tuple(q for q in synthetic.SYNTHETIC_QUARTERS if q != (2, 1))
+        entries = synthetic.synthetic_kfgqpc_entries(quarters=quarters)
+        report = self.run_compare(entries, quarters=quarters)
+        self.assertTrue(report["passed"], report)
+        self.assertEqual({r["id"]: r["applied"] for r in report["rules"]}["P-3"], 2)
+
+    def test_a_surah_opening_with_the_sign_that_is_no_quarter_start_stops_twice(self):
+        quarters = tuple(q for q in synthetic.SYNTHETIC_QUARTERS if q != (2, 1))
+        entries = synthetic.synthetic_kfgqpc_entries(quarters=quarters)
+        entries[_id(2, 1)]["aya_text"] = SIGN + NBSP + entries[_id(2, 1)]["aya_text"]
+        report = self.run_compare(entries, quarters=quarters)
+        self.assertEqual([p["rule"] for p in report["presentation_problems"]], ["P-3"])
+        self.assertEqual(
+            [(d["address"], d["kfgqpc_quarter_start"]) for d in report["quarter_differences"]], [("hafs:2:1", True)]
+        )
+
+    def test_it_does_not_accept_a_missing_sign_inside_a_surah(self):
+        entries = self.entries_with_text(1, 2, lambda t: t[2:])
+        report = self.run_compare(entries)
+        self.assertEqual([d["address"] for d in report["quarter_differences"]], ["hafs:1:2"])
+        self.assertEqual({r["id"]: r["applied"] for r in report["rules"]}["P-3"], 3)
 
 
 class DifferenceTest(CompareCase):
@@ -184,13 +337,30 @@ class DifferenceTest(CompareCase):
         self.assertEqual((difference["word"], difference["in_mark"]), (1, True))
         self.assertEqual(
             difference["kfgqpc"],
-            {"before": ["U+0063", "U+0020"], "sequence": ["U+06D7"], "after": ["U+0020", "U+0074"]},
+            {"before": ["U+0063", "U+0020"], "sequence": ["U+06D7"], "length": 1, "after": ["U+0020", "U+0074"]},
         )
         self.assertEqual(difference["tanzil"]["sequence"], ["U+06D6"])
         self.assertEqual(
             report["patterns"],
-            [{"kfgqpc": ["U+06D7"], "tanzil": ["U+06D6"], "count": 1, "first": ["hafs:1:2"]}],
+            [
+                {
+                    "kfgqpc": ["U+06D7"], "kfgqpc_length": 1, "tanzil": ["U+06D6"], "tanzil_length": 1,
+                    "count": 1, "first": ["hafs:1:2"],
+                }
+            ],
         )
+
+    def test_a_long_sequence_is_capped_at_eight_code_points_with_its_length(self):
+        entries = self.entries_with_text(1, 4, lambda t: t.replace("\u062a\u062c", "\u062a" + "\u06e1" * 11 + "\u062c"))
+        report = self.run_compare(entries)
+        (difference,) = report["differences"]
+        self.assertEqual(difference["kfgqpc"]["sequence"], ["U+06E1"] * compare.SEQUENCE_CAP)
+        self.assertEqual(difference["kfgqpc"]["length"], 11)
+        self.assertEqual((difference["tanzil"]["sequence"], difference["tanzil"]["length"]), ([], 0))
+        self.assertEqual(len(difference["kfgqpc"]["after"]), compare.CONTEXT)
+        (pattern,) = report["patterns"]
+        self.assertEqual((pattern["kfgqpc"], pattern["kfgqpc_length"]), (["U+06E1"] * 8, 11))
+        self.assertEqual((pattern["tanzil"], pattern["tanzil_length"]), ([], 0))
 
     def test_an_unlisted_difference_in_a_word(self):
         entries = self.entries_with_text(1, 4, lambda t: t.replace("\u062a\u062c", "\u062a\u06e1\u062c"))
@@ -226,6 +396,49 @@ class DifferenceTest(CompareCase):
         )
 
 
+class WhitespaceTest(CompareCase):
+    """Leading or trailing white space in aya_text is a difference, never trimmed; str.strip() would also remove U+00A0."""
+
+    def test_trailing_white_space_after_the_number_glyph(self):
+        for space in (" ", NBSP):
+            with self.subTest(space=hex(ord(space))):
+                report = self.run_compare(self.entries_with_text(1, 2, lambda t: t + space))
+                self.assertFalse(report["passed"])
+                (problem,) = report["presentation_problems"]
+                self.assertEqual(problem["address"], "hafs:1:2")
+                self.assertEqual(problem["found"], ["U+FC01", "U+%04X" % ord(space)])
+                self.assertEqual([d["address"] for d in report["differences"]], ["hafs:1:2"])
+
+    def test_leading_white_space_at_an_ayah_without_a_sign(self):
+        for space in (" ", NBSP):
+            with self.subTest(space=hex(ord(space))):
+                report = self.run_compare(self.entries_with_text(2, 1, lambda t: space + t))
+                self.assert_fails_with(report, "differences")
+                (difference,) = report["differences"]
+                self.assertEqual(difference["address"], "hafs:2:1")
+                self.assertEqual(difference["kfgqpc"]["sequence"], ["U+%04X" % ord(space)])
+
+    def test_leading_white_space_before_the_quarter_sign(self):
+        for space in (" ", NBSP):
+            with self.subTest(space=hex(ord(space))):
+                report = self.run_compare(self.entries_with_text(1, 3, lambda t: space + t))
+                self.assertFalse(report["passed"])
+                self.assertEqual([d["address"] for d in report["differences"]], ["hafs:1:3"])
+                self.assertEqual(report["differences"][0]["kfgqpc"]["sequence"][0], "U+%04X" % ord(space))
+                self.assertEqual([d["address"] for d in report["quarter_differences"]], ["hafs:1:3"])
+
+
+class AyahEndInsideTest(CompareCase):
+    def test_the_separator_and_number_glyph_inside_an_ayah_are_not_removed(self):
+        entries = self.entries_with_text(1, 4, lambda t: t[:4] + NBSP + "\ufc03" + t[4:])
+        report = self.run_compare(entries)
+        self.assert_fails_with(report, "differences")
+        (difference,) = report["differences"]
+        self.assertEqual(difference["address"], "hafs:1:4")
+        self.assertEqual(difference["kfgqpc"]["sequence"], ["U+00A0", "U+FC03"])
+        self.assertEqual({r["id"]: r["applied"] for r in report["rules"]}["P-1"], AYAT)
+
+
 class EquivalenceRuleTest(CompareCase):
     def entries(self):
         return self.entries_with_text(1, 4, lambda t: t.replace("\u064e", "\u06e1"))
@@ -234,7 +447,7 @@ class EquivalenceRuleTest(CompareCase):
         table = _table(_equivalence(["U+06E1"], ["U+064E"], ["hafs:1:4"]))
         report = self.run_compare(self.entries(), table)
         self.assertTrue(report["passed"], report)
-        self.assertEqual(report["rules"][2], {
+        self.assertEqual(report["rules"][3], {
             "id": "E-1", "kind": "equivalence", "applies_to": ["hafs:1:4"],
             "approved_by": "owner and proofreader (synthetic)", "applied": 1,
         })
@@ -290,6 +503,16 @@ class PageAndJuzTest(CompareCase):
         self.assert_fails_with(report, "juz_differences")
         self.assertEqual(report["juz_differences"], [{"address": "hafs:1:4", "kfgqpc": 2, "tanzil_metadata": 1}])
 
+    def test_a_metadata_list_that_does_not_start_at_1_1_stops(self):
+        for kind, points in (
+            ("juz", {"juzs": ((1, 2), (2, 1))}),
+            ("quarter", {"quarters": ((1, 2), (1, 3), (2, 1), (3, 1))}),
+            ("page", {"pages": ((1, 4), (2, 2), (3, 1))}),
+        ):
+            with self.subTest(kind=kind):
+                with self.assertRaisesRegex(PackError, "the metadata's %s list does not start at 1:1" % kind):
+                    self.run_compare(**points)
+
 
 class StructureTest(CompareCase):
     def test_the_two_files_list_other_ayat(self):
@@ -298,6 +521,18 @@ class StructureTest(CompareCase):
         entries = synthetic.synthetic_kfgqpc_entries(surahs=[tuple(s) for s in surahs])
         with self.assertRaisesRegex(PackError, "KFGQPC id 4 is 2:1 where the Tanzil text has 1:4"):
             self.run_compare(entries)
+
+    def test_the_kfgqpc_file_has_fewer_ayat(self):
+        entries = synthetic.synthetic_kfgqpc_entries()[:-1]
+        with self.assertRaisesRegex(PackError, "the Tanzil text has 8 ayat, the KFGQPC file 7"):
+            self.run_compare(entries, ayat=AYAT - 1)
+
+    def test_the_kfgqpc_file_has_more_ayat(self):
+        surahs = surahs_with_ayah(3, 1, "Synthetic last ayah")
+        surahs[2] = surahs[2][:2] + (surahs[2][2] + ("Synthetic extra ayah",),)
+        entries = synthetic.synthetic_kfgqpc_entries(surahs=surahs)
+        with self.assertRaisesRegex(PackError, "the Tanzil text has 8 ayat, the KFGQPC file 9"):
+            self.run_compare(entries, ayat=AYAT + 1)
 
 
 class WordNumberTest(unittest.TestCase):
@@ -318,10 +553,12 @@ class RunComparisonTest(unittest.TestCase):
     def test_the_inputs_are_recorded(self):
         path = self.work / synthetic.KFGQPC_FILE
         path.write_bytes(synthetic.synthetic_kfgqpc_json())
+        table = self.work / "known_differences.json"
+        table.write_bytes(json.dumps(synthetic_table_document()).encode("ascii"))
         text = read_tanzil_text(synthetic.synthetic_text_xml())
         metadata = read_tanzil_metadata(synthetic.synthetic_metadata_xml())
         tanzil = {"text": "a" * 64, "metadata": "b" * 64}
-        report = compare.run_comparison(text, metadata, path, SHIPPED, PROFILES["synthetic"], tanzil)
+        report = compare.run_comparison(text, metadata, path, table, PROFILES["synthetic"], tanzil)
         self.assertEqual(report["format"], "holyquran-kfgqpc-comparison")
         self.assertEqual(report["tanzil"], {"text_sha256": "a" * 64, "metadata_sha256": "b" * 64})
         self.assertEqual(
@@ -333,8 +570,8 @@ class RunComparisonTest(unittest.TestCase):
                 "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
             },
         )
-        self.assertEqual(report["table"]["version"], 1)
-        self.assertRegex(report["table"]["sha256"], "^[0-9a-f]{64}$")
+        self.assertEqual(report["table"]["version"], 2)
+        self.assertEqual(report["table"]["sha256"], hashlib.sha256(table.read_bytes()).hexdigest())
         self.assertTrue(report["passed"])
 
 

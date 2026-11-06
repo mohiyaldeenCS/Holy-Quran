@@ -208,7 +208,7 @@ def _compare(args, out):
     print("table version %d sha256 %s" % (report["table"]["version"], report["table"]["sha256"]), file=out)
     print(compare.summary(report), file=out)
     if not report["passed"]:
-        print("undocumented differences: the comparison fails", file=out)
+        print("problems found: the comparison fails", file=out)
         return EX_DATAERR
     print("no undocumented difference", file=out)
     return 0

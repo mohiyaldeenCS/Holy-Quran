@@ -1,6 +1,7 @@
 """KFGQPC's Hafs table, `hafsData_v2-0.json` of `UthmanicHafs_v2-0.zip` (registry row 2).
 
-The published form: UTF-8 with a BOM, an array of one object per ayah with
+The published form: UTF-8 without a BOM (the file begins with `[`, a line
+feed and a tab; the BOM is the CSV's, not this file's), an array of one object per ayah with
 exactly the columns of the read.me, ids 1..n in order, and the ayat in mushaf
 order. Anything else is refused. Errors name the entry, its id and a field,
 never a value, so no text reaches a log.
@@ -54,12 +55,12 @@ def read_kfgqpc(data: bytes, ayat: int) -> list:
 
 
 def _read(data, ayat):
-    if not data.startswith(_BOM):
-        raise PackError("the file does not begin with the UTF-8 BOM of the published file")
+    if data.startswith(_BOM):
+        raise PackError("the file begins with a UTF-8 BOM, which the published file does not")
     try:
-        document = data[len(_BOM):].decode("utf-8")
+        document = data.decode("utf-8")
     except UnicodeDecodeError as e:
-        raise PackError("malformed UTF-8 at byte %d" % (e.start + len(_BOM))) from None
+        raise PackError("malformed UTF-8 at byte %d" % e.start) from None
     try:
         entries = json.loads(
             document, object_pairs_hook=_object, parse_constant=_no_constant
