@@ -156,13 +156,13 @@ def synthetic_kfgqpc_entries(
 ) -> list:
     """The objects of a KFGQPC-shaped hafsData file for [surahs], in the
     published presentation: a quarter sign and a no-break space open each
-    quarter, and every ayah ends with a no-break space and the glyph of its
-    number."""
+    quarter except where a quarter opens a surah, and every ayah ends with a
+    no-break space and the glyph of its number."""
     entries = []
     for surah, (name, _, ayat) in enumerate(surahs, 1):
         for number, text in enumerate(ayat, 1):
             opening = ""
-            if (surah, number) in quarters:
+            if (surah, number) in quarters and number > 1:
                 opening = KFGQPC_QUARTER_SIGN + KFGQPC_NO_BREAK_SPACE
             glyph = chr(KFGQPC_FIRST_NUMBER_GLYPH + number - 1)
             entries.append(
@@ -184,9 +184,9 @@ def synthetic_kfgqpc_entries(
 
 
 def synthetic_kfgqpc_json(entries=None) -> bytes:
-    """UTF-8 with a BOM, as published."""
+    """UTF-8 without a BOM and indented with tabs, as published."""
     entries = synthetic_kfgqpc_entries() if entries is None else entries
-    return b"\xef\xbb\xbf" + json.dumps(entries, ensure_ascii=False).encode("utf-8")
+    return json.dumps(entries, ensure_ascii=False, indent="\t").encode("utf-8")
 
 
 def _unit(starts, surah, number) -> int:

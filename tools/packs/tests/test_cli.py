@@ -14,7 +14,7 @@ from unittest import mock
 import synthetic_source as synthetic
 from hqpack import cli
 
-from tests.build_support import FONT, HAFS_ID, TABLE, TEST_COPY_ID, BuildCase, hafs_shaped_profiles
+from tests.build_support import FONT, HAFS_ID, TEST_COPY_ID, BuildCase, hafs_shaped_profiles
 
 PACK_PY = Path(__file__).resolve().parents[1] / "pack.py"
 
@@ -162,7 +162,7 @@ class KfgqpcCliTest(CliCase):
                 "--text", self.source / synthetic.TEXT_FILE,
                 "--metadata", self.source / synthetic.METADATA_FILE,
                 "--kfgqpc", self.write_kfgqpc(entries),
-                "--table", TABLE,
+                "--table", self.write_table(),
                 "--report", report,
             )
         data = report.read_bytes()
@@ -174,6 +174,7 @@ class KfgqpcCliTest(CliCase):
         self.assertEqual(code, 0, out)
         self.assertTrue(report["passed"])
         self.assertIn("no undocumented difference", out)
+        self.assertIn("juz differences 0, quarter differences 0", out)
         self.assertRegex(out, r"kfgqpc sha256 [0-9a-f]{64}")
         text_sha256 = hashlib.sha256((self.source / synthetic.TEXT_FILE).read_bytes()).hexdigest()
         self.assertIn("tanzil text sha256 %s" % text_sha256, out)
@@ -182,7 +183,7 @@ class KfgqpcCliTest(CliCase):
             report["tanzil"]["metadata_sha256"],
             hashlib.sha256((self.source / synthetic.METADATA_FILE).read_bytes()).hexdigest(),
         )
-        self.assertRegex(out, r"table version 1 sha256 [0-9a-f]{64}")
+        self.assertRegex(out, r"table version 2 sha256 [0-9a-f]{64}")
 
     def test_compare_writes_the_report_and_exits_65_on_a_difference(self):
         entries = synthetic.synthetic_kfgqpc_entries()
@@ -201,7 +202,7 @@ class KfgqpcCliTest(CliCase):
         with hafs_shaped_profiles():
             code, _, err = self.run_cli(
                 "build", "--config", config, "--font", FONT, "--out", self.out,
-                "--kfgqpc", self.write_kfgqpc(), "--table", TABLE,
+                "--kfgqpc", self.write_kfgqpc(), "--table", self.write_table(),
             )
         self.assertEqual(code, cli.EX_DATAERR)
         self.assertIn("refused: the KFGQPC comparison passes", err)

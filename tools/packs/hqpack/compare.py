@@ -1,4 +1,4 @@
-"""The Tanzil text against the KFGQPC Hafs text, character by character (PRD 9.4), and the page and juz of every ayah (P2).
+"""The Tanzil text against the KFGQPC Hafs text, character by character (PRD 9.4), and the page, juz and quarter divisions (P2).
 
 Per ayah: the table's presentation rules are checked and removed from the
 KFGQPC side, its equivalence rules applied to that side, and what remains is
@@ -6,12 +6,14 @@ compared code point by code point with the Tanzil ayah. The KFGQPC text is a
 witness: nothing here reaches a pack. Nothing is normalised.
 
 The report holds addresses, numbers and code points written U+XXXX, never a
-character of either text; `encode_report` refuses any byte outside ASCII.
-Every problem is collected, so one run shows them all; any problem fails.
+character of either text, and at most SEQUENCE_CAP code points of any one
+sequence; `encode_report` refuses any byte outside ASCII. Every problem is
+collected, so one run shows them all; any problem fails.
 """
 
 from __future__ import annotations
 
+import bisect
 import difflib
 import json
 from collections import OrderedDict
@@ -25,6 +27,8 @@ from .tokens import is_letter
 FORMAT = "holyquran-kfgqpc-comparison"
 CONTEXT = 2
 FIRST_ADDRESSES = 3
+SEQUENCE_CAP = 8
+QUARTER_CONTEXT = 2
 
 
 def run_comparison(text, metadata, kfgqpc_path, table_path, profile, tanzil_sha256):
@@ -62,8 +66,8 @@ def compare(text, metadata, witness, table):
         source_checks.check_points(kind, points, ayah_counts)
         if not points or (points[0].sura, points[0].aya) != (1, 1):
             raise PackError("the metadata's %s list does not start at 1:1" % kind)
-    for rule in table.equivalences:
-        if rule.applies_to != EVERY_AYAH:
+    for rule in _rules(table):
+        if isinstance(rule.applies_to, tuple):
             for address in rule.applies_to:
                 if not 1 <= address[1] <= ayah_counts.get(address[0], 0):
                     raise PackError(
@@ -74,6 +78,7 @@ def compare(text, metadata, witness, table):
     juz_of = _unit_of(metadata.juzs, tanzil)
     page_of = _unit_of(metadata.pages, tanzil)
     quarter_starts = {(p.sura, p.aya) for p in metadata.quarters}
+    kfgqpc_quarters = set()
     applied = {rule.id: 0 for rule in _rules(table)}
     applied_at = {rule.id: set() for rule in table.equivalences}
     presentation_problems = []
@@ -81,21 +86,17 @@ def compare(text, metadata, witness, table):
     patterns = OrderedDict()
     page_differences = []
     juz_differences = []
-    signed = set()
 
     for (surah, number, tanzil_text), aya in zip(tanzil, witness):
         address = (surah, number)
         label = "hafs:%d:%d" % address
         side = aya.text
         if table.ayah_end is not None:
-            side = _ayah_end(table.ayah_end, side, number, label, presentation_problems, applied)
+            side = _ayah_end(table, side, address, label, presentation_problems, applied)
         if table.quarter_start is not None:
-            rule = table.quarter_start
-            opening = chr(rule.code_points["sign"]) + chr(rule.code_points["separator"])
-            if side.startswith(opening):
-                side = side[len(opening):]
-                signed.add(address)
-                applied[rule.id] += 1
+            side = _opening(
+                table, side, address, label, quarter_starts, kfgqpc_quarters, presentation_problems, applied
+            )
         side = _equivalences(table.equivalences, side, address, applied, applied_at)
         if side != tanzil_text:
             _differences(label, side, tanzil_text, differences, patterns)
@@ -108,18 +109,16 @@ def compare(text, metadata, witness, table):
                     OrderedDict([("address", label), ("kfgqpc", found), ("tanzil_metadata", expected)])
                 )
 
-    if table.quarter_start is not None:
-        rule = table.quarter_start
-        for addresses, problem in (
-            (signed - quarter_starts, "opens with the quarter sign but is not a quarter start of the metadata"),
-            (quarter_starts - signed, "is a quarter start of the metadata but does not open with the quarter sign"),
-        ):
-            for address in sorted(addresses):
-                presentation_problems.append(
-                    _problem("hafs:%d:%d" % address, rule.id, problem, ())
-                )
-
     table_problems = []
+    quarter_differences = []
+    if table.quarter_start is None:
+        table_problems.append(
+            OrderedDict(
+                [("rule", None), ("problem", "no presentation rule at quarter_start, so KFGQPC's quarters are not known")]
+            )
+        )
+    else:
+        quarter_differences = _quarter_differences(kfgqpc_quarters, quarter_starts)
     for rule in table.equivalences:
         if rule.applies_to == EVERY_AYAH:
             if not applied[rule.id]:
@@ -158,8 +157,10 @@ def compare(text, metadata, witness, table):
     report["patterns"] = [
         OrderedDict(
             [
-                ("kfgqpc", _code_points(key[0])),
-                ("tanzil", _code_points(key[1])),
+                ("kfgqpc", _capped(key[0])),
+                ("kfgqpc_length", len(key[0])),
+                ("tanzil", _capped(key[1])),
+                ("tanzil_length", len(key[1])),
                 ("count", value["count"]),
                 ("first", value["first"]),
             ]
@@ -168,8 +169,9 @@ def compare(text, metadata, witness, table):
     ]
     report["page_differences"] = page_differences
     report["juz_differences"] = juz_differences
+    report["quarter_differences"] = quarter_differences
     report["passed"] = not any(
-        (presentation_problems, table_problems, differences, page_differences, juz_differences)
+        (presentation_problems, table_problems, differences, page_differences, juz_differences, quarter_differences)
     )
     return report
 
@@ -178,7 +180,7 @@ def summary(report):
     """One ASCII line of counts."""
     return (
         "ayat %d, undocumented differences %d in %d patterns, presentation problems %d, "
-        "table problems %d, page differences %d, juz differences %d"
+        "table problems %d, page differences %d, juz differences %d, quarter differences %d"
         % (
             report["ayat"],
             len(report["differences"]),
@@ -187,6 +189,7 @@ def summary(report):
             len(report["table_problems"]),
             len(report["page_differences"]),
             len(report["juz_differences"]),
+            len(report["quarter_differences"]),
         )
     )
 
@@ -238,15 +241,18 @@ def _unit_of(points, tanzil):
     return result
 
 
-def _ayah_end(rule, side, number, label, problems, applied):
+def _ayah_end(table, side, address, label, problems, applied):
+    rule = table.ayah_end_rule_at(address) or table.ayah_end
+    first_glyph = table.ayah_end.code_points["first_number_glyph"]
     separator = chr(rule.code_points["separator"])
-    expected = rule.code_points["first_number_glyph"] + number - 1
+    number = address[1]
+    expected = first_glyph + number - 1
     if side.endswith(separator + chr(expected)):
         applied[rule.id] += 1
         return side[:-2]
     found = side[-2:]
     if len(found) == 2 and found[0] == separator:
-        glyph = ord(found[1]) - rule.code_points["first_number_glyph"] + 1
+        glyph = ord(found[1]) - first_glyph + 1
         problem = "ends with the number glyph %s, not %s for ayah %d" % (
             code_point(found[1]),
             code_point(expected),
@@ -261,6 +267,73 @@ def _ayah_end(rule, side, number, label, problems, applied):
         )
     problems.append(_problem(label, rule.id, problem, found))
     return side
+
+
+def _opening(table, side, address, label, quarter_starts, kfgqpc_quarters, problems, applied):
+    """Removes the quarter sign and its separator where both open the ayah, and
+    records KFGQPC's quarter starts: the ayat that open with the sign, and the
+    surah openings the table accepts without it."""
+    rule = table.quarter_start
+    sign = chr(rule.code_points["sign"])
+    separator = chr(rule.code_points["separator"])
+    if side.startswith(sign):
+        kfgqpc_quarters.add(address)
+        if side.startswith(sign + separator):
+            applied[rule.id] += 1
+            side = side[2:]
+        else:
+            problems.append(
+                _problem(
+                    label,
+                    rule.id,
+                    "opens with the quarter sign %s not followed by %s" % (code_point(sign), code_point(separator)),
+                    side[:2],
+                )
+            )
+    opening = table.surah_opening_quarter_start
+    if opening is not None and address[1] == 1:
+        if address in kfgqpc_quarters:
+            problems.append(
+                _problem(
+                    label,
+                    opening.id,
+                    "opens a surah with the quarter sign, which the rule says KFGQPC omits there",
+                    (),
+                )
+            )
+        elif address in quarter_starts:
+            kfgqpc_quarters.add(address)
+            applied[opening.id] += 1
+    return side
+
+
+def _quarter_differences(kfgqpc_quarters, quarter_starts):
+    """Each ayah that starts a quarter in one source only, with the quarter starts of both sources around it."""
+    kfgqpc_list = sorted(kfgqpc_quarters)
+    tanzil_list = sorted(quarter_starts)
+    return [
+        OrderedDict(
+            [
+                ("address", "hafs:%d:%d" % address),
+                ("kfgqpc_quarter_start", address in kfgqpc_quarters),
+                ("tanzil_quarter_start", address in quarter_starts),
+                ("kfgqpc_quarters", _around(kfgqpc_list, address)),
+                ("tanzil_quarters", _around(tanzil_list, address)),
+            ]
+        )
+        for address in sorted(kfgqpc_quarters ^ quarter_starts)
+    ]
+
+
+def _around(starts, address):
+    """The QUARTER_CONTEXT starts before `address`, the start at it if any, and the QUARTER_CONTEXT after, each with its quarter number."""
+    low = bisect.bisect_left(starts, address)
+    high = bisect.bisect_right(starts, address)
+    first = max(0, low - QUARTER_CONTEXT)
+    return [
+        OrderedDict([("quarter", index + 1), ("start", "hafs:%d:%d" % starts[index])])
+        for index in range(first, min(len(starts), high + QUARTER_CONTEXT))
+    ]
 
 
 def _equivalences(rules, side, address, applied, applied_at):
@@ -342,7 +415,8 @@ def _context(text, start, end):
     return OrderedDict(
         [
             ("before", _code_points(text[max(0, start - CONTEXT):start])),
-            ("sequence", _code_points(text[start:end])),
+            ("sequence", _capped(text[start:end])),
+            ("length", end - start),
             ("after", _code_points(text[end:end + CONTEXT])),
         ]
     )
@@ -355,7 +429,11 @@ def _problem(label, rule_id, problem, found):
 
 
 def _rules(table):
-    return [r for r in (table.ayah_end, table.quarter_start) if r is not None] + list(table.equivalences)
+    presentation = (table.ayah_end,) + table.ayah_end_separators + (
+        table.quarter_start,
+        table.surah_opening_quarter_start,
+    )
+    return [r for r in presentation if r is not None] + list(table.equivalences)
 
 
 def _scope(applies_to):
@@ -366,6 +444,10 @@ def _scope(applies_to):
 
 def _code_points(text):
     return [code_point(c) for c in text]
+
+
+def _capped(text):
+    return _code_points(text[:SEQUENCE_CAP])
 
 
 def _compact(value):

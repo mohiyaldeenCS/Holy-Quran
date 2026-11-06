@@ -15,7 +15,7 @@ BOM = b"\xef\xbb\xbf"
 
 
 def _json(entries):
-    return BOM + json.dumps(entries, ensure_ascii=False).encode("utf-8")
+    return json.dumps(entries, ensure_ascii=False).encode("utf-8")
 
 
 class KfgqpcReaderTest(unittest.TestCase):
@@ -32,6 +32,8 @@ class KfgqpcReaderTest(unittest.TestCase):
         return synthetic.synthetic_kfgqpc_entries()
 
     def test_reads_the_synthetic_file(self):
+        # The published file's first bytes are 5B 0A 09: no BOM.
+        self.assertTrue(synthetic.synthetic_kfgqpc_json().startswith(b"[\n\t"))
         ayat = read_kfgqpc(synthetic.synthetic_kfgqpc_json(), AYAT)
         self.assertEqual(
             [(a.id, a.surah, a.number, a.juz, a.page) for a in ayat],
@@ -50,18 +52,19 @@ class KfgqpcReaderTest(unittest.TestCase):
         ayat = read_kfgqpc(_json(entries), AYAT)
         self.assertEqual(ayat[0].text, "x\u0651\u064e\u00a0\ufc00")
 
-    def test_without_the_bom(self):
-        self.assert_refused("UTF-8 BOM", json.dumps(self.entries()).encode("utf-8"))
+    def test_a_bom_is_refused(self):
+        # The CSV is published with a BOM, the JSON without one.
+        self.assert_refused("begins with a UTF-8 BOM, which the published file does not", BOM + synthetic.synthetic_kfgqpc_json())
 
     def test_malformed_utf8(self):
-        self.assert_refused(r"malformed UTF-8 at byte 3", BOM + b"\xff[]")
+        self.assert_refused(r"malformed UTF-8 at byte 1", b"[\xff]")
 
     def test_invalid_json(self):
-        self.assert_refused(r"invalid JSON at line 1 column \d+", BOM + b"[{]")
-        self.assert_refused("invalid JSON", BOM + b"[] []")
+        self.assert_refused(r"invalid JSON at line 1 column \d+", b"[{]")
+        self.assert_refused("invalid JSON", b"[] []")
 
     def test_not_an_array(self):
-        self.assert_refused("not an array", BOM + b"{}")
+        self.assert_refused("not an array", b"{}")
 
     def test_another_number_of_entries(self):
         self.assert_refused("holds 8 entries, not 9", synthetic.synthetic_kfgqpc_json(), ayat=9)
