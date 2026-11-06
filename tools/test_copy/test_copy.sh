@@ -96,6 +96,18 @@ remove_apks() {
   rm -f "$REPO/$APK" "$REPO/$APK.sha1" "$REPO/$GRADLE_APK" "$REPO/$GRADLE_APK.sha1"
 }
 
+# adb creates the folders as shell:ext_data_rw 2770, which the app's own uid cannot
+# enter (D-173): open the three the script creates, and make the files read-only.
+open_device_folders() {
+  local root="$1" device="$2" mode
+  shift 2
+  adb shell chmod 2775 "$root" "$root/$PACK_ID" "$device" ||
+    die "could not set the mode of the pack folders under $root"
+  adb shell chmod 0644 "$@" || die "could not set the mode of the pack files in $device"
+  mode="$(adb shell stat -c %a "$device" | tr -d '\r')" || die "could not read the mode of $device"
+  [ "$mode" = 2775 ] || die "$device has mode '$mode', not 2775: the app cannot read the pack."
+}
+
 pack_dir() {
   printf '%s/packs/%s/%s' "$WORK" "$PACK_ID" "$PACK_VERSION"
 }
@@ -153,7 +165,7 @@ sign_pack() {
 }
 
 install_command() {
-  local pack key device
+  local pack key root device name files=()
   require_clean_tree before
   require_outside_git "$WORK" "the work folder"
   require_no_private_key
@@ -161,7 +173,12 @@ install_command() {
   [ -f "$pack/manifest.json.sig" ] || die "$pack is not a signed pack. Run 'test_copy.sh pack' first."
   [ -f "$KEYS/test-copy.pub.b64" ] || die "$KEYS/test-copy.pub.b64 is missing. Run 'test_copy.sh pack' first."
   key="$(cat "$KEYS/test-copy.pub.b64")"
-  device="/sdcard/Android/data/$APP_ID/files/test_copy/$PACK_ID/$PACK_VERSION"
+  root="/sdcard/Android/data/$APP_ID/files/test_copy"
+  device="$root/$PACK_ID/$PACK_VERSION"
+  for name in "$pack"/*; do
+    [ -f "$name" ] || die "$name is not a file: a pack holds files only."
+    files+=("$device/${name##*/}")
+  done
   command -v adb >/dev/null 2>&1 || die "adb was not found"
 
   # Git Bash would turn the device paths into Windows paths.
@@ -176,6 +193,7 @@ install_command() {
   adb install -r "$(native "$REPO/$APK")"
   adb shell mkdir -p "$device"
   adb push "$(native "$pack")/." "$device/"
+  open_device_folders "$root" "$device" "${files[@]}"
   remove_apks
   require_clean_tree after
   printf '\nInstalled. Open the app: once D-163 and D-164 are merged into this branch, the unapproved-copy banner shows on every screen.\nThe pack is now on the phone at %s.\nClean up: rm -rf "%s/packs" "%s/keys"\n' "$device" "$WORK" "$WORK"
