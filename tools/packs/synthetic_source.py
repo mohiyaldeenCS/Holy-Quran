@@ -70,6 +70,11 @@ SYNTHETIC_SAJDAS = ((1, 2, "recommended"), (2, 3, "obligatory"))
 
 SYNTHETIC_MARK_CODE_POINTS = ("U+06D6", "U+06D7", "U+06DA", "U+06E9")
 
+KFGQPC_FILE = "hafsData_v2-0.json"
+KFGQPC_NO_BREAK_SPACE = "\u00a0"
+KFGQPC_QUARTER_SIGN = "\u06de"
+KFGQPC_FIRST_NUMBER_GLYPH = 0xFC00
+
 _DECLARATION = '<?xml version="1.0" encoding="utf-8" ?>'
 _FORBIDDEN_IN_VALUES = ("&", "<", '"', "\t", "\n", "\r")
 
@@ -141,6 +146,51 @@ def synthetic_metadata_xml(
 def synthetic_mark_table() -> bytes:
     document = {"code_points": list(SYNTHETIC_MARK_CODE_POINTS)}
     return _json_bytes(document)
+
+
+def synthetic_kfgqpc_entries(
+    surahs=SYNTHETIC_SURAHS,
+    juzs=SYNTHETIC_JUZS,
+    quarters=SYNTHETIC_QUARTERS,
+    pages=SYNTHETIC_PAGES,
+) -> list:
+    """The objects of a KFGQPC-shaped hafsData file for [surahs], in the
+    published presentation: a quarter sign and a no-break space open each
+    quarter, and every ayah ends with a no-break space and the glyph of its
+    number."""
+    entries = []
+    for surah, (name, _, ayat) in enumerate(surahs, 1):
+        for number, text in enumerate(ayat, 1):
+            opening = ""
+            if (surah, number) in quarters:
+                opening = KFGQPC_QUARTER_SIGN + KFGQPC_NO_BREAK_SPACE
+            glyph = chr(KFGQPC_FIRST_NUMBER_GLYPH + number - 1)
+            entries.append(
+                {
+                    "id": len(entries) + 1,
+                    "jozz": _unit(juzs, surah, number),
+                    "page": _unit(pages, surah, number),
+                    "sura_no": surah,
+                    "sura_name_en": name,
+                    "sura_name_ar": name,
+                    "line_start": 1,
+                    "line_end": 2,
+                    "aya_no": number,
+                    "aya_text": opening + text + KFGQPC_NO_BREAK_SPACE + glyph,
+                    "aya_text_emlaey": text,
+                }
+            )
+    return entries
+
+
+def synthetic_kfgqpc_json(entries=None) -> bytes:
+    """UTF-8 with a BOM, as published."""
+    entries = synthetic_kfgqpc_entries() if entries is None else entries
+    return b"\xef\xbb\xbf" + json.dumps(entries, ensure_ascii=False).encode("utf-8")
+
+
+def _unit(starts, surah, number) -> int:
+    return sum(1 for start in starts if start <= (surah, number))
 
 
 def synthetic_build_config(text_sha256: str, metadata_sha256: str) -> dict:
