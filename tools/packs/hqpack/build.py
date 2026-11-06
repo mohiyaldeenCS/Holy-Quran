@@ -19,6 +19,7 @@ from . import compare, database, digest, manifest, source_checks
 from .config import read_build_config
 from .errors import PackError, code_point
 from .font import read_font
+from .git_tree import git_tree
 from .mark_table import read_mark_table
 from .options import option_problems, options_from_url
 from .profiles import DIVISION_KINDS, profile_for
@@ -193,21 +194,12 @@ def _check_test_copy(config, out_root):
             "an unapproved test copy has no reviews: a review would present "
             "it as approved (reviews must be empty)"
         )
-    tree = _git_tree(out_root)
+    tree = git_tree(out_root)
     if tree is not None:
         raise PackError(
             "the output %s is inside a Git working tree; an unapproved test "
             "copy is written outside every repository" % out_root
         )
-
-
-def _git_tree(path):
-    """The nearest directory above `path` that holds `.git` (a folder, or a file in a worktree or submodule), else None."""
-    here = Path(os.path.realpath(str(path)))
-    for directory in (here, *here.parents):
-        if os.path.lexists(str(directory / ".git")):
-            return directory
-    return None
 
 
 def _source_bytes(source):

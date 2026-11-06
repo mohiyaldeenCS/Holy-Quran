@@ -37,10 +37,13 @@ All under `hqpack/`. Each raises `errors.PackError` with a message as above.
 | `build.py` | The pipeline: hash and read the sources, run every build check, write into a temporary directory, read back, write the manifest, run the verifier, then move into `<out>/<id>/<version>/` | `build_pack(config_path, font_path, out_root, unapproved=False) -> BuildResult` |
 | `verify.py` | An independent verifier of a pack directory, sharing no code with the writer beyond `errors.py`: everything the app and its integrity suite check, recomputed from the stored bytes | `verify_pack(directory, mark_code_points=None, font=None) -> Report(problems, counts, signed)` |
 | `signing.py` | The signing seam (D-080, O-03): `Signer` with `sign(data) -> 64 bytes`; `OpenSslEd25519Signer(key_path)` runs `openssl pkeyutl -sign -rawin`; `sign_pack` writes `manifest.json.sig` for a pack that verifies; `verify_signature` checks it with a public key | `sign_pack(directory, signer)`, `verify_signature(directory, public_key_path)` |
-| `cli.py` | `build` (with `--unapproved-test-copy`, `--kfgqpc`, `--table`), `verify`, `sign`, `verify-signature`, `compare`, `kfgqpc-counts`; prints counts, hashes, paths and `U+XXXX` only | `main(argv) -> exit code` |
-| `kfgqpc.py` | KFGQPC's `hafsData_v2-0.json` (registry row 2, B0.2, D-175, D-177): UTF-8 without a BOM, as published (a BOM is refused), an array of objects with exactly the read.me's eleven columns, integers and strings typed strictly, ids 1..n in order, ayat in mushaf order; the published file name | `read_kfgqpc(data, ayat) -> [KfgqpcAya(id, surah, number, juz, page, text)]`, `read_kfgqpc_file(path, ayat) -> (ayat, sha256)` |
+| `cli.py` | `build` (with `--unapproved-test-copy`, `--kfgqpc`, `--table`), `verify`, `sign`, `verify-signature`, `compare`, `review-page`, `kfgqpc-counts`; prints counts, hashes, paths and `U+XXXX` only | `main(argv) -> exit code` |
+| `kfgqpc.py` | KFGQPC's `hafsData_v2-0.json` (registry row 2, B0.2, D-175, D-177): UTF-8 without a BOM, as published (a BOM is refused, and so is a file whose first bytes are not `5B 0A 09`), an array of objects with exactly the read.me's eleven columns, integers and strings typed strictly, ids 1..n in order, ayat in mushaf order; the published file name | `read_kfgqpc(data, ayat) -> [KfgqpcAya(id, surah, number, juz, page, text)]`, `read_kfgqpc_file(path, ayat) -> (ayat, sha256)` |
 | `known_differences.py` | The table of known encoding differences, `tools/packs/known_differences.json` | `read_table(data) -> Table(version, ayah_end, ayah_end_separators, quarter_start, surah_opening_quarter_start, equivalences)`, `Table.ayah_end_rule_at(address) -> Rule or None` |
-| `compare.py` | The comparison of PRD 9.4 and the page, juz and quarter comparison of P2; the report | `run_comparison(text, metadata, kfgqpc_path, table_path, profile, tanzil_sha256) -> report` (`tanzil_sha256` is `{"text": hex, "metadata": hex}`), `compare(text, metadata, witness, table) -> report`, `summary(report)`, `encode_report(report) -> bytes` |
+| `compare.py` | The comparison of PRD 9.4 and the page, juz and quarter comparison of P2; the report; with a `Trace`, every difference as a `Place` (the two whole ayat and the difference's range in each, in memory only) for the review page | `run_comparison(text, metadata, kfgqpc_path, table_path, profile, tanzil_sha256, trace=None) -> report` (`tanzil_sha256` is `{"text": hex, "metadata": hex}`), `compare(text, metadata, witness, table, trace=None) -> report`, `summary(report)`, `encode_report(report) -> bytes` |
+| `review_page.py` | The reciter's review page (D-176, D-178): runs the comparison, sorts the differences into sections A to C, checks the fonts and the output folder, writes the page and the two fonts | `write_review_page(text, metadata, kfgqpc, table, tanzil_font, kfgqpc_font, out, profile) -> ReviewResult`, `classify(places) -> Sections(a, b, c)` |
+| `review_html.py` | The page's HTML from `review_page.html` (frame, style, script) and `review_page.ar.json` (the Arabic labels); the only path from a source text to the page is `parts`, checked by `check_parts` | `render(Page) -> str`, `marked_span(text, start, end)`, `parts(text, start, end)` |
+| `git_tree.py` | Whether a path is inside a Git working tree, without a `git` program | `git_tree(path) -> directory or None` |
 | `kfgqpc_counts.py` | The P5 reference counts from the KFGQPC file alone (B0.3) | `kfgqpc_counts(path, date, profile)`, `encode_counts(counts) -> bytes` |
 
 `pack.py` (next to this file) runs the CLI; `synthetic_source.py` writes the synthetic
@@ -77,6 +80,7 @@ python3 tools/packs/pack.py sign <out>/<id>/<version> --key <ed25519 private key
 python3 tools/packs/pack.py verify-signature <out>/<id>/<version> --public-key <ed25519 public key> [--openssl openssl]
 python3 tools/packs/pack.py build --config <build.json> --font assets/fonts/AmiriQuran-Regular.ttf --out data/build --kfgqpc <hafsData_v2-0.json> --table tools/packs/known_differences.json
 python3 tools/packs/pack.py compare --text <tanzil xml> --metadata <quran-data.xml> --kfgqpc <hafsData_v2-0.json> --table tools/packs/known_differences.json --report <out.json>
+python3 tools/packs/pack.py review-page --text <tanzil xml> --metadata <quran-data.xml> --kfgqpc <hafsData_v2-0.json> --table tools/packs/known_differences.json --tanzil-font assets/fonts/AmiriQuran-Regular.ttf --kfgqpc-font <uthmanic_hafs_v20.ttf> --out <new folder outside every Git tree>
 python3 tools/packs/pack.py kfgqpc-counts --kfgqpc <hafsData_v2-0.json> --date <YYYY-MM-DD> --out testing/reference/kfgqpc-hafs-counts.json
 ```
 
@@ -87,6 +91,7 @@ python3 tools/packs/pack.py kfgqpc-counts --kfgqpc <hafsData_v2-0.json> --date <
 | `sign` | Verifies the pack, with its font and mark table (both required), then writes `manifest.json.sig` with OpenSSL (D-080). Refuses a pack that already has one |
 | `verify-signature` | Checks `manifest.json.sig` against a public key |
 | `compare` | Runs the KFGQPC comparison against the `hafs` profile (6,236 ayat) and writes the report; exits 65 when the report has any problem, 0 when it has none |
+| `review-page` | Runs the KFGQPC comparison and writes the reciter's review page into a new or empty folder outside every Git working tree (see "The reciter's review page"); exits 0 when the page is written, whatever the comparison found |
 | `kfgqpc-counts` | Writes the P5 reference counts of the KFGQPC file; `--date` is the day they are taken, so the same file and date give the same bytes |
 
 To try it on the synthetic source:
@@ -174,7 +179,7 @@ anything is written, and each proved by a test:
 | The prefix without the flag, for any riwaya | `profiles.profile_for` | `test_profiles.py`, `test_build.py`, `test_cli.py` |
 | The flag for a riwaya other than `hafs` | `profiles.profile_for` | `test_profiles.py`, `test_build.py` (`test_the_flag_for_a_riwaya_other_than_hafs`) |
 | A non-empty `reviews`: a review would present the copy as approved | `build._check_test_copy` | `test_build.py`, `test_cli.py` |
-| An output folder inside a Git working tree: itself or any parent holds `.git` (a folder, or a file in a worktree or a submodule), links followed, so no `git` program is needed | `build._git_tree` | `test_build.py` (folder, file, symbolic link), `test_cli.py` |
+| An output folder inside a Git working tree: itself or any parent holds `.git` (a folder, or a file in a worktree or a submodule), links followed, so no `git` program is needed | `git_tree.git_tree` | `test_build.py` (folder, file, symbolic link), `test_cli.py` |
 | A plain `hafs` build, and any build without the flag | `build.build_pack` | `test_build.py`, `test_cli.py`: as before |
 
 The totals of the real `hafs` profile are not relaxed: the mode on a source of another
@@ -214,7 +219,8 @@ witness. Nothing of it reaches a pack.
   `sura_name_en`, `sura_name_ar`, `line_start`, `line_end` and `aya_text_emlaey`
   but does not compare them. The report records the file's SHA-256, registry
   row 2 and version "2.0 (update 13.0)". The published MD5 and SHA-1 are of the
-  zip; whoever extracts the JSON checks them first.
+  zip; whoever extracts the JSON checks them first. A file whose first bytes are not
+  `[`, a line feed and a tab is not the published form and is refused.
 - `known_differences.json`, the table.
 
 ### The table
@@ -226,7 +232,7 @@ ASCII only, strict JSON: `{"format": "holyquran-known-differences", "version": n
 | Kind | `applies_to` | `code_points` | What the comparison does |
 | --- | --- | --- | --- |
 | `presentation` | `ayah_end` | `separator`, `first_number_glyph` | Checks that the KFGQPC ayah n ends with the separator and the code point `first_number_glyph + n - 1`, then removes both. Any other ending is a problem, and the ending is then left in place, so it also shows as a difference |
-| `presentation` | a sorted list of `hafs:S:A`, each listed by one such rule at most | `separator` | At the listed ayat only, the `ayah_end` rule's separator is this one instead; the number glyph is checked as `ayah_end` checks it. A listed ayah that ends otherwise, including with the usual separator, is a problem. Needs the `ayah_end` rule and a separator other than its own |
+| `presentation` | a sorted list of `hafs:S:A`, each listed by one such rule at most | `separator`, a space character (Unicode category Zs; anything else is refused when the table is read) | At the listed ayat only, the `ayah_end` rule's separator is this one instead; the number glyph is checked as `ayah_end` checks it. A listed ayah that ends otherwise, including with the usual separator, is a problem. Needs the `ayah_end` rule and a separator other than its own |
 | `presentation` | `quarter_start` | `sign`, `separator` | Removes the sign and the separator where both open an ayah. An ayah that opens with the sign is a KFGQPC quarter start; the sign without the separator after it is a problem and is left in place. The sign and separator anywhere else in an ayah are not removed, so they show as a difference |
 | `presentation` | `surah_opening_quarter_start` | `sign` (the `quarter_start` rule's) | At the first ayah of a surah that the metadata lists as a quarter start, accepts that KFGQPC carries no sign and counts the ayah as a KFGQPC quarter start. A first ayah of a surah that opens with the sign is a problem. Applies nowhere else. Needs the `quarter_start` rule |
 | `equivalence` | `every_ayah`, or a sorted list of `hafs:S:A` | `kfgqpc` (a non-empty sequence), `tanzil` (a sequence, possibly empty) | On the KFGQPC side, after presentation, rewrites each occurrence of the KFGQPC sequence as the Tanzil sequence, in one pass from left to right. At each position the first listed rule that matches wins, and rewritten code points are not matched again. A rule that applies in no ayah, or not in one of its listed ayat, is a problem |
@@ -335,6 +341,185 @@ changed here; the lead decides (D-175).
 
 with all 114 surahs. The lead runs it where the KFGQPC file is, and commits the
 result as `testing/reference/kfgqpc-hafs-counts.json`.
+
+## The reciter's review page (B0.2, D-176, D-178)
+
+The owner decided (D-176) that his licensed reciter checks, against the printed Madinah
+mushaf, every place where the two texts differ in pause marks or letters, approves or
+rejects each encoding pattern before it becomes a rule of the table, and checks the
+division differences. The report holds code points, which a reciter cannot read;
+`review-page` shows him the places themselves.
+
+```
+python3 tools/packs/pack.py review-page --text <tanzil xml> --metadata <quran-data.xml> \
+  --kfgqpc <hafsData_v2-0.json> --table tools/packs/known_differences.json \
+  --tanzil-font assets/fonts/AmiriQuran-Regular.ttf --kfgqpc-font <uthmanic_hafs_v20.ttf> \
+  --out <new folder outside every Git tree>
+```
+
+It runs the comparison with the same code as `compare` (`compare.compare` with a
+`Trace`; the report is byte for byte the one `compare` writes), then writes into
+`--out` `review.html`, `font-tanzil.ttf` and `font-kfgqpc.ttf`. The page is one
+self-contained file: no network, no external script, style or font; the two fonts
+are loaded by `@font-face` from the files beside it. It prints the inputs' SHA-256,
+the comparison summary and the count of each section, and exits 0 once the page is
+written, whatever the comparison found.
+
+### What it refuses, before writing anything
+
+| Refusal | Test (`tests/test_review_page.py`, `tests/test_cli.py`) |
+| --- | --- |
+| An output folder inside a Git working tree (itself or a parent holds `.git`, links followed), this repository included, as `test_copy.sh` refuses its work folder | `test_an_output_folder_inside_a_git_tree`, `..._inside_a_worktree_or_submodule`, `test_this_repository`, `test_review_page_refuses_a_folder_in_a_git_tree` |
+| An output that exists and is not an empty folder | `test_a_non_empty_output_folder`, `test_an_output_that_is_a_file` |
+| An output that is a link to nothing, or a folder that cannot be created (each a `PackError`, exit 65, not 70) | `test_an_output_that_is_a_dangling_link`, `test_an_output_folder_that_cannot_be_created` |
+| An output folder that is no longer new or empty when the page is about to be written: the folder is checked again just before writing | `test_the_output_folder_is_checked_again_before_writing` |
+| A KFGQPC font not named `uthmanic_hafs_v20.ttf` (its name in KFGQPC's zip); a Tanzil font other than Amiri Quran | `test_the_kfgqpc_font_under_another_name`, `test_a_tanzil_font_other_than_amiri_quran` |
+| A shown code point the font of its source lacks, since a browser would draw it in another font | `test_a_font_that_lacks_a_shown_code_point` |
+| A shown text holding U+0000 or U+000D, which HTML parsing would change | `test_a_text_html_would_change` |
+| Whatever `compare` refuses (file names, BOM, counts, addresses) | `test_a_kfgqpc_file_the_comparison_refuses` |
+| A marked text whose three slices do not join to its source text | `ReconstitutionMutationTest` |
+
+### What the page shows
+
+Arabic, right to left. A header says what the page is, that both texts are shown
+exactly as in their sources, each in its own font (Tanzil in Amiri Quran, the app's
+font; KFGQPC in its own font), and how to save and send the decisions file. It lists
+the inputs' SHA-256 and the counts of the comparison, and warns until both fonts are
+loaded.
+
+Every difference of the report is in exactly one of sections A to C
+(`review_page.classify`, `test_every_difference_appears_in_the_page_once`):
+
+| Section | Holds | Shown |
+| --- | --- | --- |
+| A, pause marks and rare letters | Every difference whose KFGQPC or Tanzil sequence holds a pause mark (U+06D6 to U+06DB), and every difference of a pattern seen at most `RARE_COUNT` (3) times outside section C | Every place |
+| B, encoding patterns | Every other pattern (KFGQPC sequence, Tanzil sequence), by count, then by code points | One card per pattern: the two sequences with Unicode names, the count, three examples (the first place at each of the first three addresses) |
+| C, spaces before pause marks | A lone U+0020 in one source where the other has nothing, followed in that source by a pause mark | One card per direction, with five examples |
+| D, divisions | The page, juz and quarter differences of the report (address, both values), and the surah openings P-3 accepts as quarter starts without a witness | One row each |
+
+A place is the address as «سورة <name> (N)، آية M», with the name of `quran-data.xml`
+as it stands, the word (D-083 numbering, as in the report), then the whole Tanzil
+ayah and the whole KFGQPC ayah, one above the other, each labelled, and below them the
+two differing sequences, each code point with its Unicode name. The KFGQPC ayah is
+`aya_text` as published, so the quarter sign, the no-break spaces and the number glyph
+the table removes are shown as they stand.
+
+The differing word is marked with `<mark>`. The span (`review_html.marked_span`) runs
+from the word token that holds the difference's start, or the last word token before
+it, to the end of the last token the difference overlaps or touches. Tokens are those
+of `tokens.token_spans`, the pipeline's own: maximal runs of characters other than
+U+0020, a word if one holds a letter. So a pause mark is marked with the word before
+it, a span never cuts a word, and the KFGQPC range is the comparison's own, carried
+back through the equivalences and the removed opening (`compare.Place`). The text
+reaches the page only as three slices at those offsets; `check_parts` refuses the page
+unless they join to the source text, and the only other change is HTML escaping of
+`&`, `<` and `>`, which the browser undoes. `test_every_marked_word_reconstitutes_its_source`
+parses every text back out of the page and compares it with its source. `EscapingTest`
+does the same with synthetic `<`, `&` and `</p>` in one ayah of each source, `<` in a
+surah name and `</script>` in an input value, and checks that the header's inputs and
+the script's data parse back exactly; `_script_json` writes `<` as `\u003c`, so nothing in
+the data can close the script element (`ScriptJsonTest`).
+
+### The decisions
+
+Every place in A, card in B and C and row in D has the choice «موافق للمصحف المطبوع»
+(`agrees`), «غير موافق» (`disagrees`) or «لم أتحقق» (`unchecked`, the default) and a
+note. Each section states its question: in A, whether the Tanzil text, which the app
+shows, agrees with the printed mushaf at the marked place; in B and C, whether the two
+sequences stand for the same thing in the printed mushaf in every example, so that the
+difference is one of encoding only; in D, whether KFGQPC's value agrees with the
+printed mushaf, and for the surah openings, whether a quarter starts at that ayah.
+
+The choices are kept in the browser's `localStorage` (under a key derived from the
+inputs' hashes; a browser that refuses storage shows a warning, and so does saved
+state of any other shape than the page writes, an `items` that is not a plain object
+included, which is then not used: `loadState`, `test_saved_state_of_another_shape_is_refused`).
+The progress counter counts the choices the decisions file would save as other than
+`unchecked` (`checkedCount`), so the two always agree. «حفظ ملف القرارات»
+needs the reviewer's name, typed at the top, and saves through a `Blob` download,
+with no network, `kfgqpc-review-decisions-<date>.json`:
+
+```json
+{
+  "format": "holyquran-kfgqpc-review-decisions",
+  "version": 1,
+  "reviewer": "<the name typed at the top>",
+  "saved_at": "<ISO 8601 UTC, from the browser>",
+  "inputs": {
+    "tanzil_text_sha256": "<hex>", "tanzil_metadata_sha256": "<hex>",
+    "kfgqpc_file": "hafsData_v2-0.json", "kfgqpc_version": "2.0 (update 13.0)", "kfgqpc_sha256": "<hex>",
+    "table_version": 2, "table_sha256": "<hex>",
+    "tanzil_font_sha256": "<hex>", "kfgqpc_font_sha256": "<hex>"
+  },
+  "decisions": [
+    {"id": "A:hafs:S:A:3:U+064A>U+0649", "section": "A", "address": "hafs:S:A", "word": 3, "in_mark": false,
+     "kfgqpc": ["U+064A"], "tanzil": ["U+0649"], "choice": "agrees", "note": ""},
+    {"id": "B:U+06E1>U+0652", "section": "B", "kfgqpc": ["U+06E1"], "tanzil": ["U+0652"],
+     "count": 4, "examples": ["hafs:S:A", "..."], "choice": "unchecked", "note": ""},
+    {"id": "C:>U+0020", "section": "C", "kfgqpc": [], "tanzil": ["U+0020"], "count": 6,
+     "examples": ["..."], "choice": "disagrees", "note": "..."},
+    {"id": "D:page:hafs:S:A", "section": "D", "kind": "page", "address": "hafs:S:A",
+     "kfgqpc": 3, "tanzil_metadata": 2, "choice": "unchecked", "note": ""}
+  ]
+}
+```
+
+One entry per item, in page order, each with its keys in this order and `choice` and
+`note` last. Ids are built from what an item is, never from its position: an A id is
+the address, the word and the two sequences (with `:2`, `:3` added for a repeat in the
+same ayah), a B or C id the section and the two sequences, a D id the kind and the
+address; so a choice kept in the browser cannot move to another item when the page is
+rebuilt, and the storage key also changes with the decisions format. Sequences are
+complete, not capped, and are those of the report: the KFGQPC side after the table.
+A card counts the places of its section only: one report pattern, such as a lone
+space, can be split between C (before a pause mark) and B or A (elsewhere). D's `kind` is `page`, `juz`, `quarter` (the values say whether
+the ayah starts a quarter in each source) or `surah_opening_quarter` (`kfgqpc` false,
+`tanzil_metadata` true). The shape is tested (`DecisionsShapeTest`; the script itself
+is run under `node` where it is installed) and changes only with `version`.
+
+### Pending human check
+
+What only a browser can show is not tested here: the `node` test runs `decisionsFile`
+alone, and is skipped where `node` is missing. Before the page goes to the reciter, the
+owner opens `review.html` from its folder in the browser the reciter will use, on his
+device, and checks that the font warning disappears (both fonts loaded from the
+folder), that both texts are drawn in their fonts with the marked word shaped as in
+the rest of the line, that a choice and a note survive a reload, and that «حفظ ملف
+القرارات» saves a file of the shape above.
+
+### Where the page and the decisions stay
+
+The output folder holds the Quran text of both sources, and the decisions file may
+hold the reviewer's notes. Both stay on the owner's machine, outside every Git working
+tree: they are never committed, attached to an issue or pull request, or uploaded. The
+owner gives the folder to his reciter himself, and the reciter sends the decisions
+file back to him alone. Summaries go elsewhere as counts and addresses.
+
+### From approved patterns to rules
+
+The lead reads the decisions file the owner passes on, after checking that its `inputs`
+are the hashes of the files the table is meant for (a file made from other inputs is
+not used). Then:
+
+1. For each B card marked `agrees`, add an `equivalence` rule (D-176's kind (b))
+   as in "Adding an equivalence rule" above: the two sequences exactly as the card's
+   `kfgqpc` and `tanzil` give them, `applies_to` `every_ayah` only if the card's
+   approval covers every place of the pattern (otherwise the listed addresses), the
+   `reason` citing the review and D-176, `approved_by` the reviewer's name as in the
+   file's `reviewer` (never "lead"), and `date` the day of `saved_at`.
+2. A C card gets no rule from the lead, even when marked `agrees`: the table cannot
+   express it. An equivalence's KFGQPC sequence may not be empty, so "a space in
+   Tanzil before a pause mark" cannot be written as one, and the reverse rule (U+0020
+   to nothing) would delete every space it applies to. How to accept the space
+   difference (a new rule kind tied to the following pause mark, or listed addresses)
+   is the owner's decision, put to him with the reviewer's choice.
+3. A card marked `disagrees` or `unchecked` gets no rule; its places stay differences
+   and keep the comparison failing. Every place in A, whatever its choice, and every
+   row in D goes to the owner as the reviewer marked it: they are not encoding
+   patterns, and a rule for one is the owner's decision, not the lead's.
+4. Raise `version`, run `compare` and `review-page` again: the approved patterns must
+   be gone and their rules applied. Record the table's new version and SHA-256 and the
+   decisions file's `inputs` with the decision that records the approval.
 
 ## Signing (D-080) and what O-03 must decide
 

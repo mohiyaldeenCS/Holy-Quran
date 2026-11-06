@@ -21,6 +21,7 @@ VERSION = "2.0 (update 13.0)"
 REGISTRY_ROW = 2
 
 _BOM = b"\xef\xbb\xbf"
+_OPENING = b"[\n\t"
 _INTEGERS = ("id", "jozz", "page", "sura_no", "line_start", "line_end", "aya_no")
 _STRINGS = ("sura_name_en", "sura_name_ar", "aya_text", "aya_text_emlaey")
 _COLUMNS = frozenset(_INTEGERS + _STRINGS)
@@ -57,6 +58,8 @@ def read_kfgqpc(data: bytes, ayat: int) -> list:
 def _read(data, ayat):
     if data.startswith(_BOM):
         raise PackError("the file begins with a UTF-8 BOM, which the published file does not")
+    if not data.startswith(_OPENING):
+        raise PackError("the file does not begin with '[', a line feed and a tab (5B 0A 09), as the published file does")
     try:
         document = data.decode("utf-8")
     except UnicodeDecodeError as e:
@@ -67,8 +70,7 @@ def _read(data, ayat):
         )
     except json.JSONDecodeError as e:
         raise PackError("invalid JSON at line %d column %d" % (e.lineno, e.colno)) from None
-    if not isinstance(entries, list):
-        raise PackError("the top level is not an array")
+    # The opening bytes make the top level an array.
     if len(entries) != ayat:
         raise PackError("the file holds %d entries, not %d" % (len(entries), ayat))
     result = []

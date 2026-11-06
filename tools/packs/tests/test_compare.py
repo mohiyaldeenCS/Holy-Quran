@@ -160,7 +160,7 @@ class AyahEndRuleTest(CompareCase):
 
 
 class AyahEndSeparatorRuleTest(CompareCase):
-    """Rule (ii): P-4's form, an ayah-end separator named for listed addresses only."""
+    """P-4: an ayah-end separator named for listed addresses only."""
 
     def table(self, address="hafs:2:3"):
         return _table(_shipped_rule("P-4", applies_to=[address]))
@@ -285,7 +285,7 @@ class QuarterRuleTest(CompareCase):
 
 
 class SurahOpeningQuarterRuleTest(CompareCase):
-    """Rule (i), P-3: a quarter start at the first ayah of a surah carries no sign in KFGQPC."""
+    """P-3: a quarter start at the first ayah of a surah carries no sign in KFGQPC."""
 
     def test_without_the_rule_the_surah_openings_are_quarter_differences(self):
         report = self.run_compare(table=_table(drop=("P-3",)))
@@ -533,6 +533,66 @@ class StructureTest(CompareCase):
         entries = synthetic.synthetic_kfgqpc_entries(surahs=surahs)
         with self.assertRaisesRegex(PackError, "the Tanzil text has 8 ayat, the KFGQPC file 9"):
             self.run_compare(entries, ayat=AYAT + 1)
+
+
+class TraceTest(CompareCase):
+    """The places the review page shows: the report's differences with ranges in both published texts."""
+
+    def traced(self, entries, table=None, surahs=None):
+        text = read_tanzil_text(
+            synthetic.synthetic_text_xml(**({} if surahs is None else {"surahs": surahs}))
+        )
+        metadata = read_tanzil_metadata(synthetic.synthetic_metadata_xml())
+        witness = read_kfgqpc(synthetic.synthetic_kfgqpc_json(entries), AYAT)
+        trace = compare.Trace()
+        report = compare.compare(text, metadata, witness, _table() if table is None else table, trace)
+        untraced = compare.compare(text, metadata, witness, _table() if table is None else table)
+        self.assertEqual(compare.encode_report(report), compare.encode_report(untraced))
+        return report, trace
+
+    def test_every_place_points_at_its_sequences(self):
+        entries = self.entries_with_text(1, 2, lambda t: t.replace("\u06d6", "\u06d7").replace("two", "tw"))
+        entries[_id(2, 2)]["aya_text"] = entries[_id(2, 2)]["aya_text"].replace(" \u06d7", "\u06d7")
+        report, trace = self.traced(entries)
+        self.assertEqual(len(trace.places), len(report["differences"]))
+        self.assertEqual(len(trace.places), 3)
+        for place, difference in zip(trace.places, report["differences"]):
+            self.assertEqual("hafs:%d:%d" % place.address, difference["address"])
+            self.assertEqual((place.word, place.in_mark), (difference["word"], difference["in_mark"]))
+            self.assertEqual(place.kfgqpc_text[slice(*place.kfgqpc)], place.kfgqpc_sequence)
+            self.assertEqual(place.tanzil_text[slice(*place.tanzil)], place.tanzil_sequence)
+            self.assertEqual([compare.code_point(c) for c in place.kfgqpc_sequence], difference["kfgqpc"]["sequence"])
+            self.assertEqual(place.kfgqpc_text, entries[_id(*place.address)]["aya_text"])
+        # hafs:1:2 opens a quarter: its KFGQPC range counts the sign and separator the table removed.
+        self.assertEqual(trace.places[0].kfgqpc, (12, 13))
+        self.assertEqual(trace.places[0].tanzil, (10, 11))
+
+    def test_a_place_after_an_equivalence_points_into_the_published_text(self):
+        # Word 1 holds a two-code-point KFGQPC sequence the table rewrites as one; a letter added later stays a difference.
+        entries = self.entries_with_text(
+            1, 4, lambda t: t.replace("\u064e", "\u06e1\u06e1").replace("\u0628\u064a", "\u0628x\u064a")
+        )
+        table = _table(_equivalence(["U+06E1", "U+06E1"], ["U+064E"], ["hafs:1:4"]))
+        report, trace = self.traced(entries, table)
+        (place,) = trace.places
+        self.assertEqual(report["differences"][0]["kfgqpc"]["sequence"], ["U+0078"])
+        self.assertEqual(place.kfgqpc_text[slice(*place.kfgqpc)], "x")
+        # Two for the quarter sign and separator P-2 removed, one for the rewritten pair.
+        self.assertEqual(place.kfgqpc[0], place.tanzil[0] + 3)
+
+    def test_a_difference_inside_a_rewritten_sequence_covers_all_of_it(self):
+        # The table rewrites the KFGQPC pair as two other code points; the Tanzil ayah has only the first.
+        entries = self.entries_with_text(1, 4, lambda t: t.replace("\u064e", "\u06e1\u06e1"))
+        table = _table(_equivalence(["U+06E1", "U+06E1"], ["U+064E", "U+0651"], ["hafs:1:4"]))
+        report, trace = self.traced(entries, table)
+        (place,) = trace.places
+        self.assertEqual(report["differences"][0]["kfgqpc"]["sequence"], ["U+0651"])
+        self.assertEqual(place.kfgqpc_text[slice(*place.kfgqpc)], "\u06e1\u06e1")
+
+    def test_the_surah_openings_p3_accepts(self):
+        _, trace = self.traced(synthetic.synthetic_kfgqpc_entries())
+        self.assertEqual(trace.places, [])
+        self.assertEqual(trace.surah_opening_quarters, [(1, 1), (2, 1), (3, 1)])
 
 
 class WordNumberTest(unittest.TestCase):
