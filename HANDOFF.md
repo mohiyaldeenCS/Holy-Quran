@@ -1,10 +1,28 @@
-# Handoff — 2026-11-04
+# Handoff — 2026-11-09
 
 For the next lead, on a new account. Nothing else from the earlier sessions survives, and
 you do not need to repeat the audit: this file was checked against Git and GitHub when it
 was written. `docs/PROJECT_STATUS.md` stays the authority for the project's state; if the
 two disagree, Git wins, then the status file. Update this file after every finished step.
 Delete it, with the owner's permission, once "In flight" is empty.
+
+## 0. Start here (local lead, 2026-11-09)
+
+The last session ran **locally on the owner's Windows machine** (`D:/projects/Holy-Quran`, Flutter 3.47.9, his phone SM-G998U on `adb`, Python `py -3`), not in the cloud. It ran his test copy end to end, found and fixed three pipeline defects, fetched the KFGQPC Hafs text, built the KFGQPC comparison and the reciter's review page. `main` is at `06bb22f` (#93–#97 merged). **This records branch (`claude/quran-app-leadership-kcenv4`) is not merged into `main`**: open a pull request for it first, get a short review (sonnet) and merge it, so that `main` holds this file, D-166…D-178 and the rights register.
+
+**State that is not in Git** (owner's machine, never committed or uploaded):
+- `$HOME/holyquran-test-copy/`: `raw/` (Tanzil Uthmani 1.1 fetched without `rub`, sha256 `5ea5cbab…`; metadata `8867c1d8…`), `build.json`, `kfgqpc/` (KFGQPC `UthmanicHafs_v2-0.zip`, MD5/SHA-1 equal to KFGQPC's published values; extracted in `kfgqpc/x/`), `compare/report*.json` (code points only), `review/` (**the reciter's review page**: `review.html` + two fonts, built from `main` `06bb22f`), `screens/` (phone screenshots), `diag/` (diagnostic pulls: delete it), `shot.sh`.
+- The phone runs a **debug** build of the test copy (same defines, same data), because the profile rebuild failed for lack of memory on 2026-11-06. Reinstall the profile build with `tools/test_copy/test_copy.sh` when memory allows (the script now opens the pushed folders, D-173).
+- `D:/projects/New folder/ziydia_out/`: the owner's Zaydi extraction, 34 books; book 466 stopped at page 30.
+
+**Waiting on the owner:** the reciter's decisions file from `review/review.html` (D-176). Then: approved encoding patterns become kind (b) rules (`approved_by` the reciter, the date); the owner decides the base text (Tanzil or KFGQPC, D-176 (1)); then the manifest change so pages, juz and quarters come from KFGQPC (D-176 (2)).
+
+**Next, decided by the owner on 2026-11-09 (all three; at most two lanes at a time, in this order):**
+1. **Recitations (B0.5):** fetch quran-align timing for the four folders of D-167 and a sample of each recitation from everyayah.com to a work folder outside Git; a `content-engineer` task for a drift-measurement tool; run it on the owner's machine; record drift in `RIGHTS_REGISTER.md` (rows are `Open: drift`).
+2. **App fixes:** (a) a missing base pack reads as «نص المصحف لم يجتز التحقق» and on first start as an empty index with no alert — the states should differ; (b) the margin label «الجزء ١» overlaps the first word of the first line in the reader (identity audit first); (c) #91 `agent/p1-35-accessibility-pass`, idle since 2026-11-04 with a CHANGES REQUIRED review: its fix (ring under the text), goldens, review, merge.
+3. **Zaydi tafsir:** derive the sixteen-code honorific table from the site's font with images for approval (D-140 (7)); then the tafsir pack (pack format v2 `tafsir`, D-110 proposed). The owner finishes book 466.
+
+**Rules learned this session:** every question to the owner through `AskUserQuestion`, in Arabic, recommended option first; D-176 (4): merge any pull request that passes an independent review and CI, and tell him; run long waits with `gh run watch <id>` in a background command (it wakes the session), never polling; the owner's global rules (`~/.claude/CLAUDE.md`): Opus for code and review, Sonnet for mechanical work, at most two lanes, `model` passed explicitly. Agents' spend this session ≈ $35 (largest: #95 $7.10, #97 $10.64).
 
 ## 1. Your role (D-159)
 

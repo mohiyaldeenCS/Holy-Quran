@@ -8,12 +8,12 @@ corrected first.
 
 | | |
 | --- | --- |
-| Updated | 2026-11-04 |
+| Updated | 2026-11-09 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
 | Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **39 merged**: P1-01 to P1-34, P1-36 to P1-40, of which 20 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-34, P1-36, P1-37, P1-40). **Open pull request**: the audio race (#80, last round). P1-35 not started. The composition root is wired (#72, D-151). **No APK has been run on a device since the spike of 2026-10-12, and no real content is in the app** |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/*`), worked by agents in GitHub Actions (D-159) |
-| Last session | 2026-11-04, cloud session on the owner's new account, managing agents in Actions (D-159). **Read `HANDOFF.md` first**: it holds the queue, the runs out, how to start agents and his rules |
+| Last session | 2026-11-06 to 2026-11-09, local lead on the owner's machine: test copy on his phone, #93–#97 (Tanzil real files, push permissions, KFGQPC comparison, reciter's review page), D-172–D-178. **Read `HANDOFF.md` section 0 first** |
 
 ## What is in the repository
 
@@ -638,6 +638,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-11-06–09 | Local lead (owner's machine) | Ran `tools/test_copy/README.md`: the build stopped on Tanzil's real files (no metadata notice; `rub=false` turns U+06DE on) → #93; installed on the phone; the app could not read the pushed pack (folder modes) → #94; fetched the KFGQPC Hafs text (checksums matched); built the comparison #95, #96 (54,797 differences in 93 patterns: encoding, spaces, 355 pause marks, ~30 letters; 56 page, 2 juz, 2 quarter differences) and the reciter's review page #97; recorded the recitation rights and the owner's answers (D-174, D-176). Pending human checks: the reciter's review; the 42 surah-opening quarter starts; the test copy on the phone (debug build) | `main` `06bb22f`; records branch `claude/quran-app-leadership-kcenv4` |
 | 2026-11-04 | Cloud session, new account (managing lead, D-159) | Read the handover; confirmed `gh` can start workflows; reported to the owner. In Actions: final reviews of #77 and #71 and an identity audit of #71; fixes of #76's and #77's reviews; the audio stall reproduced and fixed (#80, D-161); re-reviews and the two #71 fix runs started. Put fourteen decisions to the owner (D-162); planned the local test copy (`docs/plans/TEST_COPY.md`). Could not delete branches (proxy) | `claude/quran-app-leadership-kcenv4` |
 | 2026-11-04 | Local session, continued | Merged #75 after review and CI; recovered and advanced P1-33, P1-34, P1-36 and P1-37 to #71, #76, #78 and #77; reviewed #76. Agents and reviewers stopped on the account's usage limit. Tested both API keys, fixed how `agent.yml` reports read-only runs, and handed over for agents in Actions under a managing lead (D-159) | This branch |
 | 2026-11-02 | Local session (owner's Windows machine) | Audited the real state from the code; on the owner's approval upgraded Flutter to 3.47.9 and every direct package, with Gradle, AGP, Kotlin and the iOS target (D-154); pushed the local-only branches; pruned the dead worktree records; found why the session of 2026-10-29 stopped | #75 |
