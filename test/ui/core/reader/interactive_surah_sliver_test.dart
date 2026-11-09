@@ -6,6 +6,7 @@ import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/ui/core/reader/block_layout.dart';
 import 'package:holyquran/ui/core/reader/gesture_target.dart';
 import 'package:holyquran/ui/core/reader/interactive_surah_sliver.dart';
+import 'package:holyquran/ui/core/reader/margin_row.dart';
 import 'package:holyquran/ui/core/reader/reader_block.dart';
 import 'package:holyquran/ui/core/reader/reader_pinch.dart';
 import 'package:holyquran/ui/core/reader/surah_text.dart';
@@ -33,6 +34,7 @@ Widget _reader(
   ScrollController? controller,
   bool gestures = true,
   BlockOverlayBuilder? overlay,
+  bool marginRows = false,
 }) => goldenApp(
   ReadingTheme.paper,
   Builder(
@@ -52,6 +54,7 @@ Widget _reader(
                 onTap: gestures ? log.taps.add : null,
                 onLongPress: gestures ? log.longPresses.add : null,
                 blockOverlayBuilder: overlay,
+                marginRows: marginRows ? MarginRowMeasure.of(context) : null,
               ),
             ],
           ),
@@ -235,12 +238,13 @@ void main() {
           layouts.add(layout);
           return const SizedBox(key: key);
         },
+        marginRows: true,
       ),
     );
     expect(find.byKey(key), findsWidgets);
     expect(layouts.map((l) => l.index), contains(0));
     expect(
-      layouts.any((layout) => layout.marginMarks.isNotEmpty),
+      layouts.any((layout) => layout.marginRows.isNotEmpty),
       isTrue,
       reason: 'the long surah has margin marks',
     );

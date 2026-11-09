@@ -6,6 +6,7 @@ import 'package:holyquran/ui/core/widgets/quran_text.dart';
 import 'block_highlights.dart';
 import 'block_layout.dart';
 import 'gesture_target.dart';
+import 'margin_row.dart';
 import 'reader_block.dart';
 import 'reader_highlights.dart';
 import 'reader_style.dart';
@@ -27,11 +28,13 @@ typedef BlockOverlayBuilder = Widget Function(
 /// [GestureTarget] by `resolveTap`, and the basmala gives the margin
 /// (`RD-02`, PRD §7.4).
 ///
+/// With [marginRows], the plan leaves a row above each line its margin marks
+/// belong to, as tall as [MarginRowMeasure] says (D-181).
 /// [blockOverlayBuilder], when given, adds a layer above each block's text
 /// that does not take part in tap resolution; it is where the screen draws
-/// the block's margin marks from [BlockLayout.marginMarks]. It is called when
-/// a block is built, not on every rebuild of the sliver, and the callbacks
-/// are read when a gesture ends, so a new closure changes nothing.
+/// the block's margin marks in their rows ([BlockLayout.marginRows]). It is
+/// called when a block is built, not on every rebuild of the sliver, and the
+/// callbacks are read when a gesture ends, so a new closure changes nothing.
 final class InteractiveSurahSliver extends StatefulWidget {
   const InteractiveSurahSliver({
     required this.text,
@@ -41,6 +44,7 @@ final class InteractiveSurahSliver extends StatefulWidget {
     this.onTap,
     this.onLongPress,
     this.blockOverlayBuilder,
+    this.marginRows,
     super.key,
   });
 
@@ -54,6 +58,7 @@ final class InteractiveSurahSliver extends StatefulWidget {
   final ValueChanged<GestureTarget>? onTap;
   final ValueChanged<GestureTarget>? onLongPress;
   final BlockOverlayBuilder? blockOverlayBuilder;
+  final MarginRowMeasure? marginRows;
 
   @override
   State<InteractiveSurahSliver> createState() => _InteractiveSurahSliverState();
@@ -62,6 +67,7 @@ final class InteractiveSurahSliver extends StatefulWidget {
 final class _InteractiveSurahSliverState extends State<InteractiveSurahSliver> {
   ReaderStyle? _style;
   SurahLayout? _layout;
+  MarginRowMeasure? _rows;
   Widget? _list;
 
   @override
@@ -93,10 +99,17 @@ final class _InteractiveSurahSliverState extends State<InteractiveSurahSliver> {
     if (last != null &&
         identical(last.text, widget.text) &&
         last.style == style &&
-        last.width == width) {
+        last.width == width &&
+        _rows == widget.marginRows) {
       return _list ??= _buildList(last, scaler);
     }
-    final layout = _layout = SurahLayout.plan(widget.text, style, width);
+    final rows = _rows = widget.marginRows;
+    final layout = _layout = SurahLayout.plan(
+      widget.text,
+      style,
+      width,
+      marginRow: rows?.heightOf,
+    );
     if (widget.onLayout case final onLayout?) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && identical(_layout, layout)) onLayout(layout);

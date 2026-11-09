@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/l10n/app_localizations.dart';
@@ -9,19 +11,14 @@ import 'package:holyquran/ui/core/widgets/star_outline.dart';
 
 import 'surah_text.dart';
 
-/// The mushaf's juz and hizb counts: the largest numbers a margin mark
-/// writes, so the widest mark is among those up to them.
-const int _juzCount = 30;
-const int _hizbCount = 60;
-
 /// A surah-mode margin mark (`RD-02`, `RD-15`), as the Mushaf board draws
 /// it: the quarter star with «الحزب n» at a hizb and with «ربع» above it at
 /// the hizb's first quarter, the one quarter the identity names; the half
 /// and the three quarters have no words yet (D-115), so their star stands
 /// alone rather than repeat the hizb's start. The juz's
 /// name in Kufi over a gold line at a juz, and the word «سجدة» alone at a
-/// sajda, whose sign is in the text itself. Where it stands beside its line
-/// is the reader screen's.
+/// sajda, whose sign is in the text itself. Where it stands is the reader
+/// screen's: in a row above the line its ayah begins in (D-181).
 final class MarginMarkView extends StatelessWidget {
   const MarginMarkView(this.mark, {super.key});
 
@@ -53,9 +50,9 @@ final class MarginMarkView extends StatelessWidget {
   static bool _starOnly(MarginMark mark) =>
       mark.kind == MarginMarkKind.rub && mark.quarter != 1;
 
-  /// The width [mark] takes when laid out with [scaler], as [build] lays it
+  /// The height [mark] takes when laid out with [scaler], as [build] lays it
   /// out; [bold] when the system asks for bold text, which `Text` follows.
-  static double widthOf(
+  static double heightOf(
     MarginMark mark,
     AppLocalizations strings,
     TextScaler scaler, {
@@ -77,39 +74,15 @@ final class MarginMarkView extends StatelessWidget {
       textDirection: TextDirection.rtl,
       textScaler: scaler,
     )..layout();
-    final words = painter.width;
+    final words = painter.height;
     painter.dispose();
     return switch (mark.kind) {
-      MarginMarkKind.sajda || MarginMarkKind.juz => words,
-      MarginMarkKind.rub || MarginMarkKind.hizb =>
-        ReaderMetrics.marginStar + ReaderMetrics.marginStarGap + words,
+      MarginMarkKind.sajda => words,
+      MarginMarkKind.juz =>
+        words + ReaderMetrics.juzRuleGap + ReaderMetrics.juzRule,
+      MarginMarkKind.rub ||
+      MarginMarkKind.hizb => math.max(ReaderMetrics.marginStar, words),
     };
-  }
-
-  /// The width of the widest mark the reader can show, at [scaler]: every
-  /// juz, every hizb and its first quarter, a later quarter's star and the
-  /// sajda (D-181).
-  static double widest(
-    AppLocalizations strings,
-    TextScaler scaler, {
-    bool bold = false,
-  }) {
-    final marks = [
-      const MarginMark(MarginMarkKind.sajda, 1),
-      const MarginMark(MarginMarkKind.rub, 1, hizb: 1, quarter: 2),
-      for (var juz = 1; juz <= _juzCount; juz++)
-        MarginMark(MarginMarkKind.juz, 1, juz: juz),
-      for (var hizb = 1; hizb <= _hizbCount; hizb++) ...[
-        MarginMark(MarginMarkKind.hizb, 1, hizb: hizb),
-        MarginMark(MarginMarkKind.rub, 1, hizb: hizb, quarter: 1),
-      ],
-    ];
-    var widest = 0.0;
-    for (final mark in marks) {
-      final width = widthOf(mark, strings, scaler, bold: bold);
-      if (width > widest) widest = width;
-    }
-    return widest;
   }
 
   @override

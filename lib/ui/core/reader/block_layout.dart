@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
+import 'package:holyquran/ui/core/metrics/reader_screen_metrics.dart';
+
 import 'planned_ayah.dart';
 import 'reader_paragraph.dart';
 import 'surah_layout.dart';
@@ -11,7 +13,10 @@ import 'surah_text.dart';
 
 /// One block of a [SurahLayout] laid out: a paragraph per segment, stacked
 /// line under line, in block coordinates (x from 0 to the plan's width, y
-/// from the top of the block's first line).
+/// from the top of the block, the row of margin marks above its first line
+/// included). A row of margin marks inside a paragraph moves the lines below
+/// it down (D-181): they are drawn from a copy of the paragraph inked on
+/// them alone, so its lines break and are set exactly as without the row.
 ///
 /// It answers where every line, word, mark, marker and page mark is drawn,
 /// for targets and highlights (P1-22). Ink may leave a line's band, above or
@@ -28,13 +33,32 @@ final class BlockLayout {
       final lastLocal = segment.lineCount - 1;
       final centres = segment.endLine - 1 == finalLine;
       final width = plan.paragraphWidthOf(segment);
+      final drops = <double>[0];
+      for (var line = segment.firstLine + 1; line < segment.endLine; line++) {
+        drops.add(drops.last + plan.rowExtent(line));
+      }
+      Color inkOn(int line, double drop) =>
+          drops[line] == drop && !(centres && line == lastLocal)
+          ? ink
+          : transparent;
       final body = buildSegment(
         ayat,
         plan.style,
         width,
-        colourOfLine: (line) =>
-            centres && line == lastLocal ? transparent : ink,
+        colourOfLine: (line) => inkOn(line, 0),
       );
+      final copies = [
+        for (final drop in drops.toSet().skip(1))
+          (
+            buildSegment(
+              ayat,
+              plan.style,
+              width,
+              colourOfLine: (line) => inkOn(line, drop),
+            ),
+            drop,
+          ),
+      ];
       final twin = centres
           ? buildSegment(
               ayat,
@@ -49,7 +73,9 @@ final class BlockLayout {
           ayat,
           body,
           twin,
-          (segment.firstLine - block.firstLine) * plan.lineHeight,
+          copies,
+          drops,
+          plan.lineTop(segment.firstLine) - plan.blockTop(index),
           plan.style.markGap,
           plan.width,
         ),
@@ -73,9 +99,13 @@ final class BlockLayout {
   int get lineCount => block.lineCount;
 
   /// The band of line [line] of this block: the full width, one line tall.
-  /// Bands tile the block.
-  Rect lineBand(int line) =>
-      Rect.fromLTWH(0, line * plan.lineHeight, plan.width, plan.lineHeight);
+  /// Bands tile the block but for the rows of margin marks above some lines.
+  Rect lineBand(int line) => Rect.fromLTWH(
+    0,
+    plan.lineTop(block.firstLine + line) - plan.blockTop(index),
+    plan.width,
+    plan.lineHeight,
+  );
 
   List<Rect> get lineBands => [for (var k = 0; k < lineCount; k++) lineBand(k)];
 
@@ -92,7 +122,7 @@ final class BlockLayout {
   /// is not in this block.
   double? topOfAyah(int ayah) => _parts(ayah).isEmpty
       ? null
-      : (plan.lineOfAyahText(ayah) - block.firstLine) * plan.lineHeight;
+      : lineBand(plan.lineOfAyahText(ayah) - block.firstLine).top;
 
   /// Where word [word] of ayah [ayah] is drawn: one rect, as a word never
   /// breaks across lines; null when it is not in this block.
@@ -172,7 +202,8 @@ final class BlockLayout {
   /// the placeholder, which can lie in another's slot (S1 finding 1). Two
   /// ayat that share a line never share the horizontal span of its rects.
   List<Rect> ayahLines(int ayah) {
-    int lineOf(Rect rect) => (rect.center.dy / plan.lineHeight).floor();
+    int lineOf(Rect rect) =>
+        plan.lineAt(plan.blockTop(index) + rect.center.dy) - block.firstLine;
     final byLine = <int, Rect>{
       for (final (laid, planned) in _parts(ayah))
         for (final box in laid.boxes(
@@ -199,20 +230,21 @@ final class BlockLayout {
     return [for (final line in byLine.keys.toList()..sort()) byLine[line]!];
   }
 
-  /// The margin marks beside this block's lines, each with the band of the
-  /// line it belongs to: the line where the text of the ayah that begins
-  /// the rub, hizb or juz begins, or for a sajda the line where the ayah,
-  /// and with it the sign, ends (`RD-15`).
-  List<(MarginMark, Rect)> get marginMarks => [
-    for (final mark in plan.text.marginMarks)
-      if (_parts(mark.ayah).isNotEmpty)
+  /// The rows of margin marks in this block (`RD-02`, `RD-15`, D-181), each
+  /// with the rect its marks are drawn in: the block's width, the marks'
+  /// height, its bottom a gap above the line in which the text of their
+  /// ayah begins. None when the plan was made without rows.
+  List<(List<MarginMark>, Rect)> get marginRows => [
+    for (var line = 0; line < lineCount; line++)
+      if (plan.marksAbove(block.firstLine + line) case final marks
+          when marks.isNotEmpty)
         (
-          mark,
-          lineBand(
-            (mark.kind == MarginMarkKind.sajda
-                    ? plan.lineOfAyahEnd(mark.ayah)
-                    : plan.lineOfAyahText(mark.ayah)) -
-                block.firstLine,
+          marks,
+          Rect.fromLTRB(
+            0,
+            lineBand(line).top - plan.rowExtent(block.firstLine + line),
+            plan.width,
+            lineBand(line).top - ReaderScreenMetrics.marginRowGap,
           ),
         ),
   ];
@@ -289,6 +321,8 @@ final class _LaidSegment {
     this.ayat,
     this.body,
     this.twin,
+    this.copies,
+    this._drops,
     this.top,
     double markGap,
     this._width,
@@ -325,6 +359,13 @@ final class _LaidSegment {
   final List<PlannedAyah> ayat;
   final ui.Paragraph body;
   final ui.Paragraph? twin;
+
+  /// The copies that draw the lines below a row of margin marks inside the
+  /// paragraph, each with how far down they are moved.
+  final List<(ui.Paragraph, double)> copies;
+
+  /// How far each line is moved down by the rows above it in the paragraph.
+  final List<double> _drops;
   final double top;
   final double _width;
   double shift = 0;
@@ -358,6 +399,8 @@ final class _LaidSegment {
   double _dx(int line) =>
       _origin + (twin != null && line == _lastLine ? shift : 0);
 
+  double _dy(int line) => top + _drops[line];
+
   /// Where the paragraph's left edge lies in the block: lines keep to the
   /// right of a paragraph wider than the block, so it is moved left by the
   /// difference, its overhang and slack past the block's left edge.
@@ -379,9 +422,9 @@ final class _LaidSegment {
       final dx = _dx(line);
       final rect = Rect.fromLTRB(
         math.max(box.left + dx, 0),
-        top + line * lineHeight,
+        _dy(line) + line * lineHeight,
         math.min(box.right + dx, width),
-        top + (line + 1) * lineHeight,
+        _dy(line) + (line + 1) * lineHeight,
       );
       if (rect.width <= 0) continue;
       byLine.update(line, (r) => r.expandToInclude(rect), ifAbsent: () => rect);
@@ -390,23 +433,9 @@ final class _LaidSegment {
   }
 
   /// A page mark takes its whole slot, gaps and all, so that a page
-  /// number wider than a marker still fits, but no more of it than lies in
-  /// the block about the slot's centre: a slot that ends a line hangs its
-  /// stretched far gap past the edge, which in a narrow column can reach
-  /// past the screen's. The centre, the marker's place, stays; the mark is
-  /// never narrower than a marker.
-  Rect? pageMarkRect(int ayah) {
-    final k = _pageMarkAt[ayah];
-    if (k == null) return null;
-    final slot = _slot(k);
-    final centre = slot.center.dx;
-    final half = math.min(slot.width / 2, math.min(centre, _width - centre));
-    return Rect.fromCenter(
-      center: slot.center,
-      width: math.max(2 * half, slot.height),
-      height: slot.height,
-    );
-  }
+  /// number wider than a marker still fits.
+  Rect? pageMarkRect(int ayah) =>
+      _pageMarkAt[ayah] == null ? null : _slot(_pageMarkAt[ayah]!);
 
   /// The slot placeholder [k] is drawn in. SkParagraph (Flutter 3.44) lays
   /// the placeholders of a right-to-left line out in the reverse of their
@@ -432,7 +461,7 @@ final class _LaidSegment {
       final places = [for (final k in members) boxes[k]]
         ..sort((a, b) => b.left.compareTo(a.left));
       for (final (j, k) in members.indexed) {
-        slots[k] = places[j].translate(_dx(line), top);
+        slots[k] = places[j].translate(_dx(line), _dy(line));
       }
     }
     return slots;
@@ -489,14 +518,20 @@ final class _LaidSegment {
   void paint(Canvas canvas, Offset offset) {
     final origin = offset.translate(_origin, top);
     canvas.drawParagraph(body, origin);
+    for (final (copy, drop) in copies) {
+      canvas.drawParagraph(copy, origin.translate(0, drop));
+    }
     if (twin case final twin?) {
-      canvas.drawParagraph(twin, origin.translate(shift, 0));
+      canvas.drawParagraph(twin, origin.translate(shift, _drops[_lastLine]));
     }
   }
 
   void dispose() {
     body.dispose();
     twin?.dispose();
+    for (final (copy, _) in copies) {
+      copy.dispose();
+    }
   }
 }
 

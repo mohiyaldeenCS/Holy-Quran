@@ -12,26 +12,23 @@ import 'margin_mark.dart';
 import 'reader_block.dart';
 import 'ribbon_category.dart';
 
-/// What a block's margin shows beside its lines (`RD-02`, `RD-15`, `UD-05`):
-/// each margin mark of [BlockLayout.marginMarks] in the start gutter the text
-/// leaves it (D-181), from the screen's edge and level with its line, so it
-/// never touches the text, and a [BookmarkRibbon] at the end side beside the
-/// first line of each bookmarked ayah that begins in the block.
+/// What a block shows besides its text (`RD-02`, `RD-15`, `UD-05`): the
+/// margin marks of each row of [BlockLayout.marginRows], from the start edge
+/// of the text column, in the row the plan left for them above the line their
+/// ayah begins in, so that they never cover the text (D-181); and a
+/// [BookmarkRibbon] at the end side beside the first line of each bookmarked
+/// ayah that begins in the block.
 ///
 /// It takes no part in taps. A screen reader reads a mark before the ayah it
 /// belongs to, and a ribbon after it.
 final class BlockMargin extends StatelessWidget {
   const BlockMargin({
     required this.layout,
-    required this.startGutter,
     this.bookmarks = const {},
     super.key,
   });
 
   final BlockLayout layout;
-
-  /// The text's start inset, from `MarginGutter`.
-  final double startGutter;
 
   /// The category of each bookmarked ayah, by address; null where it is not
   /// known.
@@ -46,18 +43,22 @@ final class BlockMargin extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          for (final (mark, band) in layout.marginMarks)
+          for (final (marks, row) in layout.marginRows)
             PositionedDirectional(
-              start: -startGutter,
-              top: band.top,
-              height: band.height,
-              child: Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Semantics(
-                  container: true,
-                  sortKey: OrdinalSortKey(readingOrder(mark.ayah) - 2),
-                  child: MarginMarkView(mark),
-                ),
+              start: 0,
+              top: row.top,
+              height: row.height,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                spacing: ReaderScreenMetrics.marginRowGap,
+                children: [
+                  for (final mark in marks)
+                    Semantics(
+                      container: true,
+                      sortKey: OrdinalSortKey(readingOrder(mark.ayah) - 2),
+                      child: MarginMarkView(mark),
+                    ),
+                ],
               ),
             ),
           for (final MapEntry(key: address, value: category)

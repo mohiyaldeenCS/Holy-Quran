@@ -15,7 +15,7 @@ import 'package:holyquran/ui/core/reader/block_layout.dart';
 import 'package:holyquran/ui/core/reader/block_margin.dart';
 import 'package:holyquran/ui/core/reader/gesture_target.dart';
 import 'package:holyquran/ui/core/reader/interactive_surah_sliver.dart';
-import 'package:holyquran/ui/core/reader/margin_gutter.dart';
+import 'package:holyquran/ui/core/reader/margin_row.dart';
 import 'package:holyquran/ui/core/reader/reader_highlights.dart';
 import 'package:holyquran/ui/core/reader/reader_pinch_stepper.dart';
 import 'package:holyquran/ui/core/reader/reader_text_scale.dart';
@@ -202,9 +202,7 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
         ? _startOf(address.surah)
         : start + layout.offsetOf(address);
     final bottom =
-        start +
-        layout.basmalaExtent +
-        (layout.lineOfAyahEnd(address.ayah) + 1) * layout.lineHeight;
+        start + layout.lineBottom(layout.lineOfAyahEnd(address.ayah));
     if (top >= position.pixels &&
         bottom <= position.pixels + position.viewportDimension) {
       _pendingFollow = null;
@@ -431,14 +429,11 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
     if (word != null) unawaited(context.push<Object?>(Routes.wordSheet(word)));
   }
 
-  Widget _margin(BlockLayout layout, double startGutter) =>
+  Widget _margin(BuildContext context, BlockLayout layout) =>
       ValueListenableBuilder(
         valueListenable: _model.bookmarks.ribbons,
-        builder: (context, ribbons, _) => BlockMargin(
-          layout: layout,
-          startGutter: startGutter,
-          bookmarks: ribbons,
-        ),
+        builder: (context, ribbons, _) =>
+            BlockMargin(layout: layout, bookmarks: ribbons),
       );
 
   void _loadNextIfNear([ScrollMetrics? metrics]) {
@@ -478,6 +473,7 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
       selectedAyah: _model.selectedAyah,
       recitedAyah: _model.follow.recited,
     );
+    final marginRows = MarginRowMeasure.of(context);
     return ReaderPinchStepper(
       scrollController: _controller,
       layout: _focus,
@@ -501,38 +497,34 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
               onLongPress: _model.longPress,
               child: child!,
             ),
-            child: MarginGutter(
-              builder: (context, gutter) => CustomScrollView(
-                controller: _controller,
-                slivers: [
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: ReaderScreenMetrics.columnTop),
+            child: CustomScrollView(
+              controller: _controller,
+              slivers: [
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: ReaderScreenMetrics.columnTop),
+                ),
+                for (final surah in _surahs) ...[
+                  SliverPadding(
+                    key: _keyOf(_headerKeys, surah.info.number),
+                    padding: ReaderScreenMetrics.blockPadding,
+                    sliver: SliverToBoxAdapter(child: _header(context, surah)),
                   ),
-                  for (final surah in _surahs) ...[
-                    SliverPadding(
-                      key: _keyOf(_headerKeys, surah.info.number),
-                      padding: ReaderScreenMetrics.blockPadding,
-                      sliver: SliverToBoxAdapter(
-                        child: _header(context, surah),
-                      ),
+                  SliverPadding(
+                    padding: ReaderScreenMetrics.blockPadding,
+                    sliver: InteractiveSurahSliver(
+                      key: _keyOf(_textKeys, surah.info.number),
+                      text: surah.text,
+                      step: step,
+                      onLayout: _onLayout,
+                      highlights: highlights,
+                      onTap: _tapped,
+                      onLongPress: _model.longPress,
+                      blockOverlayBuilder: _margin,
+                      marginRows: marginRows,
                     ),
-                    SliverPadding(
-                      padding: ReaderScreenMetrics.textPadding(gutter),
-                      sliver: InteractiveSurahSliver(
-                        key: _keyOf(_textKeys, surah.info.number),
-                        text: surah.text,
-                        step: step,
-                        onLayout: _onLayout,
-                        highlights: highlights,
-                        onTap: _tapped,
-                        onLongPress: _model.longPress,
-                        blockOverlayBuilder: (context, layout) =>
-                            _margin(layout, gutter),
-                      ),
-                    ),
-                  ],
+                  ),
                 ],
-              ),
+              ],
             ),
           ),
         ),

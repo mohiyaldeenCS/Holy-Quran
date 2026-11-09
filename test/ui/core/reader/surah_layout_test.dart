@@ -4,12 +4,15 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holyquran/ui/core/metrics/reader_screen_metrics.dart';
 import 'package:holyquran/ui/core/reader/block_layout.dart';
 import 'package:holyquran/ui/core/reader/line_breaker.dart';
 import 'package:holyquran/ui/core/reader/reader_paragraph.dart';
 import 'package:holyquran/ui/core/reader/reader_style.dart';
 import 'package:holyquran/ui/core/reader/reader_text_scale.dart';
 import 'package:holyquran/ui/core/reader/surah_layout.dart';
+import 'package:holyquran/ui/core/reader/surah_text.dart';
+import 'package:holyquran/ui/core/reader/tap_resolver.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 
 import 'reader_fixture.dart';
@@ -27,6 +30,10 @@ const _cases = [
 
 ReaderStyle _style(double system, double step) =>
     ReaderStyle(ReaderTextScaler(TextScaler.linear(system), step));
+
+/// A row of margin marks as tall as a synthetic measure says: taller for
+/// more marks, so that rows differ.
+double _rowHeight(List<MarginMark> marks) => 17.0 + 9 * marks.length;
 
 List<BlockLayout> _laidOut(SurahLayout plan) => [
   for (var b = 0; b < plan.blocks.length; b++)
@@ -226,6 +233,155 @@ void main() {
             expect(right, closeTo(size.width, 1), reason: 'line $k');
             expect(left, closeTo(0, 1), reason: 'line $k');
           }
+          block.dispose();
+        }
+      }
+    });
+
+    test('margin rows move lines down and change nothing across, $name', () {
+      for (final surah in fixture.surahs.values) {
+        final style = _style(size.system, size.step);
+        final plain = SurahLayout.plan(surah, style, size.width);
+        final plan = SurahLayout.plan(
+          surah,
+          style,
+          size.width,
+          marginRow: _rowHeight,
+        );
+        final reason = 'surah ${surah.surah}';
+        expect(plan.lineHeight, plain.lineHeight);
+        expect(plan.lines, hasLength(plain.lines.length));
+        for (final (k, line) in plan.lines.indexed) {
+          final before = plain.lines[k];
+          expect(
+            (line.start, line.end, line.stretch),
+            (before.start, before.end, before.stretch),
+            reason: '$reason line $k',
+          );
+        }
+        expect(
+          [for (final s in plan.segments) (s.firstLine, s.endLine)],
+          [for (final s in plain.segments) (s.firstLine, s.endLine)],
+        );
+        final rowLines = {
+          for (final mark in surah.marginMarks) plan.lineOfAyahText(mark.ayah),
+        };
+        var below = 0.0;
+        for (var k = 0; k < plan.lines.length; k++) {
+          final row = plan.rowExtent(k);
+          if (rowLines.contains(k)) {
+            expect(
+              row,
+              _rowHeight(plan.marksAbove(k)) + ReaderScreenMetrics.marginRowGap,
+            );
+          } else {
+            expect(row, 0, reason: '$reason line $k');
+          }
+          below += row;
+          expect(plan.lineTop(k), closeTo(plain.lineTop(k) + below, 1e-6));
+          expect(plan.lineAt(plan.slotTop(k)), k);
+          expect(plan.lineAt(plan.lineTop(k) + 1), k);
+        }
+        expect(plan.height, closeTo(plain.height + below, 1e-6));
+
+        final blocks = _laidOut(plan);
+        final plainBlocks = _laidOut(plain);
+        expect(blocks, hasLength(plainBlocks.length));
+        for (final (b, block) in blocks.indexed) {
+          final was = plainBlocks[b];
+          expect(block.matchesPlan, isTrue, reason: '$reason block $b');
+          expect(block.laidLineStarts, was.laidLineStarts);
+          expect(block.laidLineExtents, was.laidLineExtents);
+          final drop = [
+            for (var line = 0; line < block.lineCount; line++)
+              block.lineBand(line).top - was.lineBand(line).top,
+          ];
+          Rect moved(Rect rect) {
+            final line = was.lineBands.indexWhere(
+              (band) =>
+                  band.top <= rect.center.dy && rect.center.dy < band.bottom,
+            );
+            return rect.translate(0, drop[line]);
+          }
+
+          void same(Rect? now, Rect? before, String what) {
+            expect(now == null, before == null, reason: what);
+            if (now == null || before == null) return;
+            final expected = moved(before);
+            expect(now.left, closeTo(expected.left, 1e-6), reason: what);
+            expect(now.right, closeTo(expected.right, 1e-6), reason: what);
+            expect(now.top, closeTo(expected.top, 1e-6), reason: what);
+            expect(now.bottom, closeTo(expected.bottom, 1e-6), reason: what);
+          }
+
+          for (final ayah in block.ayat) {
+            final what = '$reason ayah $ayah';
+            same(block.markerRect(ayah), was.markerRect(ayah), '$what marker');
+            same(block.pageMarkRect(ayah), was.pageMarkRect(ayah), what);
+            final boxes = block.ayahBoxes(ayah);
+            final before = was.ayahBoxes(ayah);
+            expect(boxes, hasLength(before.length), reason: what);
+            for (final (k, box) in boxes.indexed) {
+              same(box, before[k], '$what box $k');
+            }
+            final lines = block.ayahLines(ayah);
+            expect(lines, hasLength(was.ayahLines(ayah).length));
+            for (final (k, line) in lines.indexed) {
+              same(line, was.ayahLines(ayah)[k], '$what line $k');
+            }
+            expect(
+              block.ayahRect(ayah),
+              before.map(moved).reduce((a, b) => a.expandToInclude(b)),
+              reason: what,
+            );
+            expect(block.topOfAyah(ayah), moved(was.ayahBoxes(ayah).first).top);
+            for (final word in surah.ayat[ayah - 1].words) {
+              final box = block.wordBox(ayah, word.number);
+              same(box, was.wordBox(ayah, word.number), '$what w$word');
+              if (box == null) continue;
+              expect(
+                targetInBlock(block, box.center),
+                targetInBlock(was, was.wordBox(ayah, word.number)!.center),
+                reason: '$what word ${word.number}',
+              );
+            }
+            for (final mark in surah.ayat[ayah - 1].marks) {
+              final boxes = block.markBoxes(ayah, mark.number);
+              final before = was.markBoxes(ayah, mark.number);
+              expect(boxes, hasLength(before.length));
+              for (final (k, box) in boxes.indexed) {
+                same(box, before[k], '$what mark ${mark.number}');
+              }
+            }
+          }
+          for (final (marks, row) in block.marginRows) {
+            final line =
+                plan.lineOfAyahText(marks.first.ayah) - block.block.firstLine;
+            expect(
+              row.bottom,
+              block.lineBand(line).top - ReaderScreenMetrics.marginRowGap,
+            );
+            for (final band in block.lineBands) {
+              expect(row.overlaps(band), isFalse, reason: reason);
+            }
+          }
+          expect(
+            block.height,
+            closeTo(
+              was.height +
+                  [
+                    for (
+                      var l = block.block.firstLine;
+                      l < block.block.endLine;
+                      l++
+                    )
+                      plan.rowExtent(l),
+                  ].fold(0.0, (a, b) => a + b),
+              1e-6,
+            ),
+          );
+        }
+        for (final block in [...blocks, ...plainBlocks]) {
           block.dispose();
         }
       }
