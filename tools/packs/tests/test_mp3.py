@@ -25,6 +25,7 @@ class DurationTest(unittest.TestCase):
         self.assertFalse(audio.delay_known)
         self.assertIsNone(audio.encoder_delay)
         self.assertIsNone(audio.padding)
+        self.assertIsNone(audio.xing_count)
         self.assertEqual([g.start_ms for g in audio.granules], [18.0 * i for i in range(20)])
 
     def test_the_lame_tag_removes_delay_and_padding(self):
@@ -48,7 +49,29 @@ class DurationTest(unittest.TestCase):
 
     def test_a_xing_header_without_a_frame_count(self):
         audio = read_mp3(f.info_frame(delay=DELAY, padding=PADDING) + f.stream(TEN_FRAMES))
-        self.assertEqual((audio.frames, audio.duration_ms), (10, 324.0))
+        self.assertEqual((audio.frames, audio.duration_ms, audio.xing_count), (10, 324.0, None))
+
+    def test_a_xing_count_equal_to_the_audio_frames_or_one_more(self):
+        for count, case in ((10, "equal"), (11, "includes_info_frame")):
+            for tag in (b"Info", b"Xing"):
+                with self.subTest(count=count, tag=tag):
+                    data = f.info_frame(frames=count, delay=DELAY, padding=PADDING, tag=tag) + f.stream(TEN_FRAMES)
+                    audio = read_mp3(data)
+                    self.assertEqual((audio.frames, audio.xing_count, audio.duration_ms), (10, case, 324.0))
+
+    def test_a_vbri_frame_is_not_audio(self):
+        for count, case in ((10, "equal"), (11, "includes_info_frame")):
+            with self.subTest(count=count):
+                audio = read_mp3(f.vbri_frame(count) + f.stream(TEN_FRAMES))
+                self.assertEqual((audio.frames, audio.xing_count, audio.duration_ms), (10, case, 360.0))
+                self.assertEqual((audio.lame_tag, audio.delay_known), ("none", False))
+                self.assertEqual(audio.granules[0].start_ms, 0.0)
+
+    def test_a_vbri_frame_of_mpeg_1_stereo(self):
+        data = f.vbri_frame(2, sample_rate=44100, kbps=128, mode="joint_stereo")
+        data += f.stream([f.LOUD] * 4, sample_rate=44100, kbps=128, mode="joint_stereo")
+        audio = read_mp3(data)
+        self.assertEqual((audio.frames, audio.xing_count), (2, "equal"))
 
     def test_a_lame_tag_whose_crc_fails_is_not_used(self):
         data = f.info_frame(frames=10, delay=DELAY, padding=PADDING, break_crc=True) + f.stream(TEN_FRAMES)
@@ -128,12 +151,22 @@ class TagTest(unittest.TestCase):
         for data in (
             f.id3v2() + audio,
             f.id3v2(footer=True) + audio,
+            f.id3v2(version=3, flags=0x10) + audio,
+            f.id3v2(version=2, flags=0x10) + audio,
             f.id3v2(version=3) + audio + f.id3v1(),
             audio + f.apev2(),
             audio + f.apev2(header=False),
             f.id3v2() + audio + f.apev2() + f.id3v1(),
         ):
             self.assertEqual(read_mp3(data), expected)
+
+    def test_tag_inside_the_last_frame_is_audio(self):
+        last = f.frame_ending_in_tag()
+        for data in (f.stream(TEN_FRAMES) + last, f.id3v2() + f.stream(TEN_FRAMES) + last, last):
+            with self.subTest(length=len(data)):
+                audio = read_mp3(data)
+                self.assertEqual(audio.frames, len(data) // 288)
+        self.assertEqual(read_mp3(f.stream(TEN_FRAMES) + last + f.id3v1()).frames, 11)
 
     def test_a_bad_id3v2_tag(self):
         audio = f.stream(TEN_FRAMES)
@@ -207,8 +240,16 @@ class RefusalTest(unittest.TestCase):
 
     def test_a_broken_info_frame(self):
         audio = f.stream(TEN_FRAMES)
-        miscounted = f.info_frame(frames=9, delay=DELAY, padding=PADDING)
-        self.assert_refused(miscounted + audio, "counts 9 frames, the file has 10", 21)
+        for count in (8, 9, 12):
+            miscounted = f.info_frame(frames=count, delay=DELAY, padding=PADDING)
+            words = "Xing header at byte 21 counts %d frames, the file has 10 (or 11 with the info frame)" % count
+            self.assert_refused(miscounted + audio, words, 21)
+            words = "VBRI header at byte 36 counts %d frames, the file has 10" % count
+            self.assert_refused(f.vbri_frame(count) + audio, words, 36)
+        # MPEG 2, 24 kHz, 16 kbps: a 48-byte frame, which ends 12 bytes into the 26 of a VBRI header.
+        cut = f.frame(None, version="2", sample_rate=24000, kbps=16, body=bytes(36 - 4 - 9) + b"VBRI")
+        after = f.frame([(f.LOUD,)], version="2", sample_rate=24000, kbps=16)
+        self.assert_refused(cut + after, "the VBRI header at byte 36 is truncated", 36)
         self.assert_refused(f.info_frame(frames=10, flags=0x1F) + audio, "unknown flags", 21)
         cut = f.frame(None, version="2", sample_rate=16000, kbps=8, body=b"Xing" + (0x0F).to_bytes(4, "big"))
         self.assert_refused(cut + f.frame([(f.LOUD,)], version="2", sample_rate=16000, kbps=8), "is truncated", 13)

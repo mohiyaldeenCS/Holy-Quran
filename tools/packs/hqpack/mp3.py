@@ -5,9 +5,16 @@ then walks every frame header from the first byte after the ID3v2 tag to the
 first byte of the end tags: MPEG 1, 2 and 2.5, Layer III, a bitrate from the
 table (free bitrate refused). A lost sync, a truncated frame, or a frame whose
 MPEG version, sample rate or channel count differs from the first is refused
-with its byte offset. A first frame that holds a Xing or Info header is the
-encoder's info frame, not audio; a LAME tag after it gives the encoder delay
-and padding when its CRC-16 holds. A tag whose CRC fails is reported
+with its byte offset. The last 128 bytes are an ID3v1 tag when they begin with
+`TAG`, unless the frame walk from the start ends exactly at the end of the
+file: then `TAG` lies inside the last frame and the bytes are audio.
+
+A first frame that holds a Xing or Info header, or a Fraunhofer VBRI header,
+is the encoder's info frame, not audio. Its frame count, when it has one, must
+equal the audio frames (`xing_count` "equal") or exceed them by one, for
+encoders that count the info frame itself ("includes_info_frame"); any other
+count is refused. A LAME tag after a Xing or Info header gives the encoder
+delay and padding when its CRC-16 holds. A tag whose CRC fails is reported
 (`lame_tag` "crc_mismatch") and its delay and padding are not used: ffmpeg is
 said to compute the CRC over a fixed 190 bytes, which differs from LAME's rule
 outside MPEG 1 stereo, and an unverified value is never guessed at.
@@ -32,6 +39,8 @@ CHANNEL_MODES = ("stereo", "joint_stereo", "dual_channel", "mono")
 LAME_NONE = "none"
 LAME_VALID = "valid"
 LAME_CRC_MISMATCH = "crc_mismatch"
+XING_COUNT_EQUAL = "equal"
+XING_COUNT_INCLUDES_INFO_FRAME = "includes_info_frame"
 
 _VERSIONS = {0b11: "1", 0b10: "2", 0b00: "2.5"}
 _SAMPLE_RATES = {
@@ -46,6 +55,13 @@ _BITRATES_KBPS = {
 _LAYERS = {0b01: "III", 0b10: "II", 0b11: "I"}
 _INFO_TAGS = (b"Xing", b"Info")
 _XING_FLAGS = 0x0F
+# The VBRI header starts 32 bytes after the frame header, whatever the side
+# information's size; its frame count is at byte 14 and its fixed part 26 bytes.
+_VBRI_TAG = b"VBRI"
+_VBRI_AT = 36
+_VBRI_FRAMES_AT = 14
+_VBRI_LENGTH = 26
+_ID3V2_FOOTER_VERSION = 4
 _LAME_ENCODERS = (b"LAME", b"Lavf", b"Lavc")
 _LAME_TAG_LENGTH = 36
 _LAME_CRC_AT = 34
@@ -77,6 +93,7 @@ class Mp3Audio:
     encoder_delay: Optional[int]
     padding: Optional[int]
     lame_tag: str
+    xing_count: Optional[str]
     granules: tuple
 
 
@@ -132,17 +149,12 @@ def read_mp3(data: bytes) -> Mp3Audio:
     audio = headers[1:] if info is not None else headers
     if not audio:
         raise PackError("no MPEG audio frame after byte %d" % start)
-    first = audio[0]
-    if info is not None and info.frames is not None and info.frames != len(audio):
-        raise PackError(
-            "the Xing header at byte %d counts %d frames, the file has %d"
-            % (info.offset, info.frames, len(audio))
-        )
-    return _audio(data, audio, first, info)
+    return _audio(data, audio, audio[0], info, _xing_count(info, len(audio)))
 
 
 @dataclass(frozen=True)
 class _Info:
+    kind: str
     offset: int
     frames: Optional[int]
     lame_tag: str
@@ -150,7 +162,20 @@ class _Info:
     padding: Optional[int]
 
 
-def _audio(data, audio, first, info):
+def _xing_count(info, frames):
+    if info is None or info.frames is None:
+        return None
+    if info.frames == frames:
+        return XING_COUNT_EQUAL
+    if info.frames == frames + 1:
+        return XING_COUNT_INCLUDES_INFO_FRAME
+    raise PackError(
+        "the %s header at byte %d counts %d frames, the file has %d (or %d with the info frame)"
+        % (info.kind, info.offset, info.frames, frames, frames + 1)
+    )
+
+
+def _audio(data, audio, first, info, xing_count):
     total = len(audio) * first.samples
     delay_known = info is not None and info.encoder_delay is not None
     if delay_known:
@@ -185,6 +210,7 @@ def _audio(data, audio, first, info):
         encoder_delay=info.encoder_delay if delay_known else None,
         padding=info.padding if delay_known else None,
         lame_tag=info.lame_tag if info is not None else LAME_NONE,
+        xing_count=xing_count,
         granules=tuple(granules),
     )
 
@@ -199,7 +225,8 @@ def _id3v2_end(data):
     if any(b & 0x80 for b in data[6:10]):
         raise PackError("the ID3v2 tag at byte 0 has a size that is not synchsafe")
     size = (data[6] << 21) | (data[7] << 14) | (data[8] << 7) | data[9]
-    end = 10 + size + (10 if data[5] & 0x10 else 0)
+    footer = data[3] == _ID3V2_FOOTER_VERSION and data[5] & 0x10
+    end = 10 + size + (10 if footer else 0)
     if end > len(data):
         raise PackError("the ID3v2 tag at byte 0 runs past the end of the file")
     return end
@@ -207,7 +234,7 @@ def _id3v2_end(data):
 
 def _audio_end(data, start):
     end = len(data)
-    if end - start >= 128 and data[end - 128:end - 125] == b"TAG":
+    if end - start >= 128 and data[end - 128:end - 125] == b"TAG" and not _walk_ends_at(data, start, end):
         end -= 128
     if end - start >= 32 and data[end - 32:end - 24] == _APE_PREAMBLE:
         footer = end - 32
@@ -222,6 +249,17 @@ def _audio_end(data, start):
             raise PackError("the APEv2 tag at byte %d lacks the header its flags announce" % footer)
         end -= total
     return end
+
+
+def _walk_ends_at(data, start, end):
+    """Whether frame headers, each read from where the previous frame ends, lead from `start` exactly to `end`."""
+    position = start
+    while position < end:
+        try:
+            position += _header(data, position, end).length
+        except PackError:
+            return False
+    return position == end
 
 
 def _header(data, offset, end):
@@ -282,7 +320,7 @@ def _info_frame(data, header):
     tag = header.side_info_offset + header.side_info_size
     frame_end = header.offset + header.length
     if data[tag:tag + 4] not in _INFO_TAGS:
-        return None
+        return _vbri_frame(data, header)
     position = tag + 8
     if position > frame_end:
         raise PackError("the Xing header at byte %d is truncated" % tag)
@@ -298,7 +336,18 @@ def _info_frame(data, header):
                 frames = int.from_bytes(data[position:position + 4], "big")
             position += length
     state, delay, padding = _lame_tag(data, header, position)
-    return _Info(offset=tag, frames=frames, lame_tag=state, encoder_delay=delay, padding=padding)
+    return _Info(kind="Xing", offset=tag, frames=frames, lame_tag=state, encoder_delay=delay, padding=padding)
+
+
+def _vbri_frame(data, header):
+    tag = header.offset + _VBRI_AT
+    if data[tag:tag + 4] != _VBRI_TAG:
+        return None
+    if tag + _VBRI_LENGTH > header.offset + header.length:
+        raise PackError("the VBRI header at byte %d is truncated" % tag)
+    count = tag + _VBRI_FRAMES_AT
+    frames = int.from_bytes(data[count:count + 4], "big")
+    return _Info(kind="VBRI", offset=tag, frames=frames, lame_tag=LAME_NONE, encoder_delay=None, padding=None)
 
 
 def _lame_tag(data, header, lame):

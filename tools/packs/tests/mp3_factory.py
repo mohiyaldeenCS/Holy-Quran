@@ -168,17 +168,39 @@ def info_frame(
         lame += bytes([delay >> 4, (delay & 0x0F) << 4 | padding >> 8, padding & 0xFF]) + bytes(10)
     data = bytearray(frame(None, version, sample_rate, kbps, mode, body=body + lame + b"\x00\x00"))
     if delay is not None:
-        channels = 1 if mode == "mono" else 2
-        side = {("1", 1): 17, ("1", 2): 32}.get((version, channels), 9 if channels == 1 else 17)
-        crc_at = 4 + side + len(body) + 34
+        crc_at = 4 + side_info_length(version, mode) + len(body) + 34
         crc = crc16(bytes(data[:crc_at])) ^ (1 if break_crc else 0)
         data[crc_at:crc_at + 2] = crc.to_bytes(2, "big")
     return bytes(data)
 
 
-def id3v2(size=20, footer=False, version=4):
+def side_info_length(version="1", mode="mono"):
+    channels = 1 if mode == "mono" else 2
+    return {("1", 1): 17, ("1", 2): 32}.get((version, channels), 9 if channels == 1 else 17)
+
+
+def vbri_frame(frames, version="1", sample_rate=32000, kbps=64, mode="mono"):
+    """A Fraunhofer VBRI info frame: the header 32 bytes after the frame header, with a table of one entry."""
+    fields = (1).to_bytes(2, "big") + (576).to_bytes(2, "big") + (75).to_bytes(2, "big")
+    fields += (12345).to_bytes(4, "big") + frames.to_bytes(4, "big")
+    fields += (1).to_bytes(2, "big") + (1).to_bytes(2, "big") + (2).to_bytes(2, "big") + (1).to_bytes(2, "big")
+    body = bytes(32 - side_info_length(version, mode)) + b"VBRI" + fields + (300).to_bytes(2, "big")
+    return frame(None, version, sample_rate, kbps, mode, body=body)
+
+
+def frame_ending_in_tag(version="1", sample_rate=32000, kbps=64, mode="mono"):
+    """A frame whose main data holds `TAG` 128 bytes before its end, where an ID3v1 tag would begin."""
+    length = frame_length(version, sample_rate, kbps)
+    body = bytes(length - 128 - 4 - side_info_length(version, mode)) + b"TAG" + b"\x01" * 125
+    return frame(None, version, sample_rate, kbps, mode, body=body)
+
+
+def id3v2(size=20, footer=False, version=4, flags=None):
+    """An ID3v2 tag of `size` zero bytes; `footer` sets flag 0x10 and adds a footer, `flags` sets the flags alone."""
     synchsafe = bytes([(size >> 21) & 0x7F, (size >> 14) & 0x7F, (size >> 7) & 0x7F, size & 0x7F])
-    head = b"ID3" + bytes([version, 0, 0x10 if footer else 0]) + synchsafe
+    if flags is None:
+        flags = 0x10 if footer else 0
+    head = b"ID3" + bytes([version, 0, flags]) + synchsafe
     return head + bytes(size) + (b"3DI" + bytes([version, 0, 0x10]) + synchsafe if footer else b"")
 
 
