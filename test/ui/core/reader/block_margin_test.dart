@@ -18,6 +18,7 @@ import 'package:holyquran/ui/core/reader/interactive_surah_sliver.dart';
 import 'package:holyquran/ui/core/reader/margin_mark.dart';
 import 'package:holyquran/ui/core/reader/margin_row.dart';
 import 'package:holyquran/ui/core/reader/reader_block.dart';
+import 'package:holyquran/ui/core/reader/surah_layout.dart';
 import 'package:holyquran/ui/core/reader/surah_text.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/bookmark_ribbon.dart';
@@ -40,6 +41,7 @@ Widget _reader(
   ScrollController? controller,
   bool margin = true,
   Key? surface,
+  MarginRowMeasure? rows,
 }) => goldenApp(
   theme,
   SizedBox.fromSize(
@@ -52,7 +54,7 @@ Widget _reader(
             padding: ReaderScreenMetrics.blockPadding,
             sliver: InteractiveSurahSliver(
               text: text,
-              marginRows: MarginRowMeasure.of(context),
+              marginRows: rows ?? MarginRowMeasure.of(context),
               blockOverlayBuilder: margin
                   ? (context, layout) =>
                         BlockMargin(layout: layout, bookmarks: bookmarks)
@@ -189,6 +191,38 @@ void main() {
     }
     tester.platformDispatcher.clearTextScaleFactorTestValue();
     tester.platformDispatcher.clearAccessibilityFeaturesTestValue();
+  });
+
+  testWidgets('the rows are planned again when their measure changes', (
+    tester,
+  ) async {
+    setView(tester);
+    final surah = fixture.surahs[longSurah]!;
+    SurahLayout planOf() =>
+        tester.widget<ReaderBlock>(find.byType(ReaderBlock).first).layout.plan;
+    for (final measure in [
+      MarginRowMeasure(strings, TextScaler.noScaling),
+      MarginRowMeasure(strings, const TextScaler.linear(2)),
+      MarginRowMeasure(strings, const TextScaler.linear(2), bold: true),
+    ]) {
+      await tester.pumpWidget(_reader(surah, const {}, rows: measure));
+      final plan = planOf();
+      final line = plan.lineOfAyahText(surah.marginMarks.first.ayah);
+      expect(
+        plan.rowExtent(line),
+        measure.heightOf(plan.marksAbove(line)) +
+            ReaderScreenMetrics.marginRowGap,
+      );
+    }
+    final before = planOf();
+    await tester.pumpWidget(
+      _reader(
+        surah,
+        const {},
+        rows: MarginRowMeasure(strings, const TextScaler.linear(2), bold: true),
+      ),
+    );
+    expect(identical(planOf(), before), isTrue);
   });
 
   testWidgets('a screen reader meets a margin mark before its ayah, and '

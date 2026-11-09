@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -34,6 +36,9 @@ ReaderStyle _style(double system, double step) =>
 /// A row of margin marks as tall as a synthetic measure says: taller for
 /// more marks, so that rows differ.
 double _rowHeight(List<MarginMark> marks) => 17.0 + 9 * marks.length;
+
+/// A row taller than any ink that leaves a line, in whole pixels.
+const double _tallRow = 200;
 
 List<BlockLayout> _laidOut(SurahLayout plan) => [
   for (var b = 0; b < plan.blocks.length; b++)
@@ -414,6 +419,90 @@ void main() {
       }
     });
   }
+
+  test('lines below a row are drawn where their boxes are, the centred last '
+      'line too', () async {
+    Future<Uint8List> pixels(BlockLayout block) async {
+      final recorder = ui.PictureRecorder();
+      block.paint(Canvas(recorder), Offset.zero);
+      final picture = recorder.endRecording();
+      final image = await picture.toImage(
+        block.width.ceil(),
+        block.height.ceil(),
+      );
+      final bytes = await image.toByteData();
+      image.dispose();
+      picture.dispose();
+      return bytes!.buffer.asUint8List();
+    }
+
+    var lastLineMoved = false;
+    var compared = 0;
+    for (final surah in fixture.surahs.values) {
+      // A row at every other ayah, far taller than any ink that leaves a
+      // line, so that each run of lines between rows stands apart.
+      final marked = SurahText(
+        riwaya: surah.riwaya,
+        surah: surah.surah,
+        ayat: surah.ayat,
+        basmala: surah.basmala,
+        pageStarts: surah.pageStarts,
+        marginMarks: [
+          for (var a = 2; a <= surah.ayat.length; a += 2)
+            MarginMark(MarginMarkKind.sajda, a),
+        ],
+      );
+      final style = _style(1, 1);
+      final plain = SurahLayout.plan(marked, style, 360);
+      final plan = SurahLayout.plan(
+        marked,
+        style,
+        360,
+        marginRow: (_) => _tallRow,
+      );
+      final last = plan.segments.last;
+      for (var line = last.firstLine + 1; line < last.endLine; line++) {
+        if (plan.rowExtent(line) > 0) lastLineMoved = true;
+      }
+      for (var b = 0; b < plan.blocks.length; b++) {
+        final now = BlockLayout(plan, b, ink: _ink.quranInk);
+        final was = BlockLayout(plain, b, ink: _ink.quranInk);
+        final drawn = await pixels(now);
+        final before = await pixels(was);
+        final stride = now.width.ceil() * 4;
+        // Each run of lines with no row between them is the same picture,
+        // moved down by whole rows; only the edges of its first and last
+        // bands may hold the ink of a line beyond the run.
+        final edge = plan.lineHeight / 4;
+        var first = 0;
+        for (var k = 1; k <= now.lineCount; k++) {
+          if (k < now.lineCount &&
+              plan.rowExtent(now.block.firstLine + k) == 0) {
+            continue;
+          }
+          final drop = now.lineBand(first).top - was.lineBand(first).top;
+          expect(drop, drop.roundToDouble());
+          final from = (now.lineBand(first).top + edge).ceil();
+          final to = (now.lineBand(k - 1).bottom - edge).floor();
+          for (var y = from; y < to; y++) {
+            final at = y * stride;
+            final old = (y - drop.toInt()) * stride;
+            expect(
+              drawn.sublist(at, at + stride),
+              before.sublist(old, old + stride),
+              reason: 'surah ${surah.surah} block $b row of pixels $y',
+            );
+            compared++;
+          }
+          first = k;
+        }
+        now.dispose();
+        was.dispose();
+      }
+    }
+    expect(lastLineMoved, isTrue, reason: 'a row inside the last paragraph');
+    expect(compared, greaterThan(1000));
+  });
 
   test('a word wider than the line is drawn smaller and stays whole', () {
     final surah = fixture.surahs[overwideSurah]!;
