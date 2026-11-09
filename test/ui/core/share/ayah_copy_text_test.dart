@@ -121,6 +121,39 @@ void main() {
       copyText = AyahCopyText(repository, _l10n);
     });
 
+    test('in the unapproved test copy ends with the marking line on its own '
+        'line, after the copy of an approved build, byte for byte', () async {
+      final marked = AyahCopyText(repository, _l10n, unapprovedCopy: true);
+      final ayat = await packAyat(pack, repository);
+      expect(ayat, isNotEmpty);
+      for (final ayah in ayat) {
+        final approved = await copyText.compose(
+          ayah.address,
+          CopyForm.withSurahAndNumber,
+        );
+        final copy = await marked.compose(
+          ayah.address,
+          CopyForm.withSurahAndNumber,
+        );
+        expect(utf8.encode((copy as Ok<String>).value), [
+          ...utf8.encode((approved as Ok<String>).value),
+          0x0A,
+          ...utf8.encode(_l10n.unapprovedTestCopy),
+        ], reason: '${ayah.address}');
+      }
+    });
+
+    test('an approved build adds no line', () async {
+      final copy = await copyText.compose(
+        QuranAddress(repository.riwaya, 1, 1),
+        CopyForm.withSurahAndNumber,
+      );
+      expect(
+        (copy as Ok<String>).value,
+        isNot(contains(_l10n.unapprovedTestCopy)),
+      );
+    });
+
     test('offers only the forms whose format the ARB file gives', () {
       expect(copyText.forms, [CopyForm.withSurahAndNumber]);
     });

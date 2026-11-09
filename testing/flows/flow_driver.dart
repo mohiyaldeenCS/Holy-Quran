@@ -5,6 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/main.dart' show AppStart;
+import 'package:holyquran/routing/router.dart';
+import 'package:holyquran/routing/routes/feature_routes.dart';
+import 'package:holyquran/ui/core/app.dart';
+import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
 import '../application_support.dart';
@@ -17,16 +21,38 @@ final AppLocalizations flowL10n = lookupAppLocalizations(const Locale('ar'));
 const flowPhone = Size(390, 844);
 
 /// Puts the app in front of the user: [AppStart] over [providers], on a phone
-/// sized view. Semantics must be on, so that controls are found by name.
+/// sized view; with [unapprovedCopy] as the unapproved test copy's `main`
+/// starts it. With [features] the app has those routes in place of its own,
+/// and no splash. Semantics must be on, so that controls are found by name.
 Future<void> pumpFlowApp(
   WidgetTester tester,
-  List<SingleChildWidget> providers,
-) async {
+  List<SingleChildWidget> providers, {
+  bool unapprovedCopy = false,
+  List<FeatureRoutes>? features,
+}) async {
   tester.view
     ..physicalSize = flowPhone
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(AppStart(dependencies: Future.value(providers)));
+  if (features == null) {
+    await tester.pumpWidget(
+      AppStart(
+        dependencies: Future.value(providers),
+        unapprovedCopy: unapprovedCopy,
+      ),
+    );
+  } else {
+    // AppStart builds its router over the app's own routes; this is the same
+    // app over the routes the test gives.
+    final router = createRouter(features: features);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: providers,
+        child: QuranApp(router: router, unapprovedCopy: unapprovedCopy),
+      ),
+    );
+  }
   await tester.pumpAndSettle();
 }
 

@@ -22,7 +22,7 @@ MARK_TABLE_FILE = "marks.json"
 BUILD_FILE = "build.json"
 
 TEXT_NOTICE = "\nSynthetic text source for tests. Not Quran text.\nVersion 1\n"
-METADATA_NOTICE = "\nSynthetic metadata source for tests.\nVersion 1\n"
+METADATA_VERSION = "1.0"
 
 _OPENING = "Synthetic opening line"
 
@@ -70,6 +70,11 @@ SYNTHETIC_SAJDAS = ((1, 2, "recommended"), (2, 3, "obligatory"))
 
 SYNTHETIC_MARK_CODE_POINTS = ("U+06D6", "U+06D7", "U+06DA", "U+06E9")
 
+KFGQPC_FILE = "hafsData_v2-0.json"
+KFGQPC_NO_BREAK_SPACE = "\u00a0"
+KFGQPC_QUARTER_SIGN = "\u06de"
+KFGQPC_FIRST_NUMBER_GLYPH = 0xFC00
+
 _DECLARATION = '<?xml version="1.0" encoding="utf-8" ?>'
 _FORBIDDEN_IN_VALUES = ("&", "<", '"', "\t", "\n", "\r")
 
@@ -97,17 +102,20 @@ def synthetic_metadata_xml(
     rukus=SYNTHETIC_RUKUS,
     pages=SYNTHETIC_PAGES,
     sajdas=SYNTHETIC_SAJDAS,
-    notice=METADATA_NOTICE,
+    version=METADATA_VERSION,
+    notice=None,
 ) -> bytes:
-    lines = [
-        _DECLARATION,
-        _comment(notice),
+    """Tanzil's quran-data.xml has no comment; [notice] adds one before the root to test that form."""
+    lines = [_DECLARATION]
+    if notice is not None:
+        lines.append(_comment(notice))
+    lines.append(
         _start_tag(
             "quran",
-            (("type", "metadata"), ("version", "1.0"), ("copyright", "Synthetic"),
+            (("type", "metadata"), ("version", version), ("copyright", "Synthetic"),
              ("license", "synthetic")),
-        ),
-    ]
+        )
+    )
     sura_fields = ("ayas", "start", "name", "tname", "ename", "type", "order", "rukus")
     lines.extend(
         _group(
@@ -140,6 +148,51 @@ def synthetic_mark_table() -> bytes:
     return _json_bytes(document)
 
 
+def synthetic_kfgqpc_entries(
+    surahs=SYNTHETIC_SURAHS,
+    juzs=SYNTHETIC_JUZS,
+    quarters=SYNTHETIC_QUARTERS,
+    pages=SYNTHETIC_PAGES,
+) -> list:
+    """The objects of a KFGQPC-shaped hafsData file for [surahs], in the
+    published presentation: a quarter sign and a no-break space open each
+    quarter except where a quarter opens a surah, and every ayah ends with a
+    no-break space and the glyph of its number."""
+    entries = []
+    for surah, (name, _, ayat) in enumerate(surahs, 1):
+        for number, text in enumerate(ayat, 1):
+            opening = ""
+            if (surah, number) in quarters and number > 1:
+                opening = KFGQPC_QUARTER_SIGN + KFGQPC_NO_BREAK_SPACE
+            glyph = chr(KFGQPC_FIRST_NUMBER_GLYPH + number - 1)
+            entries.append(
+                {
+                    "id": len(entries) + 1,
+                    "jozz": _unit(juzs, surah, number),
+                    "page": _unit(pages, surah, number),
+                    "sura_no": surah,
+                    "sura_name_en": name,
+                    "sura_name_ar": name,
+                    "line_start": 1,
+                    "line_end": 2,
+                    "aya_no": number,
+                    "aya_text": opening + text + KFGQPC_NO_BREAK_SPACE + glyph,
+                    "aya_text_emlaey": text,
+                }
+            )
+    return entries
+
+
+def synthetic_kfgqpc_json(entries=None) -> bytes:
+    """UTF-8 without a BOM and indented with tabs, as published."""
+    entries = synthetic_kfgqpc_entries() if entries is None else entries
+    return json.dumps(entries, ensure_ascii=False, indent="\t").encode("utf-8")
+
+
+def _unit(starts, surah, number) -> int:
+    return sum(1 for start in starts if start <= (surah, number))
+
+
 def synthetic_build_config(text_sha256: str, metadata_sha256: str) -> dict:
     return {
         "id": "synthetic-text",
@@ -157,11 +210,12 @@ def synthetic_build_config(text_sha256: str, metadata_sha256: str) -> dict:
             "text": _source(
                 TEXT_FILE, text_sha256, 1, "Synthetic text source",
                 "https://example.invalid/synthetic/text"
-                "?marks=true&sajdah=true&rub=false&outType=xml&agree=true",
+                "?marks=true&sajdah=true&outType=xml&agree=true",
             ),
             "edition_map": _source(
                 METADATA_FILE, metadata_sha256, 4, "Synthetic metadata source",
                 "https://example.invalid/synthetic/metadata",
+                METADATA_VERSION,
             ),
         },
         "mark_table": MARK_TABLE_FILE,
@@ -196,7 +250,7 @@ def write_synthetic_source(
     return build
 
 
-def _source(file, sha256, registry_row, name, url) -> dict:
+def _source(file, sha256, registry_row, name, url, version="1") -> dict:
     return {
         "file": file,
         "file_sha256": sha256,
@@ -204,7 +258,7 @@ def _source(file, sha256, registry_row, name, url) -> dict:
         "name": name,
         "publisher": "Synthetic publisher",
         "url": url,
-        "version": "1",
+        "version": version,
         "fetched_on": "2026-01-01",
         "trust_grade": "A",
         "licence": {

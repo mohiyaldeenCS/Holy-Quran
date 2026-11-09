@@ -15,6 +15,7 @@ from hqpack.verify import Report, verify_pack
 
 from tests.build_support import (
     FONT,
+    HAFS_ID,
     OTHER_FONT,
     TEST_COPY_ID,
     BuildCase,
@@ -84,11 +85,11 @@ class SyntheticBuildTest(BuildCase):
 
     def test_sources_carry_options_notice_and_hashes(self):
         text, edition_map = self.manifest["sources"]
-        self.assertEqual(text["options"], {"marks": "true", "sajdah": "true", "rub": "false", "outType": "xml"})
-        self.assertEqual(list(text["options"]), ["marks", "sajdah", "rub", "outType"])
+        self.assertEqual(text["options"], {"marks": "true", "sajdah": "true", "outType": "xml"})
+        self.assertEqual(list(text["options"]), ["marks", "sajdah", "outType"])
         self.assertIsNone(edition_map["options"])
         self.assertEqual(text["licence"]["notice"], synthetic.TEXT_NOTICE)
-        self.assertEqual(edition_map["licence"]["notice"], synthetic.METADATA_NOTICE)
+        self.assertIsNone(edition_map["licence"]["notice"])
         self.assertEqual(text["file_sha256"], hashlib.sha256(synthetic.synthetic_text_xml()).hexdigest())
 
     def test_font_and_file_hashes(self):
@@ -151,6 +152,31 @@ class RefusalTest(BuildCase):
         config = self.write_source(text_xml=synthetic.synthetic_text_xml().split(b"\n<!--")[0] + b"\n")
         self.assert_refused("0 comments outside the root element", config)
 
+    def test_a_metadata_notice_comment_is_kept_verbatim(self):
+        notice = "\nOne metadata notice\n"
+        result = build_pack(self.write_source(metadata_xml=synthetic.synthetic_metadata_xml(notice=notice)), FONT, self.out)
+        manifest = json.loads((result.directory / "manifest.json").read_text(encoding="utf-8"))
+        edition_map = manifest["sources"][1]
+        self.assertEqual(edition_map["role"], "edition_map")
+        self.assertEqual(edition_map["licence"]["notice"], notice)
+
+    def test_a_metadata_with_two_comments(self):
+        two = synthetic.synthetic_metadata_xml(notice="\nOne\n").replace(b"</quran>\n", b"</quran>\n<!-- two -->\n")
+        self.assert_refused("2 comments outside the root element, not zero or one", self.write_source(metadata_xml=two))
+
+    def test_a_metadata_version_other_than_the_description(self):
+        self.assert_refused(
+            r"sources\.edition_map: the file is version 2\.0, the description names version 1\.0",
+            self.metadata(version="2.0"),
+        )
+
+    def test_a_metadata_without_a_root_version(self):
+        bare = synthetic.synthetic_metadata_xml().replace(b'" version="1.0" copyright', b'" copyright')
+        self.assert_refused(
+            r"sources\.edition_map: the root element of the file has no version attribute; the description names version 1\.0",
+            self.write_source(metadata_xml=bare),
+        )
+
     def test_a_surah_count_other_than_the_profile(self):
         self.assert_refused("has 2 surahs, not 3", self.text(surahs=synthetic.SYNTHETIC_SURAHS[:2]))
 
@@ -204,6 +230,17 @@ class RefusalTest(BuildCase):
         )
         self.assert_refused(r"U\+06DE", config)
 
+    def test_a_checkbox_option_with_a_value_other_than_true_stops_before_the_files_are_read(self):
+        config = self.write_source()
+        self.edit_config(
+            config,
+            lambda c: c["sources"]["text"].update(
+                url="https://example.invalid/synthetic/text?marks=true&sajdah=true&rub=false&agree=true"
+            ),
+        )
+        (self.source / synthetic.TEXT_FILE).unlink()
+        self.assert_refused(r"rub=false would include what it names: the URL must omit rub", config)
+
     def test_a_sign_the_profile_excludes_whatever_the_url_says(self):
         config = self.write_source(
             text_xml=synthetic.synthetic_text_xml(surahs=surahs_with_basmala(3, "Synthetic \u06de line")),
@@ -246,6 +283,82 @@ class RefusalTest(BuildCase):
         refused = Report(problems=["synthetic problem"], counts=None, signed=False)
         with mock.patch.object(build, "verify_pack", return_value=refused):
             self.assert_refused("fails verification: synthetic problem")
+
+
+class KfgqpcComparisonBuildTest(BuildCase):
+    """A hafs pack is built only after the KFGQPC comparison (PRD 9.4, P2, D-175)."""
+
+    def assert_refused(self, pattern, config=None, **kwargs):
+        config = config or self.write_source(riwaya="hafs", id=HAFS_ID)
+        with self.assertRaises(PackError) as caught:
+            build_pack(config, FONT, self.out, **kwargs)
+        message = str(caught.exception)
+        self.assertRegex(message, pattern)
+        self.assert_safe_message(message)
+        self.assert_out_empty()
+        return message
+
+    def test_a_hafs_pack_needs_both_inputs(self):
+        with hafs_shaped_profiles():
+            for given in ({}, {"kfgqpc": self.write_kfgqpc()}, {"table": self.write_table()}):
+                with self.subTest(given=sorted(given)):
+                    self.assert_refused(r"KFGQPC .*--kfgqpc, --table", **given)
+
+    def test_a_passing_comparison_still_stops_at_the_manifest(self):
+        with hafs_shaped_profiles():
+            message = self.assert_refused(
+                "the KFGQPC comparison passes .* manifest format 1 has no place",
+                kfgqpc=self.write_kfgqpc(),
+                table=self.write_table(),
+            )
+        self.assertIn("undocumented differences 0", message)
+        self.assertIn("table version 2", message)
+
+    def test_an_undocumented_difference_stops(self):
+        entries = synthetic.synthetic_kfgqpc_entries()
+        entries[1]["aya_text"] = entries[1]["aya_text"].replace("\u06d6", "\u06d7")
+        with hafs_shaped_profiles():
+            self.assert_refused(
+                "the KFGQPC comparison fails .*undocumented differences 1 in 1 patterns.*pack.py compare",
+                kfgqpc=self.write_kfgqpc(entries),
+                table=self.write_table(),
+            )
+
+    def test_a_page_difference_stops(self):
+        entries = synthetic.synthetic_kfgqpc_entries()
+        entries[0]["page"] = 2
+        with hafs_shaped_profiles():
+            self.assert_refused("page differences 1", kfgqpc=self.write_kfgqpc(entries), table=self.write_table())
+
+    def test_a_quarter_difference_stops(self):
+        # D-176 changes which source the build will take divisions from, not whether a disagreement stops it.
+        entries = synthetic.synthetic_kfgqpc_entries()
+        entries[1]["aya_text"] = entries[1]["aya_text"][2:]
+        with hafs_shaped_profiles():
+            message = self.assert_refused(
+                "quarter differences 1", kfgqpc=self.write_kfgqpc(entries), table=self.write_table()
+            )
+        self.assertIn("undocumented differences 0", message)
+
+    def test_the_other_checks_run_first(self):
+        config = self.write_source(
+            riwaya="hafs",
+            id=HAFS_ID,
+            text_xml=synthetic.synthetic_text_xml(notice="\nSynthetic notice\nVersion 2\n"),
+        )
+        with hafs_shaped_profiles():
+            self.assert_refused("does not name Version 1", config, kfgqpc=self.write_kfgqpc(), table=self.write_table())
+
+    def test_a_build_without_the_comparison_takes_no_kfgqpc_file(self):
+        self.assert_refused(
+            r"riwaya synthetic\); it takes no KFGQPC file",
+            self.write_source(),
+            kfgqpc=self.write_kfgqpc(),
+            table=self.write_table(),
+        )
+        config = self.write_source(riwaya="hafs", id=TEST_COPY_ID, reviews=[])
+        with hafs_shaped_profiles():
+            self.assert_refused(r"unapproved test copy\); it takes no KFGQPC file", config, unapproved=True, table=self.write_table())
 
 
 class UnapprovedTestCopyTest(BuildCase):

@@ -1,0 +1,42 @@
+{
+  "format": "holyquran-known-differences",
+  "version": 2,
+  "rules": [
+    {
+      "id": "P-1",
+      "kind": "presentation",
+      "code_points": {"separator": "U+00A0", "first_number_glyph": "U+FC00"},
+      "applies_to": "ayah_end",
+      "reason": "KFGQPC read.me, update 2.0: 'Adding non-breaking space before aya mark' and 'Adding Aya mark as Symbol'. Every KFGQPC ayah ends with U+00A0 (or the separator an address-listed rule names, P-4) and the glyph of its own number, U+FC00 + n - 1, which the font draws as the ayah mark. Tanzil has no ayah mark in the text; the app draws it. Removed from the KFGQPC side only after checking that the glyph is the ayah's own number.",
+      "approved_by": "lead (presentation, D-175)",
+      "date": "2026-11-06"
+    },
+    {
+      "id": "P-2",
+      "kind": "presentation",
+      "code_points": {"sign": "U+06DE", "separator": "U+00A0"},
+      "applies_to": "quarter_start",
+      "reason": "KFGQPC read.me, update 2.0: 'Adding non-breaking space after jozz/hizb symbol'. The KFGQPC ayah that opens a quarter begins with U+06DE and U+00A0. The base pack's Tanzil file is downloaded without the rub-el-hizb sign (D-079, D-172) and the app draws quarter marks from the division table. Removed from the KFGQPC side only where both open the ayah. The ayat that open with U+06DE, with those P-3 accepts, are KFGQPC's quarter starts; they are compared with the quarter starts of Tanzil's metadata and every difference is reported (P2, D-177).",
+      "approved_by": "lead (presentation, D-175)",
+      "date": "2026-11-06"
+    },
+    {
+      "id": "P-3",
+      "kind": "presentation",
+      "code_points": {"sign": "U+06DE"},
+      "applies_to": "surah_opening_quarter_start",
+      "reason": "Lead's run of the comparison on the real files (2026-11-06, D-177): where a quarter of Tanzil's metadata starts with the first ayah of a surah (42 ayat, among them 1:1, 4:1, 5:1 and 7:1), the KFGQPC ayah does not open with U+06DE. Accepted only at the first ayah of a surah that the metadata lists as a quarter start, after checking that it carries no sign; there it counts as a KFGQPC quarter start. A first ayah of a surah that opens with the sign is a problem.",
+      "approved_by": "lead (presentation, D-177)",
+      "date": "2026-11-06"
+    },
+    {
+      "id": "P-4",
+      "kind": "presentation",
+      "code_points": {"separator": "U+0020"},
+      "applies_to": ["hafs:2:286"],
+      "reason": "KFGQPC read.me, update 2.0: 'Fixing the Aya Mark in Sura number 2 (Al-Baqarah) Aya 286'. Lead's run on the real files (2026-11-06, D-177): this ayah ends with U+0020, not P-1's U+00A0, before its number glyph U+FD1D. At this address only, P-1's separator is U+0020; the glyph is checked as P-1 checks it, and the two are removed only if both are found.",
+      "approved_by": "lead (presentation, D-177)",
+      "date": "2026-11-06"
+    }
+  ]
+}

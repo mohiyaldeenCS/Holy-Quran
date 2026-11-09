@@ -26,6 +26,25 @@ def check_notice(notice, version, role):
         )
 
 
+def check_metadata_version(metadata, version):
+    """The metadata file names its version in the root attribute; it must be the one the description claims."""
+    found = metadata.version
+    if found is None:
+        raise PackError(
+            "sources.edition_map: the root element of the file has no version "
+            "attribute; the description names version %s" % _printable(version)
+        )
+    if found.value != version:
+        raise PackError(
+            "sources.edition_map: the file is version %s, the description names version %s"
+            % (_printable(found.value), _printable(version))
+        )
+
+
+def _printable(value):
+    return "".join(c if " " <= c <= "~" else code_point(c) for c in value)
+
+
 def check_structure(profile, text, metadata):
     """Surah and ayah counts against the profile and the metadata, and the basmala rule (P4)."""
     if len(text.suras) != profile.surahs:

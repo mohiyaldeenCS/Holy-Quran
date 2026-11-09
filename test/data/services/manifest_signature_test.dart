@@ -21,6 +21,64 @@ void main() {
     );
   });
 
+  group('SignatureRequired', () {
+    final manifest = Uint8List.fromList(utf8.encode('{"synthetic": 2}'));
+
+    test('passes valid and invalid through', () async {
+      final algorithm = Ed25519();
+      final pair = await algorithm.newKeyPair();
+      final key = (await pair.extractPublicKey()).bytes;
+      final signature = Uint8List.fromList(
+        (await algorithm.sign(manifest, keyPair: pair)).bytes,
+      );
+      final verifier = SignatureRequired(Ed25519ManifestVerifier([key]));
+
+      expect(
+        await verifier.verify(manifest: manifest, signature: signature),
+        SignatureCheck.valid,
+      );
+      expect(
+        await verifier.verify(
+          manifest: Uint8List.fromList([...manifest, 0]),
+          signature: signature,
+        ),
+        SignatureCheck.invalid,
+      );
+      expect(
+        await verifier.verify(manifest: manifest, signature: Uint8List(3)),
+        SignatureCheck.invalid,
+      );
+    });
+
+    test('makes a missing signature invalid', () async {
+      final verifier = SignatureRequired(
+        Ed25519ManifestVerifier([List.filled(32, 1)]),
+      );
+      expect(
+        await verifier.verify(manifest: manifest, signature: null),
+        SignatureCheck.invalid,
+      );
+    });
+
+    test('makes notChecked invalid, whatever the signature', () async {
+      const verifier = SignatureRequired(SignatureNotConfigured());
+      for (final signature in [null, Uint8List(64)]) {
+        expect(
+          await verifier.verify(manifest: manifest, signature: signature),
+          SignatureCheck.invalid,
+        );
+      }
+    });
+
+    test('with no key at all refuses every pack', () async {
+      final verifier = SignatureRequired(Ed25519ManifestVerifier(const []));
+      expect(
+        await verifier.verify(manifest: manifest, signature: Uint8List(64)),
+        SignatureCheck.invalid,
+      );
+    });
+  });
+
   ed25519Tests();
 }
 

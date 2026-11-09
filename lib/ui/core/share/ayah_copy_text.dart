@@ -14,10 +14,18 @@ import 'package:holyquran/utils/result.dart';
 /// A pack-text sink of D-114: the ayah and its surah's name enter the ARB
 /// format whole and unchanged.
 final class AyahCopyText {
-  const AyahCopyText(this._repository, this._l10n);
+  const AyahCopyText(
+    this._repository,
+    this._l10n, {
+    this.unapprovedCopy = false,
+  });
 
   final QuranTextRepository _repository;
   final AppLocalizations _l10n;
+
+  /// In the unapproved test copy the copied text ends with a line saying so,
+  /// after the copy exactly as an approved build composes it (D-162 (14)).
+  final bool unapprovedCopy;
 
   /// The forms whose format the ARB file gives, in [CopyForm]'s order.
   List<CopyForm> get forms => [
@@ -31,11 +39,16 @@ final class AyahCopyText {
     if (format == null) return Failure(CopyFormUnavailable(form));
     return switch (await _read(address)) {
       Ok(value: (:final ayah, :final surahName, :final number)) => Ok(
-        format(ayah.verbatim, surahName.verbatim, arabicDigits(number)),
+        _marked(
+          format(ayah.verbatim, surahName.verbatim, arabicDigits(number)),
+        ),
       ),
       Failure(:final error) => Failure(error),
     };
   }
+
+  String _marked(String copy) =>
+      unapprovedCopy ? '$copy\n${_l10n.unapprovedTestCopy}' : copy;
 
   /// The parts the copy sheet previews of the ayah at [address] in [form],
   /// as the pack holds them: `QuranText.quoted` sets the ayah between the
