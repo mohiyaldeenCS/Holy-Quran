@@ -64,11 +64,14 @@ Library). The other fields are `To confirm` until he has read them from the pape
 
 ## Recitations
 
-Empty until the owner chooses the Phase 1 recitations (O-04). One row each.
+The four of D-167, filled from the owner's answers of 2026-11-06 (D-174), read by him from one permission paper dated 2026-10-30, signed for the Minshawi recordings by عمر محمد صديق المنشاوي (the reciter's son and heir, professor at al-Azhar University) and for the Abdul Basit recordings by طارق عبد الباسط عبد الصمد (the reciter's son and heir). He keeps it on paper with a digital copy. No other condition (term, territory, non-commercial, no modification) is stated. The paper expressly allows word timing from quran-align (CC BY 4.0) to be used with the recordings. A row becomes `Complete` once its drift is measured (D-167 (2), B0.5).
 
 | Reciter | Riwaya and style | Rights holder | File source | Stream | Host | Offline | Cut or re-encode | Credit | Timing source and measured drift | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| | | | | | | | | | | |
+| محمد صديق المنشاوي | Hafs 'an 'Asim, murattal | Minshawi (heirs), paper of 2026-10-30 | everyayah.com `Minshawy_Murattal_128kbps`, one file per ayah | Yes | Yes | Yes | Yes | «تلاوة الشيخ محمد صديق المنشاوي، مرتل — بإذن ورثته»; on the sources screen also quran-align (CC BY 4.0) with the link back to everyayah.com | quran-align for `Minshawy_Murattal_128kbps`; drift not measured | Open: drift |
+| محمد صديق المنشاوي | Hafs 'an 'Asim, mujawwad | Minshawi (heirs), paper of 2026-10-30 | everyayah.com `Minshawy_Mujawwad_192kbps`, one file per ayah | Yes | Yes | Yes | Yes | «تلاوة الشيخ محمد صديق المنشاوي، مجوّد — بإذن ورثته»; on the sources screen also quran-align (CC BY 4.0) with the link back to everyayah.com | quran-align for `Minshawy_Mujawwad_192kbps`; drift not measured | Open: drift |
+| عبد الباسط عبد الصمد | Hafs 'an 'Asim, murattal | Abdul Basit (heirs), paper of 2026-10-30 | everyayah.com `Abdul_Basit_Murattal_64kbps`, one file per ayah | Yes | Yes | Yes | Yes | «تلاوة الشيخ عبد الباسط عبد الصمد، مرتل — بإذن ورثته»; on the sources screen also quran-align (CC BY 4.0) with the link back to everyayah.com | quran-align for `Abdul_Basit_Murattal_64kbps`; drift not measured | Open: drift |
+| عبد الباسط عبد الصمد | Hafs 'an 'Asim, mujawwad | Abdul Basit (heirs), paper of 2026-10-30 | everyayah.com `Abdul_Basit_Mujawwad_128kbps`, one file per ayah | Yes | Yes | Yes | Yes | «تلاوة الشيخ عبد الباسط عبد الصمد، مجوّد — بإذن ورثته»; on the sources screen also quran-align (CC BY 4.0) with the link back to everyayah.com | quran-align for `Abdul_Basit_Mujawwad_128kbps`; drift not measured | Open: drift |
 
 ## Books
 
@@ -93,6 +96,7 @@ The general tafsirs of PRD §8.8 are added here if the owner keeps them (O-06).
 
 | Date | Change |
 | --- | --- |
+| 2026-11-06 | The four recitations of D-167 recorded from the owner's answers (D-174): stream, host, offline and cutting allowed, timing from quran-align allowed, credit «… — بإذن ورثته». Open until drift is measured. |
 | 2026-10-07 | Ayah linking built for books 473 and 440 as well. Books 737 and 165 cannot be linked to ayat from what they print. No link has been reviewed. |
 | 2026-10-07 | Ayah linking built for books 183, 514, 276 and 471 (`docs/content/ZIYDIA_LIBRARY.md`). No link has been reviewed. |
 | 2026-10-07 | Register created with what is known. No permission paper has been read by the planning session; every permission-based record is open. |
