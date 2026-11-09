@@ -37,7 +37,7 @@ All under `hqpack/`. Each raises `errors.PackError` with a message as above.
 | `build.py` | The pipeline: hash and read the sources, run every build check, write into a temporary directory, read back, write the manifest, run the verifier, then move into `<out>/<id>/<version>/` | `build_pack(config_path, font_path, out_root, unapproved=False) -> BuildResult` |
 | `verify.py` | An independent verifier of a pack directory, sharing no code with the writer beyond `errors.py`: everything the app and its integrity suite check, recomputed from the stored bytes | `verify_pack(directory, mark_code_points=None, font=None) -> Report(problems, counts, signed)` |
 | `signing.py` | The signing seam (D-080, O-03): `Signer` with `sign(data) -> 64 bytes`; `OpenSslEd25519Signer(key_path)` runs `openssl pkeyutl -sign -rawin`; `sign_pack` writes `manifest.json.sig` for a pack that verifies; `verify_signature` checks it with a public key | `sign_pack(directory, signer)`, `verify_signature(directory, public_key_path)` |
-| `cli.py` | `build` (with `--unapproved-test-copy`, `--kfgqpc`, `--table`), `verify`, `sign`, `verify-signature`, `compare`, `review-page`, `kfgqpc-counts`; prints counts, hashes, paths and `U+XXXX` only | `main(argv) -> exit code` |
+| `cli.py` | `build` (with `--unapproved-test-copy`, `--kfgqpc`, `--table`), `verify`, `sign`, `verify-signature`, `compare`, `review-page`, `kfgqpc-counts`, `drift`; prints counts, hashes, paths and `U+XXXX` only | `main(argv) -> exit code` |
 | `kfgqpc.py` | KFGQPC's `hafsData_v2-0.json` (registry row 2, B0.2, D-175, D-177): UTF-8 without a BOM, as published (a BOM is refused, and so is a file whose first bytes are not `5B 0A 09`), an array of objects with exactly the read.me's eleven columns, integers and strings typed strictly, ids 1..n in order, ayat in mushaf order; the published file name | `read_kfgqpc(data, ayat) -> [KfgqpcAya(id, surah, number, juz, page, text)]`, `read_kfgqpc_file(path, ayat) -> (ayat, sha256)` |
 | `known_differences.py` | The table of known encoding differences, `tools/packs/known_differences.json` | `read_table(data) -> Table(version, ayah_end, ayah_end_separators, quarter_start, surah_opening_quarter_start, equivalences)`, `Table.ayah_end_rule_at(address) -> Rule or None` |
 | `compare.py` | The comparison of PRD 9.4 and the page, juz and quarter comparison of P2; the report; with a `Trace`, every difference as a `Place` (the two whole ayat and the difference's range in each, in memory only) for the review page | `run_comparison(text, metadata, kfgqpc_path, table_path, profile, tanzil_sha256, trace=None) -> report` (`tanzil_sha256` is `{"text": hex, "metadata": hex}`), `compare(text, metadata, witness, table, trace=None) -> report`, `summary(report)`, `encode_report(report) -> bytes` |
@@ -45,13 +45,16 @@ All under `hqpack/`. Each raises `errors.PackError` with a message as above.
 | `review_html.py` | The page's HTML from `review_page.html` (frame, style, script) and `review_page.ar.json` (the Arabic labels); the only path from a source text to the page is `parts`, checked by `check_parts` | `render(Page) -> str`, `marked_span(text, start, end)`, `parts(text, start, end)` |
 | `git_tree.py` | Whether a path is inside a Git working tree, without a `git` program | `git_tree(path) -> directory or None` |
 | `kfgqpc_counts.py` | The P5 reference counts from the KFGQPC file alone (B0.3) | `kfgqpc_counts(path, date, profile)`, `encode_counts(counts) -> bytes` |
+| `mp3.py` | A strict MPEG audio Layer III reader that decodes no sample (B0.5, D-179): skips one ID3v2 tag at the start and an ID3v1 and an APEv2 tag at the end, walks every frame header (MPEG 1, 2, 2.5; free bitrate and Layers I and II refused), reads a Xing or Info frame and a LAME tag, whose delay and padding are used only when its CRC-16 holds (`lame_tag`: `none`, `valid` or `crc_mismatch`); refuses a lost sync, a truncated frame, or a change of MPEG version, sample rate or channel count, naming the byte offset | `read_mp3(data) -> Mp3Audio(version, sample_rate, channel_mode, channels, frames, samples_per_frame, frame_ms, granule_ms, duration_ms, delay_known, encoder_delay, padding, lame_tag, granules: [Granule(start_ms, channels: ((part2_3_length, global_gain), ...))])` |
+| `quran_align.py` | quran-align word timing (registry row 6), strictly: every ayah of the profile once, integer fields, segments in time order without overlap, word indices increasing | `read_timing(data, profile, metadata=None) -> {(surah, ayah): Timing(surah, ayah, segments: [Segment(word_start, word_end, start_ms, end_ms)])}` |
+| `drift.py` | The drift measurement between a timing file and a folder of per-ayah MP3 files, and its verdict (see "Recitation drift") | `run_drift(timing, audio_dir, edition, profile, text_path=None, metadata_path=None) -> report`, `encode_report(report) -> bytes`, `lines(report)`, `verdict(summary)` |
 
 `pack.py` (next to this file) runs the CLI; `synthetic_source.py` writes the synthetic
 source files, mark table and build description into a directory.
 
 ### Tests
 
-`tests/test_<module>.py` for each module, plus `tests/test_build.py` (end to end on
+`tests/test_<module>.py` for each module (`test_drift.py` covers `drift.py` and `quran_align.py`), plus `tests/test_build.py` (end to end on
 the synthetic source, and one refusal per build check) and `tests/test_cli.py`.
 
 
@@ -82,6 +85,7 @@ python3 tools/packs/pack.py build --config <build.json> --font assets/fonts/Amir
 python3 tools/packs/pack.py compare --text <tanzil xml> --metadata <quran-data.xml> --kfgqpc <hafsData_v2-0.json> --table tools/packs/known_differences.json --report <out.json>
 python3 tools/packs/pack.py review-page --text <tanzil xml> --metadata <quran-data.xml> --kfgqpc <hafsData_v2-0.json> --table tools/packs/known_differences.json --tanzil-font assets/fonts/AmiriQuran-Regular.ttf --kfgqpc-font <uthmanic_hafs_v20.ttf> --out <new folder outside every Git tree>
 python3 tools/packs/pack.py kfgqpc-counts --kfgqpc <hafsData_v2-0.json> --date <YYYY-MM-DD> --out testing/reference/kfgqpc-hafs-counts.json
+python3 tools/packs/pack.py drift --timing <quran-align json> --audio <folder of SSSAAA.mp3> --edition <folder name> [--text <tanzil xml> --metadata <quran-data.xml>] [--report <out.json outside every Git tree>]
 ```
 
 | Command | Does |
@@ -93,6 +97,7 @@ python3 tools/packs/pack.py kfgqpc-counts --kfgqpc <hafsData_v2-0.json> --date <
 | `compare` | Runs the KFGQPC comparison against the `hafs` profile (6,236 ayat) and writes the report; exits 65 when the report has any problem, 0 when it has none |
 | `review-page` | Runs the KFGQPC comparison and writes the reciter's review page into a new or empty folder outside every Git working tree (see "The reciter's review page"); exits 0 when the page is written, whatever the comparison found |
 | `kfgqpc-counts` | Writes the P5 reference counts of the KFGQPC file; `--date` is the day they are taken, so the same file and date give the same bytes |
+| `drift` | Measures drift between a recitation's quran-align timing and a sample of its everyayah files, prints one line per file, the summary and the verdict, and writes the report if `--report` is given (see "Recitation drift"); exits 0 on PASS, 65 on FAIL or on a word index past the text |
 
 To try it on the synthetic source:
 
@@ -520,6 +525,120 @@ not used). Then:
 4. Raise `version`, run `compare` and `review-page` again: the approved patterns must
    be gone and their rules applied. Record the table's new version and SHA-256 and the
    decisions file's `inputs` with the decision that records the approval.
+
+## Recitation drift (B0.5, D-167 (2), D-179)
+
+A recitation is labelled «توقيت كلمات» only after the drift between its quran-align
+timing file and the files everyayah.com serves today has been measured on a sample
+(D-167 (2), registry row 6). The timing was made in 2016 and the folders were
+uploaded again in 2023 and 2025, so a file may have been re-encoded or trimmed since.
+`pack.py drift` measures that drift for one folder. It reads no network and decodes
+no audio sample: it reads the MP3 frame headers and the Layer III side information.
+
+### Inputs
+
+- `--timing`: the quran-align JSON of the folder (release 2016-11-24, CC BY 4.0),
+  read by `quran_align.py`: a JSON array, UTF-8 without a BOM, every ayah of the
+  `hafs` profile exactly once (114 surahs, 6,236 ayat, each surah's ayat from 1 with
+  no gap), the four fields and nothing else, integers only (a fraction, `NaN`, a
+  boolean or a repeated field name is refused), `stats` with its three fields, and
+  segments `[word_start, word_end, start_ms, end_ms]` with `word_end` above
+  `word_start` (exclusive), `start_ms <= end_ms`, each segment starting at or after
+  the previous one's end in time and in words. An ayah with no segment is accepted
+  and counted.
+- `--audio`: the folder of `SSSAAA.mp3` files, which must be named as `--edition`
+  (D-167 (2): a timing file goes with its exact folder). Other files are ignored; a
+  file whose address the timing file lacks is refused. Each file goes through
+  `mp3.py`; a refused file stops the run with its name and byte offset.
+- `--edition`: the everyayah folder name (`A-Z`, `a-z`, `0-9`, `_`).
+- `--text` and `--metadata` (together or not at all): the Tanzil quran-uthmani text
+  and `quran-data.xml`, read by the pipeline's readers and checked against each
+  other and the `hafs` profile as `build` checks them. The timing file's ayat per
+  surah must then equal the metadata's.
+
+### What is measured, per file
+
+| Measure | How |
+| --- | --- |
+| Playable duration | Frames times samples per frame, less the LAME tag's encoder delay and padding when the file has one whose CRC-16 (CRC-16/ARC from the frame's first byte to the CRC field, LAME's rule) holds (`delay_known`); a granule's time is then counted from the encoder delay plus the decoder delay of 529 samples, as a gapless decoder plays it. Without a valid tag nothing is removed. A tag whose CRC fails is reported per file (`lame_tag: crc_mismatch`) and not used: ffmpeg is said to compute it over a fixed 190 bytes, which differs from LAME's rule outside MPEG 1 stereo, and that is unverified here. Either way the difference is one decoder and encoder delay, about 25 ms |
+| End check | The last segment's `end_ms` against the duration. Timing that ends more than one frame after the audio fails the file |
+| Speech | A granule's level is the highest `global_gain` among its channels that carry main data (`part2_3_length` above 0), else 0. The loud level is the 90th percentile of the file's granule levels (nearest rank, `LOUD_PERCENTILE`); a granule is speech when its level is above 0 and above the loud level less 20 steps (`SILENCE_DROP_STEPS`, 30 dB at 1.5 dB a step). A speech run lasts at least 50 ms (`SPEECH_RUN_MS`); a shorter burst counts as silence |
+| Onset | The first segment's `start_ms` minus the start of the first speech run |
+| Pause samples | Every silence of at least 120 ms (`MIN_PAUSE_MS`) between two speech runs. Its offset is the midpoint of the nearest boundary between consecutive segments (the gap between them, or the join where there is none) minus the silence's midpoint: positive when the timing is later than the audio. A file with fewer than two segments gives no sample |
+| Trend | The least-squares slope of the offsets against their time in the file, in ms per minute, with one intercept per file, so that a constant offset that differs between files does not read as a rate |
+
+With the text, every entry's highest `word_end` must not exceed the ayah's count of
+U+0020-separated tokens (`tokens.token_spans`); an entry past it is a word index
+problem, listed by address. The tokens made only of pause marks (U+06D6 to U+06DB)
+are counted per code point sequence, with how many of them a segment covers.
+
+### Summary and verdict
+
+Per edition: files measured, timing entries without a file, end-check failures,
+onset median and largest |onset|, pause samples, median offset, p95 (nearest rank)
+and largest |offset|, the slope, and words no segment covers (counted against the
+Tanzil tokens with the text, else up to each entry's highest `word_end`).
+
+The verdict uses the lead's thresholds (D-179), constants in `drift.py` that no
+flag changes. PASS when all hold:
+
+| Criterion | Limit |
+| --- | --- |
+| End-check failures | none |
+| \|median offset\| | at most 100 ms (`MAX_MEDIAN_OFFSET_MS`) |
+| p95 \|offset\| | at most 250 ms (`MAX_P95_OFFSET_MS`) |
+| \|slope\| | at most 50 ms per minute (`MAX_SLOPE_MS_PER_MINUTE`) |
+
+Otherwise FAIL, naming each criterion missed. A criterion that could not be measured
+(no pause sample; no file with two samples at distinct times) is missed, never
+passed. The command exits 0 on PASS and 65 on FAIL or on any word index problem.
+
+### The report and where things stay
+
+stdout and the report hold only the edition, file names, addresses (`hafs:S:A`),
+the SHA-256 of every input (timing, text, metadata, each audio file) and numbers,
+rounded to 0.1 ms; the pause-mark counts are keyed by `U+XXXX`. No Quran text is
+written, and the report holds no path (stdout ends with the report's own path). The JSON report (`holyquran-recitation-drift`,
+version 1) has `edition`, `inputs`, `thresholds`, `files` (per file: its numbers and
+each pause sample's `at_ms` and `offset_ms`), `words` and `summary` (with `verdict`
+and `missed`).
+
+The timing files, the audio sample and the report stay on the owner's machine: none
+is committed, attached or uploaded. `--report` inside a Git working tree (the path
+or a parent holds `.git`, links followed) is refused before anything is read, as
+`test_copy.sh` and `review-page` refuse theirs. Summaries go elsewhere as the
+verdict lines.
+
+### The four folders of D-167
+
+On the owner's machine, with `<timing>` the folder of the quran-align files,
+`<sample>` the folder holding the four sample folders, `<tanzil>` the Tanzil files
+and `<reports>` a folder outside every Git working tree:
+
+```
+python3 tools/packs/pack.py drift --timing <timing>/<quran-align file of Minshawy_Murattal_128kbps> --audio <sample>/Minshawy_Murattal_128kbps --edition Minshawy_Murattal_128kbps --text <tanzil>/quran-uthmani.xml --metadata <tanzil>/quran-data.xml --report <reports>/drift-Minshawy_Murattal_128kbps.json
+python3 tools/packs/pack.py drift --timing <timing>/<quran-align file of Minshawy_Mujawwad_192kbps> --audio <sample>/Minshawy_Mujawwad_192kbps --edition Minshawy_Mujawwad_192kbps --text <tanzil>/quran-uthmani.xml --metadata <tanzil>/quran-data.xml --report <reports>/drift-Minshawy_Mujawwad_192kbps.json
+python3 tools/packs/pack.py drift --timing <timing>/<quran-align file of Abdul_Basit_Murattal_64kbps> --audio <sample>/Abdul_Basit_Murattal_64kbps --edition Abdul_Basit_Murattal_64kbps --text <tanzil>/quran-uthmani.xml --metadata <tanzil>/quran-data.xml --report <reports>/drift-Abdul_Basit_Murattal_64kbps.json
+python3 tools/packs/pack.py drift --timing <timing>/<quran-align file of Abdul_Basit_Mujawwad_128kbps> --audio <sample>/Abdul_Basit_Mujawwad_128kbps --edition Abdul_Basit_Mujawwad_128kbps --text <tanzil>/quran-uthmani.xml --metadata <tanzil>/quran-data.xml --report <reports>/drift-Abdul_Basit_Mujawwad_128kbps.json
+```
+
+What goes back into the repository is the verdict line, the summary numbers and the
+input SHA-256 of each run, recorded with D-179.
+
+### Tests and limits
+
+`tests/test_mp3.py` and `tests/test_drift.py` run on synthetic bytes only:
+`tests/mp3_factory.py` writes valid frame headers, side information whose
+`part2_3_length` and `global_gain` draw a chosen loud and silent pattern (every
+other field set, so a misread field shows), zero main data, Xing and LAME frames
+with a known delay and padding, ID3 and APE tags and broken files; the timing is
+synthetic JSON and the text is `synthetic_source.py`'s.
+
+The tests prove the arithmetic and the refusals, not that the speech threshold suits
+these four recordings. The level proxy has not been run on real files in this
+repository; the first run on the owner's machine is its check. A run that finds few
+pause samples, or onsets far from zero in every file, points at the proxy before it
+points at the timing.
 
 ## Signing (D-080) and what O-03 must decide
 
