@@ -13,6 +13,9 @@ import 'package:holyquran/ui/features/mushaf/view_models/mushaf_view_model.dart'
 import '../../../../testing/fakes/fake_app_settings_repository.dart';
 import 'mushaf_harness.dart';
 
+/// The widest the fingers are apart in these pinches.
+const _widestPinch = 130.0;
+
 typedef _Marker = ({int surah, int ayah, Offset center, double lineHeight});
 
 /// A pinch keeps the ayah under the fingers where it is, within a line of the
@@ -58,14 +61,15 @@ void main() {
       final layout = block.layout;
       for (final ayah in layout.ayat) {
         final center = origin + layout.markerRect(ayah)!.center;
-        // Where fingers can be put, or, after a step, anywhere on screen: the
-        // marker of an ayah moves along its line when the line breaks again.
+        // Where fingers can be put, both on screen for the widest pinch, or,
+        // after a step, anywhere on screen: the marker of an ayah moves along
+        // its line when the line breaks again.
         if (anywhere
             ? center.dy > 0 && center.dy < readerHeight
             : center.dy > 90 &&
                   center.dy < 540 &&
-                  center.dx > 50 &&
-                  center.dx < 310) {
+                  center.dx > _widestPinch / 2 &&
+                  center.dx < readerWidth - _widestPinch / 2) {
           markers.add((
             surah: layout.plan.text.surah,
             ayah: ayah,
@@ -148,12 +152,24 @@ void main() {
     tester,
   ) async {
     await pumpReader(tester, QuranAddress('hafs', 4, 1));
+    // Where the markers fall follows the text column's width: scroll on
+    // until one lies where two fingers fit, and later until the last one
+    // belongs to a later surah.
+    final controller = scrollOf(tester);
+    for (var step = 0; step < 20; step++) {
+      if (visibleMarkers(tester).isNotEmpty) break;
+      controller.jumpTo(controller.offset + 60);
+      await tester.pumpAndSettle();
+    }
     final first = visibleMarkers(tester).first;
     await pinchKeeps(tester, first, from: 80, to: 130);
 
-    final controller = scrollOf(tester);
-    controller.jumpTo(controller.offset + 700);
-    await tester.pumpAndSettle();
+    for (var step = 0; step < 20; step++) {
+      final markers = visibleMarkers(tester);
+      if (markers.isNotEmpty && markers.last.surah > first.surah) break;
+      controller.jumpTo(controller.offset + 350);
+      await tester.pumpAndSettle();
+    }
     final later = visibleMarkers(tester).last;
     expect(later.surah, greaterThan(first.surah));
     await pinchKeeps(tester, later, from: 130, to: 80);

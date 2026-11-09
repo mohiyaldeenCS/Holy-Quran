@@ -38,15 +38,25 @@ abstract final class ReaderScreenMetrics {
   /// appended: an engineering margin, not a drawn value.
   static const double preloadViewports = 2;
 
-  /// How far a margin mark's start edge lies beyond the text column's: the
-  /// screen's edge, so the mark stands over the margin and its overhang
-  /// lies on the line beside it (D-140, 1). The boards draw no margin marks
-  /// in the surah-mode reader; the side and the reach are a reading, for the
-  /// owner's device session.
-  static const double marginMarkOutset = ReaderMetrics.textInset;
+  /// Between the widest margin mark and the text: `space-3`, the nearest
+  /// spacing token not under the `gap: 10px` the board draws between the
+  /// text and «سجدة» (`Mushaf.dc.html` l.79, «موضع السجدة»).
+  static const double marginGutterGap = AppSpacing.space3;
 
-  /// The same for the bookmark ribbon, on the column's other side
-  /// (`Mushaf.dc.html`, «علامة مرجعية»: «شريط زمردي في الهامش»).
+  /// The start gutter (D-181): the text of a surah leaves its start side to
+  /// the margin marks, as wide as [widestMark] (the widest mark at the
+  /// current text scale, `MarginMarkView.widest`) and [marginGutterGap], so
+  /// a mark keeps its drawn size and never touches the text.
+  static double startGutter(double widestMark) =>
+      widestMark.ceilToDouble() + marginGutterGap;
+
+  /// A surah's text: [blockPadding] with [startGutter] on its start side.
+  static EdgeInsetsDirectional textPadding(double startGutter) =>
+      blockPadding.copyWith(start: startGutter);
+
+  /// How far the bookmark ribbon's end edge lies beyond the text's: the
+  /// screen's edge, on the side away from the margin marks (`Mushaf.dc.html`,
+  /// «علامة مرجعية»: «شريط زمردي في الهامش»).
   static const double ribbonOutset = ReaderMetrics.textInset;
 
   /// Where the ayah toolbar floats over the text: `space-3` from the edges of

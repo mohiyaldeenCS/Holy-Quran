@@ -15,6 +15,7 @@ import 'package:holyquran/ui/core/reader/block_layout.dart';
 import 'package:holyquran/ui/core/reader/block_margin.dart';
 import 'package:holyquran/ui/core/reader/gesture_target.dart';
 import 'package:holyquran/ui/core/reader/interactive_surah_sliver.dart';
+import 'package:holyquran/ui/core/reader/margin_gutter.dart';
 import 'package:holyquran/ui/core/reader/reader_highlights.dart';
 import 'package:holyquran/ui/core/reader/reader_pinch_stepper.dart';
 import 'package:holyquran/ui/core/reader/reader_text_scale.dart';
@@ -430,11 +431,14 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
     if (word != null) unawaited(context.push<Object?>(Routes.wordSheet(word)));
   }
 
-  Widget _margin(BuildContext context, BlockLayout layout) =>
+  Widget _margin(BlockLayout layout, double startGutter) =>
       ValueListenableBuilder(
         valueListenable: _model.bookmarks.ribbons,
-        builder: (context, ribbons, _) =>
-            BlockMargin(layout: layout, bookmarks: ribbons),
+        builder: (context, ribbons, _) => BlockMargin(
+          layout: layout,
+          startGutter: startGutter,
+          bookmarks: ribbons,
+        ),
       );
 
   void _loadNextIfNear([ScrollMetrics? metrics]) {
@@ -497,33 +501,38 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
               onLongPress: _model.longPress,
               child: child!,
             ),
-            child: CustomScrollView(
-              controller: _controller,
-              slivers: [
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: ReaderScreenMetrics.columnTop),
-                ),
-                for (final surah in _surahs) ...[
-                  SliverPadding(
-                    key: _keyOf(_headerKeys, surah.info.number),
-                    padding: ReaderScreenMetrics.blockPadding,
-                    sliver: SliverToBoxAdapter(child: _header(context, surah)),
+            child: MarginGutter(
+              builder: (context, gutter) => CustomScrollView(
+                controller: _controller,
+                slivers: [
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: ReaderScreenMetrics.columnTop),
                   ),
-                  SliverPadding(
-                    padding: ReaderScreenMetrics.blockPadding,
-                    sliver: InteractiveSurahSliver(
-                      key: _keyOf(_textKeys, surah.info.number),
-                      text: surah.text,
-                      step: step,
-                      onLayout: _onLayout,
-                      highlights: highlights,
-                      onTap: _tapped,
-                      onLongPress: _model.longPress,
-                      blockOverlayBuilder: _margin,
+                  for (final surah in _surahs) ...[
+                    SliverPadding(
+                      key: _keyOf(_headerKeys, surah.info.number),
+                      padding: ReaderScreenMetrics.blockPadding,
+                      sliver: SliverToBoxAdapter(
+                        child: _header(context, surah),
+                      ),
                     ),
-                  ),
+                    SliverPadding(
+                      padding: ReaderScreenMetrics.textPadding(gutter),
+                      sliver: InteractiveSurahSliver(
+                        key: _keyOf(_textKeys, surah.info.number),
+                        text: surah.text,
+                        step: step,
+                        onLayout: _onLayout,
+                        highlights: highlights,
+                        onTap: _tapped,
+                        onLongPress: _model.longPress,
+                        blockOverlayBuilder: (context, layout) =>
+                            _margin(layout, gutter),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

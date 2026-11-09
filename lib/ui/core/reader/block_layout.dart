@@ -390,9 +390,23 @@ final class _LaidSegment {
   }
 
   /// A page mark takes its whole slot, gaps and all, so that a page
-  /// number wider than a marker still fits.
-  Rect? pageMarkRect(int ayah) =>
-      _pageMarkAt[ayah] == null ? null : _slot(_pageMarkAt[ayah]!);
+  /// number wider than a marker still fits, but no more of it than lies in
+  /// the block about the slot's centre: a slot that ends a line hangs its
+  /// stretched far gap past the edge, which in a narrow column can reach
+  /// past the screen's. The centre, the marker's place, stays; the mark is
+  /// never narrower than a marker.
+  Rect? pageMarkRect(int ayah) {
+    final k = _pageMarkAt[ayah];
+    if (k == null) return null;
+    final slot = _slot(k);
+    final centre = slot.center.dx;
+    final half = math.min(slot.width / 2, math.min(centre, _width - centre));
+    return Rect.fromCenter(
+      center: slot.center,
+      width: math.max(2 * half, slot.height),
+      height: slot.height,
+    );
+  }
 
   /// The slot placeholder [k] is drawn in. SkParagraph (Flutter 3.44) lays
   /// the placeholders of a right-to-left line out in the reverse of their
