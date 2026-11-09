@@ -9,6 +9,7 @@ import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/recitation.dart';
+import 'package:holyquran/ui/core/base_pack_problem.dart';
 import 'package:holyquran/ui/features/home/view_models/home_view_model.dart';
 import 'package:holyquran/utils/result.dart';
 
@@ -275,31 +276,49 @@ void main() {
           basePackId: id,
         );
 
-    test('failed is announced', () {
+    test('failed is announced as failed', () {
       expect(
         withState(const IntegrityFailed(PackInconsistent('base', 'synthetic')))
-            .baseFailed,
-        isTrue,
+            .baseProblem,
+        BasePackProblem.failed,
       );
     });
 
-    test('is not announced as failed otherwise', () {
+    test('missing is announced as missing (D-180)', () {
+      expect(
+        withState(const IntegrityMissing()).baseProblem,
+        BasePackProblem.missing,
+      );
+    });
+
+    test('missing is announced at the first start, before any report', () {
+      final model = HomeViewModel(
+        integrity: FakePackIntegrityRepository(),
+        basePackId: 'base',
+      );
+      addTearDown(model.dispose);
+
+      expect(model.baseProblem, BasePackProblem.missing);
+    });
+
+    test('is not announced otherwise', () {
       for (final state in [
         const IntegrityOk(),
-        const IntegrityMissing(),
         const IntegrityRepairing(),
         null,
       ]) {
-        expect(withState(state).baseFailed, isFalse, reason: '$state');
+        expect(withState(state).baseProblem, isNull, reason: '$state');
       }
-      expect(
-        withState(
-          const IntegrityFailed(PackInconsistent('base', 'synthetic')),
-          id: null,
-        ).baseFailed,
-        isFalse,
-        reason: 'no base pack bundled',
-      );
+      for (final state in [
+        const IntegrityFailed(PackInconsistent('base', 'synthetic')),
+        const IntegrityMissing(),
+      ]) {
+        expect(
+          withState(state, id: null).baseProblem,
+          isNull,
+          reason: 'no base pack bundled: $state',
+        );
+      }
     });
 
     test('is announced when it fails', () {
@@ -317,7 +336,22 @@ void main() {
       );
 
       expect(notified, 1);
-      expect(model.baseFailed, isTrue);
+      expect(model.baseProblem, BasePackProblem.failed);
+    });
+
+    test('is announced as missing when it goes missing after a start', () {
+      final integrity = FakePackIntegrityRepository({
+        'base': const IntegrityOk(),
+      });
+      final model = HomeViewModel(integrity: integrity, basePackId: 'base');
+      addTearDown(model.dispose);
+      var notified = 0;
+      model.addListener(() => notified++);
+
+      integrity.report('base', const IntegrityMissing());
+
+      expect(notified, 1);
+      expect(model.baseProblem, BasePackProblem.missing);
     });
   });
 }

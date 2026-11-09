@@ -430,14 +430,19 @@ Nothing is generated or filled in to make a screen look complete.
 - A **field, row or section** that has no data for this ayah or word is not shown. In
   the design files unknown values appear in square brackets (`[اسم القارئ]`); in the
   app such a row is hidden (`LX-11`).
-- Three cases show a fixed sentence instead, because the requirement or the identity
-  says so:
+- These cases show a fixed sentence instead, because the requirement, the identity
+  or the owner says so:
   - A downloaded tafsir with no passage for the ayah shows
     «لا يوجد تفسير لهذه الآية في هذا الكتاب» (acceptance criteria of `TF`).
   - An empty list or a failure shows the identity's sentence
     («لا توجد علامات بعد»، «تعذّر الاتصال»).
   - In the study hub a section whose pack is not downloaded is one line offering the
     download (`ST-03`, Phase 3).
+  - A base pack that is missing, not failed, shows the integrity alert with the
+    title «نص المصحف غير موجود» and the body «لم يُعثر على نص المصحف في التطبيق.
+    حدّث التطبيق أو أعد تثبيته.», from the first start, on every screen that needs
+    the text and in place of its list (D-180). A failed base pack keeps
+    «نص المصحف لم يجتز التحقق» and its body.
 - These sentences are UI strings in the ARB file. They are never content.
 
 ## Acceptance checklist for any UI change

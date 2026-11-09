@@ -69,5 +69,24 @@ void main() {
         matchesGoldenFile('goldens/home_screen_integrity_${theme.name}.png'),
       );
     });
+
+    testWidgets('home with the missing base pack alert in ${theme.name}', (
+      tester,
+    ) async {
+      await pumpHomeScreen(
+        tester,
+        HomeViewModel(
+          integrity: FakePackIntegrityRepository({
+            'base': const IntegrityMissing(),
+          }),
+          basePackId: 'base',
+        ),
+        theme: theme,
+      );
+      await expectLater(
+        find.byType(WidgetsApp),
+        matchesGoldenFile('goldens/home_screen_missing_${theme.name}.png'),
+      );
+    });
   }
 }

@@ -1002,6 +1002,13 @@ class AppLocalizationsAr extends AppLocalizations {
       'لن يُعرض نص لم يجتز التحقق. حدّث التطبيق أو أعد تثبيته.';
 
   @override
+  String get integrityBaseMissingTitle => 'نص المصحف غير موجود';
+
+  @override
+  String get integrityBaseMissingBody =>
+      'لم يُعثر على نص المصحف في التطبيق. حدّث التطبيق أو أعد تثبيته.';
+
+  @override
   String get integrityPackTitle => 'هذه الحزمة لم تجتز التحقق';
 
   @override

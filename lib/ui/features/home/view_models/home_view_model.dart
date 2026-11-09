@@ -8,7 +8,6 @@ import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/data/repositories/recitation_repository.dart';
 import 'package:holyquran/domain/models/edition_map.dart';
 import 'package:holyquran/domain/models/listening_position.dart';
-import 'package:holyquran/domain/models/pack_integrity.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/playback_plan.dart';
 import 'package:holyquran/domain/models/playback_plan_builder.dart';
@@ -18,6 +17,7 @@ import 'package:holyquran/domain/models/playback_segment.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/recitation.dart';
 import 'package:holyquran/domain/use_cases/is_ayah_of_pack.dart';
+import 'package:holyquran/ui/core/base_pack_problem.dart';
 
 /// Where «أكمل القراءة» leads: the last ayah read, its surah's name from
 /// the pack, and its place in the mushaf.
@@ -56,8 +56,8 @@ final class ContinueListening {
 }
 
 /// The home screen's state (PRD §7.1, M1.2). A repository is absent while
-/// the app has no base pack or no user database. A pack that fails stops
-/// serving its surah names, which [integrity] announces (PRD §9.5).
+/// the app has no base pack or no user database. A pack that is missing or
+/// fails serves no surah names, which [integrity] announces (PRD §9.5).
 final class HomeViewModel extends ChangeNotifier {
   HomeViewModel({
     this._positions,
@@ -89,12 +89,9 @@ final class HomeViewModel extends ChangeNotifier {
     _recitations,
   ]);
 
-  /// Whether the base pack failed its check and so serves no text (PRD
-  /// §9.5): home then says so.
-  bool get baseFailed {
-    final id = _basePackId;
-    return id != null && _integrity?.stateOf(id) is IntegrityFailed;
-  }
+  /// Why the base pack serves no text, from the first start (PRD §9.5,
+  /// D-180): home then says so in place of its rows.
+  BasePackProblem? get baseProblem => basePackProblem(_integrity, _basePackId);
 
   static bool _inPack(QuranIndexRepository index, QuranAddress address) =>
       isAyahOfPack(address, riwaya: index.riwaya, surahs: index.surahs);

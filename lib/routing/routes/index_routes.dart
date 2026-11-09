@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
+import 'package:holyquran/config/base_pack.dart';
 import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
@@ -7,6 +8,7 @@ import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/routing/routes/feature_routes.dart';
 import 'package:holyquran/routing/routes/sheet_needs.dart';
+import 'package:holyquran/ui/core/base_pack_problem.dart';
 import 'package:holyquran/ui/features/index/view_models/context_sheet_view_model.dart';
 import 'package:holyquran/ui/features/index/view_models/go_to_view_model.dart';
 import 'package:holyquran/ui/features/index/view_models/index_view_model.dart';
@@ -17,29 +19,48 @@ import 'package:provider/provider.dart';
 
 /// The index under «المصحف» (NV-01, NV-02), the go-to sheet (NV-03) and the
 /// ayah-context sheet (NV-05). Their repositories are read as optional:
-/// without a base pack the index shows its title alone and the sheets close at
-/// once.
-final indexRoutes = FeatureRoutes(
-  tabChildren: {
-    ShellTab.mushaf: [GoRoute(path: RoutePaths.mushafIndex, builder: _index)],
-  },
-  sheets: [
-    SheetRoute(
-      path: RoutePaths.goToSheet,
-      owner: (state) => Routes.mushaf,
-      builder: _goTo,
-    ),
-    SheetRoute(
-      path: RoutePaths.contextSheet,
-      owner: (state) => Routes.mushafRead(Routes.addressOf(state)!),
-      builder: _context,
-    ),
-  ],
-);
+/// without a verified base pack the index shows its title and the alert of the
+/// base pack, or its title alone when the build reads none, and the sheets
+/// close at once.
+final indexRoutes = indexRoutesFor(basePackInUse);
 
-Widget _index(BuildContext context, GoRouterState state) {
+/// The index routes over [basePack], the pack this build reads; a parameter
+/// so a test can give it the test copy's pack, as `homeRoutesFor` does.
+FeatureRoutes indexRoutesFor(({String id, int version})? basePack) =>
+    FeatureRoutes(
+      tabChildren: {
+        ShellTab.mushaf: [
+          GoRoute(
+            path: RoutePaths.mushafIndex,
+            builder: (context, state) => _index(context, basePack?.id),
+          ),
+        ],
+      },
+      sheets: [
+        SheetRoute(
+          path: RoutePaths.goToSheet,
+          owner: (state) => Routes.mushaf,
+          builder: _goTo,
+        ),
+        SheetRoute(
+          path: RoutePaths.contextSheet,
+          owner: (state) => Routes.mushafRead(Routes.addressOf(state)!),
+          builder: _context,
+        ),
+      ],
+    );
+
+Widget _index(BuildContext context, String? basePackId) {
   final index = context.read<QuranIndexRepository?>();
-  if (index == null) return const IndexScreen(viewModel: null);
+  if (index == null) {
+    return IndexScreen(
+      viewModel: null,
+      baseProblem: basePackProblem(
+        context.read<PackIntegrityRepository?>(),
+        basePackId,
+      ),
+    );
+  }
   return ChangeNotifierProvider(
     create: (context) => IndexViewModel(
       index: index,

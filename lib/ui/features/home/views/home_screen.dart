@@ -8,19 +8,19 @@ import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/metrics/home_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/base_pack_alert.dart';
 import 'package:holyquran/ui/core/widgets/continue_card.dart';
 import 'package:holyquran/ui/core/widgets/continue_listening_row.dart';
 import 'package:holyquran/ui/core/widgets/home_door.dart';
 import 'package:holyquran/ui/core/widgets/home_header.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
-import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/features/home/view_models/home_view_model.dart';
 
 /// The home screen as the Screens board draws it, without its Phase 2
 /// parts (PRD §7.1, §12.3): the header, the greeting, «أكمل القراءة»,
 /// «أكمل الاستماع» and the doors of the features that have shipped. While the
-/// base pack fails its check it shows the integrity alert in place of the
-/// greeting and the rows (PRD §9.5).
+/// base pack is missing or fails its check it shows the integrity alert in
+/// place of the greeting and the rows (PRD §9.5, D-180).
 class HomeScreen extends StatelessWidget {
   const HomeScreen({required this.viewModel, super.key});
 
@@ -61,14 +61,11 @@ class HomeScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   spacing: HomeMetrics.sectionGap,
                   children: [
-                    if (viewModel.baseFailed)
+                    if (viewModel.baseProblem case final problem?)
                       Semantics(
                         container: true,
                         liveRegion: true,
-                        child: IntegrityAlert(
-                          title: l10n.integrityBaseTitle,
-                          body: l10n.integrityBaseBody,
-                        ),
+                        child: BasePackAlert(problem),
                       )
                     else ...[
                       const _Greeting(),

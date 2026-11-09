@@ -4,10 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes.dart';
+import 'package:holyquran/ui/core/base_pack_problem.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/metrics/index_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/base_pack_alert.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/core/widgets/level_switch.dart';
 import 'package:holyquran/ui/core/widgets/surah_list_item.dart';
@@ -16,12 +18,15 @@ import 'package:holyquran/ui/features/index/views/division_row.dart';
 
 /// The index (`NV-01`, `NV-02`) as the Screens2 board draws it: the title with
 /// its summary, the three tabs, and the rows of the tab chosen. Each row opens
-/// the reader at its first ayah. [viewModel] is null while the app has no base
-/// pack, and then only the title is shown.
+/// the reader at its first ayah. [viewModel] is null while the app has no
+/// verified base pack, and then the title is shown with the alert of
+/// [baseProblem], or alone when there is none. A pack that stops serving
+/// shows the alert of a failed pack in place of the rows (D-180).
 class IndexScreen extends StatelessWidget {
-  const IndexScreen({required this.viewModel, super.key});
+  const IndexScreen({required this.viewModel, this.baseProblem, super.key});
 
   final IndexViewModel? viewModel;
+  final BasePackProblem? baseProblem;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +35,13 @@ class IndexScreen extends StatelessWidget {
     return SafeArea(
       bottom: false,
       child: viewModel == null
-          ? _Header(title: l10n.indexTitle)
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _Header(title: l10n.indexTitle),
+                if (baseProblem case final problem?) _BaseAlert(problem),
+              ],
+            )
           : ListenableBuilder(
               listenable: viewModel,
               builder: (context, _) => Column(
@@ -50,7 +61,9 @@ class IndexScreen extends StatelessWidget {
                   if (viewModel.hasData)
                     Expanded(
                       child: _Rows(viewModel, key: ValueKey(viewModel.tab)),
-                    ),
+                    )
+                  else
+                    const _BaseAlert(BasePackProblem.failed),
                 ],
               ),
             ),
@@ -106,6 +119,17 @@ class _Header extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The alert of the base pack under the title, set in as the rows are.
+class _BaseAlert extends StatelessWidget {
+  const _BaseAlert(this.problem);
+
+  final BasePackProblem problem;
+
+  @override
+  Widget build(BuildContext context) =>
+      Padding(padding: IndexMetrics.list, child: BasePackAlert(problem));
 }
 
 /// The way to «اذهب إلى» (D-140, 11), in the slot the board keeps between the
