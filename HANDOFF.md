@@ -122,9 +122,7 @@ record for the head.
 content yet and none has run on a device since the spike of 2026-10-12.** **Before the first
 run on a branch, check it:** `git merge-base --is-ancestor origin/main origin/<branch>`. If
 `main` changed `.github/` and the branch lacks it, merge `main` into the branch from your own
-session. Decision numbers: D-155 to D-160, D-162 and D-165 are on `main`; D-166 and D-167 on the
-lead's records pull request; D-161 (#80) and D-164 (#87) on open branches; D-163 is reserved for T1;
-D-168 and D-169 are the P1-35 answers and rulings; D-170 the share sizes; D-171 the owner's P1-35 answers (on the records branch); D-172 is reserved for the Tanzil real-files fix (`agent/tanzil-real-files`); D-173 is reserved for the push-permission fix (`agent/test-copy-push-perms`); D-174 is the owner's answers of 2026-11-06 (sources, recitation rights, tafsir, LX); D-175 is reserved for the KFGQPC comparison (`agent/kfgqpc-compare`); D-176 is the owner's answers on the comparison; D-177 is reserved for the comparison fix (`agent/kfgqpc-compare-fix`); D-178 is reserved for the review page (`agent/kfgqpc-review-page`); D-178 is the review page (#97); the next free number is D-179.
+session. Decision numbers: D-001 to D-178 are all in `docs/DECISIONS.md` (D-172 to D-178 are #93 to #97 and the owner's answers); the next free number is D-179.
 
 The queue, after the table above:
 
