@@ -154,18 +154,13 @@ void main() {
     expect(manyLines, greaterThan(0), reason: 'an ayah of more than one line');
   });
 
-  testWidgets('focusing an ayah changes no pixel of text ink', (tester) async {
-    FocusManager.instance.highlightStrategy =
-        FocusHighlightStrategy.alwaysTraditional;
-    addTearDown(
-      () => FocusManager.instance.highlightStrategy =
-          FocusHighlightStrategy.automatic,
-    );
+  testWidgets('an ayah\'s focus claims no hover hits over its text', (
+    tester,
+  ) async {
     tester.view
       ..physicalSize = const Size(_width, _height)
       ..devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    const surface = ValueKey('ink-surface');
     await tester.pumpWidget(
       goldenApp(
         ReadingTheme.paper,
@@ -181,71 +176,145 @@ void main() {
             ],
           ),
         ),
-        key: surface,
       ),
     );
-    final ink = AppColors.paper.quranInk.toARGB32();
-
-    Future<Uint8List> render() async {
-      final boundary = tester.renderObject<RenderRepaintBoundary>(
-        find.byKey(surface),
-      );
-      return (await tester.runAsync(() async {
-        final image = await boundary.toImage();
-        final bytes = await image.toByteData();
-        image.dispose();
-        return bytes!.buffer.asUint8List();
-      }))!;
-    }
-
-    int pixel(Uint8List bytes, int at) =>
-        (0xFF << 24) | (bytes[at] << 16) | (bytes[at + 1] << 8) | bytes[at + 2];
-
-    var focused = 0;
-    var inkPixels = 0;
-    var ringPixels = 0;
-    for (final block in tester.widgetList<ReaderBlock>(
-      find.byType(ReaderBlock),
-    )) {
-      for (final k in List.generate(block.layout.ayat.length, (k) => k)) {
-        final ring = find
-            .descendant(
-              of: find.byWidget(block),
-              matching: find.byType(FocusRing),
-            )
-            .at(k);
-        final inner = find.descendant(
-          of: ring,
-          matching: find.byType(SizedBox),
-        );
-        Focus.of(tester.element(inner.first)).requestFocus();
-        await tester.pumpAndSettle();
-        final withRing = await render();
-        FocusManager.instance.primaryFocus!.unfocus();
-        await tester.pumpAndSettle();
-        final without = await render();
-        focused++;
-
-        var repainted = 0;
-        for (var at = 0; at < without.length; at += 4) {
-          if (pixel(withRing, at) == pixel(without, at)) continue;
-          ringPixels++;
-          if (pixel(without, at) == ink) repainted++;
-        }
-        for (var at = 0; at < without.length; at += 4) {
-          if (pixel(without, at) == ink) inkPixels++;
-        }
-        expect(
-          repainted,
-          0,
-          reason:
-              'ayah ${block.layout.ayat.elementAt(k)}: '
-              'the ring repainted $repainted pixels of text ink',
-        );
-      }
-    }
-    expect(focused, greaterThan(10), reason: 'ayat focused');
-    expect(inkPixels, greaterThan(10000), reason: 'the text was drawn');
-    expect(ringPixels, greaterThan(focused * 100), reason: 'rings were drawn');
+    final rings = find.descendant(
+      of: find.byType(ReaderBlock),
+      matching: find.byType(FocusRing),
+    );
+    expect(rings, findsWidgets);
+    expect(
+      find.descendant(of: rings, matching: find.byType(MouseRegion)),
+      findsNothing,
+    );
   });
+
+  // The reviewer's check of P1-35: text ink is every pixel in the theme's
+  // `quran-ink` before the ayah is focused, outside the ayat's markers. The
+  // ring is painted under the text, so focusing an ayah changes none of them.
+  for (final theme in ReadingTheme.values) {
+    testWidgets(
+      'focusing an ayah changes no pixel of text ink in ${theme.name}',
+      (tester) async {
+        FocusManager.instance.highlightStrategy =
+            FocusHighlightStrategy.alwaysTraditional;
+        addTearDown(
+          () => FocusManager.instance.highlightStrategy =
+              FocusHighlightStrategy.automatic,
+        );
+        tester.view
+          ..physicalSize = const Size(_width, _height)
+          ..devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        const surface = ValueKey('ink-surface');
+        await tester.pumpWidget(
+          goldenApp(
+            theme,
+            SizedBox(
+              width: _width,
+              height: _height,
+              child: CustomScrollView(
+                slivers: [
+                  InteractiveSurahSliver(
+                    text: fixture.surahs[longSurah]!,
+                    onTap: (_) {},
+                  ),
+                ],
+              ),
+            ),
+            key: surface,
+          ),
+        );
+        final ink = AppColors.byId[theme.name]!.quranInk.toARGB32();
+
+        Future<Uint8List> render() async {
+          final boundary = tester.renderObject<RenderRepaintBoundary>(
+            find.byKey(surface),
+          );
+          return (await tester.runAsync(() async {
+            final image = await boundary.toImage();
+            final bytes = await image.toByteData();
+            image.dispose();
+            return bytes!.buffer.asUint8List();
+          }))!;
+        }
+
+        int pixel(Uint8List bytes, int at) =>
+            (0xFF << 24) |
+            (bytes[at] << 16) |
+            (bytes[at + 1] << 8) |
+            bytes[at + 2];
+
+        // Every marker on screen, in the surface's pixels, at the current scroll.
+        List<Rect> markers() {
+          final origin = tester.getTopLeft(find.byKey(surface));
+          return [
+            for (final block in tester.widgetList<ReaderBlock>(
+              find.byType(ReaderBlock),
+            ))
+              for (final ayah in block.layout.ayat)
+                block.layout
+                    .markerRect(ayah)!
+                    .shift(tester.getTopLeft(find.byWidget(block)) - origin),
+          ];
+        }
+
+        var focused = 0;
+        var inkPixels = 0;
+        var ringPixels = 0;
+        for (final block in tester.widgetList<ReaderBlock>(
+          find.byType(ReaderBlock),
+        )) {
+          for (final (k, ayah) in block.layout.ayat.indexed) {
+            final ring = find
+                .descendant(
+                  of: find.byWidget(block),
+                  matching: find.byType(FocusRing),
+                )
+                .at(k);
+            final inner = find.descendant(
+              of: ring,
+              matching: find.byType(SizedBox),
+            );
+            Focus.of(tester.element(inner.first)).requestFocus();
+            await tester.pumpAndSettle();
+            final withRing = await render();
+            FocusManager.instance.primaryFocus!.unfocus();
+            await tester.pumpAndSettle();
+            final without = await render();
+            final excluded = markers();
+            focused++;
+
+            var repainted = 0;
+            for (var at = 0; at < without.length; at += 4) {
+              final before = pixel(without, at);
+              final changed = pixel(withRing, at) != before;
+              if (changed) ringPixels++;
+              if (before != ink) continue;
+              final point = Offset(
+                (at ~/ 4) % _width + 0.5,
+                (at ~/ 4) ~/ _width + 0.5,
+              );
+              if (excluded.any((rect) => rect.contains(point))) continue;
+              inkPixels++;
+              if (changed) repainted++;
+            }
+            expect(
+              repainted,
+              0,
+              reason:
+                  'ayah $ayah: the ring repainted $repainted pixels of text ink',
+            );
+          }
+        }
+        expect(focused, greaterThan(10), reason: 'ayat focused');
+        expect(inkPixels, greaterThan(10000), reason: 'the text was drawn');
+        expect(
+          ringPixels,
+          greaterThan(focused * 100),
+          reason: 'rings were drawn',
+        );
+      },
+    );
+  }
 }
