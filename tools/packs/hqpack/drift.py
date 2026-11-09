@@ -12,6 +12,17 @@ Per file `SSSAAA.mp3` of the folder, with the timing entry of that ayah:
 - trend: the least-squares slope of those offsets against their time in the
   file, in ms per minute, with one intercept per file.
 
+A defective segment (quran_align.py) is kept out of every measure (D-179): the
+end check and the onset use the last and first segment that is not defective,
+a boundary with a defective segment on either side gives no offset, and its
+words count as not covered. An ayah without timing has no file measured; it is
+listed. The defects are counted by kind over the whole timing file and over
+the sample (the ayat whose file is in the folder) and listed with their times;
+they do not change the verdict. Since an overlap is judged against the
+segment just before, a segment that is not defective can still start before
+the end of an earlier one across a defective segment; those are counted, not
+excluded.
+
 Speech is read from the Layer III side information (mp3.py), never from
 decoded samples. A granule's level is the highest `global_gain` among its
 channels that carry main data (`part2_3_length` above 0), and 0 when none
@@ -106,7 +117,9 @@ def speech(audio) -> Speech:
 
 def pause_offsets(pauses, segments) -> list:
     """(pause midpoint, offset) per pause: the nearest segment boundary's midpoint minus the pause's."""
-    boundaries = [(a.end_ms + b.start_ms) / 2.0 for a, b in zip(segments, segments[1:])]
+    boundaries = [
+        (a.end_ms + b.start_ms) / 2.0 for a, b in zip(segments, segments[1:]) if not a.defects and not b.defects
+    ]
     result = []
     for start, end in pauses:
         middle = (start + end) / 2.0
@@ -140,6 +153,7 @@ def slope_ms_per_minute(files) -> Optional[float]:
 
 def measure_file(name, address, audio, timing) -> dict:
     segments = timing.segments
+    sound = timing.sound()
     found = speech(audio)
     result = {
         "file": name,
@@ -154,17 +168,18 @@ def measure_file(name, address, audio, timing) -> dict:
         "encoder_delay": audio.encoder_delay,
         "padding": audio.padding,
         "segments": len(segments),
-        "timing_end_ms": segments[-1].end_ms if segments else None,
-        "end_check": "pass",
+        "defective_segments": len(segments) - len(sound),
+        "timing_end_ms": sound[-1].end_ms if sound else None,
+        "end_check": "pass" if sound else "not made",
         "speech_onset_ms": found.onset_ms,
         "onset_ms": None,
         "pauses": len(found.pauses),
         "samples": [],
     }
-    if segments and segments[-1].end_ms > audio.duration_ms + audio.frame_ms:
+    if sound and sound[-1].end_ms > audio.duration_ms + audio.frame_ms:
         result["end_check"] = "fail"
-    if segments and found.onset_ms is not None:
-        result["onset_ms"] = segments[0].start_ms - found.onset_ms
+    if sound and found.onset_ms is not None:
+        result["onset_ms"] = sound[0].start_ms - found.onset_ms
     result["samples"] = [{"at_ms": t, "offset_ms": o} for t, o in pause_offsets(found.pauses, segments)]
     return result
 
@@ -192,15 +207,17 @@ def verdict(summary) -> list:
     return missed
 
 
-def summarise(files, entries) -> dict:
+def summarise(files, entries, files_without_timing) -> dict:
     samples = [(s["at_ms"], s["offset_ms"]) for f in files for s in f["samples"]]
     offsets = [o for _, o in samples]
     magnitudes = sorted(abs(o) for o in offsets)
     onsets = sorted(f["onset_ms"] for f in files if f["onset_ms"] is not None)
     summary = {
         "files_measured": len(files),
-        "entries_without_file": entries - len(files),
+        "files_without_timing": files_without_timing,
+        "entries_without_file": entries - len(files) - files_without_timing,
         "end_check_failures": sum(1 for f in files if f["end_check"] == "fail"),
+        "end_checks_not_made": sum(1 for f in files if f["end_check"] == "not made"),
         "onset_median_ms": _median(onsets),
         "onset_max_abs_ms": max((abs(o) for o in onsets), default=None),
         "pause_samples": len(samples),
@@ -228,7 +245,7 @@ def words(timings, text=None) -> dict:
     for address in sorted(timings):
         segments = timings[address].segments
         covered = set()
-        for s in segments:
+        for s in timings[address].sound():
             covered.update(range(s.word_start, s.word_end))
         highest = segments[-1].word_end if segments else 0
         if text is None:
@@ -250,6 +267,80 @@ def words(timings, text=None) -> dict:
         "uncovered_words": uncovered,
         "word_index_problems": problems if text is not None else None,
         "pause_mark_tokens": {k: marks[k] for k in sorted(marks)} if text is not None else None,
+    }
+
+
+def defect_counts(timings) -> dict:
+    """Ayat without timing and segments by defect kind over `timings`, with the defect rate per 10,000 segments."""
+    counts = {
+        "ayat": 0,
+        "ayat_without_timing": 0,
+        "no_segments_field": 0,
+        "empty_segments": 0,
+        "segments": 0,
+        "defective_segments": 0,
+        "end_before_start": 0,
+        "overlap": 0,
+        "zero_length": 0,
+        "sound_segments_before_an_earlier_end": 0,
+    }
+    for timing in timings:
+        counts["ayat"] += 1
+        if not timing.segments:
+            counts["ayat_without_timing"] += 1
+            counts["empty_segments" if timing.segments_field else "no_segments_field"] += 1
+        counts["segments"] += len(timing.segments)
+        for segment in timing.segments:
+            counts["defective_segments"] += bool(segment.defects)
+            for kind in segment.defects:
+                counts[kind] += 1
+        latest = None
+        for segment in timing.sound():
+            if latest is not None and segment.start_ms < latest:
+                counts["sound_segments_before_an_earlier_end"] += 1
+            latest = segment.end_ms if latest is None else max(latest, segment.end_ms)
+    counts["defects_per_10000_segments"] = (
+        counts["defective_segments"] * 10000.0 / counts["segments"] if counts["segments"] else None
+    )
+    return counts
+
+
+def timing_defects(timings, files, unmeasured) -> dict:
+    """The counts over the whole file and over the sample, each defective segment and each ayah without timing.
+
+    `files` maps the address of every audio file in the folder to its name, and
+    `unmeasured` the address of each file left unmeasured to its SHA-256.
+    """
+    defective = []
+    untimed = []
+    for address in sorted(timings):
+        timing = timings[address]
+        where = "hafs:%d:%d" % address
+        if not timing.segments:
+            field = "empty" if timing.segments_field else "absent"
+            untimed.append(
+                {"address": where, "segments": field, "file": files.get(address), "sha256": unmeasured.get(address)}
+            )
+        previous = None
+        for number, s in enumerate(timing.segments, 1):
+            if s.defects:
+                defective.append(
+                    {
+                        "address": where,
+                        "segment": number,
+                        "kinds": list(s.defects),
+                        "start_ms": s.start_ms,
+                        "end_ms": s.end_ms,
+                        "previous_end_ms": previous,
+                        "in_sample": address in files,
+                    }
+                )
+            previous = s.end_ms
+    return {
+        "whole": defect_counts(timings[a] for a in sorted(timings)),
+        "sample": defect_counts(timings[a] for a in sorted(files)),
+        "defective_segments": defective,
+        "ayat_without_timing": untimed,
     }
 
 
@@ -286,10 +377,16 @@ def run_drift(timing_path, audio_dir, edition, profile, text_path=None, metadata
     inputs["timing_sha256"] = digest.sha256_bytes(timing_bytes)
     timings = read_timing(timing_bytes, profile, metadata)
     files = []
+    present = {}
+    unmeasured = {}
     for name, address in _audio_files(audio_dir):
         if address not in timings:
             raise PackError("%s names %d:%d, which the timing file does not have" % ((name,) + address))
+        present[address] = name
         data = (audio_dir / name).read_bytes()
+        if not timings[address].segments:
+            unmeasured[address] = digest.sha256_bytes(data)
+            continue
         try:
             audio = mp3.read_mp3(data)
         except PackError as e:
@@ -313,7 +410,8 @@ def run_drift(timing_path, audio_dir, edition, profile, text_path=None, metadata
         },
         "files": files,
         "words": words(timings, text),
-        "summary": summarise(files, len(timings)),
+        "timing": timing_defects(timings, present, unmeasured),
+        "summary": summarise(files, len(timings), len(present) - len(files)),
     }
 
 
@@ -330,20 +428,53 @@ def lines(report) -> list:
             result.append("%s %s" % (key.replace("_", " "), value))
     for f in report["files"]:
         result.append(
-            "%s %s sha256 %s: duration %s ms (delay %s, LAME tag %s), timing end %s ms, end check %s, "
-            "onset %s ms, pauses %d, samples %d"
+            "%s %s sha256 %s: duration %s ms (delay %s, LAME tag %s), segments %d (defective %d), "
+            "timing end %s ms, end check %s, onset %s ms, pauses %d, samples %d"
             % (
                 f["file"], f["address"], f["sha256"], f["duration_ms"],
-                "known" if f["delay_known"] else "not known", f["lame_tag"], f["timing_end_ms"], f["end_check"],
-                f["onset_ms"], f["pauses"], len(f["samples"]),
+                "known" if f["delay_known"] else "not known", f["lame_tag"], f["segments"], f["defective_segments"],
+                f["timing_end_ms"], f["end_check"], f["onset_ms"], f["pauses"], len(f["samples"]),
             )
         )
     s = report["summary"]
     w = report["words"]
+    t = report["timing"]
+    for name, counts in (("whole timing file", t["whole"]), ("sample", t["sample"])):
+        result.append(
+            "%s: ayat %d, without timing %d (no segments field %d, empty %d), segments %d, defective %d "
+            "(end before start %d, overlap %d, zero length %d), segments not defective that start before "
+            "an earlier one ends %d"
+            % (
+                name, counts["ayat"], counts["ayat_without_timing"], counts["no_segments_field"],
+                counts["empty_segments"], counts["segments"], counts["defective_segments"],
+                counts["end_before_start"], counts["overlap"], counts["zero_length"],
+                counts["sound_segments_before_an_earlier_end"],
+            )
+        )
+    result.append(
+        "defective segments per 10,000 segments (not a criterion): whole timing file %s, sample %s"
+        % (t["whole"]["defects_per_10000_segments"], t["sample"]["defects_per_10000_segments"])
+    )
+    for d in t["defective_segments"]:
+        result.append(
+            "defective segment %s segment %d (%s): start %d ms, end %d ms, previous end %s ms%s"
+            % (d["address"], d["segment"], ", ".join(d["kinds"]), d["start_ms"], d["end_ms"], d["previous_end_ms"],
+               ", in the sample" if d["in_sample"] else "")
+        )
+    for u in t["ayat_without_timing"]:
+        result.append(
+            "ayah without timing %s: segments %s, %s"
+            % (
+                u["address"], u["segments"],
+                "file %s sha256 %s not measured" % (u["file"], u["sha256"]) if u["file"] else "no file",
+            )
+        )
     result.extend(
         [
-            "files measured %d, entries without a file %d, end-check failures %d"
-            % (s["files_measured"], s["entries_without_file"], s["end_check_failures"]),
+            "files measured %d, files without timing %d, entries without a file %d, end-check failures %d, "
+            "end checks not made %d"
+            % (s["files_measured"], s["files_without_timing"], s["entries_without_file"], s["end_check_failures"],
+               s["end_checks_not_made"]),
             "onset median %s ms, max |onset| %s ms" % (s["onset_median_ms"], s["onset_max_abs_ms"]),
             "pause samples %d, median offset %s ms, p95 |offset| %s ms, max |offset| %s ms, slope %s ms per minute"
             % (s["pause_samples"], s["median_offset_ms"], s["p95_abs_offset_ms"], s["max_abs_offset_ms"],

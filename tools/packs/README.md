@@ -46,7 +46,7 @@ All under `hqpack/`. Each raises `errors.PackError` with a message as above.
 | `git_tree.py` | Whether a path is inside a Git working tree, without a `git` program | `git_tree(path) -> directory or None` |
 | `kfgqpc_counts.py` | The P5 reference counts from the KFGQPC file alone (B0.3) | `kfgqpc_counts(path, date, profile)`, `encode_counts(counts) -> bytes` |
 | `mp3.py` | A strict MPEG audio Layer III reader that decodes no sample (B0.5, D-179): skips one ID3v2 tag at the start and an ID3v1 and an APEv2 tag at the end, walks every frame header (MPEG 1, 2, 2.5; free bitrate and Layers I and II refused), reads a Xing or Info frame and a LAME tag, whose delay and padding are used only when its CRC-16 holds (`lame_tag`: `none`, `valid` or `crc_mismatch`); refuses a lost sync, a truncated frame, or a change of MPEG version, sample rate or channel count, naming the byte offset | `read_mp3(data) -> Mp3Audio(version, sample_rate, channel_mode, channels, frames, samples_per_frame, frame_ms, granule_ms, duration_ms, delay_known, encoder_delay, padding, lame_tag, granules: [Granule(start_ms, channels: ((part2_3_length, global_gain), ...))])` |
-| `quran_align.py` | quran-align word timing (registry row 6), strictly: every ayah of the profile once, integer fields, segments in time order without overlap, word indices increasing | `read_timing(data, profile, metadata=None) -> {(surah, ayah): Timing(surah, ayah, segments: [Segment(word_start, word_end, start_ms, end_ms)])}` |
+| `quran_align.py` | quran-align word timing (registry row 6), strictly: every ayah of the profile once, integer fields, word indices increasing; a segment whose times cannot be right is kept and marked defective, and an entry without segments is an ayah without timing (D-179) | `read_timing(data, profile, metadata=None) -> {(surah, ayah): Timing(surah, ayah, segments: [Segment(word_start, word_end, start_ms, end_ms, defects)], segments_field)}`, `Timing.sound()` |
 | `drift.py` | The drift measurement between a timing file and a folder of per-ayah MP3 files, and its verdict (see "Recitation drift") | `run_drift(timing, audio_dir, edition, profile, text_path=None, metadata_path=None) -> report`, `encode_report(report) -> bytes`, `lines(report)`, `verdict(summary)` |
 
 `pack.py` (next to this file) runs the CLI; `synthetic_source.py` writes the synthetic
@@ -543,9 +543,18 @@ no audio sample: it reads the MP3 frame headers and the Layer III side informati
   no gap), the four fields and nothing else, integers only (a fraction, `NaN`, a
   boolean or a repeated field name is refused), `stats` with its three fields, and
   segments `[word_start, word_end, start_ms, end_ms]` with `word_end` above
-  `word_start` (exclusive), `start_ms <= end_ms`, each segment starting at or after
-  the previous one's end in time and in words. An ayah with no segment is accepted
-  and counted.
+  `word_start` (exclusive), each segment starting at or after the previous one's
+  end word. A `segments` value that is not a list, a segment that is not four
+  integers, and word indices out of order are refused.
+- Defective segments and ayat without timing (D-179). The real files of release
+  2016-11-24 hold a few segments whose times cannot be right (in the four files of
+  D-167, from 3 to 26 by kind per file of about 76,000 segments, and one entry with
+  no `segments` field), so they are kept, not refused. A segment is defective, with
+  every kind that applies, when it ends before it starts (`end_before_start`), ends
+  where it starts (`zero_length`), or starts before the end of the segment just
+  before it, defective or not (`overlap`). An entry without the `segments` field, or
+  with an empty list, is an ayah without timing. Only `segments` may be missing: the
+  other three fields are still required.
 - `--audio`: the folder of `SSSAAA.mp3` files, which must be named as `--edition`
   (D-167 (2): a timing file goes with its exact folder). Other files are ignored; a
   file whose address the timing file lacks is refused. Each file goes through
@@ -561,11 +570,14 @@ no audio sample: it reads the MP3 frame headers and the Layer III side informati
 | Measure | How |
 | --- | --- |
 | Playable duration | Frames times samples per frame, less the LAME tag's encoder delay and padding when the file has one whose CRC-16 (CRC-16/ARC from the frame's first byte to the CRC field, LAME's rule) holds (`delay_known`); a granule's time is then counted from the encoder delay plus the decoder delay of 529 samples, as a gapless decoder plays it. Without a valid tag nothing is removed. A tag whose CRC fails is reported per file (`lame_tag: crc_mismatch`) and not used: ffmpeg is said to compute it over a fixed 190 bytes, which differs from LAME's rule outside MPEG 1 stereo, and that is unverified here. Either way the difference is one decoder and encoder delay, about 25 ms |
-| End check | The last segment's `end_ms` against the duration. Timing that ends more than one frame after the audio fails the file |
+| End check | The `end_ms` of the last segment that is not defective against the duration. Timing that ends more than one frame after the audio fails the file. With no such segment the check is `not made` |
 | Speech | A granule's level is the highest `global_gain` among its channels that carry main data (`part2_3_length` above 0), else 0. The loud level is the 90th percentile of the file's granule levels (nearest rank, `LOUD_PERCENTILE`); a granule is speech when its level is above 0 and above the loud level less 20 steps (`SILENCE_DROP_STEPS`, 30 dB at 1.5 dB a step). A speech run lasts at least 50 ms (`SPEECH_RUN_MS`); a shorter burst counts as silence |
-| Onset | The first segment's `start_ms` minus the start of the first speech run |
-| Pause samples | Every silence of at least 120 ms (`MIN_PAUSE_MS`) between two speech runs. Its offset is the midpoint of the nearest boundary between consecutive segments (the gap between them, or the join where there is none) minus the silence's midpoint: positive when the timing is later than the audio. A file with fewer than two segments gives no sample |
+| Onset | The `start_ms` of the first segment that is not defective minus the start of the first speech run |
+| Pause samples | Every silence of at least 120 ms (`MIN_PAUSE_MS`) between two speech runs. Its offset is the midpoint of the nearest boundary between consecutive segments (the gap between them, or the join where there is none) minus the silence's midpoint: positive when the timing is later than the audio. A boundary with a defective segment on either side is not used. A file with no usable boundary gives no sample |
 | Trend | The least-squares slope of the offsets against their time in the file, in ms per minute, with one intercept per file, so that a constant offset that differs between files does not read as a rate |
+
+A file whose ayah has no timing is not measured or read as MP3; it is listed with
+its ayah and its SHA-256. The words of a defective segment count as not covered.
 
 With the text, every entry's highest `word_end` must not exceed the ayah's count of
 U+0020-separated tokens (`tokens.token_spans`); an entry past it is a word index
@@ -574,10 +586,27 @@ are counted per code point sequence, with how many of them a segment covers.
 
 ### Summary and verdict
 
-Per edition: files measured, timing entries without a file, end-check failures,
-onset median and largest |onset|, pause samples, median offset, p95 (nearest rank)
-and largest |offset|, the slope, and words no segment covers (counted against the
-Tanzil tokens with the text, else up to each entry's highest `word_end`).
+Per edition: files measured, files without timing, timing entries without a file,
+end-check failures, end checks not made, onset median and largest |onset|, pause
+samples, median offset, p95 (nearest rank) and largest |offset|, the slope, and
+words no segment that is not defective covers (counted against the Tanzil tokens
+with the text, else up to each entry's highest `word_end`).
+
+The timing's defects, counted twice: over the whole timing file (every ayah of the
+profile) and over the sample (the ayat whose file is in the folder, measured or
+not). Each count gives the ayat, the ayat without timing (no `segments` field;
+empty), the segments, the defective segments and the segments of each kind (a
+segment of two kinds counts under both), the segments that are not defective but
+start before an earlier one that is not defective ends, and the defective segments
+per 10,000 segments. The last but one exists because an overlap is judged against
+the segment just before: after a segment that ends before it starts, a later segment
+can go back in time without being marked. It is counted, not excluded, so the first
+real run shows whether such segments exist. Every defective segment is listed by
+address, segment number (from 1), kinds, `start_ms`, `end_ms`, the end of the
+segment just before it and whether it is in the sample; every ayah without timing by
+address, which way it lacks timing and its file and the file's SHA-256, if any.
+Times only: no word and no text. The defects do not change the verdict, and the rate
+is reported, not judged.
 
 The verdict uses the lead's thresholds (D-179), constants in `drift.py` that no
 flag changes. PASS when all hold:
@@ -599,9 +628,10 @@ stdout and the report hold only the edition, file names, addresses (`hafs:S:A`),
 the SHA-256 of every input (timing, text, metadata, each audio file) and numbers,
 rounded to 0.1 ms; the pause-mark counts are keyed by `U+XXXX`. No Quran text is
 written, and the report holds no path (stdout ends with the report's own path). The JSON report (`holyquran-recitation-drift`,
-version 1) has `edition`, `inputs`, `thresholds`, `files` (per file: its numbers and
-each pause sample's `at_ms` and `offset_ms`), `words` and `summary` (with `verdict`
-and `missed`).
+version 1) has `edition`, `inputs`, `thresholds`, `files` (per file: its numbers, its
+count of defective segments and each pause sample's `at_ms` and `offset_ms`),
+`words`, `timing` (`whole` and `sample` counts, `defective_segments`,
+`ayat_without_timing`) and `summary` (with `verdict` and `missed`).
 
 The timing files, the audio sample and the report stay on the owner's machine: none
 is committed, attached or uploaded. `--report` inside a Git working tree (the path

@@ -8,6 +8,14 @@ segment may cover several words and words may be missing; times are
 milliseconds in that ayah's file. Every ayah of the profile must appear exactly
 once. Errors name the entry's position, its address and a field, never a value
 other than a number.
+
+The real files hold a few segments whose times cannot be right, so the reader
+keeps them and marks them instead of refusing the file (D-179): a segment is
+defective, with each kind that applies, when it ends before it starts
+(`end_before_start`), ends where it starts (`zero_length`), or starts before
+the end of the segment just before it, defective or not (`overlap`). An entry
+without the `segments` field, or with an empty list, is an ayah without
+timing. Word indices are still checked on every segment.
 """
 
 from __future__ import annotations
@@ -19,6 +27,11 @@ from .errors import PackError
 
 _FIELDS = frozenset(("surah", "ayah", "segments", "stats"))
 _STATS = frozenset(("insertions", "deletions", "transpositions"))
+_UNTIMED_FIELDS = _FIELDS - {"segments"}
+
+END_BEFORE_START = "end_before_start"
+ZERO_LENGTH = "zero_length"
+OVERLAP = "overlap"
 
 
 @dataclass(frozen=True)
@@ -27,6 +40,7 @@ class Segment:
     word_end: int
     start_ms: int
     end_ms: int
+    defects: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -34,6 +48,11 @@ class Timing:
     surah: int
     ayah: int
     segments: tuple
+    segments_field: bool = True
+
+    def sound(self) -> tuple:
+        """The segments that are not defective, the only ones measured."""
+        return tuple(s for s in self.segments if not s.defects)
 
 
 def read_timing(data: bytes, profile, metadata=None) -> dict:
@@ -73,8 +92,11 @@ def _read(data, profile, metadata):
 def _entry(entry, position, profile):
     if not isinstance(entry, dict):
         raise PackError("entry %d is not an object" % position)
-    if set(entry) != _FIELDS:
-        raise PackError("entry %d does not have exactly the fields %s" % (position, ", ".join(sorted(_FIELDS))))
+    if set(entry) not in (_FIELDS, _UNTIMED_FIELDS):
+        raise PackError(
+            "entry %d does not have exactly the fields %s (segments may be left out)"
+            % (position, ", ".join(sorted(_FIELDS)))
+        )
     surah = _integer(entry["surah"], "entry %d: surah" % position, 1)
     ayah = _integer(entry["ayah"], "entry %d: ayah" % position, 1)
     if surah > profile.surahs:
@@ -85,6 +107,8 @@ def _entry(entry, position, profile):
         raise PackError("%s: stats does not have exactly the fields %s" % (where, ", ".join(sorted(_STATS))))
     for name in sorted(_STATS):
         _integer(stats[name], "%s: stats.%s" % (where, name), 0)
+    if "segments" not in entry:
+        return Timing(surah=surah, ayah=ayah, segments=(), segments_field=False)
     segments = entry["segments"]
     if not isinstance(segments, list):
         raise PackError("%s: segments is not an array" % where)
@@ -100,21 +124,21 @@ def _segments(values, where):
         word_start, word_end, start_ms, end_ms = (_integer(v, label, 0) for v in value)
         if word_end <= word_start:
             raise PackError("%s covers words %d to %d (end exclusive), no word" % (label, word_start, word_end))
+        defects = []
         if end_ms < start_ms:
-            raise PackError("%s ends at %d ms, before its start at %d ms" % (label, end_ms, start_ms))
+            defects.append(END_BEFORE_START)
+        if result and start_ms < result[-1].end_ms:
+            defects.append(OVERLAP)
+        if end_ms == start_ms:
+            defects.append(ZERO_LENGTH)
         if result:
             previous = result[-1]
-            if start_ms < previous.end_ms:
-                raise PackError(
-                    "%s starts at %d ms, before the previous segment ends at %d ms"
-                    % (label, start_ms, previous.end_ms)
-                )
             if word_start < previous.word_end:
                 raise PackError(
                     "%s starts at word %d, before the previous segment's end word %d"
                     % (label, word_start, previous.word_end)
                 )
-        result.append(Segment(word_start, word_end, start_ms, end_ms))
+        result.append(Segment(word_start, word_end, start_ms, end_ms, tuple(defects)))
     return tuple(result)
 
 

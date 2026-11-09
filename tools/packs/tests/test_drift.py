@@ -2,10 +2,11 @@
 
 import json
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 import synthetic_source as synthetic
-from hqpack import drift
+from hqpack import digest, drift
 from hqpack.errors import PackError
 from hqpack.mp3 import read_mp3
 from hqpack.profiles import PROFILES
@@ -44,20 +45,25 @@ def three_segments(later):
     return [[0, 1, 180, 720], [1, 2, 900, 9720 + later], [2, 3, 9900 + later, 10440]]
 
 
+ABSENT = object()
+
+
 def timing_json(overrides=None, default=None, drop=(), extra=()):
+    """The timing of every synthetic ayah; an override of ABSENT leaves out the entry's `segments` field."""
     overrides = overrides or {}
     entries = []
     for address in reversed(AYAT):
         if address in drop:
             continue
-        entries.append(
-            {
-                "surah": address[0],
-                "ayah": address[1],
-                "segments": overrides.get(address, segments() if default is None else default),
-                "stats": {"insertions": 0, "deletions": 1, "transpositions": 0},
-            }
-        )
+        entry = {
+            "surah": address[0],
+            "ayah": address[1],
+            "segments": overrides.get(address, segments() if default is None else default),
+            "stats": {"insertions": 0, "deletions": 1, "transpositions": 0},
+        }
+        if entry["segments"] is ABSENT:
+            del entry["segments"]
+        entries.append(entry)
     entries.extend(extra)
     return json.dumps(entries).encode("ascii")
 
@@ -142,6 +148,18 @@ class OffsetTest(unittest.TestCase):
             drift.pause_offsets([(900.0, 1100.0), (1800.0, 2100.0)], segs), [(1000.0, 50.0), (1950.0, 50.0)]
         )
 
+    def test_a_boundary_next_to_a_defective_segment_gives_no_sample(self):
+        sound = (Segment(0, 1, 0, 800), Segment(1, 2, 820, 1500), Segment(2, 3, 2000, 2500))
+        self.assertEqual(drift.pause_offsets([(720.0, 900.0)], sound), [(810.0, 0.0)])
+        for kinds in (("zero_length",), ("end_before_start",), ("end_before_start", "overlap")):
+            for index, samples in ((0, [(810.0, 940.0)]), (1, [])):
+                with self.subTest(kinds=kinds, index=index):
+                    segs = list(sound)
+                    segs[index] = replace(segs[index], defects=kinds)
+                    self.assertEqual(drift.pause_offsets([(720.0, 900.0)], segs), samples)
+        overlapping = (sound[0], Segment(1, 2, 790, 1500, ("overlap",)))
+        self.assertEqual(drift.pause_offsets([(720.0, 900.0)], overlapping), [])
+
     def test_no_boundary_no_sample(self):
         self.assertEqual(drift.pause_offsets([(720.0, 900.0)], (Segment(0, 3, 0, 1500),)), [])
         self.assertEqual(drift.pause_offsets([(720.0, 900.0)], ()), [])
@@ -171,9 +189,32 @@ class OffsetTest(unittest.TestCase):
             timing = Timing(1, 1, tuple(Segment(*s) for s in segments(end_shift=end - 1440)))
             self.assertEqual(drift.measure_file("001001.mp3", (1, 1), audio(TWO_RUNS), timing)["end_check"], check)
 
-    def test_an_entry_without_segments(self):
-        result = drift.measure_file("001001.mp3", (1, 1), audio(TWO_RUNS), Timing(1, 1, ()))
-        self.assertEqual((result["end_check"], result["onset_ms"], result["samples"]), ("pass", None, []))
+    def test_the_end_check_uses_the_last_sound_segment(self):
+        late = Segment(2, 3, 9000, 8000, ("end_before_start",))
+        timing = Timing(1, 1, tuple(Segment(*s) for s in segments()) + (late,))
+        result = drift.measure_file("001001.mp3", (1, 1), audio(TWO_RUNS), timing)
+        self.assertEqual((result["timing_end_ms"], result["end_check"]), (1440, "pass"))
+        self.assertEqual((result["segments"], result["defective_segments"]), (3, 1))
+        past = Segment(0, 1, 180, 1600)
+        timing = Timing(1, 1, (past, Segment(1, 2, 1600, 1600, ("zero_length",))))
+        result = drift.measure_file("001001.mp3", (1, 1), audio(TWO_RUNS), timing)
+        self.assertEqual((result["timing_end_ms"], result["end_check"]), (1600, "fail"))
+
+    def test_the_onset_uses_the_first_sound_segment(self):
+        first = Segment(0, 1, 50, 50, ("zero_length",))
+        timing = Timing(1, 1, (first,) + tuple(Segment(*s) for s in segments(shift=25)))
+        result = drift.measure_file("001001.mp3", (1, 1), audio(TWO_RUNS), timing)
+        self.assertEqual(result["onset_ms"], 25.0)
+        self.assertEqual(result["samples"], [{"at_ms": 810.0, "offset_ms": 25.0}])
+
+    def test_a_file_whose_segments_are_all_defective(self):
+        defective = (Segment(0, 1, 900, 100, ("end_before_start",)), Segment(1, 2, 950, 950, ("zero_length",)))
+        timing = Timing(1, 1, defective)
+        result = drift.measure_file("001001.mp3", (1, 1), audio(TWO_RUNS), timing)
+        self.assertEqual(
+            (result["timing_end_ms"], result["end_check"], result["onset_ms"], result["samples"]),
+            (None, "not made", None, []),
+        )
 
 
 def _summary(**changes):
@@ -230,10 +271,17 @@ class VerdictTest(unittest.TestCase):
             file([(1000.0, -5.0), (2000.0, 7.0)], 12.0),
             file([(1000.0, 3.0)] * 17 + [(2000.0, 260.0), (3000.0, -300.0)], -40.0, "fail"),
             file([], None),
+            file([], None, "not made"),
         ]
-        summary = drift.summarise(files, 8)
-        counts = (summary["files_measured"], summary["entries_without_file"], summary["end_check_failures"])
-        self.assertEqual(counts, (3, 5, 1))
+        summary = drift.summarise(files, 8, 2)
+        counts = (
+            summary["files_measured"],
+            summary["files_without_timing"],
+            summary["entries_without_file"],
+            summary["end_check_failures"],
+            summary["end_checks_not_made"],
+        )
+        self.assertEqual(counts, (4, 2, 2, 1, 1))
         self.assertEqual((summary["onset_median_ms"], summary["onset_max_abs_ms"]), (-14.0, 40.0))
         self.assertEqual(summary["pause_samples"], 21)
         self.assertEqual(summary["median_offset_ms"], 3.0)
@@ -254,10 +302,35 @@ class TimingTest(unittest.TestCase):
         self.assertEqual(sorted(read_timing(timing_json(), SYNTHETIC)), AYAT)
 
     def test_empty_segments_and_touching_segments(self):
-        data = timing_json({(1, 1): [], (1, 2): [[0, 1, 0, 500], [1, 3, 500, 500], [5, 6, 500, 900]]})
+        data = timing_json({(1, 1): [], (1, 2): [[0, 1, 0, 500], [1, 3, 500, 600], [5, 6, 600, 900]]})
         timings = read_timing(data, SYNTHETIC)
-        self.assertEqual(timings[(1, 1)].segments, ())
-        self.assertEqual(len(timings[(1, 2)].segments), 3)
+        self.assertEqual((timings[(1, 1)].segments, timings[(1, 1)].segments_field), ((), True))
+        self.assertEqual([s.defects for s in timings[(1, 2)].segments], [(), (), ()])
+        self.assertEqual(len(timings[(1, 2)].sound()), 3)
+
+    def test_an_entry_without_the_segments_field_is_an_ayah_without_timing(self):
+        timings = read_timing(timing_json({(2, 2): ABSENT}), SYNTHETIC, self.metadata)
+        self.assertEqual((timings[(2, 2)].segments, timings[(2, 2)].segments_field), ((), False))
+        self.assertEqual(timings[(2, 1)].segments_field, True)
+
+    def test_each_defect_kind_is_kept_and_marked(self):
+        for segs, defects in (
+            ([[0, 1, 9, 8]], [("end_before_start",)]),
+            ([[0, 1, 9, 9]], [("zero_length",)]),
+            ([[0, 1, 0, 500], [1, 2, 499, 900]], [(), ("overlap",)]),
+            ([[0, 1, 0, 500], [1, 2, 450, 400]], [(), ("end_before_start", "overlap")]),
+            ([[0, 1, 0, 500], [1, 2, 450, 450]], [(), ("overlap", "zero_length")]),
+            ([[0, 1, 900, 100], [1, 2, 200, 300]], [("end_before_start",), ()]),
+            ([[0, 1, 0, 900], [1, 2, 950, 940], [2, 3, 945, 990]], [(), ("end_before_start",), ()]),
+            ([[0, 1, 0, 900], [1, 2, 800, 950], [2, 3, 940, 990]], [(), ("overlap",), ("overlap",)]),
+            # Overlap is against the segment just before, not the latest end so far.
+            ([[0, 1, 0, 900], [1, 2, 950, 100], [2, 3, 500, 990]], [(), ("end_before_start",), ()]),
+        ):
+            with self.subTest(segs=segs):
+                timing = read_timing(timing_json({(2, 2): segs}), SYNTHETIC, self.metadata)[(2, 2)]
+                self.assertEqual([s.defects for s in timing.segments], defects)
+                self.assertEqual([[s.word_start, s.word_end, s.start_ms, s.end_ms] for s in timing.segments], segs)
+                self.assertEqual(timing.sound(), tuple(s for s, d in zip(timing.segments, defects) if not d))
 
     def assert_refused(self, data, words, metadata=None):
         with self.assertRaises(PackError) as caught:
@@ -287,14 +360,20 @@ class TimingTest(unittest.TestCase):
         )
         self.assert_refused(b"[1]", "entry 1 is not an object")
         self.assert_refused(b'[{"surah": 1, "ayah": 1, "segments": []}]', "exactly the fields")
+        self.assert_refused(b'[{"surah": 1, "ayah": 1}]', "exactly the fields")
+        self.assert_refused(json.dumps([dict(_entry(1, 1), timing=[])]).encode(), "exactly the fields")
+        no_segments = _entry(1, 1)
+        del no_segments["segments"]
+        self.assert_refused(json.dumps([dict(no_segments, timing=[])]).encode(), "exactly the fields")
         self.assert_refused(b'[{"surah": true, "ayah": 1, "segments": [], "stats": {}}]', "surah is not an integer")
         self.assert_refused(b'[{"surah": 1, "ayah": 0, "segments": [], "stats": {}}]', "ayah is 0, below 1")
         short_stats = b'[{"surah": 1, "ayah": 1, "segments": [], "stats": {"insertions": 0}}]'
         self.assert_refused(short_stats, "stats does not have")
         stats = b'{"insertions": 0, "deletions": -1, "transpositions": 0}'
         self.assert_refused(b'[{"surah": 1, "ayah": 1, "segments": [], "stats": %s}]' % stats, "stats.deletions is -1")
-        not_an_array = dict(_entry(1, 1), segments={})
-        self.assert_refused(json.dumps([not_an_array]).encode(), "segments is not an array")
+        for value in ({}, None, 0, "[]"):
+            not_an_array = dict(_entry(1, 1), segments=value)
+            self.assert_refused(json.dumps([not_an_array]).encode(), "segments is not an array")
 
     def test_the_segments(self):
         for segs, words in (
@@ -302,12 +381,16 @@ class TimingTest(unittest.TestCase):
             ([[0, 1, 0, "9"]], "segment 1 is not an integer"),
             ([[0, 1, -1, 9]], "segment 1 is -1, below 0"),
             ([[1, 1, 0, 9]], "segment 1 covers words 1 to 1"),
-            ([[0, 1, 9, 8]], "segment 1 ends at 8 ms, before its start at 9 ms"),
-            ([[0, 1, 0, 500], [1, 2, 499, 900]], "segment 2 starts at 499 ms, before the previous segment ends at 500"),
+            ([[2, 1, 9, 8]], "segment 1 covers words 2 to 1"),
+            ([[0, 1, 0, 9, 9]], "segment 1 is not an array of four integers"),
+            ([[0, 1, 0, 9], 7], "segment 2 is not an array of four integers"),
+            ([[0, 1, 0, 9], [1, 2, 9.0, 9]], "fraction"),
             ([[0, 2, 0, 500], [1, 3, 500, 900]], "segment 2 starts at word 1, before the previous segment's end word"),
+            ([[0, 2, 0, 500], [1, 3, 400, 900]], "segment 2 starts at word 1, before the previous segment's end word"),
+            ([[0, 2, 9, 8], [1, 3, 9, 9]], "segment 2 starts at word 1, before the previous segment's end word"),
         ):
             with self.subTest(words):
-                self.assert_refused(timing_json({(2, 2): segs}), "(2:2) " + words)
+                self.assert_refused(timing_json({(2, 2): segs}), words if words == "fraction" else "(2:2) " + words)
 
 
 def _stats():
@@ -345,6 +428,21 @@ class WordsTest(unittest.TestCase):
         problems = drift.words(timings, self.text)["word_index_problems"]
         self.assertEqual(problems, [{"address": "hafs:1:4", "highest_word_end": 3, "tokens": 2}])
 
+    def test_the_words_of_a_defective_segment_are_not_covered(self):
+        two_words = [[0, 1, 0, 100], [1, 2, 100, 200]]
+        for second in ([1, 2, 100, 100], [1, 2, 90, 200], [1, 2, 300, 200]):
+            with self.subTest(second=second):
+                timings = read_timing(timing_json({(1, 1): [[0, 1, 0, 100], second]}, default=two_words), SYNTHETIC)
+                self.assertEqual(drift.words(timings, self.text)["uncovered_words"], 11)
+                self.assertEqual(drift.words(timings)["uncovered_words"], 1)
+
+    def test_an_ayah_without_timing_has_no_word_covered(self):
+        two_words = [[0, 1, 0, 100], [1, 2, 100, 200]]
+        for missing in (ABSENT, []):
+            timings = read_timing(timing_json({(1, 1): missing}, default=two_words), SYNTHETIC)
+            # 1:1 has four tokens in the synthetic text.
+            self.assertEqual(drift.words(timings, self.text)["uncovered_words"], 12)
+
     def test_without_the_text(self):
         timings = read_timing(timing_json({(1, 1): [[1, 2, 0, 100], [4, 5, 100, 200]]}), SYNTHETIC)
         result = drift.words(timings)
@@ -352,6 +450,40 @@ class WordsTest(unittest.TestCase):
             result,
             {"word_count_from": "timing", "uncovered_words": 3, "word_index_problems": None, "pause_mark_tokens": None},
         )
+
+
+class TimingDefectsTest(unittest.TestCase):
+    def test_each_listing_names_the_end_of_the_segment_just_before(self):
+        segs = [[0, 1, 0, 500], [1, 2, 450, 400], [2, 3, 380, 380], [3, 4, 600, 700]]
+        timings = read_timing(timing_json({(1, 2): segs}), SYNTHETIC)
+        listed = drift.timing_defects(timings, {(1, 2): "001002.mp3"}, {})["defective_segments"]
+        self.assertEqual(
+            [(d["segment"], d["kinds"], d["previous_end_ms"]) for d in listed],
+            [(2, ["end_before_start", "overlap"], 500), (3, ["overlap", "zero_length"], 400)],
+        )
+
+    def test_the_first_segment_has_no_previous_end(self):
+        timings = read_timing(timing_json({(1, 2): [[0, 1, 9, 8]]}), SYNTHETIC)
+        listed = drift.timing_defects(timings, {}, {})["defective_segments"]
+        self.assertEqual(listed, [{"address": "hafs:1:2", "segment": 1, "kinds": ["end_before_start"],
+                                   "start_ms": 9, "end_ms": 8, "previous_end_ms": None, "in_sample": False}])
+
+    def test_a_sound_segment_before_an_earlier_end_is_counted_not_excluded(self):
+        # Segment 3 is no overlap of segment 2, which ends before it starts, but starts before segment 1 ends.
+        # Segment 4 starts after segment 3 ends but still before segment 1 ends.
+        segs = [[0, 1, 0, 9000], [1, 2, 9500, 100], [2, 3, 500, 990], [3, 4, 1000, 1100], [4, 5, 9100, 9200]]
+        timings = read_timing(timing_json({(1, 2): segs}), SYNTHETIC)
+        self.assertEqual([s.defects for s in timings[(1, 2)].segments], [(), ("end_before_start",), (), (), ()])
+        counts = drift.timing_defects(timings, {(1, 2): "001002.mp3"}, {})
+        self.assertEqual(counts["whole"]["sound_segments_before_an_earlier_end"], 2)
+        self.assertEqual(counts["sample"]["sound_segments_before_an_earlier_end"], 2)
+        self.assertEqual((counts["whole"]["defective_segments"], counts["whole"]["overlap"]), (1, 0))
+
+    def test_no_segment_no_rate(self):
+        timings = read_timing(timing_json(default=[]), SYNTHETIC)
+        counts = drift.timing_defects(timings, {}, {})
+        self.assertEqual((counts["whole"]["segments"], counts["whole"]["defects_per_10000_segments"]), (0, None))
+        self.assertEqual((counts["sample"]["ayat"], counts["sample"]["defects_per_10000_segments"]), (0, None))
 
 
 class RunCase(BuildCase):
@@ -394,6 +526,124 @@ class RunTest(RunCase):
         self.assertEqual(report["edition"], EDITION)
         self.assertRegex(report["inputs"]["timing_sha256"], "^[0-9a-f]{64}$")
         self.assertRegex(files[0]["sha256"], "^[0-9a-f]{64}$")
+
+    def test_an_ayah_without_timing_is_listed_and_its_file_not_measured(self):
+        self.add("001001.mp3", TWO_RUNS)
+        self.add("001002.mp3", TWO_RUNS)
+        self.add("001003.mp3", THREE_RUNS)
+        report = self.run_drift({(1, 1): [[0, 1, 900, 100]], (1, 2): ABSENT, (1, 3): [], (2, 1): ABSENT})
+        two_runs = digest.sha256_bytes(f.stream(TWO_RUNS))
+        three_runs = digest.sha256_bytes(f.stream(THREE_RUNS))
+        self.assertEqual([x["file"] for x in report["files"]], ["001001.mp3"])
+        summary = report["summary"]
+        counts = (summary["files_measured"], summary["files_without_timing"], summary["entries_without_file"])
+        self.assertEqual(counts, (1, 2, 5))
+        self.assertEqual(
+            report["timing"]["ayat_without_timing"],
+            [
+                {"address": "hafs:1:2", "segments": "absent", "file": "001002.mp3", "sha256": two_runs},
+                {"address": "hafs:1:3", "segments": "empty", "file": "001003.mp3", "sha256": three_runs},
+                {"address": "hafs:2:1", "segments": "absent", "file": None, "sha256": None},
+            ],
+        )
+        whole = report["timing"]["whole"]
+        self.assertEqual(
+            (whole["ayat"], whole["ayat_without_timing"], whole["no_segments_field"], whole["empty_segments"]),
+            (8, 3, 2, 1),
+        )
+        sample = report["timing"]["sample"]
+        self.assertEqual(
+            (sample["ayat"], sample["ayat_without_timing"], sample["no_segments_field"], sample["empty_segments"]),
+            (3, 2, 1, 1),
+        )
+        output = drift.lines(report)
+        self.assertIn(
+            "ayah without timing hafs:1:2: segments absent, file 001002.mp3 sha256 %s not measured" % two_runs, output
+        )
+        self.assertIn(
+            "ayah without timing hafs:1:3: segments empty, file 001003.mp3 sha256 %s not measured" % three_runs, output
+        )
+        self.assertIn("ayah without timing hafs:2:1: segments absent, no file", output)
+        summary_line = (
+            "files measured 1, files without timing 2, entries without a file 5, end-check failures 0, "
+            "end checks not made 1"
+        )
+        self.assertIn(summary_line, output)
+
+    def test_defects_are_counted_listed_and_leave_the_verdict(self):
+        self.add("001001.mp3", TWO_RUNS)
+        self.add("002003.mp3", THREE_RUNS)
+        sound = {(1, 1): segments(shift=20), (2, 3): three_segments(7)}
+        passed = self.run_drift(sound)
+        overrides = dict(sound)
+        # In the sample: a zero-length segment and one that ends before it starts, at the end of each file.
+        overrides[(1, 1)] = segments(shift=20) + [[2, 3, 1600, 1600]]
+        overrides[(2, 3)] = three_segments(7) + [[3, 4, 99000, 98000]]
+        # Outside it: an overlap that also ends before it starts, and a plain overlap.
+        overrides[(1, 4)] = [[0, 1, 180, 720], [1, 2, 700, 650], [2, 3, 900, 1440]]
+        overrides[(3, 1)] = [[0, 1, 180, 720], [1, 2, 710, 1440]]
+        report = self.run_drift(overrides)
+        self.assertEqual(report["summary"], passed["summary"])
+        self.assertEqual(report["summary"]["verdict"], "PASS")
+        self.assertEqual([x["defective_segments"] for x in report["files"]], [1, 1])
+        self.assertEqual([x["timing_end_ms"] for x in report["files"]], [1460, 10440])
+        t = report["timing"]
+        self.assertEqual(
+            t["whole"],
+            {
+                "ayat": 8, "ayat_without_timing": 0, "no_segments_field": 0, "empty_segments": 0, "segments": 20,
+                "defective_segments": 4, "end_before_start": 2, "overlap": 2, "zero_length": 1,
+                "sound_segments_before_an_earlier_end": 0, "defects_per_10000_segments": 2000.0,
+            },
+        )
+        self.assertEqual(
+            t["sample"],
+            {
+                "ayat": 2, "ayat_without_timing": 0, "no_segments_field": 0, "empty_segments": 0, "segments": 7,
+                "defective_segments": 2, "end_before_start": 1, "overlap": 0, "zero_length": 1,
+                "sound_segments_before_an_earlier_end": 0, "defects_per_10000_segments": 10000.0 * 2 / 7,
+            },
+        )
+        self.assertEqual(
+            t["defective_segments"],
+            [
+                {"address": "hafs:1:1", "segment": 3, "kinds": ["zero_length"], "start_ms": 1600, "end_ms": 1600,
+                 "previous_end_ms": 1460, "in_sample": True},
+                {"address": "hafs:1:4", "segment": 2, "kinds": ["end_before_start", "overlap"], "start_ms": 700,
+                 "end_ms": 650, "previous_end_ms": 720, "in_sample": False},
+                {"address": "hafs:2:3", "segment": 4, "kinds": ["end_before_start"], "start_ms": 99000,
+                 "end_ms": 98000, "previous_end_ms": 10440, "in_sample": True},
+                {"address": "hafs:3:1", "segment": 2, "kinds": ["overlap"], "start_ms": 710, "end_ms": 1440,
+                 "previous_end_ms": 720, "in_sample": False},
+            ],
+        )
+        output = drift.lines(report)
+        self.assertIn(
+            "whole timing file: ayat 8, without timing 0 (no segments field 0, empty 0), segments 20, defective 4 "
+            "(end before start 2, overlap 2, zero length 1), segments not defective that start before an earlier "
+            "one ends 0",
+            output,
+        )
+        self.assertIn(
+            "sample: ayat 2, without timing 0 (no segments field 0, empty 0), segments 7, defective 2 "
+            "(end before start 1, overlap 0, zero length 1), segments not defective that start before an earlier "
+            "one ends 0",
+            output,
+        )
+        self.assertIn(
+            "defective segments per 10,000 segments (not a criterion): whole timing file 2000.0, sample 2857.1", output
+        )
+        self.assertIn(
+            "defective segment hafs:1:1 segment 3 (zero_length): start 1600 ms, end 1600 ms, previous end 1460 ms, "
+            "in the sample",
+            output,
+        )
+        self.assertIn(
+            "defective segment hafs:1:4 segment 2 (end_before_start, overlap): start 700 ms, end 650 ms, "
+            "previous end 720 ms",
+            output,
+        )
+        self.assertIn("verdict PASS", output)
 
     def test_a_drifting_rate_fails_the_slope(self):
         self.add("002003.mp3", THREE_RUNS)
@@ -504,6 +754,24 @@ class DriftCliTest(CliCase):
         self.assertIn("verdict PASS", out)
         self.assertIn("report %s" % self.report, out)
         self.assertEqual(json.loads(self.report.read_bytes())["summary"]["verdict"], "PASS")
+
+    def test_defects_and_an_ayah_without_timing_still_exit_0_on_a_pass(self):
+        two_words = [[0, 1, 0, 100], [1, 2, 100, 200]]
+        overrides = {(2, 3): three_segments(0), (1, 2): [[0, 1, 500, 400], [1, 2, 500, 600]], (1, 1): ABSENT}
+        self.timing.write_bytes(timing_json(overrides, default=two_words))
+        with hafs_shaped_profiles():
+            code, out, err = self.run_cli(
+                "drift", "--timing", self.timing, "--audio", self.folder, "--edition", EDITION,
+                "--text", self.source / synthetic.TEXT_FILE, "--metadata", self.source / synthetic.METADATA_FILE,
+            )
+        self.assertEqual((code, err), (0, ""))
+        self.assertIn("002003.mp3 hafs:2:3 sha256 ", out)
+        self.assertIn("segments 3 (defective 0), timing end 10440 ms, end check pass", out)
+        rate = "defective segments per 10,000 segments (not a criterion): whole timing file 666.7, sample 0.0"
+        self.assertIn(rate, out)
+        self.assertIn("defective segment hafs:1:2 segment 1 (end_before_start): start 500 ms, end 400 ms", out)
+        self.assertIn("ayah without timing hafs:1:1: segments absent, no file", out)
+        self.assertIn("verdict PASS", out)
 
     def test_a_fail_exits_65(self):
         code, out, _ = self.drift(later=9)
