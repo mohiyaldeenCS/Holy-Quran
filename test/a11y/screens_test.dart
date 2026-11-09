@@ -29,11 +29,10 @@ void main() {
         'bookmarks',
       ]) {
         testWidgets('$name is accessible', (tester) async {
-          final handle = tester.ensureSemantics();
+          addTearDown(tester.ensureSemantics().dispose);
           final screen = world.screens.firstWhere((s) => s.name == name);
           await screen.pump(tester, value.size, value.textScale);
           await expectAccessible(tester);
-          handle.dispose();
         });
       }
     });

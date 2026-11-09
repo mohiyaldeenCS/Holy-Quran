@@ -119,7 +119,7 @@ void main() {
     const lines = [Rect.fromLTWH(4, 4, 112, 20), Rect.fromLTWH(60, 34, 56, 20)];
     final node = await _pumpFocusable(
       tester,
-      ring: (child) => FocusRing.lines(lines: lines, child: child),
+      ring: (child) => FocusRing.lines(lines: () => lines, child: child),
     );
     node.requestFocus();
     await tester.pump();
@@ -141,6 +141,26 @@ void main() {
         );
     }
     expect(find.byType(FocusRing), pattern);
+  });
+
+  testWidgets('asks for its lines only while the ring shows', (tester) async {
+    _useStrategy(FocusHighlightStrategy.alwaysTraditional);
+    var asked = 0;
+    final node = await _pumpFocusable(
+      tester,
+      ring: (child) => FocusRing.lines(
+        lines: () {
+          asked++;
+          return const [Rect.fromLTWH(4, 4, 112, 20)];
+        },
+        child: child,
+      ),
+    );
+    await tester.pump();
+    expect(asked, 0, reason: 'unfocused');
+    node.requestFocus();
+    await tester.pump();
+    expect(asked, greaterThan(0), reason: 'focused');
   });
 
   testWidgets('draws nothing when focus comes from touch', (tester) async {

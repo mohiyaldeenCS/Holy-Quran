@@ -19,7 +19,7 @@ void main() {
   testWidgets('an alert that appears is spoken: its node is a live region', (
     tester,
   ) async {
-    final handle = tester.ensureSemantics();
+    addTearDown(tester.ensureSemantics().dispose);
     await tester.pumpWidget(
       goldenApp(
         ReadingTheme.paper,
@@ -29,13 +29,12 @@ void main() {
 
     final data = tester.getSemantics(find.byType(IntegrityAlert));
     expect(data.flagsCollection.isLiveRegion, isTrue);
-    handle.dispose();
   });
 
   testWidgets('settings says each group once, not as a heading then a group', (
     tester,
   ) async {
-    final handle = tester.ensureSemantics();
+    addTearDown(tester.ensureSemantics().dispose);
     final router = createRouter();
     addTearDown(router.dispose);
     await tester.pumpWidget(testApp(router));
@@ -48,11 +47,10 @@ void main() {
       tester.getSemantics(find.bySemanticsLabel(_l10n.settingsTitle)),
       matchesSemantics(label: _l10n.settingsTitle, isHeader: true),
     );
-    handle.dispose();
   });
 
   testWidgets('onboarding names the app as its heading', (tester) async {
-    final handle = tester.ensureSemantics();
+    addTearDown(tester.ensureSemantics().dispose);
     final router = createRouter();
     addTearDown(router.dispose);
     await tester.pumpWidget(
@@ -66,6 +64,5 @@ void main() {
       matchesSemantics(label: _l10n.appTitle, isHeader: true),
     );
     await expectAccessible(tester);
-    handle.dispose();
   });
 }

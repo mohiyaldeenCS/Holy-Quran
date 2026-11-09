@@ -58,7 +58,7 @@ void main() {
   testWidgets('an ayah takes focus, shows its ring and stays in view', (
     tester,
   ) async {
-    final handle = tester.ensureSemantics();
+    addTearDown(tester.ensureSemantics().dispose);
     final screen = world.screens.firstWhere((s) => s.name == 'reader');
     await screen.pump(tester, phonePortrait, 1);
 
@@ -71,14 +71,13 @@ void main() {
     expect(node.getSemanticsData().hasAction(SemanticsAction.focus), isTrue);
     expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
     expect(node.flagsCollection.isButton, isTrue);
-    handle.dispose();
   });
 
   for (final key in [LogicalKeyboardKey.enter, LogicalKeyboardKey.space]) {
     testWidgets('${key.keyLabel} on a focused ayah activates it', (
       tester,
     ) async {
-      final handle = tester.ensureSemantics();
+      addTearDown(tester.ensureSemantics().dispose);
       final screen = world.screens.firstWhere((s) => s.name == 'reader');
       await screen.pump(tester, phonePortrait, 1);
       expect(world.readerModel!.selectedAyah, isNull);
@@ -88,12 +87,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(world.readerModel!.selectedAyah, isNotNull);
-      handle.dispose();
     });
   }
 
   testWidgets('Tab moves through the ayat in their order', (tester) async {
-    final handle = tester.ensureSemantics();
+    addTearDown(tester.ensureSemantics().dispose);
     final screen = world.screens.firstWhere((s) => s.name == 'reader');
     await screen.pump(tester, phonePortrait, 1);
 
@@ -119,6 +117,5 @@ void main() {
         reason: 'stop ${i + 1} is $reached',
       );
     }
-    handle.dispose();
   });
 }

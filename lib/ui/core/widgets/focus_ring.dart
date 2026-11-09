@@ -19,9 +19,10 @@ const double focusRingReach = _ringGap + _ringWidth;
 /// It follows [radius], as an outline follows `border-radius`, and takes no
 /// layout space.
 ///
-/// [FocusRing.lines] draws one ring round each of [lines] instead of one
-/// round [child]: the rects, in [child]'s coordinates, of what a focused
-/// element covers line by line (D-171). With [behind] the ring is painted under
+/// [FocusRing.lines] draws one ring round each rect [lines] gives instead of
+/// one round [child]: the rects, in [child]'s coordinates, of what a focused
+/// element covers line by line (D-171). They are asked for only while the
+/// ring shows. With [behind] the ring is painted under
 /// [child] instead of over it, for a [child] whose own paint it must never
 /// cover, as the Quran text is never covered.
 class FocusRing extends StatefulWidget {
@@ -31,14 +32,14 @@ class FocusRing extends StatefulWidget {
 
   const FocusRing.lines({
     required this.child,
-    required List<Rect> this.lines,
+    required ValueGetter<List<Rect>> this.lines,
     this.behind = false,
     super.key,
   }) : radius = BorderRadius.zero;
 
   final Widget child;
   final BorderRadius radius;
-  final List<Rect>? lines;
+  final ValueGetter<List<Rect>>? lines;
   final bool behind;
 
   @override
@@ -80,7 +81,7 @@ class _FocusRingState extends State<FocusRing> {
             focus: context.colors.focus,
             ground: context.colors.ground,
             radius: widget.radius,
-            lines: widget.lines,
+            lines: widget.lines?.call(),
           )
         : null;
     return CustomPaint(

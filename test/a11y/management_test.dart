@@ -82,16 +82,15 @@ void main() {
     testWidgets('the resource manager is accessible: ${view.name}', (
       tester,
     ) async {
-      final handle = tester.ensureSemantics();
+      addTearDown(tester.ensureSemantics().dispose);
       await _pump(tester, resources(), view);
       await expectAccessible(tester);
-      handle.dispose();
     });
 
     testWidgets('the sources screen is accessible: ${view.name}', (
       tester,
     ) async {
-      final handle = tester.ensureSemantics();
+      addTearDown(tester.ensureSemantics().dispose);
       await _pump(
         tester,
         SourcesList(
@@ -103,19 +102,17 @@ void main() {
         view,
       );
       await expectAccessible(tester);
-      handle.dispose();
     });
   }
 
   testWidgets('the resource manager is reached by Tab', (tester) async {
-    final handle = tester.ensureSemantics();
+    addTearDown(tester.ensureSemantics().dispose);
     await _pump(tester, resources(), a11yViews.first);
     await expectKeyboardReach(tester);
-    handle.dispose();
   });
 
   testWidgets('the sources are reached by Tab', (tester) async {
-    final handle = tester.ensureSemantics();
+    addTearDown(tester.ensureSemantics().dispose);
     await _pump(
       tester,
       SourcesList(
@@ -127,6 +124,5 @@ void main() {
       a11yViews.first,
     );
     await expectKeyboardReach(tester);
-    handle.dispose();
   });
 }

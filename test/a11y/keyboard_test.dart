@@ -25,14 +25,13 @@ void main() {
     'bookmarks',
   ]) {
     testWidgets('$name is reached by Tab, ring at each stop', (tester) async {
-      final handle = tester.ensureSemantics();
+      addTearDown(tester.ensureSemantics().dispose);
       final screen = world.screens.firstWhere((s) => s.name == name);
       await screen.pump(tester, phonePortrait, 1);
       await expectKeyboardReach(
         tester,
         long: name == 'reader' || name == 'mushaf',
       );
-      handle.dispose();
     });
   }
 }

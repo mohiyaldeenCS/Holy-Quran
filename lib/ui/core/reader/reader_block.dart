@@ -53,8 +53,12 @@ final class ReaderBlock extends StatelessWidget {
                     layout.plan.text.ayat[ayah - 1],
                     readingOrder(ayah).toDouble(),
                     selected: ayah == selectedAyah ? true : null,
-                    onActivate: activate == null ? null : () => activate(ayah),
-                    focusLines: activate == null ? const [] : _lines(ayah),
+                    activation: activate == null
+                        ? null
+                        : (
+                            onActivate: () => activate(ayah),
+                            focusLines: () => _lines(ayah),
+                          ),
                   ),
                 ),
               Positioned.fill(
@@ -82,7 +86,8 @@ final class ReaderBlock extends StatelessWidget {
     );
   }
 
-  /// The rects of the ayah's lines in the coordinates of its own rectangle.
+  /// The rects of the ayah's lines in the coordinates of its own rectangle,
+  /// measured only when its ring is drawn.
   List<Rect> _lines(int ayah) {
     final origin = layout.ayahRect(ayah)!.topLeft;
     return [

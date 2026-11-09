@@ -36,7 +36,7 @@ void main() {
         tester,
         world,
       ) async {
-        final handle = tester.ensureSemantics();
+        addTearDown(tester.ensureSemantics().dispose);
         final router = await pumpSheetsApp(
           tester,
           world,
@@ -54,12 +54,11 @@ void main() {
         }
         expect(find.byType(BottomSheet), findsOneWidget);
         await expectAccessible(tester);
-        handle.dispose();
       });
     }
 
     sheetsTest('the $name sheet is reached by Tab', (tester, world) async {
-      final handle = tester.ensureSemantics();
+      addTearDown(tester.ensureSemantics().dispose);
       final router = await pumpSheetsApp(tester, world, size: phonePortrait);
       await openSheet(
         tester,
@@ -71,7 +70,6 @@ void main() {
         await settleReads(tester);
       }
       await expectKeyboardReach(tester);
-      handle.dispose();
     });
   }
 }
