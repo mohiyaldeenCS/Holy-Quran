@@ -52,9 +52,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Padding(
+            Padding(
               padding: SettingsMetrics.header,
-              child: Center(child: Lockup()),
+              child: Center(
+                child: Semantics(header: true, child: const Lockup()),
+              ),
             ),
             Expanded(
               child: ListView(

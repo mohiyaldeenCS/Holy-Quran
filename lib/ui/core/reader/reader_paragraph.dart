@@ -4,6 +4,8 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/domain/models/pack_text.dart';
+import 'package:holyquran/ui/core/widgets/focus_ring.dart';
+import 'package:holyquran/ui/core/widgets/reveal_on_focus.dart';
 
 import 'break_units.dart';
 import 'planned_ayah.dart';
@@ -198,24 +200,60 @@ double basmalaHeight(PackText basmala, ReaderStyle style, double width) {
   return height;
 }
 
+/// What makes an ayah reachable by keyboard and activatable by a screen
+/// reader: what activating it does, and the rects of its lines in the
+/// coordinates of its own rectangle, asked for only while its focus ring
+/// shows. The one is never given without the other.
+typedef AyahActivation = ({
+  VoidCallback onActivate,
+  ValueGetter<List<Rect>> focusLines,
+});
+
 /// What a screen reader reads for an ayah: its stored text, at [order]
-/// among the block's text, markers and page marks. With [onActivate] a
-/// screen reader can activate it, and [selected] true says it is the chosen
-/// ayah; null leaves the state out, as for every other ayah.
+/// among the block's text, markers and page marks. With [activation] a
+/// screen reader can activate it, and a keyboard can reach it: it takes
+/// focus inside the identity's `FocusRing` (square, one ring round each of
+/// its lines, painted under the text so that no letter or mark is ever
+/// covered), scrolls into view, and Enter or Space activates it (`AX-09`,
+/// D-169, D-171). Tab goes by [order], not by where the rectangles lie: ayat
+/// that share a line overlap, and geometry would put one before the other
+/// wrongly. [selected] true says it is the chosen ayah; null leaves the state
+/// out, as for every other ayah.
 Widget ayahSemantics(
   AyahText ayah,
   double order, {
   bool? selected,
-  VoidCallback? onActivate,
+  AyahActivation? activation,
 }) => Semantics(
   container: true,
   label: ayah.text.verbatim,
   textDirection: TextDirection.rtl,
   sortKey: OrdinalSortKey(order),
-  button: onActivate != null,
+  button: activation != null,
   selected: selected,
-  onTap: onActivate,
-  child: const SizedBox.expand(),
+  onTap: activation?.onActivate,
+  child: switch (activation) {
+    null => const SizedBox.expand(),
+    (:final onActivate, :final focusLines) => FocusTraversalOrder(
+      order: NumericFocusOrder(order),
+      child: RevealOnFocus(
+        child: FocusRing.lines(
+          lines: focusLines,
+          behind: true,
+          child: Actions(
+            actions: {
+              ActivateIntent: CallbackAction<ActivateIntent>(
+                onInvoke: (_) => onActivate(),
+              ),
+            },
+            // Not const: each ayah's focus node stays a widget of its own.
+            // ignore: prefer_const_constructors
+            child: Focus(child: SizedBox.expand()),
+          ),
+        ),
+      ),
+    ),
+  },
 );
 
 // Room past the ayah's natural width, so that the one line it is measured on

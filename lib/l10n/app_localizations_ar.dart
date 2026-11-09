@@ -638,6 +638,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get copyWithSurahAndNumber => 'الآية مع اسم السورة ورقمها';
 
   @override
+  String get copyConfirmed => 'نُسخت الآية';
+
+  @override
   String get copyAction => 'انسخ';
 
   @override

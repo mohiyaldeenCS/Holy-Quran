@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
@@ -115,6 +115,41 @@ void main() {
       utf8.encode((expected as Ok<String>).value),
     ]);
     expect(find.byType(CopySheet), findsNothing);
+  });
+
+  testWidgets('a copied ayah is announced to the screen reader only (D-168)', (
+    tester,
+  ) async {
+    final announced = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockDecodedMessageHandler<dynamic>(
+      SystemChannels.accessibility,
+      (message) async {
+        if (message case {
+          'type': 'announce',
+          'data': {'message': final text},
+        }) {
+          announced.add(text as String);
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger
+          .setMockDecodedMessageHandler<dynamic>(
+            SystemChannels.accessibility,
+            null,
+          ),
+    );
+    final (router, _) = await pumpApp(tester);
+    unawaited(router.push(Routes.copySheet(ayat[5].address)));
+    await tester.pumpAndSettle();
+    expect(announced, isEmpty);
+
+    await tester.tap(find.widgetWithText(Button, _l10n.copyAction));
+    await tester.pumpAndSettle();
+
+    expect(announced, [_l10n.copyConfirmed]);
+    expect(find.text(_l10n.copyConfirmed), findsNothing);
   });
 
   testWidgets('the share sheet shows the card of its address', (tester) async {
