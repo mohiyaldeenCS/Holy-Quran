@@ -134,6 +134,16 @@ class SpeechTest(unittest.TestCase):
             )
             self.assertEqual(drift.speech(audio(levels)).pauses, pauses)
 
+    def test_a_pause_of_exactly_120_ms_at_48_khz(self):
+        # MPEG 1 at 48 kHz: 12 ms granules, so ten silent granules last exactly MIN_PAUSE_MS.
+        for silent, pauses in ((9, ()), (10, ((480.0, 600.0),))):
+            with self.subTest(silent=silent):
+                levels = f.pattern(
+                    (f.SILENT, 10), (f.LOUD, 30), (f.SILENT, silent), (f.LOUD, 30), (f.SILENT, 4 + 10 - silent)
+                )
+                found = drift.speech(read_mp3(f.stream(levels, sample_rate=48000)))
+                self.assertEqual(found.pauses, pauses)
+
     def test_silence_at_either_end_is_no_pause(self):
         found = drift.speech(audio(f.pattern((f.SILENT, 20), (f.LOUD, 30), (f.SILENT, 20))))
         self.assertEqual((found.onset_ms, found.pauses), (360.0, ()))
@@ -227,6 +237,7 @@ class MatchTest(unittest.TestCase):
         timing = Timing(1, 1, tuple(Segment(*s) for s in segments(shift=25)))
         result = drift.measure_file("001001.mp3", (1, 1), audio(TWO_RUNS), timing)
         self.assertEqual(result["address"], "hafs:1:1")
+        self.assertIsNone(result["xing_count"])
         self.assertEqual((result["duration_ms"], result["timing_end_ms"], result["end_check"]), (1512.0, 1465, "pass"))
         self.assertEqual((result["speech_onset_ms"], result["onset_ms"]), (180.0, 25.0))
         self.assertEqual((result["pauses"], result["matched"], result["unmatched"]), (1, 1, 0))
@@ -234,6 +245,13 @@ class MatchTest(unittest.TestCase):
         self.assertEqual(result["unmatched_pause_ends_ms"], [])
         # The pause end moved to 1,900 ms is past the 1,512 ms of audio.
         self.assertEqual(result["chance"], {"pauses": 0, "matched": 0, "samples": []})
+
+    def test_measure_file_reports_the_xing_count(self):
+        timing = Timing(1, 1, tuple(Segment(*s) for s in segments()))
+        for count, case in ((42, "equal"), (43, "includes_info_frame")):
+            data = f.info_frame(frames=count, delay=47, padding=1105) + f.stream(TWO_RUNS)
+            result = drift.measure_file("001001.mp3", (1, 1), read_mp3(data), timing)
+            self.assertEqual(result["xing_count"], case)
 
     def test_measure_file_lists_each_unmatched_pause(self):
         timing = Timing(1, 1, (Segment(0, 1, 180, 720), Segment(1, 2, 1401, 1440)))
@@ -518,8 +536,9 @@ class WordsTest(unittest.TestCase):
     def test_an_index_past_the_tokens(self):
         two_words = [[0, 1, 0, 100], [1, 2, 100, 200]]
         timings = read_timing(timing_json({(1, 4): [[0, 1, 0, 100], [1, 3, 100, 200]]}, default=two_words), SYNTHETIC)
-        problems = drift.words(timings, self.text)["word_index_problems"]
-        self.assertEqual(problems, [{"address": "hafs:1:4", "highest_word_end": 3, "tokens": 2}])
+        result = drift.words(timings, self.text)
+        self.assertEqual(result["word_index_problems"], [{"address": "hafs:1:4", "highest_word_end": 3, "tokens": 2}])
+        self.assertEqual(result["word_index_problems_status"], "not a criterion; enforced where word indices are used")
 
     def test_the_words_of_a_defective_segment_are_not_covered(self):
         two_words = [[0, 1, 0, 100], [1, 2, 100, 200]]
@@ -541,7 +560,13 @@ class WordsTest(unittest.TestCase):
         result = drift.words(timings)
         self.assertEqual(
             result,
-            {"word_count_from": "timing", "uncovered_words": 3, "word_index_problems": None, "pause_mark_tokens": None},
+            {
+                "word_count_from": "timing",
+                "uncovered_words": 3,
+                "word_index_problems": None,
+                "word_index_problems_status": "not a criterion; enforced where word indices are used",
+                "pause_mark_tokens": None,
+            },
         )
 
 
@@ -901,6 +926,7 @@ class DriftCliTest(CliCase):
         self.assertEqual((code, err), (0, ""))
         self.assertIn("edition %s" % EDITION, out)
         self.assertIn("002003.mp3 hafs:2:3 sha256 ", out)
+        self.assertIn("(delay not known, LAME tag none, Xing count none)", out)
         marks = "U+06D6 tokens 1 covered 1; U+06D7 tokens 1 covered 0; U+06DA tokens 1 covered 1"
         self.assertIn("pause-mark-only tokens: " + marks, out)
         self.assertIn("verdict PASS", out)
@@ -939,9 +965,27 @@ class DriftCliTest(CliCase):
             self.assertIn("inside the Git working tree", err)
             self.assertFalse(report.exists())
 
-    def test_a_word_index_past_the_text_exits_65_on_a_pass(self):
+    def test_a_word_index_past_the_text_is_reported_and_the_pass_exits_0(self):
         two_words = [[0, 1, 0, 100], [1, 2, 100, 200]]
         overrides = {(2, 3): three_segments(0), (1, 4): [[0, 1, 0, 100], [1, 3, 100, 200]]}
+        self.timing.write_bytes(timing_json(overrides, default=two_words))
+        with hafs_shaped_profiles():
+            code, out, err = self.run_cli(
+                "drift", "--timing", self.timing, "--audio", self.folder, "--edition", EDITION,
+                "--text", self.source / synthetic.TEXT_FILE, "--metadata", self.source / synthetic.METADATA_FILE,
+                "--report", self.report,
+            )
+        self.assertEqual((code, err), (0, ""))
+        status = "not a criterion; enforced where word indices are used"
+        self.assertIn("word index problems 1 (%s): hafs:1:4 ends at word 3 of 2 tokens" % status, out)
+        self.assertIn("verdict PASS", out)
+        words = json.loads(self.report.read_bytes())["words"]
+        self.assertEqual(words["word_index_problems"], [{"address": "hafs:1:4", "highest_word_end": 3, "tokens": 2}])
+        self.assertEqual(words["word_index_problems_status"], status)
+
+    def test_a_word_index_past_the_text_leaves_a_fail_at_65(self):
+        two_words = [[0, 1, 0, 100], [1, 2, 100, 200]]
+        overrides = {(2, 3): three_segments(9), (1, 4): [[0, 1, 0, 100], [1, 3, 100, 200]]}
         self.timing.write_bytes(timing_json(overrides, default=two_words))
         with hafs_shaped_profiles():
             code, out, _ = self.run_cli(
@@ -949,8 +993,8 @@ class DriftCliTest(CliCase):
                 "--text", self.source / synthetic.TEXT_FILE, "--metadata", self.source / synthetic.METADATA_FILE,
             )
         self.assertEqual(code, 65)
-        self.assertIn("word index problems 1: hafs:1:4 ends at word 3 of 2 tokens", out)
-        self.assertIn("verdict PASS", out)
+        self.assertIn("word index problems 1 (", out)
+        self.assertIn("verdict FAIL", out)
 
     def test_a_report_that_is_a_folder_is_refused(self):
         folder = self.work / "reports"
@@ -958,6 +1002,17 @@ class DriftCliTest(CliCase):
         code, _, err = self.drift(0, folder)
         self.assertEqual(code, 65)
         self.assertIn("is a folder", err)
+
+    def test_a_report_whose_folder_does_not_exist_is_refused_before_anything_is_read(self):
+        report = self.work / "missing" / "report.json"
+        self.assertFalse(self.timing.exists())
+        with hafs_shaped_profiles():
+            code, out, err = self.run_cli(
+                "drift", "--timing", self.timing, "--audio", self.folder, "--edition", EDITION, "--report", report,
+            )
+        self.assertEqual((code, out), (65, ""))
+        self.assertIn("the report's folder %s does not exist" % report.parent, err)
+        self.assertFalse(report.parent.exists())
 
     def test_text_without_metadata_is_a_usage_error(self):
         with hafs_shaped_profiles():

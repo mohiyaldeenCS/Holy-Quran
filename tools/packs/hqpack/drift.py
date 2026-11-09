@@ -86,6 +86,7 @@ SPEECH_RUN_MS = 50
 _AUDIO_NAME = re.compile(r"([0-9]{3})([0-9]{3})\.mp3\Z")
 _EDITION = re.compile(r"[A-Za-z0-9_]+\Z")
 _PAUSE = frozenset(chr(cp) for cp in PAUSE_MARKS)
+WORD_INDEX_PROBLEMS_STATUS = "not a criterion; enforced where word indices are used"
 
 
 @dataclass(frozen=True)
@@ -199,6 +200,7 @@ def measure_file(name, address, audio, timing) -> dict:
         "duration_ms": audio.duration_ms,
         "delay_known": audio.delay_known,
         "lame_tag": audio.lame_tag,
+        "xing_count": audio.xing_count,
         "encoder_delay": audio.encoder_delay,
         "padding": audio.padding,
         "segments": len(segments),
@@ -326,6 +328,7 @@ def words(timings, text=None) -> dict:
         "word_count_from": "tanzil" if text is not None else "timing",
         "uncovered_words": uncovered,
         "word_index_problems": problems if text is not None else None,
+        "word_index_problems_status": WORD_INDEX_PROBLEMS_STATUS,
         "pause_mark_tokens": {k: marks[k] for k in sorted(marks)} if text is not None else None,
     }
 
@@ -412,6 +415,8 @@ def check_report_path(path) -> None:
         )
     if Path(path).is_dir():
         raise PackError("the report %s is a folder" % path)
+    if not Path(path).parent.is_dir():
+        raise PackError("the report's folder %s does not exist" % Path(path).parent)
 
 
 def run_drift(timing_path, audio_dir, edition, profile, text_path=None, metadata_path=None) -> dict:
@@ -491,12 +496,13 @@ def lines(report) -> list:
             result.append("%s %s" % (key.replace("_", " "), value))
     for f in report["files"]:
         result.append(
-            "%s %s sha256 %s: duration %s ms (delay %s, LAME tag %s), segments %d (defective %d), "
+            "%s %s sha256 %s: duration %s ms (delay %s, LAME tag %s, Xing count %s), segments %d (defective %d), "
             "timing end %s ms, end check %s, onset %s ms, pauses %d, matched %d, unmatched %d, "
             "chance pauses %d, chance matched %d"
             % (
                 f["file"], f["address"], f["sha256"], f["duration_ms"],
-                "known" if f["delay_known"] else "not known", f["lame_tag"], f["segments"], f["defective_segments"],
+                "known" if f["delay_known"] else "not known", f["lame_tag"], f["xing_count"] or "none",
+                f["segments"], f["defective_segments"],
                 f["timing_end_ms"], f["end_check"], f["onset_ms"], f["pauses"], f["matched"], f["unmatched"],
                 f["chance"]["pauses"], f["chance"]["matched"],
             )
@@ -568,8 +574,8 @@ def lines(report) -> list:
         )
     if w["word_index_problems"]:
         result.append(
-            "word index problems %d: %s"
-            % (len(w["word_index_problems"]),
+            "word index problems %d (%s): %s"
+            % (len(w["word_index_problems"]), w["word_index_problems_status"],
                ", ".join("%s ends at word %d of %d tokens" % (p["address"], p["highest_word_end"], p["tokens"])
                          for p in w["word_index_problems"]))
         )
@@ -585,9 +591,9 @@ def _audio_files(audio_dir):
         raise PackError("the audio folder %s is not a folder" % audio_dir)
     found = []
     for path in sorted(audio_dir.iterdir()):
-        match = _AUDIO_NAME.match(path.name)
-        if match and path.is_file():
-            found.append((path.name, (int(match.group(1)), int(match.group(2)))))
+        name = _AUDIO_NAME.match(path.name)
+        if name and path.is_file():
+            found.append((path.name, (int(name.group(1)), int(name.group(2)))))
     if not found:
         raise PackError("the audio folder %s holds no SSSAAA.mp3 file" % audio_dir)
     return found

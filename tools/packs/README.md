@@ -45,7 +45,7 @@ All under `hqpack/`. Each raises `errors.PackError` with a message as above.
 | `review_html.py` | The page's HTML from `review_page.html` (frame, style, script) and `review_page.ar.json` (the Arabic labels); the only path from a source text to the page is `parts`, checked by `check_parts` | `render(Page) -> str`, `marked_span(text, start, end)`, `parts(text, start, end)` |
 | `git_tree.py` | Whether a path is inside a Git working tree, without a `git` program | `git_tree(path) -> directory or None` |
 | `kfgqpc_counts.py` | The P5 reference counts from the KFGQPC file alone (B0.3) | `kfgqpc_counts(path, date, profile)`, `encode_counts(counts) -> bytes` |
-| `mp3.py` | A strict MPEG audio Layer III reader that decodes no sample (B0.5, D-179): skips one ID3v2 tag at the start and an ID3v1 and an APEv2 tag at the end, walks every frame header (MPEG 1, 2, 2.5; free bitrate and Layers I and II refused), reads a Xing or Info frame and a LAME tag, whose delay and padding are used only when its CRC-16 holds (`lame_tag`: `none`, `valid` or `crc_mismatch`); refuses a lost sync, a truncated frame, or a change of MPEG version, sample rate or channel count, naming the byte offset | `read_mp3(data) -> Mp3Audio(version, sample_rate, channel_mode, channels, frames, samples_per_frame, frame_ms, granule_ms, duration_ms, delay_known, encoder_delay, padding, lame_tag, granules: [Granule(start_ms, channels: ((part2_3_length, global_gain), ...))])` |
+| `mp3.py` | A strict MPEG audio Layer III reader that decodes no sample (B0.5, D-179): skips one ID3v2 tag at the start (its footer only for ID3v2.4) and an ID3v1 and an APEv2 tag at the end (128 bytes from `TAG` are audio when the frame walk ends exactly at the end of the file), walks every frame header (MPEG 1, 2, 2.5; free bitrate and Layers I and II refused), reads a Xing, Info or VBRI info frame, whose frame count must equal the audio frames or exceed them by one (`xing_count`: `equal` or `includes_info_frame`, else refused), and a LAME tag, whose delay and padding are used only when its CRC-16 holds (`lame_tag`: `none`, `valid` or `crc_mismatch`); refuses a lost sync, a truncated frame, or a change of MPEG version, sample rate or channel count, naming the byte offset | `read_mp3(data) -> Mp3Audio(version, sample_rate, channel_mode, channels, frames, samples_per_frame, frame_ms, granule_ms, duration_ms, delay_known, encoder_delay, padding, lame_tag, xing_count, granules: [Granule(start_ms, channels: ((part2_3_length, global_gain), ...))])` |
 | `quran_align.py` | quran-align word timing (registry row 6), strictly: every ayah of the profile once, integer fields, word indices increasing; a segment whose times cannot be right is kept and marked defective, and an entry without segments is an ayah without timing (D-179) | `read_timing(data, profile, metadata=None) -> {(surah, ayah): Timing(surah, ayah, segments: [Segment(word_start, word_end, start_ms, end_ms, defects)], segments_field)}`, `Timing.sound()` |
 | `drift.py` | The drift measurement between a timing file and a folder of per-ayah MP3 files, and its verdict (see "Recitation drift") | `run_drift(timing, audio_dir, edition, profile, text_path=None, metadata_path=None) -> report`, `encode_report(report) -> bytes`, `lines(report)`, `verdict(summary)` |
 
@@ -97,7 +97,7 @@ python3 tools/packs/pack.py drift --timing <quran-align json> --audio <folder of
 | `compare` | Runs the KFGQPC comparison against the `hafs` profile (6,236 ayat) and writes the report; exits 65 when the report has any problem, 0 when it has none |
 | `review-page` | Runs the KFGQPC comparison and writes the reciter's review page into a new or empty folder outside every Git working tree (see "The reciter's review page"); exits 0 when the page is written, whatever the comparison found |
 | `kfgqpc-counts` | Writes the P5 reference counts of the KFGQPC file; `--date` is the day they are taken, so the same file and date give the same bytes |
-| `drift` | Measures drift between a recitation's quran-align timing and a sample of its everyayah files, prints one line per file, the summary and the verdict, and writes the report if `--report` is given (see "Recitation drift"); exits 0 on PASS, 65 on FAIL or on a word index past the text |
+| `drift` | Measures drift between a recitation's quran-align timing and a sample of its everyayah files, prints one line per file, the summary and the verdict, and writes the report if `--report` is given (see "Recitation drift"); exits 0 on PASS and 65 on FAIL, whatever the word index problems |
 
 To try it on the synthetic source:
 
@@ -558,7 +558,16 @@ no audio sample: it reads the MP3 frame headers and the Layer III side informati
 - `--audio`: the folder of `SSSAAA.mp3` files, which must be named as `--edition`
   (D-167 (2): a timing file goes with its exact folder). Other files are ignored; a
   file whose address the timing file lacks is refused. Each file goes through
-  `mp3.py`; a refused file stops the run with its name and byte offset.
+  `mp3.py`; a refused file stops the run with its name and byte offset. A Xing,
+  Info or VBRI info frame is not audio. Its frame count, when it has one, must
+  equal the audio frames counted (`xing_count: equal`) or exceed them by one, for
+  encoders that count the info frame itself (`includes_info_frame`); a count that
+  differs by more is refused with the header's byte offset. On the owner's first
+  run, `042020.mp3` of `Minshawy_Mujawwad_192kbps` counted 1,643 frames for 1,642
+  audio frames, the second case. ID3v2's flag 0x10 means a footer only in
+  ID3v2.4. The last 128 bytes are an ID3v1 tag when they begin with `TAG`, unless
+  the frame walk from the start ends exactly at the end of the file, which puts
+  `TAG` inside the last frame: then they are audio.
 - `--edition`: the everyayah folder name (`A-Z`, `a-z`, `0-9`, `_`).
 - `--text` and `--metadata` (together or not at all): the Tanzil quran-uthmani text
   and `quran-data.xml`, read by the pipeline's readers and checked against each
@@ -581,10 +590,12 @@ no audio sample: it reads the MP3 frame headers and the Layer III side informati
 A file whose ayah has no timing is not measured or read as MP3; it is listed with
 its ayah and its SHA-256. The words of a defective segment count as not covered.
 
-With the text, every entry's highest `word_end` must not exceed the ayah's count of
+With the text, every entry's highest `word_end` is compared with the ayah's count of
 U+0020-separated tokens (`tokens.token_spans`); an entry past it is a word index
-problem, listed by address. The tokens made only of pause marks (U+06D6 to U+06DB)
-are counted per code point sequence, with how many of them a segment covers.
+problem, listed by address and marked "not a criterion; enforced where word indices
+are used": the drift verdict and the exit code do not depend on it. The tokens made
+only of pause marks (U+06D6 to U+06DB) are counted per code point sequence, with how
+many of them a segment covers.
 
 ### Summary and verdict
 
@@ -629,25 +640,30 @@ flag changes. PASS when all hold:
 
 Otherwise FAIL, naming each criterion missed. A criterion that could not be measured
 (no matched pause; no file with two matched pauses at distinct times; no pause
-detected) is missed, never passed. The command exits 0 on PASS and 65 on FAIL or on any word index problem.
+detected) is missed, never passed. The exit code follows the verdict only: 0 on
+PASS, 65 on FAIL, 64 on a usage error and 70 on any other failure. Word index
+problems are printed and kept in the report, and change neither.
 
 ### The report and where things stay
 
 stdout and the report hold only the edition, file names, addresses (`hafs:S:A`),
 the SHA-256 of every input (timing, text, metadata, each audio file) and numbers,
 rounded to 0.1 ms; the pause-mark counts are keyed by `U+XXXX`. No Quran text is
-written, and the report holds no path (stdout ends with the report's own path). The JSON report (`holyquran-recitation-drift`,
-version 1) has `edition`, `inputs`, `thresholds`, `files` (per file: its numbers, its
-count of defective segments, `pauses`, `matched`, `unmatched`, each sample's
-`pause_end_ms`, `segment` and `offset_ms`, `unmatched_pause_ends_ms`, and `chance`
-with its `pauses`, `matched` and `samples`),
-`words`, `timing` (`whole` and `sample` counts, `defective_segments`,
-`ayat_without_timing`) and `summary` (with `verdict` and `missed`).
+written, and the report holds no path (stdout ends with the report's own path). The
+JSON report (`holyquran-recitation-drift`, version 1) has `edition`, `inputs`,
+`thresholds`, `files` (per file: its numbers, `lame_tag`, `xing_count` (`equal`,
+`includes_info_frame` or `null` without a count), its count of defective segments,
+`pauses`, `matched`, `unmatched`, each sample's `pause_end_ms`, `segment` and
+`offset_ms`, `unmatched_pause_ends_ms`, and `chance` with its `pauses`, `matched` and
+`samples`), `words` (with `word_index_problems` and its `word_index_problems_status`),
+`timing` (`whole` and `sample` counts, `defective_segments`, `ayat_without_timing`)
+and `summary` (with `verdict` and `missed`).
 
 The timing files, the audio sample and the report stay on the owner's machine: none
 is committed, attached or uploaded. `--report` inside a Git working tree (the path
-or a parent holds `.git`, links followed) is refused before anything is read, as
-`test_copy.sh` and `review-page` refuse theirs. Summaries go elsewhere as the
+or a parent holds `.git`, links followed), a `--report` that is a folder and one
+whose folder does not exist are refused before anything is read, as `test_copy.sh`
+and `review-page` refuse theirs. Summaries go elsewhere as the
 verdict lines.
 
 ### The four folders of D-167
@@ -672,7 +688,8 @@ input SHA-256 of each run, recorded with D-179.
 `tests/mp3_factory.py` writes valid frame headers, side information whose
 `part2_3_length` and `global_gain` draw a chosen loud and silent pattern (every
 other field set, so a misread field shows), zero main data, Xing and LAME frames
-with a known delay and padding, ID3 and APE tags and broken files; the timing is
+with a known delay and padding, VBRI frames, a frame holding `TAG` where an ID3v1
+tag would begin, ID3 and APE tags and broken files; the timing is
 synthetic JSON and the text is `synthetic_source.py`'s.
 
 The tests prove the arithmetic and the refusals, not that the speech threshold suits

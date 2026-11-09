@@ -310,10 +310,7 @@ def _drift(args, out):
         print(line, file=out)
     if args.report is not None:
         print("report %s" % args.report, file=out)
-    problems = report["words"]["word_index_problems"]
-    if report["summary"]["verdict"] != "PASS" or problems:
-        return EX_DATAERR
-    return 0
+    return 0 if report["summary"]["verdict"] == "PASS" else EX_DATAERR
 
 
 def _report(args):
