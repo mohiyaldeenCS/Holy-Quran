@@ -41,8 +41,16 @@ THREE_RUNS = f.pattern(
 
 
 def three_segments(later):
-    """The second boundary `later` ms after its pause, the first on its pause: slope later / 0.15 ms per minute."""
+    """The third start `later` ms after its pause's end, the second on its: slope later / 0.15 ms per minute."""
     return [[0, 1, 180, 720], [1, 2, 900, 9720 + later], [2, 3, 9900 + later, 10440]]
+
+
+# Two pauses of 540 ms: speech 180 to 720, 1,260 to 1,800 and 2,340 to 2,880 ms; 2,952 ms in all.
+LONG_PAUSES = f.pattern(
+    (f.SILENT, 10), (f.LOUD, 30), (f.SILENT, 30), (f.LOUD, 30), (f.SILENT, 30), (f.LOUD, 30), (f.SILENT, 4)
+)
+# Each end runs 480 ms into the pause after it, as quran-align's ends do; each start is 40 ms after a pause ends.
+ENDS_INTO_PAUSES = [[0, 1, 180, 1200], [1, 2, 1300, 2280], [2, 3, 2380, 2880]]
 
 
 ABSENT = object()
@@ -135,34 +143,73 @@ class SpeechTest(unittest.TestCase):
         self.assertEqual((found.onset_ms, found.pauses), (None, ()))
 
 
-class OffsetTest(unittest.TestCase):
-    def test_the_sign_and_size_at_a_gap_and_a_join(self):
-        gap = (Segment(0, 1, 0, 700), Segment(1, 2, 900, 1500))
-        self.assertEqual(drift.pause_offsets([(720.0, 900.0)], gap), [(810.0, -10.0)])
-        join = (Segment(0, 1, 0, 850), Segment(1, 2, 850, 1500))
-        self.assertEqual(drift.pause_offsets([(720.0, 900.0)], join), [(810.0, 40.0)])
+def _segments(*starts):
+    """Segments starting at `starts`, each 50 ms long."""
+    return tuple(Segment(i, i + 1, start, start + 50) for i, start in enumerate(starts))
 
-    def test_the_nearest_boundary(self):
-        segs = (Segment(0, 1, 0, 500), Segment(1, 2, 500, 1000), Segment(2, 3, 1100, 2000), Segment(3, 4, 2000, 2500))
-        self.assertEqual(
-            drift.pause_offsets([(900.0, 1100.0), (1800.0, 2100.0)], segs), [(1000.0, 50.0), (1950.0, 50.0)]
-        )
 
-    def test_a_boundary_next_to_a_defective_segment_gives_no_sample(self):
-        sound = (Segment(0, 1, 0, 800), Segment(1, 2, 820, 1500), Segment(2, 3, 2000, 2500))
-        self.assertEqual(drift.pause_offsets([(720.0, 900.0)], sound), [(810.0, 0.0)])
-        for kinds in (("zero_length",), ("end_before_start",), ("end_before_start", "overlap")):
-            for index, samples in ((0, [(810.0, 940.0)]), (1, [])):
-                with self.subTest(kinds=kinds, index=index):
-                    segs = list(sound)
-                    segs[index] = replace(segs[index], defects=kinds)
-                    self.assertEqual(drift.pause_offsets([(720.0, 900.0)], segs), samples)
-        overlapping = (sound[0], Segment(1, 2, 790, 1500, ("overlap",)))
-        self.assertEqual(drift.pause_offsets([(720.0, 900.0)], overlapping), [])
+def _offsets(samples):
+    return [(x["pause_end_ms"], x["segment"], x["offset_ms"]) for x in samples]
 
-    def test_no_boundary_no_sample(self):
-        self.assertEqual(drift.pause_offsets([(720.0, 900.0)], (Segment(0, 3, 0, 1500),)), [])
-        self.assertEqual(drift.pause_offsets([(720.0, 900.0)], ()), [])
+
+class MatchTest(unittest.TestCase):
+    def test_the_offset_is_the_segment_start_minus_the_pause_end(self):
+        samples, unmatched = drift.match([900.0, 2000.0], _segments(0, 940, 1990))
+        self.assertEqual(_offsets(samples), [(900.0, 2, 40.0), (2000.0, 3, -10.0)])
+        self.assertEqual(unmatched, [])
+
+    def test_segment_ends_are_not_used(self):
+        # An end on the pause's end, and a start 300 ms after it.
+        segs = (Segment(0, 1, 0, 900), Segment(1, 2, 1200, 1500))
+        self.assertEqual(_offsets(drift.match([900.0], segs)[0]), [(900.0, 2, 300.0)])
+
+    def test_the_window_holds_500_ms_either_way(self):
+        for start, matched in ((1500, True), (1501, False), (500, True), (499, False)):
+            with self.subTest(start=start):
+                samples, unmatched = drift.match([1000.0], _segments(0, start))
+                self.assertEqual(_offsets(samples), [(1000.0, 2, start - 1000.0)] if matched else [])
+                self.assertEqual(unmatched, [] if matched else [1000.0])
+
+    def test_one_to_one_when_two_pauses_compete_for_one_start(self):
+        samples, unmatched = drift.match([1000.0, 1100.0], _segments(0, 1080))
+        self.assertEqual((_offsets(samples), unmatched), ([(1100.0, 2, -20.0)], [1000.0]))
+
+    def test_the_smallest_distance_over_the_file_is_matched_first(self):
+        # Pause by pause, 1,000 would take 1,060 (+60) and 1,100 then 1,300 (+200).
+        samples, unmatched = drift.match([1000.0, 1100.0], _segments(0, 1060, 1300))
+        self.assertEqual(_offsets(samples), [(1000.0, 3, 300.0), (1100.0, 2, -40.0)])
+        self.assertEqual(unmatched, [])
+
+    def test_one_to_one_when_two_starts_compete_for_one_pause(self):
+        samples, unmatched = drift.match([1000.0], _segments(0, 990, 1020))
+        self.assertEqual((_offsets(samples), unmatched), ([(1000.0, 2, -10.0)], []))
+
+    def test_a_tie_goes_to_the_earlier_pause_then_the_lower_segment(self):
+        self.assertEqual(_offsets(drift.match([1000.0, 1100.0], _segments(0, 1050))[0]), [(1000.0, 2, 50.0)])
+        self.assertEqual(_offsets(drift.match([1000.0], _segments(0, 970, 1030))[0]), [(1000.0, 2, -30.0)])
+
+    def test_the_first_segment_is_no_candidate(self):
+        self.assertEqual(drift.match([1000.0], _segments(1000)), ([], [1000.0]))
+        self.assertEqual(_offsets(drift.match([1000.0], _segments(1000, 1100))[0]), [(1000.0, 2, 100.0)])
+
+    def test_after_a_defective_first_segment_the_first_sound_segment_is_no_candidate(self):
+        segs = (Segment(0, 1, 50, 50, ("zero_length",)), Segment(1, 2, 1000, 1050), Segment(2, 3, 1200, 1300))
+        self.assertEqual(_offsets(drift.match([1000.0], segs)[0]), [(1000.0, 3, 200.0)])
+        self.assertEqual(drift.candidates(segs), [(3, 1200)])
+
+    def test_a_defective_segment_is_no_candidate(self):
+        for kinds in (("zero_length",), ("end_before_start",), ("overlap",), ("end_before_start", "overlap")):
+            with self.subTest(kinds=kinds):
+                segs = (Segment(0, 1, 0, 900), Segment(1, 2, 1000, 1500, kinds), Segment(2, 3, 1600, 1700))
+                self.assertEqual(drift.match([1000.0], segs), ([], [1000.0]))
+
+    def test_no_candidate_no_sample(self):
+        self.assertEqual(drift.match([720.0, 900.0], ()), ([], [720.0, 900.0]))
+        self.assertEqual(drift.match([], _segments(0, 900)), ([], []))
+
+    def test_the_chance_baseline_moves_each_pause_1000_ms_later_and_drops_past_the_end(self):
+        self.assertEqual(drift.chance_pause_ends([900.0, 1500.0, 2000.0], 2500.0), [1900.0, 2500.0])
+        self.assertEqual(drift.chance_pause_ends([900.0], 1899.0), [])
 
     def test_slope(self):
         self.assertEqual(drift.slope_ms_per_minute([[(0.0, 0.0), (60000.0, 50.0)]]), 50.0)
@@ -182,7 +229,27 @@ class OffsetTest(unittest.TestCase):
         self.assertEqual(result["address"], "hafs:1:1")
         self.assertEqual((result["duration_ms"], result["timing_end_ms"], result["end_check"]), (1512.0, 1465, "pass"))
         self.assertEqual((result["speech_onset_ms"], result["onset_ms"]), (180.0, 25.0))
-        self.assertEqual(result["samples"], [{"at_ms": 810.0, "offset_ms": 25.0}])
+        self.assertEqual((result["pauses"], result["matched"], result["unmatched"]), (1, 1, 0))
+        self.assertEqual(result["samples"], [{"pause_end_ms": 900.0, "segment": 2, "offset_ms": 25.0}])
+        self.assertEqual(result["unmatched_pause_ends_ms"], [])
+        # The pause end moved to 1,900 ms is past the 1,512 ms of audio.
+        self.assertEqual(result["chance"], {"pauses": 0, "matched": 0, "samples": []})
+
+    def test_measure_file_lists_each_unmatched_pause(self):
+        timing = Timing(1, 1, (Segment(0, 1, 180, 720), Segment(1, 2, 1401, 1440)))
+        result = drift.measure_file("001001.mp3", (1, 1), audio(TWO_RUNS), timing)
+        self.assertEqual((result["pauses"], result["matched"], result["unmatched"]), (1, 0, 1))
+        self.assertEqual((result["samples"], result["unmatched_pause_ends_ms"]), ([], [900.0]))
+
+    def test_measure_file_runs_the_chance_baseline_on_the_same_segments(self):
+        # Pause ends at 1,260 and 2,340 ms move to 2,260 and 3,340 ms; the second is past the 2,952 ms of audio.
+        timing = Timing(1, 1, tuple(Segment(*s) for s in ENDS_INTO_PAUSES))
+        result = drift.measure_file("001001.mp3", (1, 1), audio(LONG_PAUSES), timing)
+        self.assertEqual(
+            result["chance"],
+            {"pauses": 1, "matched": 1, "samples": [{"pause_end_ms": 2260.0, "segment": 3, "offset_ms": 120.0}]},
+        )
+        self.assertEqual(_offsets(result["samples"]), [(1260.0, 2, 40.0), (2340.0, 3, 40.0)])
 
     def test_the_end_check_allows_one_frame(self):
         for end, check in ((1548, "pass"), (1549, "fail")):
@@ -205,7 +272,7 @@ class OffsetTest(unittest.TestCase):
         timing = Timing(1, 1, (first,) + tuple(Segment(*s) for s in segments(shift=25)))
         result = drift.measure_file("001001.mp3", (1, 1), audio(TWO_RUNS), timing)
         self.assertEqual(result["onset_ms"], 25.0)
-        self.assertEqual(result["samples"], [{"at_ms": 810.0, "offset_ms": 25.0}])
+        self.assertEqual(result["samples"], [{"pause_end_ms": 900.0, "segment": 3, "offset_ms": 25.0}])
 
     def test_a_file_whose_segments_are_all_defective(self):
         defective = (Segment(0, 1, 900, 100, ("end_before_start",)), Segment(1, 2, 950, 950, ("zero_length",)))
@@ -215,6 +282,7 @@ class OffsetTest(unittest.TestCase):
             (result["timing_end_ms"], result["end_check"], result["onset_ms"], result["samples"]),
             (None, "not made", None, []),
         )
+        self.assertEqual((result["pauses"], result["unmatched_pause_ends_ms"]), (1, [900.0]))
 
 
 def _summary(**changes):
@@ -223,6 +291,7 @@ def _summary(**changes):
         "median_offset_ms": 0.0,
         "p95_abs_offset_ms": 0.0,
         "slope_ms_per_minute": 0.0,
+        "match_rate_percent": 100.0,
     }
     summary.update(changes)
     return summary
@@ -237,6 +306,7 @@ class VerdictTest(unittest.TestCase):
             {"p95_abs_offset_ms": 250.0},
             {"slope_ms_per_minute": 50.0},
             {"slope_ms_per_minute": -50.0},
+            {"match_rate_percent": 50.0},
         ):
             self.assertEqual(drift.verdict(_summary(**changes)), [], changes)
 
@@ -245,12 +315,14 @@ class VerdictTest(unittest.TestCase):
             ({"end_check_failures": 1}, "end check: 1 files"),
             ({"median_offset_ms": 100.1}, "median offset: |100.1| ms is above 100 ms"),
             ({"median_offset_ms": -100.1}, "median offset: |-100.1| ms is above 100 ms"),
-            ({"median_offset_ms": None}, "median offset: no pause sample"),
+            ({"median_offset_ms": None}, "median offset: no matched pause"),
             ({"p95_abs_offset_ms": 250.1}, "p95 |offset|: 250.1 ms is above 250 ms"),
-            ({"p95_abs_offset_ms": None}, "p95 |offset|: no pause sample"),
+            ({"p95_abs_offset_ms": None}, "p95 |offset|: no matched pause"),
             ({"slope_ms_per_minute": 50.1}, "slope: |50.1| ms per minute is above 50"),
             ({"slope_ms_per_minute": -50.1}, "slope: |-50.1| ms per minute is above 50"),
-            ({"slope_ms_per_minute": None}, "slope: no file has two pause samples"),
+            ({"slope_ms_per_minute": None}, "slope: no file has two matched pauses"),
+            ({"match_rate_percent": 49.9}, "match rate: 49.9 % is below 50 %"),
+            ({"match_rate_percent": None}, "match rate: no pause detected"),
         ):
             missed = drift.verdict(_summary(**changes))
             self.assertEqual(len(missed), 1, changes)
@@ -258,19 +330,35 @@ class VerdictTest(unittest.TestCase):
 
     def test_every_criterion_missed_is_named(self):
         missed = drift.verdict(
-            _summary(end_check_failures=2, median_offset_ms=300.0, p95_abs_offset_ms=400.0, slope_ms_per_minute=90.0)
+            _summary(
+                end_check_failures=2,
+                median_offset_ms=300.0,
+                p95_abs_offset_ms=400.0,
+                slope_ms_per_minute=90.0,
+                match_rate_percent=10.0,
+            )
         )
-        self.assertEqual([m.split(":")[0] for m in missed], ["end check", "median offset", "p95 |offset|", "slope"])
+        self.assertEqual(
+            [m.split(":")[0] for m in missed], ["end check", "median offset", "p95 |offset|", "slope", "match rate"]
+        )
 
     def test_summarise(self):
-        def file(samples, onset, check="pass"):
-            listed = [{"at_ms": t, "offset_ms": o} for t, o in samples]
-            return {"end_check": check, "onset_ms": onset, "samples": listed}
+        def file(samples, onset, check="pass", pauses=None, chance=(), chance_pauses=0):
+            def listed(pairs):
+                return [{"pause_end_ms": t, "segment": 2, "offset_ms": o} for t, o in pairs]
+
+            return {
+                "end_check": check,
+                "onset_ms": onset,
+                "pauses": len(samples) if pauses is None else pauses,
+                "samples": listed(samples),
+                "chance": {"pauses": chance_pauses, "matched": len(chance), "samples": listed(chance)},
+            }
 
         files = [
-            file([(1000.0, -5.0), (2000.0, 7.0)], 12.0),
-            file([(1000.0, 3.0)] * 17 + [(2000.0, 260.0), (3000.0, -300.0)], -40.0, "fail"),
-            file([], None),
+            file([(1000.0, -5.0), (2000.0, 7.0)], 12.0, pauses=4, chance=[(2000.0, 400.0)], chance_pauses=3),
+            file([(1000.0, 3.0)] * 17 + [(2000.0, 260.0), (3000.0, -300.0)], -40.0, "fail", chance_pauses=1),
+            file([], None, pauses=2),
             file([], None, "not made"),
         ]
         summary = drift.summarise(files, 8, 2)
@@ -283,10 +371,15 @@ class VerdictTest(unittest.TestCase):
         )
         self.assertEqual(counts, (4, 2, 2, 1, 1))
         self.assertEqual((summary["onset_median_ms"], summary["onset_max_abs_ms"]), (-14.0, 40.0))
-        self.assertEqual(summary["pause_samples"], 21)
+        self.assertEqual((summary["pauses"], summary["matched_pauses"], summary["unmatched_pauses"]), (25, 21, 4))
+        self.assertEqual(summary["match_rate_percent"], 84.0)
         self.assertEqual(summary["median_offset_ms"], 3.0)
+        # |offset| sorted: 3 (17 times), 5, 7, 260, 300; nearest rank 19 for p90 and 20 for p95.
+        self.assertEqual(summary["p90_abs_offset_ms"], 7.0)
         self.assertEqual(summary["p95_abs_offset_ms"], 260.0)
         self.assertEqual(summary["max_abs_offset_ms"], 300.0)
+        self.assertEqual((summary["chance_pauses"], summary["chance_matched_pauses"]), (4, 1))
+        self.assertEqual((summary["chance_match_rate_percent"], summary["chance_p95_abs_offset_ms"]), (25.0, 400.0))
         self.assertEqual(summary["verdict"], "FAIL")
         self.assertEqual([m.split(":")[0] for m in summary["missed"]], ["end check", "p95 |offset|", "slope"])
 
@@ -519,7 +612,7 @@ class RunTest(RunCase):
         self.assertEqual([x["address"] for x in files], ["hafs:1:1", "hafs:2:3"])
         summary = report["summary"]
         self.assertEqual((summary["files_measured"], summary["entries_without_file"]), (2, 6))
-        self.assertEqual(summary["pause_samples"], 3)
+        self.assertEqual((summary["pauses"], summary["matched_pauses"], summary["match_rate_percent"]), (3, 3, 100.0))
         self.assertEqual((summary["median_offset_ms"], summary["max_abs_offset_ms"]), (7.0, 20.0))
         self.assertEqual(summary["onset_median_ms"], 10.0)
         self.assertEqual(summary["verdict"], "PASS")
@@ -645,6 +738,65 @@ class RunTest(RunCase):
         )
         self.assertIn("verdict PASS", output)
 
+    def test_segment_ends_that_run_into_each_pause_pass_on_their_starts(self):
+        self.add("001001.mp3", LONG_PAUSES)
+        report = self.run_drift({(1, 1): ENDS_INTO_PAUSES})
+        summary = report["summary"]
+        self.assertEqual(_offsets(report["files"][0]["samples"]), [(1260.0, 2, 40.0), (2340.0, 3, 40.0)])
+        self.assertEqual((summary["median_offset_ms"], summary["p95_abs_offset_ms"]), (40.0, 40.0))
+        self.assertEqual((summary["slope_ms_per_minute"], summary["match_rate_percent"]), (0.0, 100.0))
+        self.assertEqual((summary["verdict"], summary["missed"]), ("PASS", []))
+
+    def test_the_match_rate_fails_alone(self):
+        self.add("002003.mp3", THREE_RUNS)
+        self.add("001001.mp3", LONG_PAUSES)
+        # 001001's only candidate start is more than 500 ms from either pause end: two pauses unmatched.
+        unmatched = [[0, 1, 180, 700], [1, 3, 1800, 2880]]
+        report = self.run_drift({(2, 3): three_segments(0), (1, 1): unmatched})
+        summary = report["summary"]
+        self.assertEqual((summary["pauses"], summary["matched_pauses"], summary["match_rate_percent"]), (4, 2, 50.0))
+        self.assertEqual(summary["verdict"], "PASS")
+        self.add("001002.mp3", LONG_PAUSES)
+        report = self.run_drift({(2, 3): three_segments(0), (1, 1): unmatched, (1, 2): unmatched})
+        summary = report["summary"]
+        self.assertEqual((summary["pauses"], summary["unmatched_pauses"]), (6, 4))
+        self.assertEqual(summary["missed"], ["match rate: 33.3 % is below 50 %"])
+        self.assertEqual(
+            [x["unmatched_pause_ends_ms"] for x in report["files"]], [[1260.0, 2340.0], [1260.0, 2340.0], []]
+        )
+        output = drift.lines(report)
+        self.assertIn("001001.mp3 pause end 1260.0 ms: unmatched", output)
+        self.assertIn("002003.mp3 pause end 9900.0 ms: segment 3, offset 0.0 ms", output)
+        self.assertIn(
+            "pauses 6, matched 2, unmatched 4, match rate 33.3 %, median offset 0.0 ms, p90 |offset| 0.0 ms, "
+            "p95 |offset| 0.0 ms, max |offset| 0.0 ms, slope 0.0 ms per minute",
+            output,
+        )
+        self.assertIn("verdict FAIL: match rate: 33.3 % is below 50 %", output)
+
+    def test_the_chance_baseline_is_reported_and_leaves_the_verdict(self):
+        self.add("001001.mp3", LONG_PAUSES)
+        self.add("002003.mp3", THREE_RUNS)
+        report = self.run_drift({(1, 1): ENDS_INTO_PAUSES, (2, 3): three_segments(0)})
+        summary = report["summary"]
+        # 001001: 2,260 ms matches segment 3 at +120 ms, 3,340 ms is past the audio. 002003: 1,900 ms has no start.
+        self.assertEqual([x["chance"]["pauses"] for x in report["files"]], [1, 1])
+        self.assertEqual((summary["chance_pauses"], summary["chance_matched_pauses"]), (2, 1))
+        self.assertEqual((summary["chance_match_rate_percent"], summary["chance_p95_abs_offset_ms"]), (50.0, 120.0))
+        self.assertEqual(summary["verdict"], "PASS")
+        output = drift.lines(report)
+        self.assertIn(
+            "chance baseline, pauses moved 1000 ms later (not a criterion): pauses 2, matched 1, match rate 50.0 %, "
+            "p95 |offset| 120.0 ms",
+            output,
+        )
+        file_line = [x for x in output if x.startswith("001001.mp3 hafs:1:1 sha256 ")]
+        self.assertEqual(len(file_line), 1)
+        self.assertTrue(file_line[0].endswith("pauses 2, matched 2, unmatched 0, chance pauses 1, chance matched 1"))
+        self.assertEqual(report["thresholds"]["match_window_ms"], 500)
+        self.assertEqual(report["thresholds"]["chance_shift_ms"], 1000)
+        self.assertEqual(report["thresholds"]["min_match_rate_percent"], 50)
+
     def test_a_drifting_rate_fails_the_slope(self):
         self.add("002003.mp3", THREE_RUNS)
         report = self.run_drift({(2, 3): three_segments(9)})
@@ -663,7 +815,7 @@ class RunTest(RunCase):
             report["summary"]["missed"],
             [
                 "end check: 1 files end more than one frame after the audio",
-                "slope: no file has two pause samples at distinct times",
+                "slope: no file has two matched pauses at distinct times",
             ],
         )
 

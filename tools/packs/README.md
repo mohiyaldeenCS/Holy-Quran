@@ -573,8 +573,10 @@ no audio sample: it reads the MP3 frame headers and the Layer III side informati
 | End check | The `end_ms` of the last segment that is not defective against the duration. Timing that ends more than one frame after the audio fails the file. With no such segment the check is `not made` |
 | Speech | A granule's level is the highest `global_gain` among its channels that carry main data (`part2_3_length` above 0), else 0. The loud level is the 90th percentile of the file's granule levels (nearest rank, `LOUD_PERCENTILE`); a granule is speech when its level is above 0 and above the loud level less 20 steps (`SILENCE_DROP_STEPS`, 30 dB at 1.5 dB a step). A speech run lasts at least 50 ms (`SPEECH_RUN_MS`); a shorter burst counts as silence |
 | Onset | The `start_ms` of the first segment that is not defective minus the start of the first speech run |
-| Pause samples | Every silence of at least 120 ms (`MIN_PAUSE_MS`) between two speech runs. Its offset is the midpoint of the nearest boundary between consecutive segments (the gap between them, or the join where there is none) minus the silence's midpoint: positive when the timing is later than the audio. A boundary with a defective segment on either side is not used. A file with no usable boundary gives no sample |
-| Trend | The least-squares slope of the offsets against their time in the file, in ms per minute, with one intercept per file, so that a constant offset that differs between files does not read as a rate |
+| Pauses | Every silence of at least 120 ms (`MIN_PAUSE_MS`) between two speech runs |
+| Pause samples | Each pause is matched to a segment start, where speech resumes, at most 500 ms (`MATCH_WINDOW_MS`, inclusive) from the pause's end. The candidates are the starts of the segments that are not defective, less the first of them: the ayah's start, which the onset measures (after a defective first segment, the first segment that is not defective is the one left out). The matching is one to one: every pair of a pause and a candidate within the window is taken in order of \|distance\| (ties by the earlier pause, then the lower segment number) unless its pause or its start is already taken, so no start and no pause is used twice. The offset is the segment start minus the pause end: positive when the timing is later than the audio. An unmatched pause is no sample; it is counted and listed with its end time. Segment ends are not used: quran-align's ends run into the following silence, so a boundary midpoint sits late in the pause by design (D-179) |
+| Chance baseline | The same matching with every pause moved 1,000 ms later (`CHANCE_SHIFT_MS`); a pause whose moved end falls after the playable duration is dropped. It shows what a random match looks like and is not a criterion |
+| Trend | The least-squares slope of the offsets against their pause end, in ms per minute, with one intercept per file, so that a constant offset that differs between files does not read as a rate |
 
 A file whose ayah has no timing is not measured or read as MP3; it is listed with
 its ayah and its SHA-256. The words of a defective segment count as not covered.
@@ -586,11 +588,17 @@ are counted per code point sequence, with how many of them a segment covers.
 
 ### Summary and verdict
 
+Per file: its pauses, matched and unmatched, each sample (pause end, segment number
+from 1, offset), each unmatched pause's end, and the chance baseline's pauses and
+matches.
+
 Per edition: files measured, files without timing, timing entries without a file,
-end-check failures, end checks not made, onset median and largest |onset|, pause
-samples, median offset, p95 (nearest rank) and largest |offset|, the slope, and
-words no segment that is not defective covers (counted against the Tanzil tokens
-with the text, else up to each entry's highest `word_end`).
+end-check failures, end checks not made, onset median and largest |onset| (reported,
+not a criterion), pauses, matched and unmatched, the match rate (matched pauses over
+detected pauses, in %), the median offset, p90 and p95 (nearest rank) and largest
+|offset|, the slope, the chance baseline's pauses, matches, match rate and p95
+|offset|, and words no segment that is not defective covers (counted against the
+Tanzil tokens with the text, else up to each entry's highest `word_end`).
 
 The timing's defects, counted twice: over the whole timing file (every ayah of the
 profile) and over the sample (the ayat whose file is in the folder, measured or
@@ -617,10 +625,11 @@ flag changes. PASS when all hold:
 | \|median offset\| | at most 100 ms (`MAX_MEDIAN_OFFSET_MS`) |
 | p95 \|offset\| | at most 250 ms (`MAX_P95_OFFSET_MS`) |
 | \|slope\| | at most 50 ms per minute (`MAX_SLOPE_MS_PER_MINUTE`) |
+| Match rate | at least 50 % (`MIN_MATCH_RATE_PERCENT`) |
 
 Otherwise FAIL, naming each criterion missed. A criterion that could not be measured
-(no pause sample; no file with two samples at distinct times) is missed, never
-passed. The command exits 0 on PASS and 65 on FAIL or on any word index problem.
+(no matched pause; no file with two matched pauses at distinct times; no pause
+detected) is missed, never passed. The command exits 0 on PASS and 65 on FAIL or on any word index problem.
 
 ### The report and where things stay
 
@@ -629,7 +638,9 @@ the SHA-256 of every input (timing, text, metadata, each audio file) and numbers
 rounded to 0.1 ms; the pause-mark counts are keyed by `U+XXXX`. No Quran text is
 written, and the report holds no path (stdout ends with the report's own path). The JSON report (`holyquran-recitation-drift`,
 version 1) has `edition`, `inputs`, `thresholds`, `files` (per file: its numbers, its
-count of defective segments and each pause sample's `at_ms` and `offset_ms`),
+count of defective segments, `pauses`, `matched`, `unmatched`, each sample's
+`pause_end_ms`, `segment` and `offset_ms`, `unmatched_pause_ends_ms`, and `chance`
+with its `pauses`, `matched` and `samples`),
 `words`, `timing` (`whole` and `sample` counts, `defective_segments`,
 `ayat_without_timing`) and `summary` (with `verdict` and `missed`).
 
@@ -668,7 +679,10 @@ The tests prove the arithmetic and the refusals, not that the speech threshold s
 these four recordings. The level proxy has not been run on real files in this
 repository; the first run on the owner's machine is its check. A run that finds few
 pause samples, or onsets far from zero in every file, points at the proxy before it
-points at the timing.
+points at the timing. On the first real run (D-179), the mujawwad files held many
+detected pauses with no segment start near their end, read as dips inside long held
+notes; such pauses are counted as unmatched, and the chance baseline shows how often
+a window of 500 ms matches a pause by chance.
 
 ## Signing (D-080) and what O-03 must decide
 

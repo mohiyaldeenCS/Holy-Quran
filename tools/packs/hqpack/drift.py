@@ -5,17 +5,27 @@ Per file `SSSAAA.mp3` of the folder, with the timing entry of that ayah:
 - end check: the last segment must not end more than one frame after the
   playable audio;
 - onset: the first segment's start minus the audio's speech onset;
-- pause alignment: for every silence of at least MIN_PAUSE_MS between two
-  speech runs, the midpoint of the nearest boundary between consecutive
-  segments (the gap, or the join) minus the silence's midpoint; positive when
-  the timing is later than the audio;
-- trend: the least-squares slope of those offsets against their time in the
-  file, in ms per minute, with one intercept per file.
+- pause matching: every silence of at least MIN_PAUSE_MS between two speech
+  runs is matched to a segment start, where speech resumes, within
+  MATCH_WINDOW_MS of the silence's end. The candidates are the starts of the
+  segments that are not defective, less the first of them (the ayah's start,
+  which the onset measures). The matching is one to one, greedy by the
+  smallest |distance| over all pairs of the file, so no start and no pause is
+  used twice. The offset is the segment start minus the pause end; positive
+  when the timing is later than the audio. An unmatched pause gives no
+  sample; it is counted and listed. Segment ends are not used: quran-align's
+  ends run into the following silence;
+- chance baseline: the same matching with every pause moved CHANCE_SHIFT_MS
+  later (a pause whose end then falls past the playable audio is dropped),
+  reported beside the real one to show what a random match looks like; it is
+  not a criterion;
+- trend: the least-squares slope of the offsets against the pause end, in ms
+  per minute, with one intercept per file.
 
 A defective segment (quran_align.py) is kept out of every measure (D-179): the
 end check and the onset use the last and first segment that is not defective,
-a boundary with a defective segment on either side gives no offset, and its
-words count as not covered. An ayah without timing has no file measured; it is
+a defective segment's start is no candidate, and its words count as not
+covered. An ayah without timing has no file measured; it is
 listed. The defects are counted by kind over the whole timing file and over
 the sample (the ayat whose file is in the folder) and listed with their times;
 they do not change the verdict. Since an overlap is judged against the
@@ -63,7 +73,10 @@ REPORT_VERSION = 1
 MAX_MEDIAN_OFFSET_MS = 100
 MAX_P95_OFFSET_MS = 250
 MAX_SLOPE_MS_PER_MINUTE = 50
+MIN_MATCH_RATE_PERCENT = 50
 MIN_PAUSE_MS = 120
+MATCH_WINDOW_MS = 500
+CHANCE_SHIFT_MS = 1000
 
 # D-179, how speech is told from silence.
 LOUD_PERCENTILE = 90
@@ -115,18 +128,39 @@ def speech(audio) -> Speech:
     return Speech(onset_ms=at(runs[0][0]), pauses=pauses)
 
 
-def pause_offsets(pauses, segments) -> list:
-    """(pause midpoint, offset) per pause: the nearest segment boundary's midpoint minus the pause's."""
-    boundaries = [
-        (a.end_ms + b.start_ms) / 2.0 for a, b in zip(segments, segments[1:]) if not a.defects and not b.defects
+def candidates(segments) -> list:
+    """(segment number from 1, start_ms) of every segment that is not defective, less the first of them."""
+    return [(number, s.start_ms) for number, s in enumerate(segments, 1) if not s.defects][1:]
+
+
+def match(pause_ends, segments) -> tuple:
+    """The samples {pause_end_ms, segment, offset_ms} in pause order, and the pause ends left unmatched.
+
+    Every pair of a pause end and a candidate start at most MATCH_WINDOW_MS
+    apart is taken in order of |distance|, then pause, then segment number,
+    unless its pause or its start is already taken.
+    """
+    pairs = sorted(
+        (abs(start - end), index, number, start - end)
+        for index, end in enumerate(pause_ends)
+        for number, start in candidates(segments)
+        if abs(start - end) <= MATCH_WINDOW_MS
+    )
+    taken = {}
+    used = set()
+    for _, index, number, offset in pairs:
+        if index not in taken and number not in used:
+            taken[index] = (number, offset)
+            used.add(number)
+    samples = [
+        {"pause_end_ms": pause_ends[i], "segment": number, "offset_ms": offset}
+        for i, (number, offset) in sorted(taken.items())
     ]
-    result = []
-    for start, end in pauses:
-        middle = (start + end) / 2.0
-        if boundaries:
-            nearest = min(boundaries, key=lambda b: abs(b - middle))
-            result.append((middle, nearest - middle))
-    return result
+    return samples, [end for i, end in enumerate(pause_ends) if i not in taken]
+
+
+def chance_pause_ends(pause_ends, duration_ms) -> list:
+    return [end + CHANCE_SHIFT_MS for end in pause_ends if end + CHANCE_SHIFT_MS <= duration_ms]
 
 
 def slope_ms_per_minute(files) -> Optional[float]:
@@ -173,14 +207,25 @@ def measure_file(name, address, audio, timing) -> dict:
         "end_check": "pass" if sound else "not made",
         "speech_onset_ms": found.onset_ms,
         "onset_ms": None,
-        "pauses": len(found.pauses),
-        "samples": [],
     }
     if sound and sound[-1].end_ms > audio.duration_ms + audio.frame_ms:
         result["end_check"] = "fail"
     if sound and found.onset_ms is not None:
         result["onset_ms"] = sound[0].start_ms - found.onset_ms
-    result["samples"] = [{"at_ms": t, "offset_ms": o} for t, o in pause_offsets(found.pauses, segments)]
+    ends = [end for _, end in found.pauses]
+    samples, unmatched = match(ends, segments)
+    shifted = chance_pause_ends(ends, audio.duration_ms)
+    chance, _ = match(shifted, segments)
+    result.update(
+        {
+            "pauses": len(ends),
+            "matched": len(samples),
+            "unmatched": len(unmatched),
+            "samples": samples,
+            "unmatched_pause_ends_ms": unmatched,
+            "chance": {"pauses": len(shifted), "matched": len(chance), "samples": chance},
+        }
+    )
     return result
 
 
@@ -191,26 +236,33 @@ def verdict(summary) -> list:
         missed.append("end check: %d files end more than one frame after the audio" % summary["end_check_failures"])
     median = summary["median_offset_ms"]
     if median is None:
-        missed.append("median offset: no pause sample")
+        missed.append("median offset: no matched pause")
     elif abs(median) > MAX_MEDIAN_OFFSET_MS:
         missed.append("median offset: |%.1f| ms is above %d ms" % (median, MAX_MEDIAN_OFFSET_MS))
     p95 = summary["p95_abs_offset_ms"]
     if p95 is None:
-        missed.append("p95 |offset|: no pause sample")
+        missed.append("p95 |offset|: no matched pause")
     elif p95 > MAX_P95_OFFSET_MS:
         missed.append("p95 |offset|: %.1f ms is above %d ms" % (p95, MAX_P95_OFFSET_MS))
     slope = summary["slope_ms_per_minute"]
     if slope is None:
-        missed.append("slope: no file has two pause samples at distinct times")
+        missed.append("slope: no file has two matched pauses at distinct times")
     elif abs(slope) > MAX_SLOPE_MS_PER_MINUTE:
         missed.append("slope: |%.1f| ms per minute is above %d" % (slope, MAX_SLOPE_MS_PER_MINUTE))
+    rate = summary["match_rate_percent"]
+    if rate is None:
+        missed.append("match rate: no pause detected")
+    elif rate < MIN_MATCH_RATE_PERCENT:
+        missed.append("match rate: %.1f %% is below %d %%" % (rate, MIN_MATCH_RATE_PERCENT))
     return missed
 
 
 def summarise(files, entries, files_without_timing) -> dict:
-    samples = [(s["at_ms"], s["offset_ms"]) for f in files for s in f["samples"]]
-    offsets = [o for _, o in samples]
+    offsets = [s["offset_ms"] for f in files for s in f["samples"]]
     magnitudes = sorted(abs(o) for o in offsets)
+    pauses = sum(f["pauses"] for f in files)
+    chance_pauses = sum(f["chance"]["pauses"] for f in files)
+    chance = sorted(abs(s["offset_ms"]) for f in files for s in f["chance"]["samples"])
     onsets = sorted(f["onset_ms"] for f in files if f["onset_ms"] is not None)
     summary = {
         "files_measured": len(files),
@@ -220,13 +272,21 @@ def summarise(files, entries, files_without_timing) -> dict:
         "end_checks_not_made": sum(1 for f in files if f["end_check"] == "not made"),
         "onset_median_ms": _median(onsets),
         "onset_max_abs_ms": max((abs(o) for o in onsets), default=None),
-        "pause_samples": len(samples),
+        "pauses": pauses,
+        "matched_pauses": len(offsets),
+        "unmatched_pauses": pauses - len(offsets),
+        "match_rate_percent": _percent(len(offsets), pauses),
         "median_offset_ms": _median(sorted(offsets)),
+        "p90_abs_offset_ms": _nearest_rank(magnitudes, 90) if magnitudes else None,
         "p95_abs_offset_ms": _nearest_rank(magnitudes, 95) if magnitudes else None,
         "max_abs_offset_ms": magnitudes[-1] if magnitudes else None,
         "slope_ms_per_minute": slope_ms_per_minute(
-            [[(s["at_ms"], s["offset_ms"]) for s in f["samples"]] for f in files]
+            [[(s["pause_end_ms"], s["offset_ms"]) for s in f["samples"]] for f in files]
         ),
+        "chance_pauses": chance_pauses,
+        "chance_matched_pauses": len(chance),
+        "chance_match_rate_percent": _percent(len(chance), chance_pauses),
+        "chance_p95_abs_offset_ms": _nearest_rank(chance, 95) if chance else None,
     }
     missed = verdict(summary)
     summary["verdict"] = "FAIL" if missed else "PASS"
@@ -403,7 +463,10 @@ def run_drift(timing_path, audio_dir, edition, profile, text_path=None, metadata
             "max_median_offset_ms": MAX_MEDIAN_OFFSET_MS,
             "max_p95_offset_ms": MAX_P95_OFFSET_MS,
             "max_slope_ms_per_minute": MAX_SLOPE_MS_PER_MINUTE,
+            "min_match_rate_percent": MIN_MATCH_RATE_PERCENT,
             "min_pause_ms": MIN_PAUSE_MS,
+            "match_window_ms": MATCH_WINDOW_MS,
+            "chance_shift_ms": CHANCE_SHIFT_MS,
             "loud_percentile": LOUD_PERCENTILE,
             "silence_drop_steps": SILENCE_DROP_STEPS,
             "speech_run_ms": SPEECH_RUN_MS,
@@ -429,13 +492,22 @@ def lines(report) -> list:
     for f in report["files"]:
         result.append(
             "%s %s sha256 %s: duration %s ms (delay %s, LAME tag %s), segments %d (defective %d), "
-            "timing end %s ms, end check %s, onset %s ms, pauses %d, samples %d"
+            "timing end %s ms, end check %s, onset %s ms, pauses %d, matched %d, unmatched %d, "
+            "chance pauses %d, chance matched %d"
             % (
                 f["file"], f["address"], f["sha256"], f["duration_ms"],
                 "known" if f["delay_known"] else "not known", f["lame_tag"], f["segments"], f["defective_segments"],
-                f["timing_end_ms"], f["end_check"], f["onset_ms"], f["pauses"], len(f["samples"]),
+                f["timing_end_ms"], f["end_check"], f["onset_ms"], f["pauses"], f["matched"], f["unmatched"],
+                f["chance"]["pauses"], f["chance"]["matched"],
             )
         )
+        for sample in f["samples"]:
+            result.append(
+                "%s pause end %s ms: segment %d, offset %s ms"
+                % (f["file"], sample["pause_end_ms"], sample["segment"], sample["offset_ms"])
+            )
+        for end in f["unmatched_pause_ends_ms"]:
+            result.append("%s pause end %s ms: unmatched" % (f["file"], end))
     s = report["summary"]
     w = report["words"]
     t = report["timing"]
@@ -476,9 +548,15 @@ def lines(report) -> list:
             % (s["files_measured"], s["files_without_timing"], s["entries_without_file"], s["end_check_failures"],
                s["end_checks_not_made"]),
             "onset median %s ms, max |onset| %s ms" % (s["onset_median_ms"], s["onset_max_abs_ms"]),
-            "pause samples %d, median offset %s ms, p95 |offset| %s ms, max |offset| %s ms, slope %s ms per minute"
-            % (s["pause_samples"], s["median_offset_ms"], s["p95_abs_offset_ms"], s["max_abs_offset_ms"],
+            "pauses %d, matched %d, unmatched %d, match rate %s %%, median offset %s ms, p90 |offset| %s ms, "
+            "p95 |offset| %s ms, max |offset| %s ms, slope %s ms per minute"
+            % (s["pauses"], s["matched_pauses"], s["unmatched_pauses"], s["match_rate_percent"],
+               s["median_offset_ms"], s["p90_abs_offset_ms"], s["p95_abs_offset_ms"], s["max_abs_offset_ms"],
                s["slope_ms_per_minute"]),
+            "chance baseline, pauses moved %d ms later (not a criterion): pauses %d, matched %d, match rate %s %%, "
+            "p95 |offset| %s ms"
+            % (report["thresholds"]["chance_shift_ms"], s["chance_pauses"], s["chance_matched_pauses"],
+               s["chance_match_rate_percent"], s["chance_p95_abs_offset_ms"]),
             "words not covered by any segment %d (word count from %s)" % (w["uncovered_words"], w["word_count_from"]),
         ]
     )
@@ -522,6 +600,10 @@ def _median(values):
     if len(values) % 2:
         return values[middle]
     return (values[middle - 1] + values[middle]) / 2.0
+
+
+def _percent(part, whole):
+    return 100.0 * part / whole if whole else None
 
 
 def _nearest_rank(values, percentile):
