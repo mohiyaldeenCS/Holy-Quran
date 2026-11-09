@@ -54,21 +54,25 @@ final class MarginMarkView extends StatelessWidget {
       mark.kind == MarginMarkKind.rub && mark.quarter != 1;
 
   /// The width [mark] takes when laid out with [scaler], as [build] lays it
-  /// out.
+  /// out; [bold] when the system asks for bold text, which `Text` follows.
   static double widthOf(
     MarginMark mark,
     AppLocalizations strings,
-    TextScaler scaler,
-  ) {
+    TextScaler scaler, {
+    bool bold = false,
+  }) {
     if (_starOnly(mark)) return ReaderMetrics.marginStar;
+    final style = switch (mark.kind) {
+      MarginMarkKind.sajda => _words,
+      MarginMarkKind.juz => _juzName,
+      MarginMarkKind.rub || MarginMarkKind.hizb => _starWords,
+    };
     final painter = TextPainter(
       text: TextSpan(
         text: _label(mark, strings),
-        style: switch (mark.kind) {
-          MarginMarkKind.sajda => _words,
-          MarginMarkKind.juz => _juzName,
-          MarginMarkKind.rub || MarginMarkKind.hizb => _starWords,
-        },
+        style: bold
+            ? style.merge(const TextStyle(fontWeight: FontWeight.bold))
+            : style,
       ),
       textDirection: TextDirection.rtl,
       textScaler: scaler,
@@ -85,7 +89,11 @@ final class MarginMarkView extends StatelessWidget {
   /// The width of the widest mark the reader can show, at [scaler]: every
   /// juz, every hizb and its first quarter, a later quarter's star and the
   /// sajda (D-181).
-  static double widest(AppLocalizations strings, TextScaler scaler) {
+  static double widest(
+    AppLocalizations strings,
+    TextScaler scaler, {
+    bool bold = false,
+  }) {
     final marks = [
       const MarginMark(MarginMarkKind.sajda, 1),
       const MarginMark(MarginMarkKind.rub, 1, hizb: 1, quarter: 2),
@@ -98,7 +106,7 @@ final class MarginMarkView extends StatelessWidget {
     ];
     var widest = 0.0;
     for (final mark in marks) {
-      final width = widthOf(mark, strings, scaler);
+      final width = widthOf(mark, strings, scaler, bold: bold);
       if (width > widest) widest = width;
     }
     return widest;

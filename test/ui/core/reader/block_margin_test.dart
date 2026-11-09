@@ -119,15 +119,25 @@ void main() {
     tester,
   ) async {
     final strings = lookupAppLocalizations(const Locale('ar'));
-    for (final scale in [1.0, 2.0]) {
+    for (final (scale, bold) in [
+      (1.0, false),
+      (2.0, false),
+      (1.0, true),
+      (2.0, true),
+    ]) {
       final scaler = TextScaler.linear(scale);
-      final widest = MarginMarkView.widest(strings, scaler);
+      final widest = MarginMarkView.widest(strings, scaler, bold: bold);
       expect(
         ReaderScreenMetrics.startGutter(widest),
         widest.ceilToDouble() + ReaderScreenMetrics.marginGutterGap,
       );
+      if (bold) {
+        expect(widest, greaterThan(MarginMarkView.widest(strings, scaler)));
+      }
       // Each kind as drawn is no wider than measured.
       tester.platformDispatcher.textScaleFactorTestValue = scale;
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          FakeAccessibilityFeatures(boldText: bold);
       for (final mark in const [
         MarginMark(MarginMarkKind.juz, 1, juz: 28),
         MarginMark(MarginMarkKind.hizb, 1, hizb: 58),
@@ -146,12 +156,40 @@ void main() {
         );
         expect(
           drawn,
-          closeTo(MarginMarkView.widthOf(mark, strings, scaler), 0.5),
+          closeTo(
+            MarginMarkView.widthOf(mark, strings, scaler, bold: bold),
+            0.5,
+          ),
           reason: '${mark.kind} ${mark.quarter}',
         );
       }
     }
     tester.platformDispatcher.clearTextScaleFactorTestValue();
+    tester.platformDispatcher.clearAccessibilityFeaturesTestValue();
+  });
+
+  testWidgets('with bold text the gutter widens and the mark stays in it', (
+    tester,
+  ) async {
+    setView(tester);
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(boldText: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    await tester.pumpWidget(_reader(fixture.surahs[longSurah]!, const {}));
+    final strings = lookupAppLocalizations(const Locale('ar'));
+    final gutter = ReaderScreenMetrics.startGutter(
+      MarginMarkView.widest(strings, TextScaler.noScaling, bold: true),
+    );
+    final block = find.byType(ReaderBlock).first;
+    expect(tester.getTopRight(block).dx, _width - gutter);
+    for (final mark in find.byType(MarginMarkView).evaluate()) {
+      expect(
+        tester.getTopLeft(find.byWidget(mark.widget)).dx,
+        greaterThanOrEqualTo(
+          _width - gutter + ReaderScreenMetrics.marginGutterGap,
+        ),
+      );
+    }
   });
 
   testWidgets('a bookmarked ayah gets its ribbon on the end side, once', (
