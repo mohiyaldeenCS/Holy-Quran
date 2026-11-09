@@ -10,10 +10,10 @@ corrected first.
 | --- | --- |
 | Updated | 2026-11-09 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
-| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **39 merged**: P1-01 to P1-34, P1-36 to P1-40, of which 20 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-34, P1-36, P1-37, P1-40). **Open pull request**: the audio race (#80, last round). P1-35 not started. The composition root is wired (#72, D-151). **No APK has been run on a device since the spike of 2026-10-12, and no real content is in the app** |
+| Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **All 40 merged** (P1-35 as #91, 2026-11-09), of which 20 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-34, P1-36, P1-37, P1-40). The composition root is wired (#72, D-151). **A local test copy with real text runs on the owner's phone (`HANDOFF.md` section 0); no real content is in `main` or any APK built from it** |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/*`), worked by agents in GitHub Actions (D-159) |
-| Last session | 2026-11-06 to 2026-11-09, local lead on the owner's machine: test copy on his phone, #93–#97 (Tanzil real files, push permissions, KFGQPC comparison, reciter's review page), D-172–D-178. **Read `HANDOFF.md` section 0 first** |
+| Last session | 2026-11-06 to 2026-11-09, local lead on the owner's machine: test copy on his phone, #93–#97 (Tanzil real files, push permissions, KFGQPC comparison, reciter's review page), #98 (records), #91 (P1-35), #99 (recitation drift tool), #100 (margin-mark rows), D-172–D-182; drift measured on the four recitations. **Read `HANDOFF.md` section 0 first** |
 
 ## What is in the repository
 
@@ -459,7 +459,7 @@ release builds, though D-108 says it must be.
 
 Recitations (D-167): the owner chose four, Minshawi and Abdul Basit, murattal and mujawwad,
 all word-timed, replacing the PRD's suggested five; he fills `docs/content/RECITATION_RIGHTS_FORM.md`
-from his papers (part of B0.1). Stream B then builds the recitation packs and measures drift.
+from his papers (part of B0.1). Stream B then builds the recitation packs. Drift was measured on 72 ayat of each on 2026-11-09 (D-179, D-182, `RIGHTS_REGISTER.md`): Minshawi murattal and Abdul Basit mujawwad pass and are labelled «توقيت كلمات»; Minshawi mujawwad and Abdul Basit murattal play with ayah highlighting only until the owner's listening check.
 
 Branch deletion (D-162 (11)), for the owner to run on his machine, since the cloud session's
 proxy refuses it. It deletes only remote branches wholly contained in `main`:
@@ -562,6 +562,8 @@ Permission conditions to confirm with him when each is first needed are listed i
 | P1-27 | The 1px `line-strong` border of the mini player, the player panel and the reciter badge in night and contrast (D-140 (2)): the owner's look at the images | Owner | `test/ui/core/goldens/tab_shell_mini_player_{night,contrast}.png` and `test/ui/features/listen/goldens/player_screen_{night,contrast}.png` on `main` |
 | P1-27 | TalkBack and VoiceOver on the player, the mini player and the picker (the track moves in 5-second steps); 200% text on a device | Owner, on his phone | An APK built from `main`, once a recitation can play (P1-33) |
 | OF-04 | Downloads on `background_downloader` 9.6.5 (D-154 (6)): Wi-Fi-only on a metered hotspot, the network dropping and returning in mid-file, and the app killed while offline, then opened again | Owner, on his phone | With the first real recitation or pack download |
+| B0.5 | Listening check of word timing for Minshawi mujawwad and Abdul Basit murattal (D-182); the measure could not tell them from chance | Owner, on his phone | A build with their recitation packs |
+| D-181 | The margin-mark rows in the reader at 100 % and 200 % text, in the four themes | Owner, on his phone | The next test copy built from `main` |
 
 Pending human checks of P1-14 and later beyond this table are under each task in "In progress"; the first device session gathers them.
 
@@ -638,6 +640,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-11-09 | Local lead, continued | Merged #98 (records), #91 (P1-35, after its fix and goldens), #99 (recitation drift tool, B0.5) and #100 (margin-mark rows, D-181). Fetched quran-align and 72 ayat of each recitation outside Git and measured drift (two pass, two to a listening check). Owner's answers D-180 to D-182. Key 2 is out of credit | `main`, this branch |
 | 2026-11-06–09 | Local lead (owner's machine) | Ran `tools/test_copy/README.md`: the build stopped on Tanzil's real files (no metadata notice; `rub=false` turns U+06DE on) → #93; installed on the phone; the app could not read the pushed pack (folder modes) → #94; fetched the KFGQPC Hafs text (checksums matched); built the comparison #95, #96 (54,797 differences in 93 patterns: encoding, spaces, 355 pause marks, ~30 letters; 56 page, 2 juz, 2 quarter differences) and the reciter's review page #97; recorded the recitation rights and the owner's answers (D-174, D-176). Pending human checks: the reciter's review; the 42 surah-opening quarter starts; the test copy on the phone (debug build) | `main` `06bb22f`; records branch `claude/quran-app-leadership-kcenv4` |
 | 2026-11-04 | Cloud session, new account (managing lead, D-159) | Read the handover; confirmed `gh` can start workflows; reported to the owner. In Actions: final reviews of #77 and #71 and an identity audit of #71; fixes of #76's and #77's reviews; the audio stall reproduced and fixed (#80, D-161); re-reviews and the two #71 fix runs started. Put fourteen decisions to the owner (D-162); planned the local test copy (`docs/plans/TEST_COPY.md`). Could not delete branches (proxy) | `claude/quran-app-leadership-kcenv4` |
 | 2026-11-04 | Local session, continued | Merged #75 after review and CI; recovered and advanced P1-33, P1-34, P1-36 and P1-37 to #71, #76, #78 and #77; reviewed #76. Agents and reviewers stopped on the account's usage limit. Tested both API keys, fixed how `agent.yml` reports read-only runs, and handed over for agents in Actions under a managing lead (D-159) | This branch |
