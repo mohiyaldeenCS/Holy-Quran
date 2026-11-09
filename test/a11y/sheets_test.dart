@@ -36,7 +36,6 @@ void main() {
         tester,
         world,
       ) async {
-        addTearDown(tester.ensureSemantics().dispose);
         final router = await pumpSheetsApp(
           tester,
           world,
@@ -58,7 +57,6 @@ void main() {
     }
 
     sheetsTest('the $name sheet is reached by Tab', (tester, world) async {
-      addTearDown(tester.ensureSemantics().dispose);
       final router = await pumpSheetsApp(tester, world, size: phonePortrait);
       await openSheet(
         tester,

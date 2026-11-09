@@ -82,7 +82,6 @@ void main() {
     testWidgets('the resource manager is accessible: ${view.name}', (
       tester,
     ) async {
-      addTearDown(tester.ensureSemantics().dispose);
       await _pump(tester, resources(), view);
       await expectAccessible(tester);
     });
@@ -90,7 +89,6 @@ void main() {
     testWidgets('the sources screen is accessible: ${view.name}', (
       tester,
     ) async {
-      addTearDown(tester.ensureSemantics().dispose);
       await _pump(
         tester,
         SourcesList(
@@ -106,13 +104,11 @@ void main() {
   }
 
   testWidgets('the resource manager is reached by Tab', (tester) async {
-    addTearDown(tester.ensureSemantics().dispose);
     await _pump(tester, resources(), a11yViews.first);
     await expectKeyboardReach(tester);
   });
 
   testWidgets('the sources are reached by Tab', (tester) async {
-    addTearDown(tester.ensureSemantics().dispose);
     await _pump(
       tester,
       SourcesList(

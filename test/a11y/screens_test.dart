@@ -29,7 +29,6 @@ void main() {
         'bookmarks',
       ]) {
         testWidgets('$name is accessible', (tester) async {
-          addTearDown(tester.ensureSemantics().dispose);
           final screen = world.screens.firstWhere((s) => s.name == name);
           await screen.pump(tester, value.size, value.textScale);
           await expectAccessible(tester);

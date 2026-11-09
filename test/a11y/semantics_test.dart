@@ -19,7 +19,6 @@ void main() {
   testWidgets('an alert that appears is spoken: its node is a live region', (
     tester,
   ) async {
-    addTearDown(tester.ensureSemantics().dispose);
     await tester.pumpWidget(
       goldenApp(
         ReadingTheme.paper,
@@ -34,7 +33,6 @@ void main() {
   testWidgets('settings says each group once, not as a heading then a group', (
     tester,
   ) async {
-    addTearDown(tester.ensureSemantics().dispose);
     final router = createRouter();
     addTearDown(router.dispose);
     await tester.pumpWidget(testApp(router));
@@ -50,7 +48,6 @@ void main() {
   });
 
   testWidgets('onboarding names the app as its heading', (tester) async {
-    addTearDown(tester.ensureSemantics().dispose);
     final router = createRouter();
     addTearDown(router.dispose);
     await tester.pumpWidget(

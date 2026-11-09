@@ -85,14 +85,12 @@ void main() {
       testWidgets('the $name sheet is accessible: ${view.name}', (
         tester,
       ) async {
-        addTearDown(tester.ensureSemantics().dispose);
         await open(tester, location, view.size, view.textScale);
         await expectAccessible(tester);
       });
     }
 
     testWidgets('the $name sheet is reached by Tab', (tester) async {
-      addTearDown(tester.ensureSemantics().dispose);
       await open(tester, location, phonePortrait, 1);
       await expectKeyboardReach(tester);
     });

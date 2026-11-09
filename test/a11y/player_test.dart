@@ -125,7 +125,6 @@ Future<FakePlayerRepository> _pump(
 void main() {
   for (final view in a11yViews) {
     testWidgets('the player is accessible: ${view.name}', (tester) async {
-      addTearDown(tester.ensureSemantics().dispose);
       await _pump(tester, view.size, view.textScale);
       expect(find.byType(SeekTrack), findsOneWidget);
       await expectAccessible(tester);
@@ -135,13 +134,11 @@ void main() {
   testWidgets('Tab reaches every control, the track with its ring', (
     tester,
   ) async {
-    addTearDown(tester.ensureSemantics().dispose);
     await _pump(tester, phonePortrait, 1);
     await expectKeyboardReach(tester);
   });
 
   testWidgets('the arrow keys seek by the step, right to left', (tester) async {
-    addTearDown(tester.ensureSemantics().dispose);
     final player = await _pump(tester, phonePortrait, 1);
     for (var i = 0; i < 30; i++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);

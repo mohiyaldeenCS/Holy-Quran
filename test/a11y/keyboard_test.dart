@@ -25,7 +25,6 @@ void main() {
     'bookmarks',
   ]) {
     testWidgets('$name is reached by Tab, ring at each stop', (tester) async {
-      addTearDown(tester.ensureSemantics().dispose);
       final screen = world.screens.firstWhere((s) => s.name == name);
       await screen.pump(tester, phonePortrait, 1);
       await expectKeyboardReach(

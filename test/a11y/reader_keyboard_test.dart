@@ -58,7 +58,6 @@ void main() {
   testWidgets('an ayah takes focus, shows its ring and stays in view', (
     tester,
   ) async {
-    addTearDown(tester.ensureSemantics().dispose);
     final screen = world.screens.firstWhere((s) => s.name == 'reader');
     await screen.pump(tester, phonePortrait, 1);
 
@@ -77,7 +76,6 @@ void main() {
     testWidgets('${key.keyLabel} on a focused ayah activates it', (
       tester,
     ) async {
-      addTearDown(tester.ensureSemantics().dispose);
       final screen = world.screens.firstWhere((s) => s.name == 'reader');
       await screen.pump(tester, phonePortrait, 1);
       expect(world.readerModel!.selectedAyah, isNull);
@@ -91,7 +89,6 @@ void main() {
   }
 
   testWidgets('Tab moves through the ayat in their order', (tester) async {
-    addTearDown(tester.ensureSemantics().dispose);
     final screen = world.screens.firstWhere((s) => s.name == 'reader');
     await screen.pump(tester, phonePortrait, 1);
 

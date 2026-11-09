@@ -159,7 +159,7 @@ void main() {
     await tester.pump();
     expect(asked, 0, reason: 'unfocused');
     node.requestFocus();
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(asked, greaterThan(0), reason: 'focused');
   });
 
