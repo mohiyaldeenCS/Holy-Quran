@@ -1,4 +1,4 @@
-"""The command line: build, verify, sign, verify-signature, compare, review-page and kfgqpc-counts.
+"""The command line: build, verify, sign, verify-signature, compare, review-page, kfgqpc-counts and drift.
 
 Output is paths, counts, hashes and `U+XXXX` only, never a text value. Exit
 codes: 0 done, 64 usage, 65 a source or a pack breaks a rule, 70 anything
@@ -11,7 +11,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import compare, review_page
+from . import compare, drift, review_page
 from .build import build_pack
 from .digest import sha256_bytes
 from .errors import PackError
@@ -131,6 +131,23 @@ def _parser():
     counts.add_argument("--date", required=True, help="the day the counts are taken, YYYY-MM-DD")
     counts.add_argument("--out", required=True, type=Path, help="where the counts file is written")
     counts.set_defaults(run=_kfgqpc_counts)
+
+    timing = commands.add_parser(
+        "drift",
+        help="measure drift between quran-align word timing and an everyayah folder of SSSAAA.mp3 files "
+        "(B0.5, D-167 (2), D-179)",
+    )
+    timing.add_argument("--timing", required=True, type=Path, help="the quran-align JSON of the edition")
+    timing.add_argument(
+        "--audio", required=True, type=Path, help="the folder of SSSAAA.mp3 files, named as the edition"
+    )
+    timing.add_argument("--edition", required=True, help="the everyayah folder name the timing file is for")
+    timing.add_argument("--text", type=Path, help="the Tanzil quran-uthmani text XML, with --metadata")
+    timing.add_argument("--metadata", type=Path, help="Tanzil's quran-data.xml, with --text")
+    timing.add_argument(
+        "--report", type=Path, help="where the report (JSON, numbers only) is written, outside every Git working tree"
+    )
+    timing.set_defaults(run=_drift)
     return parser
 
 
@@ -276,6 +293,24 @@ def _kfgqpc_counts(args, out):
     print("kfgqpc sha256 %s" % counts["kfgqpc_file"]["sha256"], file=out)
     print("surahs %d ayat %d" % (len(counts["surahs"]), counts["total"]), file=out)
     return 0
+
+
+def _drift(args, out):
+    if (args.text is None) != (args.metadata is None):
+        raise _Usage("--text and --metadata go together")
+    if args.report is not None:
+        drift.check_report_path(args.report)
+    report = drift.run_drift(
+        args.timing, args.audio, args.edition, PROFILES["hafs"], text_path=args.text, metadata_path=args.metadata
+    )
+    data = drift.encode_report(report)
+    if args.report is not None:
+        args.report.write_bytes(data)
+    for line in drift.lines(report):
+        print(line, file=out)
+    if args.report is not None:
+        print("report %s" % args.report, file=out)
+    return 0 if report["summary"]["verdict"] == "PASS" else EX_DATAERR
 
 
 def _report(args):
