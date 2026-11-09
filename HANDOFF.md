@@ -122,7 +122,7 @@ record for the head.
 content yet and none has run on a device since the spike of 2026-10-12.** **Before the first
 run on a branch, check it:** `git merge-base --is-ancestor origin/main origin/<branch>`. If
 `main` changed `.github/` and the branch lacks it, merge `main` into the branch from your own
-session. Decision numbers: D-001 to D-178 are all in `docs/DECISIONS.md` (D-172 to D-178 are #93 to #97 and the owner's answers); the next free number is D-179.
+session. Decision numbers: D-001 to D-178 are in `docs/DECISIONS.md` (D-073 to D-075 have no row, as on `main` before) (D-172 to D-178 are #93 to #97 and the owner's answers); the next free number is D-179.
 
 The queue, after the table above:
 
