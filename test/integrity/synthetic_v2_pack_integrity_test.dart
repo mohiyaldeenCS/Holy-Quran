@@ -52,6 +52,15 @@ void main() {
     textPackDirectory: () async => textPack,
   );
 
+  defineTafsirPackIntegritySuite(
+    'a synthetic tafsir pack with surah-level passages',
+    () async => (await buildSyntheticTafsirPack(
+      Directory('${root.path}/tafsir-whole'),
+      passages: syntheticPassagesWithSurahLevel,
+    )).directory.path,
+    textPackDirectory: () async => textPack,
+  );
+
   for (final unit in ['ayah', 'surah']) {
     defineRecitationPackIntegritySuite(
       'a synthetic recitation pack by $unit',
@@ -125,6 +134,9 @@ void main() {
       SyntheticTafsirFault.wrongPassageCount: tafsirNumberingProblems,
       SyntheticTafsirFault.twoBookRows: tafsirBookProblems,
       SyntheticTafsirFault.leadingBom: tafsirTextBytesProblems,
+      SyntheticTafsirFault.rangeFromAyahZero: tafsirRangeProblems,
+      SyntheticTafsirFault.twoSurahLevelPassages: tafsirRangeProblems,
+      SyntheticTafsirFault.surahLevelAfterAyahPassage: tafsirRangeProblems,
     };
     test('every fault has a check', () {
       expect(checks.keys.toSet(), SyntheticTafsirFault.values.toSet());
@@ -145,6 +157,51 @@ void main() {
         );
       });
     }
+  });
+
+  group('the range check on surah-level passages (D-184)', () {
+    Future<List<String>> rangeProblems(
+      String name, {
+      List<SyntheticPassage> passages = defaultSyntheticPassages,
+      SyntheticTafsirFault? fault,
+    }) => problemsOf(
+      name,
+      tafsirFileName,
+      () async => (await buildSyntheticTafsirPack(
+        Directory('${root.path}/range-$name'),
+        passages: passages,
+        fault: fault,
+      )).directory.path,
+      tafsirRangeProblems,
+    );
+
+    test('accepts one first in its surah', () async {
+      expect(
+        await rangeProblems('whole', passages: syntheticPassagesWithSurahLevel),
+        isEmpty,
+      );
+    });
+
+    test('names a second one, or one after an ayah passage', () async {
+      for (final fault in [
+        SyntheticTafsirFault.twoSurahLevelPassages,
+        SyntheticTafsirFault.surahLevelAfterAyahPassage,
+      ]) {
+        expect(await rangeProblems(fault.name, fault: fault), [
+          'passage 2 is on surah 1 as a whole but not first in it',
+        ]);
+      }
+    });
+
+    test('still names any other range from below ayah 1', () async {
+      expect(
+        await rangeProblems(
+          'zero',
+          fault: SyntheticTafsirFault.rangeFromAyahZero,
+        ),
+        ['passage 1 starts at 1:0'],
+      );
+    });
   });
 
   group('the recitation checks find the fault', () {

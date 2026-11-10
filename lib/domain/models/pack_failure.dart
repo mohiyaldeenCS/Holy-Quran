@@ -57,7 +57,8 @@ final class TextEncodingRejected extends PackFailure {
 
   final int surah;
 
-  /// Null when the text is the surah's name or basmala.
+  /// Null when the text is the surah's name or basmala, or a tafsir
+  /// passage on the whole surah.
   final int? ayah;
 
   @override

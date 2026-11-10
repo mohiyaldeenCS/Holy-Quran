@@ -128,12 +128,14 @@ void main() {
   }
 
   Future<(SyntheticTafsirPack, InstalledPack)> install({
+    List<SyntheticPassage> passages = defaultSyntheticPassages,
     SyntheticTafsirFault? fault,
     String id = 'synthetic-tafsir',
     int version = 1,
   }) async {
     final pack = await buildSyntheticTafsirPack(
       root,
+      passages: passages,
       fault: fault,
       id: id,
       version: version,
@@ -250,6 +252,136 @@ void main() {
         _failsWith<TafsirNotInstalled>(),
       );
       expect(verifier.verified, isEmpty);
+    });
+  });
+
+  group('passages on a surah as a whole (D-184)', () {
+    test('are carried where the tafsir of their surah begins', () async {
+      final (pack, installed) = await install(
+        passages: syntheticPassagesWithSurahLevel,
+      );
+      final tafsir = await repository();
+
+      final carried = {
+        for (final (surah, ayah) in [
+          (1, 1),
+          (1, 2),
+          (1, 3),
+          (1, 4),
+          (2, 1),
+          (2, 2),
+          (2, 3),
+          (3, 1),
+        ])
+          '$surah:$ayah': (await positionAt(
+            tafsir,
+            _at(surah, ayah),
+          )).surahPassage,
+      };
+      expect(carried.map((at, whole) => MapEntry(at, whole?.number)), {
+        '1:1': 1,
+        '1:2': 1,
+        '1:3': 1,
+        '1:4': null,
+        '2:1': 3,
+        '2:2': null,
+        '2:3': null,
+        '3:1': null,
+      });
+      for (final (at, index) in [('1:1', 0), ('2:1', 2)]) {
+        final whole = carried[at]!;
+        expect(whole.surah, pack.passages[index].surah);
+        expect(
+          utf8.encode(whole.text.verbatim),
+          utf8.encode(pack.passages[index].text),
+        );
+      }
+      expect((await positionAt(tafsir, _at(1, 1))).passage!.number, 2);
+      expect(integrity.stateOf('synthetic-tafsir'), isA<IntegrityOk>());
+      expect(verifier.verified, [installed.directory]);
+    });
+
+    test('a pack without them carries none', () async {
+      await install();
+      final tafsir = await repository();
+
+      for (final at in [_at(1, 1), _at(2, 1), _at(3, 1)]) {
+        expect((await positionAt(tafsir, at)).surahPassage, isNull);
+      }
+    });
+
+    test('one alone in its surah is carried at its first ayah', () async {
+      await install(
+        passages: const [
+          SyntheticPassage.surahLevel(2, 'Synthetic surah-level passage'),
+          SyntheticPassage(3, 1, 1, 'Synthetic passage'),
+        ],
+      );
+      final tafsir = await repository();
+
+      final first = await positionAt(tafsir, _at(2, 1));
+      expect(first.passage, isNull);
+      expect(first.surahPassage!.number, 1);
+      expect((await positionAt(tafsir, _at(2, 2))).surahPassage, isNull);
+      expect((await positionAt(tafsir, _at(3, 1))).passage!.number, 2);
+    });
+
+    test('leave navigation over ayah passages unchanged', () async {
+      final tafsir = await repository();
+      Future<List<QuranAddress>> walk(String id) async {
+        final steps = <QuranAddress>[];
+        QuranAddress? at = _at(1, 1);
+        while (at != null) {
+          steps.add(at);
+          at = _ok(await tafsir.positionAt(id, at)).next;
+        }
+        at = steps.last;
+        while (at != null) {
+          steps.add(at);
+          at = _ok(await tafsir.positionAt(id, at)).previous;
+        }
+        return steps;
+      }
+
+      await install(id: 'plain');
+      await install(passages: syntheticPassagesWithSurahLevel, id: 'whole');
+      expect(await walk('whole'), await walk('plain'));
+    });
+
+    test('one that fails while reading disables the pack', () async {
+      final (pack, _) = await install(
+        passages: syntheticPassagesWithSurahLevel,
+      );
+      final damaged = await buildSyntheticTafsirPack(
+        Directory('${root.path}/damaged'),
+        passages: [
+          for (final (index, passage)
+              in syntheticPassagesWithSurahLevel.indexed)
+            index == 2
+                ? SyntheticPassage.surahLevel(
+                    passage.surah,
+                    '\u{FEFF}${passage.text}',
+                  )
+                : passage,
+        ],
+      );
+      final tafsir = await repository();
+      // The check reads every passage on its own connection; the pack's
+      // connection has read none yet when the file changes under it.
+      expect(await tafsir.book('synthetic-tafsir'), isA<Ok<Object>>());
+
+      await pack.file.writeAsBytes(await damaged.file.readAsBytes());
+      final failure = isA<TextEncodingRejected>()
+          .having((e) => e.pack, 'pack', 'synthetic-tafsir')
+          .having((e) => e.surah, 'surah', 2)
+          .having((e) => e.ayah, 'ayah', null);
+
+      expect(
+        await tafsir.positionAt('synthetic-tafsir', _at(2, 1)),
+        _failsWith(failure),
+      );
+      expect(await tafsir.book('synthetic-tafsir'), _failsWith(failure));
+      expect(integrity.stateOf('synthetic-tafsir'), isA<IntegrityFailed>());
     });
   });
 
@@ -381,6 +513,16 @@ void main() {
       (SyntheticTafsirFault.overlappingPassages, isA<PackInconsistent>()),
       (SyntheticTafsirFault.twoBookRows, isA<PackInconsistent>()),
       (SyntheticTafsirFault.leadingBom, isA<PackInconsistent>()),
+      (SyntheticTafsirFault.rangeFromAyahZero, isA<PackInconsistent>()),
+      (SyntheticTafsirFault.twoSurahLevelPassages, isA<PackInconsistent>()),
+      (
+        SyntheticTafsirFault.surahLevelAfterAyahPassage,
+        isA<PackInconsistent>().having(
+          (e) => e.reason,
+          'reason',
+          'passage 1 is numbered 2',
+        ),
+      ),
     ]) {
       test('a pack with ${fault.name} serves nothing', () async {
         await install(fault: fault);

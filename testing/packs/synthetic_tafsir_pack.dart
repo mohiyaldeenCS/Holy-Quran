@@ -28,6 +28,12 @@ final class SyntheticBook {
 final class SyntheticPassage {
   const SyntheticPassage(this.surah, this.firstAyah, this.lastAyah, this.text);
 
+  /// A passage on [surah] as a whole, stored with the reserved range `0..0`
+  /// (D-184).
+  const SyntheticPassage.surahLevel(this.surah, this.text)
+    : firstAyah = 0,
+      lastAyah = 0;
+
   final int surah;
   final int firstAyah;
   final int lastAyah;
@@ -47,6 +53,17 @@ const defaultSyntheticBook = SyntheticBook(
 /// trimming or re-encoding.
 const defaultSyntheticPassages = [
   SyntheticPassage(1, 1, 3, '$syntheticArabic over three ayat'),
+  SyntheticPassage(2, 1, 1, ' e\u{301} \u{E9} $syntheticArabic  '),
+  SyntheticPassage(2, 2, 3, 'Synthetic \u{1F600} passage \u{FEFF}inside'),
+  SyntheticPassage(3, 1, 1, 'Synthetic\nlast passage'),
+];
+
+/// The default passages with a passage on surah 1 and one on surah 2 as a
+/// whole, each first in its surah; surah 3 has none.
+const syntheticPassagesWithSurahLevel = [
+  SyntheticPassage.surahLevel(1, 'Synthetic\nsurah-level $syntheticArabic'),
+  SyntheticPassage(1, 1, 3, '$syntheticArabic over three ayat'),
+  SyntheticPassage.surahLevel(2, ' Synthetic surah level e\u{301} '),
   SyntheticPassage(2, 1, 1, ' e\u{301} \u{E9} $syntheticArabic  '),
   SyntheticPassage(2, 2, 3, 'Synthetic \u{1F600} passage \u{FEFF}inside'),
   SyntheticPassage(3, 1, 1, 'Synthetic\nlast passage'),
@@ -72,6 +89,16 @@ enum SyntheticTafsirFault {
 
   /// The title is stored with a leading U+FEFF.
   leadingBom,
+
+  /// The first passage starts at ayah 0 but is not the surah-level `0..0`.
+  rangeFromAyahZero,
+
+  /// Two surah-level passages come before the first passage, on its surah.
+  /// The file is written without `UNIQUE (surah, first_ayah)` to hold them.
+  twoSurahLevelPassages,
+
+  /// A surah-level passage follows the first passage, on its surah.
+  surahLevelAfterAyahPassage,
 }
 
 final class SyntheticTafsirPack {
@@ -92,8 +119,9 @@ final class SyntheticTafsirPack {
   File get file => File('${directory.path}/$tafsirFileName');
 }
 
-// The DDL of docs/CONTENT_PACKS.md, "Tafsir pack".
-const _schema = [
+// The DDL of docs/CONTENT_PACKS.md, "Tafsir pack", without its CHECK, so
+// that the faults can be written.
+List<String> _schema({required bool unique}) => [
   '''
 CREATE TABLE book (
   title     TEXT NOT NULL,
@@ -108,8 +136,7 @@ CREATE TABLE passage (
   surah      INTEGER NOT NULL,
   first_ayah INTEGER NOT NULL,
   last_ayah  INTEGER NOT NULL,
-  text       TEXT NOT NULL,
-  UNIQUE (surah, first_ayah)
+  text       TEXT NOT NULL${unique ? ',\n  UNIQUE (surah, first_ayah)' : ''}
 ) STRICT''',
 ];
 
@@ -141,6 +168,18 @@ Future<SyntheticTafsirPack> buildSyntheticTafsirPack(
         stored.length - 1,
         lastAyah: stored.last.lastAyah + 1,
       );
+    case SyntheticTafsirFault.rangeFromAyahZero:
+      stored[0] = changed(0, firstAyah: 0);
+    case SyntheticTafsirFault.twoSurahLevelPassages:
+      stored.insertAll(0, [
+        for (final which in ['first', 'second'])
+          SyntheticPassage.surahLevel(stored[0].surah, 'Synthetic $which'),
+      ]);
+    case SyntheticTafsirFault.surahLevelAfterAyahPassage:
+      stored.insert(
+        1,
+        SyntheticPassage.surahLevel(stored[0].surah, 'Synthetic late'),
+      );
     default:
   }
   final storedBook = fault == SyntheticTafsirFault.leadingBom
@@ -159,7 +198,9 @@ Future<SyntheticTafsirPack> buildSyntheticTafsirPack(
   writePackFile(
     file,
     userVersion: newestPackFormatVersion,
-    schema: _schema,
+    schema: _schema(
+      unique: fault != SyntheticTafsirFault.twoSurahLevelPassages,
+    ),
     fill: (db) {
       for (
         var i = 0;

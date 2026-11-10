@@ -38,8 +38,9 @@ abstract interface class TafsirRepository implements Listenable {
   /// The book's own facts for the source badge (`TF-05`).
   Future<Result<TafsirBook>> book(String packId);
 
-  /// Ayah [ayah] as book [packId] explains it. An address that is not an
-  /// ayah of the Quran fails with [AddressNotInPack].
+  /// Ayah [ayah] as book [packId] explains it, with the book's passage on
+  /// its surah as a whole where that surah's tafsir begins. An address that
+  /// is not an ayah of the Quran fails with [AddressNotInPack].
   Future<Result<TafsirPosition>> positionAt(String packId, QuranAddress ayah);
 }
 
@@ -59,7 +60,8 @@ final class TafsirNotInstalled implements Exception {
 /// verifier and then checks its rows against its manifest and the Quran's
 /// structure (docs/CONTENT_PACKS.md, "Verification by kind"): one book, as
 /// many passages as `counts.passages`, numbered from 1 in mushaf order
-/// without a gap, each within the ayat of its surah, none overlapping, and
+/// without a gap, each within the ayat of its surah, none overlapping, at
+/// most one on a surah as a whole and first in that surah (D-184), and
 /// every text strict UTF-8. The outcome is reported to the integrity
 /// repository. A pack that fails, then or at a later read, serves nothing
 /// for the rest of the session: every call for it fails with that failure.
@@ -144,11 +146,15 @@ final class LocalTafsirRepository extends ChangeNotifier
   Future<Result<TafsirPosition>> positionAt(String packId, QuranAddress ayah) =>
       _read(packId, (book) {
         if (!_isAyah(ayah)) throw AddressNotInPack(packId, ayah);
+        final (first, _) = book.unitOf(ayah.surah, ayah.ayah);
         return TafsirPosition(
           ayah: ayah,
           passage: book.database.passageAt(ayah.surah, ayah.ayah),
           previous: _previous(book, ayah),
           next: _next(book, ayah),
+          surahPassage: first == 1
+              ? book.database.surahPassageOf(ayah.surah)
+              : null,
         );
       });
 
@@ -314,6 +320,14 @@ final class LocalTafsirRepository extends ChangeNotifier
       final units = <List<(int, int)>>[];
       for (final (index, ayat) in ayahCounts.indexed) {
         final surah = index + 1;
+        if (database.surahPassageOf(surah) case final whole?) {
+          if (whole.number != ++numbered) {
+            throw PackInconsistent(
+              id,
+              'passage $numbered is numbered ${whole.number}',
+            );
+          }
+        }
         final passages = database.passagesOfSurah(surah);
         for (final passage in passages) {
           final last = passage.range.end.ayah;
