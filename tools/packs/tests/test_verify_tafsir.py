@@ -134,7 +134,7 @@ class VerifyTafsirTest(_Case):
     def test_font_coverage_with_the_two_exempt_code_points(self):
         passages = factory.PASSAGES[:4] + ((5, 2, 2, 3, "Synthetic\u2063 1 thin\u2009space"),)
         directory = self.pack(passages=passages)
-        font = Font("Synthetic", "1", "0" * 64, factory.code_points(passages=passages) - {0x2063, 0x2009})
+        font = Font("Synthetic", "1", "0" * 64, factory.code_points(passages=passages) - {0x000A, 0x2063, 0x2009})
         self.assertEqual(self.verify(directory, font=font).problems, [])
         lacking = Font("Synthetic", "1", "0" * 64, font.code_points - {0xFDFA, 0x0646})
         self.assertEqual(

@@ -380,7 +380,9 @@ CREATE TABLE passage (
   hides such a pack rather than showing it wrongly. The columns, and so the app's
   schema check, are unchanged; `pragma_table_xinfo` does not show a CHECK.
 - `text` is not empty and holds no U+FEFF anywhere; a book fact that is not NULL is
-  not empty.
+  not empty. Every code point of the book and its passages is in the tafsir font,
+  except U+000A, which joins a passage's paragraphs (D-184) and is laid out as a
+  line break, and U+2009 and U+2063 (D-185).
 - Quran quotations inside a passage are part of the book's text (`TF-08`).
 - No digest beyond the file hash. Ranges are checked against the text pack of the
   same riwaya by the integrity suite and by the tafsir repository (P1-20), and by

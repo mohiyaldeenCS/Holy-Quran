@@ -25,8 +25,10 @@ from .verify_spans import coverage_problems
 TAFSIR = "tafsir.sqlite"
 FORMAT_VERSION = 2
 SURAH_LEVEL = (0, 0)
-# D-185: the two code points the tafsir font lacks that a passage may hold.
-FONT_EXEMPT = frozenset({0x2009, 0x2063})
+# Code points a passage may hold that the tafsir font need not draw: U+000A
+# joins a passage's paragraphs (D-184) and is laid out as a line break, not a
+# glyph; U+2009 and U+2063 are the two D-185 keeps that the font lacks.
+FONT_EXEMPT = frozenset({0x000A, 0x2009, 0x2063})
 
 _MANIFEST_KEYS = (
     "format", "format_version", "id", "kind", "version", "changelog",
