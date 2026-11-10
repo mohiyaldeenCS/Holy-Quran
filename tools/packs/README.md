@@ -738,7 +738,8 @@ Exit codes: `0` built; `64` usage; `65` any refusal (a hash mismatch, a missing 
 unapproved table or record, unknown markup or code, U+FFFD or U+FEFF, a code point
 outside the font, a range outside its surah, no passage left, an output inside a Git
 tree or an existing version, a `--report` inside a Git tree, that exists already or
-whose folder does not exist, any verifier problem); `70` anything else. The command
+whose folder does not exist, or that another process creates during the build (the
+pack is then built but has no report), any verifier problem); `70` anything else. The command
 prints paths, counts, hashes, passage and entry numbers, site pages and `U+XXXX`,
 never a text. `verify` and `sign` then take the pack with `--ayah-counts` and the
 font, as for any tafsir pack; for a tafsir pack they refuse (65) a `--font` whose
@@ -858,7 +859,7 @@ allow-list is exact strings, given in "The markup a paragraph may hold":
 | --- | --- |
 | a paragraph opening (the plain or the heading paragraph) and `</p>`, once, around the whole paragraph | nothing |
 | the four plain spans and `</span>`, nested in balance | nothing; their content is kept |
-| `<div style="text-align: center;">` and `</div>`, directly inside the paragraph, its spans inside it | nothing; its content is kept. Text may not touch it from outside, or two words would run together |
+| `<div style="text-align: center;">` and `</div>`, only where the books put it: in a plain paragraph, `&nbsp`, then the `<div>` holding exactly one code span, then `</p>` | nothing; the code span inside it converts as below |
 | either form of the dark-red code span holding one table code | the code's approved phrase, unchanged |
 | the same span holding U+FDFA, U+FDFB, U+FDFD, U+00B7 or a run of U+002E | its content |
 | `&nbsp` at either edge of the paragraph | nothing |
@@ -897,11 +898,13 @@ strings here keep it, since the tokenizer compares exact strings.
 | 1227 | `<sup style="color: #800000;">` and `</sup>` | 165, 440, 473, 514 | refused (footnote, task C) |
 | 1049 | `<p class="border-r-4 px-2"  style="border-radius: 0px 3px 3px 0px;font-family:Ziydia-Bold;color: #800000;">` (two spaces) | all eight | allowed (heading paragraph) |
 | 428 | `<hr style="margin-top: 12px;margin-bottom: 12px;border: 0;height: 1px;background-image: -webkit-linear-gradient(left, transparent, rgba(0, 0, 0, 0.2), transparent);">` | 165, 440, 473, 514 | refused (footnote line, task C) |
-| 136 | `<div style="text-align: center;">` and `</div>` | all eight | allowed, directly inside the paragraph |
+| 136 | `<div style="text-align: center;">` and `</div>` | all eight | allowed only as `&nbsp`, the `<div>` holding one code span, `</p>` |
 
 Closing tags: `</span>` 93453, `</p>` 46100. In all 136 cases the `<div>` follows
-`&nbsp` inside a plain paragraph, holds one code span, and its `</div>` is followed by
-`</p>`. The one-character code spans hold U+0023 (one-space form) and, in the
+`&nbsp&nbsp` at the start of a plain paragraph and its `</div>` is followed by `</p>`.
+In 129 the `<div>` holds one code span (U+FDFD) and nothing else; in 7, all in book
+473, U+003A follows the code span inside the `<div>`, and those 7 paragraphs are
+refused. The one-character code spans hold U+0023 (one-space form) and, in the
 two-space form, U+0024, U+0026, U+0040, U+005E, U+007C, U+007E, U+00A4, U+00A5,
 U+00A6, U+00AA, U+00AE, U+00B7, U+00BF, U+00C0, U+00F7, U+00F8, U+FDFA, U+FDFB and
 U+FDFD; the longer ones hold runs of U+002E only.
@@ -923,12 +926,13 @@ and P2, and that an assembly that drops one fails P2.
 
 Refused: `approved_by` or `approved_on` missing, null or empty; a date that is not a
 calendar date; an unknown key; a code that is not one character written `U+XXXX`, a
-surrogate, a control, white space, `<`, `>`, U+002E, a kept code (U+FDFA, U+FDFB,
+surrogate, a control (category Cc, C0 or C1), ASCII white space, `<`, `>`, U+002E, a kept code (U+FDFA, U+FDFB,
 U+FDFD, U+00B7) or a combining mark (category M), or a code that repeats; a phrase
 that is empty, has white space at its edges, holds any ASCII white space other than
 single U+0020 characters (the conversion collapses white-space runs, so such a
-phrase would not be stored as approved), or holds `<`, `>`, `&`, a control or a code
-of the table. U+0026 may be a code: the site writes one honorific so. A letter
+phrase would not be stored as approved), or holds `<`, `>`, `&`, a control (category
+Cc, C0 or C1), a line or paragraph separator (Zl, Zp), any other separator (category Z)
+than U+0020 (U+00A0 and U+2009 among them), or a code of the table. U+0026 may be a code: the site writes one honorific so. A letter
 (category L) may be a code too: the site's codes include U+00AA, U+00C0 and U+00F8.
 
 ### The manifest

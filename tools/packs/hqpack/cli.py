@@ -256,8 +256,14 @@ def _tafsir(args, out):
     print("tafsir.sqlite sha256 %s" % result.tafsir_sha256, file=out)
     print("manifest.json sha256 %s" % result.manifest_sha256, file=out)
     if args.report is not None:
-        with open(args.report, "xb") as handle:
-            handle.write(result.report)
+        try:
+            with open(args.report, "xb") as handle:
+                handle.write(result.report)
+        except FileExistsError:
+            raise PackError(
+                "the report %s was created by another process during the build and is not overwritten; "
+                "the pack %s is built but has no report" % (args.report, result.directory)
+            ) from None
         print("report %s" % args.report, file=out)
     print("verified", file=out)
     print(UNSIGNED, file=out)

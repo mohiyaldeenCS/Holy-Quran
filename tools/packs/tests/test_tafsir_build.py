@@ -250,6 +250,21 @@ class TafsirRefusalTest(_Case):
         self.assert_refused("does not exist", report=self.work / "absent" / "held.json")
         self.assertFalse((self.work / "absent").exists())
 
+    def test_a_report_created_by_another_process_during_the_build(self):
+        report = self.work / "held.json"
+        real = cli.build_tafsir_pack
+
+        def racing(*args):
+            result = real(*args)
+            report.write_bytes(b"synthetic report of another process")
+            return result
+
+        with mock.patch.object(cli, "build_tafsir_pack", racing):
+            code, _, err = self.tafsir(report=report)
+        self.assertEqual(code, cli.EX_DATAERR, err)
+        self.assertIn("was created by another process during the build and is not overwritten", err)
+        self.assertEqual(report.read_bytes(), b"synthetic report of another process")
+
     def test_a_riwaya_other_than_hafs(self):
         path = self.book.path("tafsir.json")
         description = json.loads(path.read_bytes())
