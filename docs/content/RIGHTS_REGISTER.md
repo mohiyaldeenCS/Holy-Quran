@@ -60,7 +60,7 @@ Library). The other fields are `To confirm` until he has read them from the pape
 | Al-Mukhtasar fi al-Tafsir, al-Siraj fi Gharib al-Quran | Tafsir Center | Permission held | To confirm | To confirm | To confirm | Unmodified, with source, version and update date | To confirm | To confirm | Open |
 | Quranic Arabic Corpus 0.4 | Its authors | Permission held | To confirm | To confirm | To confirm | Unmodified pack | To confirm | To confirm | Open |
 | MASAQ 6 | Its authors | Permission held; the data set is also published under CC BY 3.0 according to its paper | To confirm | To confirm | To confirm | To confirm | To confirm | To confirm | Open |
-| Everything published on ziydia.com | The site owner | Everything on the site, including contemporary works. The database is not provided; taking the text from the website is permitted | To confirm | To confirm | To confirm | To confirm | To confirm | To confirm | Open |
+| Everything published on ziydia.com | The site owner | Everything on the site, including contemporary works. The database is not provided; taking the text from the website is permitted | To confirm | To confirm | To confirm | To confirm | Copy and share passages (`TF-10`), D-190 | Book title, author and «المكتبة الزيدية — ziydia.com» (D-190) | Open |
 
 ## Recitations
 

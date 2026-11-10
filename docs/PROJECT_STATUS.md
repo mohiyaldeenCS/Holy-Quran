@@ -433,9 +433,9 @@ Stream B: the owner is extracting book 466. B0.11 (the pack pipeline) is on `mai
 
 ## Next actions — stream A (the implementing account)
 
-Current (2026-11-09, local lead): the missing base pack (D-180, pull request #101), then a second mark row when one row does not fit (D-183); `HANDOFF.md` section 0 holds the order.
+Current (2026-11-10, local lead; agents run locally under D-191 while no API key works): the Zaydi tafsir packs by `docs/plans/B07_TAFSIR_PACK.md` (tasks A and B1 first; D-184 to D-190), then a second mark row when one row does not fit (D-183). Follow-up from the review of #101: the tafsir reader (`tafsir_routes.dart`, `study_routes.dart`) shows its title alone when the base pack is missing or failed; give it the base-pack alert as the index and search have (D-180). `HANDOFF.md` section 0 holds the order.
 
-Work runs through agents in GitHub Actions; the lead only manages them (D-159). The
+Work runs through agents in GitHub Actions; the lead only manages them (D-159; suspended by D-191 while no API key works). The
 current queue, in order, with how to start a run, is `HANDOFF.md`, sections 2 and 3.
 Decision numbers: take the number after the highest on `main` and every open pull request
 (D-076); D-155 to D-159 are taken.
@@ -640,6 +640,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-11-10 | Local lead, continued | Merged #102 (records) and #101 (missing base pack, D-180). The Zaydi site now refuses the fetch tool (403); the owner is asking the site owner. Both API keys fail (D-191). Planned B0.7 (`docs/plans/B07_TAFSIR_PACK.md`); owner's answers D-184 to D-190 | `main`, this branch |
 | 2026-11-09 | Local lead, continued | Merged #98 (records), #91 (P1-35, after its fix and goldens), #99 (recitation drift tool, B0.5) and #100 (margin-mark rows, D-181). Fetched quran-align and 72 ayat of each recitation outside Git and measured drift (two pass, two to a listening check). Owner's answers D-180 to D-182. Key 2 is out of credit | `main`, this branch |
 | 2026-11-06–09 | Local lead (owner's machine) | Ran `tools/test_copy/README.md`: the build stopped on Tanzil's real files (no metadata notice; `rub=false` turns U+06DE on) → #93; installed on the phone; the app could not read the pushed pack (folder modes) → #94; fetched the KFGQPC Hafs text (checksums matched); built the comparison #95, #96 (54,797 differences in 93 patterns: encoding, spaces, 355 pause marks, ~30 letters; 56 page, 2 juz, 2 quarter differences) and the reciter's review page #97; recorded the recitation rights and the owner's answers (D-174, D-176). Pending human checks: the reciter's review; the 42 surah-opening quarter starts; the test copy on the phone (debug build) | `main` `06bb22f`; records branch `claude/quran-app-leadership-kcenv4` |
 | 2026-11-04 | Cloud session, new account (managing lead, D-159) | Read the handover; confirmed `gh` can start workflows; reported to the owner. In Actions: final reviews of #77 and #71 and an identity audit of #71; fixes of #76's and #77's reviews; the audio stall reproduced and fixed (#80, D-161); re-reviews and the two #71 fix runs started. Put fourteen decisions to the owner (D-162); planned the local test copy (`docs/plans/TEST_COPY.md`). Could not delete branches (proxy) | `claude/quran-app-leadership-kcenv4` |
