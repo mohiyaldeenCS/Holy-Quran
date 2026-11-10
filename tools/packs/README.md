@@ -44,9 +44,10 @@ All under `hqpack/`. Each raises `errors.PackError` with a message as above.
 | `verify_tafsir.py` | The independent verifier of a tafsir pack (B0.7, D-184), with its own copy of the DDL: the kind's manifest keys and rules; the header (application id, `user_version` 2, DELETE journal, UTF-8, no free pages, so the build ended with `VACUUM`); exactly the tables `book` and `passage`, STRICT, their columns, and their CREATE statements as the format gives them (so a missing CHECK or UNIQUE is found); no other schema object; `integrity_check`; one book row; numbering 1 to n; mushaf order with a surah's surah-level passage first; no overlap; every range within the P5 counts (`0..0`, or from ayah 1 to the surah's last); strict UTF-8, not empty, no U+FEFF anywhere; U+000A only between two paragraphs of a passage (none at a passage's edges, never two together, none in a book fact); `riwaya` `hafs`; no extra file; `counts.passages`; with a font, every code point but U+2009 and U+2063, and U+000A in a passage | `verify_tafsir_pack(directory, ayah_counts, font=None) -> Report(problems, counts, signed)` |
 | `strict_json.py` | Strict JSON for the tafsir inputs: UTF-8 without a BOM (or ASCII), no repeated key, no NaN, objects with exactly the expected keys | `load(data, ascii_only=False)`, `loads(text)`, `fields(value, keys, where, optional=())`, `string`, `positive_int`, `date`, `sha256` |
 | `honorifics.py` | The honorific table (D-188) and its refusals | `read_honorific_table(data) -> HonorificTable(version, approved_by, approved_on, derived_from_font_sha256, phrases: {code: phrase}, sha256)` |
-| `tafsir_html.py` | A paragraph's `html` to passage text (D-185): the closed tokenizer, the conversion and proofs P1 and P2 | `convert_paragraph(html, phrases, where) -> Paragraph(text, pieces, replaced)`, `tokenize`, `assemble`, `check_rejoins`, `regex_text`, `check_regex_agrees` |
+| `tafsir_html.py` | A paragraph's `html` to passage text (D-185): the closed tokenizer, the conversion and proofs P1 and P2; footnote marks and note paragraphs (D-189) | `convert_paragraph(html, phrases, where) -> Paragraph(text, pieces, replaced, note, marks)`, `tokenize`, `assemble`, `check_rejoins`, `regex_text`, `check_regex_agrees`, `NOTE_OPEN`, `SEPARATOR` |
+| `tafsir_footnotes.py` | Footnotes (D-189): a page's marks and notes, their pairing, the cases that stop the build, and P2 over a whole passage | `read_page(html, site_page) -> PageNotes`, `notes_of_marks(shipped_marks, pages) -> (notes, [Case])`, `repeated_in_passages(groups, shipped_marks)`, `refuse(book, cases)`, `regex_passage_text(paragraphs, pages, phrases)` |
 | `ziydia_inputs.py` | The extraction's and the linker's files of one book and the reviewer's record, read strictly and tied by their hashes, with each surah's surah-level entries and their hash; proof P3 | `read_review_record(data) -> ReviewRecord`, `read_book_inputs(extraction, links, book, pages_sha256, passages_sha256, review) -> BookInputs`, `is_surah_level(entry)`, `PageParagraphs(pages).take(site_page, html, where)` |
-| `tafsir_passages.py` | The gate (D-186), ranges against the P5 counts, the surah-level passage (D-184), merging, mushaf order and numbering | `select(entries, outcomes, review, ayah_counts) -> Selection(chosen, held, never)`, `assemble(chosen, texts) -> [PassageRow]` |
+| `tafsir_passages.py` | The gate (D-186), ranges against the P5 counts, the surah-level passage (D-184), merging, mushaf order and numbering | `select(entries, outcomes, review, ayah_counts) -> Selection(chosen, held, never)`, `group(chosen)`, `assemble(chosen, texts, marks=None, notes=None) -> [PassageRow]` |
 | `tafsir_config.py` | The tafsir description | `read_tafsir_config(path) -> TafsirConfig` |
 | `tafsir_build.py` | The tafsir pipeline: inputs, gate, conversion, font, database, read-back (P4), manifest, verifier, move into place | `build_tafsir_pack(config, honorifics, reviews, ayah_counts, font, out) -> TafsirBuildResult`, `TAFSIR_FONT_SHA256` |
 | `signing.py` | The signing seam (D-080, O-03): `Signer` with `sign(data) -> 64 bytes`; `OpenSslEd25519Signer(key_path)` runs `openssl pkeyutl -sign -rawin`; `sign_pack` writes `manifest.json.sig` for a pack that verifies; `verify_signature` checks it with a public key | `sign_pack(directory, signer)`, `verify_signature(directory, public_key_path)` |
@@ -736,7 +737,7 @@ python3 tools/packs/pack.py tafsir --config <tafsir.json> --honorifics <table.js
 
 Exit codes: `0` built; `64` usage; `65` any refusal (a hash mismatch, a missing or
 unapproved table or record, unknown markup or code, U+FFFD or U+FEFF, a code point
-outside the font, a range outside its surah, no passage left, an output inside a Git
+outside the font, a range outside its surah, a footnote case (D-189), no passage left, an output inside a Git
 tree or an existing version, a `--report` inside a Git tree, that exists already or
 whose folder does not exist, or that another process creates during the build (the
 pack is then built but has no report), any verifier problem); `70` anything else. The command
@@ -857,17 +858,19 @@ allow-list is exact strings, given in "The markup a paragraph may hold":
 
 | Markup | Becomes |
 | --- | --- |
-| a paragraph opening (the plain or the heading paragraph) and `</p>`, once, around the whole paragraph | nothing |
+| a paragraph opening (the plain, the heading or the note paragraph) and `</p>`, once, around the whole paragraph | nothing |
 | the four plain spans and `</span>`, nested in balance | nothing; their content is kept |
 | `<div style="text-align: center;">` and `</div>`, only where the books put it: in a plain paragraph, `&nbsp`, then the `<div>` holding exactly one code span, then `</p>` | nothing; the code span inside it converts as below |
 | either form of the dark-red code span holding one table code | the code's approved phrase, unchanged |
 | the same span holding U+FDFA, U+FDFB, U+FDFD, U+00B7 or a run of U+002E | its content |
+| a footnote mark: `<sup style="color: #800000;">` holding `(` U+2063 N `)`, N in Arabic-Indic digits, then `</sup>`, anywhere in a plain or heading paragraph | its content, as printed (D-189) |
 | `&nbsp` at either edge of the paragraph | nothing |
 | any other character | itself; ASCII white-space runs then become one U+0020 and the edges are trimmed |
 
 Refused, naming the offset, the tag name or the code point: any other tag, attribute
-or style, or an allowed tag written otherwise (one space more or less); the footnote
-paragraph, `<sup>` and `<hr>`, until footnotes are built (D-189, task C); any entity
+or style, or an allowed tag written otherwise (one space more or less); a `<sup>` that
+is not a mark, and a mark in a note paragraph; `<hr>` in any paragraph (the footnote
+line stands only in the separator, which is never converted); any entity
 but `&nbsp`, and `&nbsp;`; `&nbsp` inside the paragraph; a stray `<`, `>` or `&`;
 U+FFFD and U+FEFF; a code the table lacks; a table code outside its span, or touching
 a letter or mark (format characters, category Cf such as U+2063 or U+200F, are passed
@@ -894,10 +897,10 @@ strings here keep it, since the tokenizer compares exact strings.
 | 9762 | `<span  style="color: #800000;">` (two spaces) | all eight | allowed (code span) |
 | 8177 | `<span style="font-size: 0.8em;">` | 165, 183, 276, 440, 471, 473, 514 | allowed |
 | 2573 | `<span style="color: #800000;">` (one space; it holds U+0023 only) | all eight | allowed (code span) |
-| 1881 | `<p style="text-indent: -20px;padding-right: 20px;font-size: 0.8em;margin-top:1px;margin-bottom:1px;color:#464646;text-align: justify;">` | 165, 440, 473, 514 | refused (footnote paragraph, task C) |
-| 1227 | `<sup style="color: #800000;">` and `</sup>` | 165, 440, 473, 514 | refused (footnote, task C) |
+| 1881 | `<p style="text-indent: -20px;padding-right: 20px;font-size: 0.8em;margin-top:1px;margin-bottom:1px;color:#464646;text-align: justify;">` | 165, 440, 473, 514 | allowed (note paragraph, D-189); the separator opens with it too |
+| 1227 | `<sup style="color: #800000;">` and `</sup>` | 165, 440, 473, 514 | allowed (footnote mark, D-189) |
 | 1049 | `<p class="border-r-4 px-2"  style="border-radius: 0px 3px 3px 0px;font-family:Ziydia-Bold;color: #800000;">` (two spaces) | all eight | allowed (heading paragraph) |
-| 428 | `<hr style="margin-top: 12px;margin-bottom: 12px;border: 0;height: 1px;background-image: -webkit-linear-gradient(left, transparent, rgba(0, 0, 0, 0.2), transparent);">` | 165, 440, 473, 514 | refused (footnote line, task C) |
+| 428 | `<hr style="margin-top: 12px;margin-bottom: 12px;border: 0;height: 1px;background-image: -webkit-linear-gradient(left, transparent, rgba(0, 0, 0, 0.2), transparent);">` | 165, 440, 473, 514 | only as the separator: the note paragraph opening, this, `</p>`, nothing else (D-189) |
 | 136 | `<div style="text-align: center;">` and `</div>` | all eight | allowed only as `&nbsp`, the `<div>` holding one code span, `</p>` |
 
 Closing tags: `</span>` 93453, `</p>` 46100. In all 136 cases the `<div>` follows
@@ -914,13 +917,50 @@ Four proofs:
 1. **P1:** the tokenizer's pieces rejoin the `html` exactly, and each piece's text is
    what the rule gives its slice.
 2. **P2:** an independent path of regular expressions over the `html` gives the same
-   text.
-3. **P3:** each paragraph is one of its site page's paragraphs in `pages.jsonl`, each
-   used once.
+   text, for each paragraph and for each whole passage, notes included
+   (`tafsir_footnotes.regex_passage_text`: it finds marks, the separator, the notes and
+   their numbers by its own expressions, and shares nothing with the tokenizer or the
+   pairing).
+3. **P3:** each paragraph, note paragraphs included, is one of its site page's
+   paragraphs in `pages.jsonl`, each used once.
 4. **P4:** every stored text reads back as the bytes written.
 
-The tests show that a tokenizer changed to drop or alter one character fails both P1
-and P2, and that an assembly that drops one fails P2.
+The tests show that a tokenizer changed to drop or alter one character, of a body or
+a note paragraph or of a mark, fails both P1 and P2; that an assembly that drops one
+fails P2; and that a note conversion that drops one, or notes appended out of the
+marks' order, fail the passage's P2.
+
+#### Footnotes (D-189)
+
+A page with footnotes ends with the separator, an empty note paragraph holding the
+`<hr>`, and the note paragraphs below it. A mark stays in the passage text as printed.
+Its note is the note paragraph on the same page whose text opens with `(N)` (after
+`&nbsp`, white space or span openings), with the unnumbered note paragraphs that follow
+it up to the next numbered one. After a passage's body (all its merged entries) come
+the notes of its marks, in the marks' order, each note paragraph joined by U+000A like
+any other. Nothing else is added: no label, no separator text. N is compared as the
+printed digits.
+
+Marks and notes pair one to one per page. On every page where a shipped passage has a
+mark, and on the page after one whose last note it uses, each of these stops the build
+(exit 65), naming the book, the site page, N and the entries involved:
+
+| Case | What |
+| --- | --- |
+| `unnumbered_note_opens_page` | the first note paragraph of the page has no number (it may continue the previous page's last note) |
+| `number_repeated_on_page` | N twice among the page's marks or among its notes |
+| `number_repeated_in_passage` | N twice among one passage's marks (from different pages, or merged entries); the entries carrying that N are named |
+| `mark_without_note`, `note_without_mark` | a mark with no note of its N on the page, or a note with no mark |
+| `separator_not_empty` | a paragraph holding `<hr>` that is not exactly the separator |
+| `page_layout` | a note paragraph above the line, anything but a note below it, a second line, a mark in a note, or a passage carrying a note paragraph or the separator as its own paragraph |
+
+All the cases are listed in one message. The review record settles a case only by
+excluding the entries it names (`excluded`, D-186), which holds them out; nothing new
+is added to the record. This is the simpler of the two ways D-189 left open: any other
+settlement would need a rule the owner has not decided (where an orphan paragraph
+belongs, whether a mark may ship without its note), and the record is already bound
+to `passages.jsonl` by its hash, so an exclusion cannot outlive the entries it names.
+A held-out entry's marks are not shipped, so its page is no longer paired for it.
 
 ### The table (D-188)
 
@@ -948,8 +988,9 @@ exclusions and surahs cleared together of the record (its SHA-256 and counts).
 All synthetic: `tests/ziydia_factory.py` writes a book's extraction, linker output,
 table, record, counts and description, tied by their hashes, from Latin words and a
 synthetic Arabic-script phrase. `test_tafsir_html.py`, `test_honorifics.py`,
-`test_tafsir_passages.py`, `test_ziydia_inputs.py` and `test_tafsir_build.py` cover
-the conversion, the table, the passages, the inputs and the pack.
+`test_tafsir_passages.py`, `test_ziydia_inputs.py`, `test_tafsir_footnotes.py` and
+`test_tafsir_build.py` cover the conversion, the table, the passages, the inputs, the
+footnotes and the pack.
 
 ### Pending human checks
 
@@ -983,8 +1024,6 @@ be replaced. Another kind of signer, such as a hardware token, would be another
 
 ## Not done here
 
-- Footnotes of books 473 and 440 (D-189, task C): until then `<sup>` and `<hr>` are
-  refused, so those books do not build.
 - The allow-list of tags is the markup of the eight books listed above. A book with
   other markup stops the build until that markup is listed with its count.
 - Recording the KFGQPC file and the table in the manifest. Format 1 has no place for
