@@ -3,6 +3,7 @@ import 'quran_range.dart';
 import 'search_match.dart';
 import 'search_query.dart';
 import 'tafsir_passage.dart';
+import 'tafsir_surah_passage.dart';
 
 /// The orders results may be shown in (`SR-05`).
 enum SearchOrder {
@@ -94,22 +95,49 @@ final class SearchResults {
   }
 }
 
-/// A tafsir passage a search found (`TF-07`): the passage of book [book], a
-/// pack id, as stored, and where the query occurs in its text.
+/// A tafsir passage a search found (`TF-07`): a passage of book [book], a
+/// pack id, as stored, and where the query occurs in its text. It is either
+/// an ayah [passage] or, where the book has one, a [surahPassage] on a surah
+/// as a whole (D-184); exactly one of them is set.
 final class TafsirHit {
   TafsirHit({
     required this.book,
-    required this.passage,
+    required TafsirPassage this.passage,
     required List<SearchMatch> matches,
-  }) : matches = List.unmodifiable(matches) {
+  }) : surahPassage = null,
+       ayah = passage.range.start,
+       matches = List.unmodifiable(matches) {
+    _checkMatches();
+  }
+
+  /// A hit in [surahPassage], whose surah's tafsir begins at its first ayah
+  /// in [riwaya].
+  TafsirHit.surahLevel({
+    required this.book,
+    required TafsirSurahPassage this.surahPassage,
+    required String riwaya,
+    required List<SearchMatch> matches,
+  }) : passage = null,
+       ayah = QuranAddress(riwaya, surahPassage.surah, 1),
+       matches = List.unmodifiable(matches) {
+    _checkMatches();
+  }
+
+  void _checkMatches() {
     if (matches.isEmpty) {
       throw ArgumentError.value(matches, 'matches', 'is empty');
     }
   }
 
   final String book;
-  final TafsirPassage passage;
+  final TafsirPassage? passage;
+  final TafsirSurahPassage? surahPassage;
 
-  /// Offsets into the passage's text, in order and not overlapping.
+  /// The ayah opening the hit leads to: the first of [passage], or the first
+  /// of the surah, where [surahPassage] is shown.
+  final QuranAddress ayah;
+
+  /// Offsets into the text of [passage] or [surahPassage], in order and not
+  /// overlapping.
   final List<SearchMatch> matches;
 }

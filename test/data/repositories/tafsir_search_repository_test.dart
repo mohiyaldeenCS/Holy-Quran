@@ -76,15 +76,18 @@ void main() {
   Future<List<TafsirHit>> search(String query, List<String> books) async =>
       (await repository.search(query, books) as Ok<List<TafsirHit>>).value;
 
+  int numberOf(TafsirHit hit) =>
+      hit.passage?.number ?? hit.surahPassage!.number;
+
   List<(String, int)> passagesOf(List<TafsirHit> hits) => [
-    for (final hit in hits) (hit.book, hit.passage.number),
+    for (final hit in hits) (hit.book, numberOf(hit)),
   ];
 
   /// What each match covers, sliced from the stored passage.
   List<String> slices(List<TafsirHit> hits) => [
     for (final hit in hits)
       for (final SearchMatch(:start, :end) in hit.matches)
-        texts[(hit.book, hit.passage.number)]!.substring(start, end),
+        texts[(hit.book, numberOf(hit))]!.substring(start, end),
   ];
 
   test('searches several books, book by book in the order given', () async {
@@ -109,8 +112,69 @@ void main() {
 
   test('gives each passage whole, with its range', () async {
     final hit = (await search('inside', ['synthetic-a'])).single;
-    expect(hit.passage.range.toString(), 'hafs:2:2-2:3');
-    expect(hit.passage.text, PackText.fromPack(texts[('synthetic-a', 3)]!));
+    expect(hit.passage!.range.toString(), 'hafs:2:2-2:3');
+    expect(hit.passage!.text, PackText.fromPack(texts[('synthetic-a', 3)]!));
+    expect(hit.surahPassage, isNull);
+    expect(hit.ayah.toString(), 'hafs:2:2');
+  });
+
+  group('a book with passages on surahs as a whole (D-184)', () {
+    setUp(() async {
+      installed.add(
+        await install('synthetic-whole', syntheticPassagesWithSurahLevel),
+      );
+    });
+
+    test('finds a word only they hold, opening at the first ayah of '
+        'the surah', () async {
+      final hits = await search('surah', ['synthetic-whole']);
+      expect(passagesOf(hits), [
+        ('synthetic-whole', 1),
+        ('synthetic-whole', 3),
+      ]);
+      expect(slices(hits), ['surah', 'surah']);
+      for (final (index, hit) in hits.indexed) {
+        expect(hit.passage, isNull);
+        expect(hit.surahPassage!.surah, index + 1);
+        expect(
+          hit.surahPassage!.text,
+          PackText.fromPack(texts[('synthetic-whole', numberOf(hit))]!),
+        );
+        expect(hit.ayah.toString(), 'hafs:${index + 1}:1');
+      }
+    });
+
+    test(
+      'puts them in book order, before the passages of their surah',
+      () async {
+        expect(passagesOf(await search('Synthetic', ['synthetic-whole'])), [
+          ('synthetic-whole', 1),
+          ('synthetic-whole', 3),
+          ('synthetic-whole', 5),
+          ('synthetic-whole', 6),
+        ]);
+      },
+    );
+
+    test('leaves the hits in ayah passages as they were', () async {
+      List<(String, PackText, String)> ayahHits(List<TafsirHit> hits) => [
+        for (final hit in hits)
+          if (hit.passage case final passage?)
+            (passage.range.toString(), passage.text, hit.matches.join()),
+      ];
+      for (final query in [
+        'Synthetic',
+        'inside',
+        '\u00E9',
+        syntheticArabic,
+        'last',
+      ]) {
+        final plain = await search(query, ['synthetic-a']);
+        final whole = await search(query, ['synthetic-whole']);
+        expect(ayahHits(whole), ayahHits(plain), reason: query);
+        expect(ayahHits(plain), isNotEmpty, reason: query);
+      }
+    });
   });
 
   test('matches over the harakat of the passage, as the query fold', () async {

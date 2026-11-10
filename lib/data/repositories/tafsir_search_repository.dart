@@ -15,18 +15,19 @@ import '../services/tafsir_pack_database.dart';
 abstract interface class TafsirSearchRepository {
   /// The passages of [books], pack ids of installed tafsir books, whose
   /// text holds the folded words of [query] in order, separated by white
-  /// space, anywhere, inside a word too; each with where it does. Book by
-  /// book in the order given, passages in book order; a book no longer
-  /// installed is left out. None for a query with no words.
+  /// space, anywhere, inside a word too; each with where it does. A
+  /// passage on a surah as a whole (D-184) is searched too. Book by book in
+  /// the order given, passages in book order; a book no longer installed is
+  /// left out. None for a query with no words.
   Future<Result<List<TafsirHit>>> search(String query, List<String> books);
 }
 
 /// Reads each book's passages off the main isolate, every surah of the
-/// edition, and compares them with the query through [QueryFold.findAll]; a
-/// passage is never folded, cut or copied. A sink of D-114. `installed`
-/// lists only verified books that are serving. A book that fails to read
-/// fails the call and is passed to `onFailed`, so that its integrity can be
-/// reported.
+/// edition with its passage on the surah as a whole first, and compares them
+/// with the query through [QueryFold.findAll]; a passage is never folded,
+/// cut or copied. A sink of D-114. `installed` lists only verified books
+/// that are serving. A book that fails to read fails the call and is passed
+/// to `onFailed`, so that its integrity can be reported.
 final class PackTafsirSearchRepository implements TafsirSearchRepository {
   PackTafsirSearchRepository({
     required this._installed,
@@ -83,11 +84,21 @@ final class PackTafsirSearchRepository implements TafsirSearchRepository {
         riwaya: riwaya,
       );
       return Ok([
-        for (var surah = 1; surah <= surahCount; surah++)
+        for (var surah = 1; surah <= surahCount; surah++) ...[
+          if (opened.surahPassageOf(surah) case final whole?)
+            if (_matches(whole.text, folded) case final matches
+                when matches.isNotEmpty)
+              TafsirHit.surahLevel(
+                book: manifest.id,
+                surahPassage: whole,
+                riwaya: riwaya,
+                matches: matches,
+              ),
           for (final passage in opened.passagesOfSurah(surah))
             if (_matches(passage.text, folded) case final matches
                 when matches.isNotEmpty)
               TafsirHit(book: manifest.id, passage: passage, matches: matches),
+        ],
       ]);
     } on PackFailure catch (failure) {
       return Failure(_named(manifest.id, failure));
