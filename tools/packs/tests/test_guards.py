@@ -14,6 +14,8 @@ LOSSY_ERROR_HANDLERS = {"replace", "ignore", "surrogateescape", "backslashreplac
 # A tolerant XML parser expands references and folds white space in values.
 TOLERANT_PARSERS = {"xml", "pyexpat"}
 LOCAL = {"hqpack", "tests", "synthetic_source"}
+# The parts of the html module that decode entities or repair markup (D-185).
+HTML_DECODERS = {"unescape", "parser", "entities", "HTMLParser"}
 
 
 def _tree(path):
@@ -43,6 +45,30 @@ class GuardTest(unittest.TestCase):
                     for argument in arguments:
                         if isinstance(argument, ast.Constant):
                             self.assertNotIn(argument.value, LOSSY_ERROR_HANDLERS, "%s:%d" % (path.name, node.lineno))
+
+    def test_no_html_decoder_in_the_pipeline(self):
+        # The tafsir conversion is a closed tokenizer; html.escape (review_html.py) only writes a page.
+        for path in sorted(ROOT.glob("hqpack/*.py")):
+            for node in ast.walk(_tree(path)):
+                where = "%s:%d" % (path.name, getattr(node, "lineno", 0))
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        self.assertNotIn(alias.name, ("html.parser", "html.entities"), where)
+                elif isinstance(node, ast.ImportFrom) and (node.module or "").split(".")[0] == "html":
+                    self.assertEqual(node.module, "html", where)
+                    for alias in node.names:
+                        self.assertNotIn(alias.name, HTML_DECODERS, where)
+                elif isinstance(node, ast.Attribute) and node.attr in HTML_DECODERS:
+                    self.assertFalse(isinstance(node.value, ast.Name) and node.value.id == "html", where)
+                    self.assertNotEqual(node.attr, "unescape", where)
+                elif isinstance(node, ast.Name):
+                    self.assertNotIn(node.id, ("unescape", "HTMLParser"), where)
+
+    def test_the_tafsir_conversion_imports_no_html_module_at_all(self):
+        paths = sorted(ROOT.glob("hqpack/tafsir_*.py")) + [ROOT / "hqpack" / "ziydia_inputs.py", ROOT / "hqpack" / "honorifics.py"]
+        self.assertGreaterEqual(len(paths), 7)
+        for path in paths:
+            self.assertNotIn("html", set(_imports(_tree(path))), path.name)
 
     def test_no_tolerant_xml_parser(self):
         for path in PIPELINE:

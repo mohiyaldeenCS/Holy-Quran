@@ -306,9 +306,23 @@ class TafsirVerifyTest(TafsirCliCase):
         self.assertIn("unsigned", out)
 
     def test_verify_with_the_tafsir_font_reports_what_it_lacks(self):
-        code, out, _ = self.run_cli("verify", self.tafsir(), "--ayah-counts", self.ayah_counts(), "--font", FONT)
+        passages = tafsir_pack_factory.PASSAGES[:-1] + ((5, 2, 2, 3, "Synthetic \u4e00 not drawn"),)
+        tafsir = tafsir_pack_factory.write_pack(self.work / "packs" / "undrawn", passages=passages)
+        code, out, _ = self.run_cli("verify", tafsir, "--ayah-counts", self.ayah_counts(), "--font", OTHER_FONT)
         self.assertEqual(code, cli.EX_DATAERR)
-        self.assertRegex(out, r"problem: U\+[0-9A-F]{4,} is not in the font; first at ")
+        self.assertIn("problem: U+4E00 is not in the font; first at passage 5", out)
+        code, out, _ = self.run_cli("verify", self.tafsir(), "--ayah-counts", self.ayah_counts(), "--font", OTHER_FONT)
+        self.assertEqual(code, 0, out)
+
+    def test_verify_and_sign_refuse_a_font_that_is_not_the_tafsir_font(self):
+        tafsir = self.tafsir()
+        for command in (("verify",), ("sign", "--key", self.work / "absent.pem")):
+            with self.subTest(command=command[0]):
+                code, out, err = self.run_cli(*command, tafsir, "--ayah-counts", self.ayah_counts(), "--font", FONT)
+                self.assertEqual(code, cli.EX_DATAERR)
+                self.assertIn("not that of the tafsir font", err)
+                self.assertNotIn("verified", out)
+        self.assertFalse((tafsir / "manifest.json.sig").exists())
 
     def test_verify_reports_a_tafsir_fault(self):
         code, out, _ = self.run_cli("verify", self.tafsir("overlap"), "--ayah-counts", self.ayah_counts())
@@ -342,6 +356,20 @@ class TafsirVerifyTest(TafsirCliCase):
         code, _, err = self.run_cli("verify", text, "--ayah-counts", counts)
         self.assertEqual(code, cli.EX_USAGE)
         self.assertIn("--ayah-counts is for a tafsir pack", err)
+
+    def test_an_unreadable_manifest_with_tafsir_options_is_refused_not_a_usage_error(self):
+        counts = self.ayah_counts()
+        for name, data in (("garbage", b"\xff not json"), ("array", b"[]"), ("no-kind", b'{"format": 2}')):
+            with self.subTest(name=name):
+                pack = self.work / "unreadable" / name / "1"
+                pack.mkdir(parents=True)
+                (pack / "manifest.json").write_bytes(data)
+                for command in (("verify", pack), ("sign", pack, "--key", self.work / "absent.pem")):
+                    code, _, err = self.run_cli(*command, "--ayah-counts", counts)
+                    self.assertEqual(code, cli.EX_DATAERR, err)
+                    self.assertIn("refused: manifest.json of ", err)
+                    self.assertIn("is unreadable (no JSON object with a kind), so its kind is unknown", err)
+        self.assertFalse((self.work / "unreadable" / "absent" / "1").exists())
 
     def test_sign_of_a_tafsir_pack_needs_its_font(self):
         tafsir = self.tafsir()

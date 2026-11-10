@@ -1,4 +1,4 @@
-"""The command line: build, verify, sign, verify-signature, compare, review-page, kfgqpc-counts and drift.
+"""The command line: build, tafsir, verify, sign, verify-signature, compare, review-page, kfgqpc-counts and drift.
 
 `verify` and `sign` choose their checks by the manifest's kind: a text pack
 with its font and mark table, a tafsir pack with the P5 ayah counts and its
@@ -21,9 +21,11 @@ from .build import build_pack
 from .digest import sha256_bytes
 from .errors import PackError
 from .font import read_font
+from .git_tree import git_tree
 from .kfgqpc_counts import encode_counts, kfgqpc_counts
 from .mark_table import read_mark_table
 from .profiles import PROFILES
+from .tafsir_build import TAFSIR_FONT_SHA256, build_tafsir_pack
 from .tanzil_metadata import read_tanzil_metadata
 from .tanzil_text import read_tanzil_text
 from .signing import SIGNATURE_FILE, OpenSslEd25519Signer, sign_pack, verify_signature
@@ -89,6 +91,25 @@ def _parser():
     build.add_argument("--kfgqpc", type=Path, help="KFGQPC's hafsData_v2-0.json; required for a hafs pack (PRD 9.4)")
     build.add_argument("--table", type=Path, help="the table of known differences; required with --kfgqpc")
     build.set_defaults(run=_build)
+
+    tafsir = commands.add_parser(
+        "tafsir",
+        help="build an unsigned tafsir pack from a Zaydi-library book, its links and the reviewer's record "
+        "(B0.7, D-184 to D-188)",
+    )
+    tafsir.add_argument("--config", required=True, type=Path, help="the tafsir description (JSON)")
+    tafsir.add_argument("--honorifics", required=True, type=Path, help="the approved honorific table (D-188)")
+    tafsir.add_argument("--reviews", required=True, type=Path, help="the reviewer's record of the book (D-186)")
+    tafsir.add_argument("--ayah-counts", required=True, type=Path, help="the P5 counts file (KFGQPC Hafs)")
+    tafsir.add_argument("--font", required=True, type=Path, help="assets/fonts/IBMPlexSansArabic-Regular.ttf")
+    tafsir.add_argument("--out", required=True, type=Path, help="a folder outside every Git working tree")
+    tafsir.add_argument(
+        "--report",
+        type=Path,
+        help="a new file, in an existing folder outside every Git tree, for the held-out entries and the "
+        "surah-level hashes (numbers, reasons and hashes only)",
+    )
+    tafsir.set_defaults(run=_tafsir)
 
     verify = commands.add_parser("verify", help="verify a pack directory <id>/<version>")
     _pack_inputs(verify)
@@ -163,7 +184,13 @@ def _parser():
 
 def _pack_inputs(parser):
     parser.add_argument("pack", type=Path, help="the pack directory <id>/<version>")
-    parser.add_argument("--font", type=Path, help="check the font's coverage, and for a text pack its hash, name and version")
+    parser.add_argument(
+        "--font",
+        type=Path,
+        help="the pack's font: for a text pack its coverage, hash, name and version are checked; for a tafsir "
+        "pack it must be the pinned tafsir font (assets/fonts/IBMPlexSansArabic-Regular.ttf) and its coverage "
+        "is checked",
+    )
     parser.add_argument("--mark-table", type=Path, help="text pack: check every mark against the mark table")
     parser.add_argument(
         "--ayah-counts", type=Path, help="tafsir pack, required: the P5 counts file, to check every passage's range"
@@ -195,6 +222,44 @@ def _build(args, out):
     print("verified", file=out)
     if args.unapproved_test_copy:
         print(TEST_COPY, file=out)
+    print(UNSIGNED, file=out)
+    return 0
+
+
+def _tafsir(args, out):
+    if args.report is not None:
+        tree = git_tree(args.report)
+        if tree is not None:
+            raise PackError("the report %s is inside the Git working tree %s" % (args.report, tree))
+        if args.report.is_dir():
+            raise PackError("the report %s is a folder" % args.report)
+        if args.report.exists():
+            raise PackError("the report %s exists; a report is never overwritten" % args.report)
+        if not args.report.parent.is_dir():
+            raise PackError("the report's folder %s does not exist" % args.report.parent)
+    result = build_tafsir_pack(args.config, args.honorifics, args.reviews, args.ayah_counts, args.font, args.out)
+    counts = result.counts
+    print("pack %s" % result.directory, file=out)
+    print("sqlite %s" % result.sqlite_version, file=out)
+    print("counts passages %d surah-level %d" % (counts["passages"], counts["surah_level"]), file=out)
+    print(
+        "entries shipped %d held %d; paragraphs %d, empty left out %d; honorific codes replaced %d"
+        % (
+            counts["entries_shipped"],
+            counts["entries_held"],
+            counts["paragraphs"],
+            counts["empty_paragraphs"],
+            counts["codes_replaced"],
+        ),
+        file=out,
+    )
+    print("tafsir.sqlite sha256 %s" % result.tafsir_sha256, file=out)
+    print("manifest.json sha256 %s" % result.manifest_sha256, file=out)
+    if args.report is not None:
+        with open(args.report, "xb") as handle:
+            handle.write(result.report)
+        print("report %s" % args.report, file=out)
+    print("verified", file=out)
     print(UNSIGNED, file=out)
     return 0
 
@@ -328,7 +393,12 @@ def _drift(args, out):
 
 def _report(args, signing):
     """Usage is checked for the pack's kind before any input is read."""
-    tafsir = pack_kind(args.pack) == "tafsir"
+    kind = pack_kind(args.pack)
+    tafsir = kind == "tafsir"
+    if kind is None and args.ayah_counts is not None:
+        raise PackError(
+            "manifest.json of %s is unreadable (no JSON object with a kind), so its kind is unknown" % args.pack
+        )
     if tafsir:
         if args.mark_table is not None:
             raise _Usage("--mark-table is for a text pack; this is a tafsir pack")
@@ -342,6 +412,8 @@ def _report(args, signing):
         if signing and (args.font is None or args.mark_table is None):
             raise _Usage("sign needs --font and --mark-table for a text pack")
     font = read_font(args.font.read_bytes()) if args.font else None
+    if tafsir and font is not None and font.sha256 != TAFSIR_FONT_SHA256:
+        raise PackError("the font has SHA-256 %s, not that of the tafsir font %s" % (font.sha256, TAFSIR_FONT_SHA256))
     if tafsir:
         return verify_tafsir_pack(args.pack, read_ayah_counts(args.ayah_counts.read_bytes()), font=font)
     marks = read_mark_table(args.mark_table.read_bytes()) if args.mark_table else None

@@ -123,7 +123,7 @@ book's earlier results, so a stopped run leaves none behind.
 | Field | Meaning |
 | --- | --- |
 | `n`, `book` | Order of the passage in the book; site book id |
-| `kind` | `passage` (linked to ayat), `unlinked` (no ayah; `surah` may still be known), `heading`, `text` (book 514: the text of the surah as the book prints it), `title_page`, `ornament` (a line of asterisks), `footnote` (473, 440: the footnotes of one page) |
+| `kind` | `passage` (linked to ayat), `unlinked` (no ayah; `surah` may still be known), `heading`, `text` (book 514: the text of the surah as the book prints it), `title_page`, `ornament` (a line of asterisks), `footnote` (473, 440: the footnotes of one page), `above_the_rule` (book 514: a paragraph of the printed Quran block, above the rule of dashes, that is not a quotation; noted as `paragraph_above_the_rule_is_not_a_quotation`, never commentary, and never shipped by the content pipeline) |
 | `surah` | Surah number, or null |
 | `refs` | Ayah ranges as printed: `[[first, last], …]`. Several when a paragraph prints several numbers |
 | `basis` | What the link rests on: `heading+number`, `heading+reference`, `reference`, `footnote` (440), `printed_numbers` (text), `heading` (surah only), `none` |
@@ -131,6 +131,10 @@ book's earlier results, so a stopped run leaves none behind.
 | `item`, `heading` | Item or question number (276, 471, 440); words of a heading |
 | `starts_inside_ayah`, `ends_inside_ayah` | Book 514 text: the paragraph begins or ends in the middle of an ayah |
 | `paragraphs` | `site_page`, `part`, `printed_page`, `html` (unchanged), `carried` when the paragraph has no number of its own and follows a numbered one, `role` `opening` for the line a surah opens with |
+
+`report.json` lists every kind in `entry_kinds`. The content pipeline refuses a
+`report.json` whose list is not the one it knows, so output written before a kind
+was added is linked again rather than read with the old meaning.
 
 ## What `compare.json` holds
 
