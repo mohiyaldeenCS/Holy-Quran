@@ -21,9 +21,9 @@ from hqpack.tafsir_database import (
 
 # Plainly synthetic text that any trimming, normalising or re-encoding would
 # change. Never Quran or book text.
-_ARABIC = "نص تجريبي"
-_DECOMPOSED = "Synthetic é passage"
-_PRECOMPOSED = "Synthetic é passage"
+_ARABIC = "\u0646\u0635 \u062a\u062c\u0631\u064a\u0628\u064a"
+_DECOMPOSED = "Synthetic e\u0301 passage"
+_PRECOMPOSED = "Synthetic \u00e9 passage"
 
 _BOOK = BookFacts(
     title="Synthetic title " + _ARABIC,
@@ -36,7 +36,7 @@ _PASSAGES = [
     PassageRow(1, 1, SURAH_LEVEL, SURAH_LEVEL, "Synthetic surah-level line one\nline two"),
     PassageRow(2, 1, 1, 2, _DECOMPOSED),
     PassageRow(3, 1, 3, 3, _PRECOMPOSED),
-    PassageRow(4, 2, 1, 4, "  " + _ARABIC + " ﷺ  "),
+    PassageRow(4, 2, 1, 4, "  " + _ARABIC + " \ufdfa  "),
 ]
 
 # lib/data/services/tafsir_pack_database.dart, `_schemas[2]`: name, type,
@@ -189,10 +189,10 @@ class RefusalTest(_TempDirTest):
 
     def test_a_leading_byte_order_mark_is_refused_not_stripped(self):
         self.assert_refused(
-            _BOOK, [PassageRow(1, 1, 1, 1, "﻿Synthetic")], "passage 1 begins with U+FEFF"
+            _BOOK, [PassageRow(1, 1, 1, 1, "\ufeffSynthetic")], "passage 1 begins with U+FEFF"
         )
         self.assert_refused(
-            BookFacts("Synthetic", "Synthetic", "﻿Synthetic", None, None),
+            BookFacts("Synthetic", "Synthetic", "\ufeffSynthetic", None, None),
             _PASSAGES,
             "book.publisher begins with U+FEFF",
         )
