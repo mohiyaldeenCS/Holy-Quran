@@ -1019,6 +1019,29 @@ class CompareTest(LinkCase):
         counts, report = self.compare(183, para("{" + quote(ONE) + "}" + ref("٣ - ١")))
         self.assertEqual((counts["range_not_usable"], report["not_confirmed"]), (1, []))
 
+    def test_every_linked_passage_has_its_outcome_by_number(self):
+        body = [para("{" + quote(q) + "}" + ref(ar(n)) + " شرح")
+                for q, n in ((TWO, 2), ("قرم", 3), ("زغفطص كمبلد", 3))]
+        counts, report = self.compare(183, *body)
+        linked = [p["n"] for p in z.read_passages(self.out, 183) if p["kind"] == "passage"]
+        self.assertEqual(len(linked), 3)
+        self.assertEqual(report["outcomes"], dict(zip(
+            (str(n) for n in linked), ("same", "too_short_to_compare", "not_found"))))
+        self.assertEqual([entry["n"] for entry in report["not_confirmed"]], linked[2:])
+
+    def test_outcomes_hold_passages_with_no_quotation_and_no_other_kind(self):
+        self.link_text_book()
+        z.run_compare(514, self.out)
+        with open(os.path.join(self.out, "book_514", "compare.json"), encoding="utf-8") as handle:
+            outcomes = json.load(handle)["outcomes"]
+        linked = {str(p["n"]) for p in z.read_passages(self.out, 514) if p["kind"] == "passage"}
+        self.assertEqual(set(outcomes), linked)
+        self.assertEqual(sorted(outcomes.values()), ["in_a_neighbouring_ayah", "no_quotation", "same"])
+
+    def test_range_that_is_not_one_has_its_own_outcome(self):
+        _, report = self.compare(183, para("{" + quote(ONE) + "}" + ref("٣ - ١")))
+        self.assertEqual(list(report["outcomes"].values()), ["range_not_usable"])
+
     def test_flagged_passage_that_the_text_confirms_is_counted(self):
         body = [para("{" + quote(q) + "}" + ref(ar(n))) for q, n in ((TWO, 2), (ONE, 1))]
         counts, _ = self.compare(183, *body)

@@ -1299,15 +1299,17 @@ def run_compare(book, out_dir):
     passages = read_passages(out_dir, book)
     counts = {outcome: 0 for outcome in OUTCOMES}
     counts.update(range_not_usable=0, flagged_by_the_linker_and_confirmed=0)
-    listed, labels = [], {}
+    listed, labels, outcomes = [], {}, {}
     for passage in passages:
         if passage["kind"] != "passage":
             continue
         if any(end < first for first, end in passage["refs"]):
             counts["range_not_usable"] += 1
+            outcomes[str(passage["n"])] = "range_not_usable"
             continue
         outcome, found_at = compare_passage(passage, PROFILES[book]["kind"], ayat, openings)
         counts[outcome] += 1
+        outcomes[str(passage["n"])] = outcome
         counts["flagged_by_the_linker_and_confirmed"] += outcome in CONFIRMED and "review" in passage
         if outcome in NOT_CONFIRMED:
             listed.append({
@@ -1326,6 +1328,7 @@ def run_compare(book, out_dir):
         ),
         "counts": counts,
         "not_confirmed": listed,
+        "outcomes": outcomes,
     })
     write_page(
         os.path.join(folder, "compare.html"),
