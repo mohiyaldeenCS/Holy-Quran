@@ -1,15 +1,20 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holyquran/ui/core/metrics/reader_screen_metrics.dart';
 import 'package:holyquran/ui/core/reader/block_layout.dart';
 import 'package:holyquran/ui/core/reader/line_breaker.dart';
 import 'package:holyquran/ui/core/reader/reader_paragraph.dart';
 import 'package:holyquran/ui/core/reader/reader_style.dart';
 import 'package:holyquran/ui/core/reader/reader_text_scale.dart';
 import 'package:holyquran/ui/core/reader/surah_layout.dart';
+import 'package:holyquran/ui/core/reader/surah_text.dart';
+import 'package:holyquran/ui/core/reader/tap_resolver.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 
 import 'reader_fixture.dart';
@@ -27,6 +32,13 @@ const _cases = [
 
 ReaderStyle _style(double system, double step) =>
     ReaderStyle(ReaderTextScaler(TextScaler.linear(system), step));
+
+/// A row of margin marks as tall as a synthetic measure says: taller for
+/// more marks, so that rows differ.
+double _rowHeight(List<MarginMark> marks) => 17.0 + 9 * marks.length;
+
+/// A row taller than any ink that leaves a line, in whole pixels.
+const double _tallRow = 200;
 
 List<BlockLayout> _laidOut(SurahLayout plan) => [
   for (var b = 0; b < plan.blocks.length; b++)
@@ -231,6 +243,155 @@ void main() {
       }
     });
 
+    test('margin rows move lines down and change nothing across, $name', () {
+      for (final surah in fixture.surahs.values) {
+        final style = _style(size.system, size.step);
+        final plain = SurahLayout.plan(surah, style, size.width);
+        final plan = SurahLayout.plan(
+          surah,
+          style,
+          size.width,
+          marginRow: _rowHeight,
+        );
+        final reason = 'surah ${surah.surah}';
+        expect(plan.lineHeight, plain.lineHeight);
+        expect(plan.lines, hasLength(plain.lines.length));
+        for (final (k, line) in plan.lines.indexed) {
+          final before = plain.lines[k];
+          expect(
+            (line.start, line.end, line.stretch),
+            (before.start, before.end, before.stretch),
+            reason: '$reason line $k',
+          );
+        }
+        expect(
+          [for (final s in plan.segments) (s.firstLine, s.endLine)],
+          [for (final s in plain.segments) (s.firstLine, s.endLine)],
+        );
+        final rowLines = {
+          for (final mark in surah.marginMarks) plan.lineOfAyahText(mark.ayah),
+        };
+        var below = 0.0;
+        for (var k = 0; k < plan.lines.length; k++) {
+          final row = plan.rowExtent(k);
+          if (rowLines.contains(k)) {
+            expect(
+              row,
+              _rowHeight(plan.marksAbove(k)) + ReaderScreenMetrics.marginRowGap,
+            );
+          } else {
+            expect(row, 0, reason: '$reason line $k');
+          }
+          below += row;
+          expect(plan.lineTop(k), closeTo(plain.lineTop(k) + below, 1e-6));
+          expect(plan.lineAt(plan.slotTop(k)), k);
+          expect(plan.lineAt(plan.lineTop(k) + 1), k);
+        }
+        expect(plan.height, closeTo(plain.height + below, 1e-6));
+
+        final blocks = _laidOut(plan);
+        final plainBlocks = _laidOut(plain);
+        expect(blocks, hasLength(plainBlocks.length));
+        for (final (b, block) in blocks.indexed) {
+          final was = plainBlocks[b];
+          expect(block.matchesPlan, isTrue, reason: '$reason block $b');
+          expect(block.laidLineStarts, was.laidLineStarts);
+          expect(block.laidLineExtents, was.laidLineExtents);
+          final drop = [
+            for (var line = 0; line < block.lineCount; line++)
+              block.lineBand(line).top - was.lineBand(line).top,
+          ];
+          Rect moved(Rect rect) {
+            final line = was.lineBands.indexWhere(
+              (band) =>
+                  band.top <= rect.center.dy && rect.center.dy < band.bottom,
+            );
+            return rect.translate(0, drop[line]);
+          }
+
+          void same(Rect? now, Rect? before, String what) {
+            expect(now == null, before == null, reason: what);
+            if (now == null || before == null) return;
+            final expected = moved(before);
+            expect(now.left, closeTo(expected.left, 1e-6), reason: what);
+            expect(now.right, closeTo(expected.right, 1e-6), reason: what);
+            expect(now.top, closeTo(expected.top, 1e-6), reason: what);
+            expect(now.bottom, closeTo(expected.bottom, 1e-6), reason: what);
+          }
+
+          for (final ayah in block.ayat) {
+            final what = '$reason ayah $ayah';
+            same(block.markerRect(ayah), was.markerRect(ayah), '$what marker');
+            same(block.pageMarkRect(ayah), was.pageMarkRect(ayah), what);
+            final boxes = block.ayahBoxes(ayah);
+            final before = was.ayahBoxes(ayah);
+            expect(boxes, hasLength(before.length), reason: what);
+            for (final (k, box) in boxes.indexed) {
+              same(box, before[k], '$what box $k');
+            }
+            final lines = block.ayahLines(ayah);
+            expect(lines, hasLength(was.ayahLines(ayah).length));
+            for (final (k, line) in lines.indexed) {
+              same(line, was.ayahLines(ayah)[k], '$what line $k');
+            }
+            expect(
+              block.ayahRect(ayah),
+              before.map(moved).reduce((a, b) => a.expandToInclude(b)),
+              reason: what,
+            );
+            expect(block.topOfAyah(ayah), moved(was.ayahBoxes(ayah).first).top);
+            for (final word in surah.ayat[ayah - 1].words) {
+              final box = block.wordBox(ayah, word.number);
+              same(box, was.wordBox(ayah, word.number), '$what w$word');
+              if (box == null) continue;
+              expect(
+                targetInBlock(block, box.center),
+                targetInBlock(was, was.wordBox(ayah, word.number)!.center),
+                reason: '$what word ${word.number}',
+              );
+            }
+            for (final mark in surah.ayat[ayah - 1].marks) {
+              final boxes = block.markBoxes(ayah, mark.number);
+              final before = was.markBoxes(ayah, mark.number);
+              expect(boxes, hasLength(before.length));
+              for (final (k, box) in boxes.indexed) {
+                same(box, before[k], '$what mark ${mark.number}');
+              }
+            }
+          }
+          for (final (marks, row) in block.marginRows) {
+            final line =
+                plan.lineOfAyahText(marks.first.ayah) - block.block.firstLine;
+            expect(
+              row.bottom,
+              block.lineBand(line).top - ReaderScreenMetrics.marginRowGap,
+            );
+            for (final band in block.lineBands) {
+              expect(row.overlaps(band), isFalse, reason: reason);
+            }
+          }
+          expect(
+            block.height,
+            closeTo(
+              was.height +
+                  [
+                    for (
+                      var l = block.block.firstLine;
+                      l < block.block.endLine;
+                      l++
+                    )
+                      plan.rowExtent(l),
+                  ].fold(0.0, (a, b) => a + b),
+              1e-6,
+            ),
+          );
+        }
+        for (final block in [...blocks, ...plainBlocks]) {
+          block.dispose();
+        }
+      }
+    });
+
     test('the surah ends on a centred line, $name', () {
       for (final surah in fixture.surahs.values) {
         final plan = SurahLayout.plan(
@@ -258,6 +419,90 @@ void main() {
       }
     });
   }
+
+  test('lines below a row are drawn where their boxes are, the centred last '
+      'line too', () async {
+    Future<Uint8List> pixels(BlockLayout block) async {
+      final recorder = ui.PictureRecorder();
+      block.paint(Canvas(recorder), Offset.zero);
+      final picture = recorder.endRecording();
+      final image = await picture.toImage(
+        block.width.ceil(),
+        block.height.ceil(),
+      );
+      final bytes = await image.toByteData();
+      image.dispose();
+      picture.dispose();
+      return bytes!.buffer.asUint8List();
+    }
+
+    var lastLineMoved = false;
+    var compared = 0;
+    for (final surah in fixture.surahs.values) {
+      // A row at every other ayah, far taller than any ink that leaves a
+      // line, so that each run of lines between rows stands apart.
+      final marked = SurahText(
+        riwaya: surah.riwaya,
+        surah: surah.surah,
+        ayat: surah.ayat,
+        basmala: surah.basmala,
+        pageStarts: surah.pageStarts,
+        marginMarks: [
+          for (var a = 2; a <= surah.ayat.length; a += 2)
+            MarginMark(MarginMarkKind.sajda, a),
+        ],
+      );
+      final style = _style(1, 1);
+      final plain = SurahLayout.plan(marked, style, 360);
+      final plan = SurahLayout.plan(
+        marked,
+        style,
+        360,
+        marginRow: (_) => _tallRow,
+      );
+      final last = plan.segments.last;
+      for (var line = last.firstLine + 1; line < last.endLine; line++) {
+        if (plan.rowExtent(line) > 0) lastLineMoved = true;
+      }
+      for (var b = 0; b < plan.blocks.length; b++) {
+        final now = BlockLayout(plan, b, ink: _ink.quranInk);
+        final was = BlockLayout(plain, b, ink: _ink.quranInk);
+        final drawn = await pixels(now);
+        final before = await pixels(was);
+        final stride = now.width.ceil() * 4;
+        // Each run of lines with no row between them is the same picture,
+        // moved down by whole rows; only the edges of its first and last
+        // bands may hold the ink of a line beyond the run.
+        final edge = plan.lineHeight / 4;
+        var first = 0;
+        for (var k = 1; k <= now.lineCount; k++) {
+          if (k < now.lineCount &&
+              plan.rowExtent(now.block.firstLine + k) == 0) {
+            continue;
+          }
+          final drop = now.lineBand(first).top - was.lineBand(first).top;
+          expect(drop, drop.roundToDouble());
+          final from = (now.lineBand(first).top + edge).ceil();
+          final to = (now.lineBand(k - 1).bottom - edge).floor();
+          for (var y = from; y < to; y++) {
+            final at = y * stride;
+            final old = (y - drop.toInt()) * stride;
+            expect(
+              drawn.sublist(at, at + stride),
+              before.sublist(old, old + stride),
+              reason: 'surah ${surah.surah} block $b row of pixels $y',
+            );
+            compared++;
+          }
+          first = k;
+        }
+        now.dispose();
+        was.dispose();
+      }
+    }
+    expect(lastLineMoved, isTrue, reason: 'a row inside the last paragraph');
+    expect(compared, greaterThan(1000));
+  });
 
   test('a word wider than the line is drawn smaller and stays whole', () {
     final surah = fixture.surahs[overwideSurah]!;

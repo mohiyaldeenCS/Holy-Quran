@@ -15,6 +15,7 @@ import 'package:holyquran/ui/core/reader/block_layout.dart';
 import 'package:holyquran/ui/core/reader/block_margin.dart';
 import 'package:holyquran/ui/core/reader/gesture_target.dart';
 import 'package:holyquran/ui/core/reader/interactive_surah_sliver.dart';
+import 'package:holyquran/ui/core/reader/margin_row.dart';
 import 'package:holyquran/ui/core/reader/reader_highlights.dart';
 import 'package:holyquran/ui/core/reader/reader_pinch_stepper.dart';
 import 'package:holyquran/ui/core/reader/reader_text_scale.dart';
@@ -201,9 +202,7 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
         ? _startOf(address.surah)
         : start + layout.offsetOf(address);
     final bottom =
-        start +
-        layout.basmalaExtent +
-        (layout.lineOfAyahEnd(address.ayah) + 1) * layout.lineHeight;
+        start + layout.lineBottom(layout.lineOfAyahEnd(address.ayah));
     if (top >= position.pixels &&
         bottom <= position.pixels + position.viewportDimension) {
       _pendingFollow = null;
@@ -474,6 +473,7 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
       selectedAyah: _model.selectedAyah,
       recitedAyah: _model.follow.recited,
     );
+    final marginRows = MarginRowMeasure.of(context);
     return ReaderPinchStepper(
       scrollController: _controller,
       layout: _focus,
@@ -520,6 +520,7 @@ final class _MushafScrollViewState extends State<MushafScrollView> {
                       onTap: _tapped,
                       onLongPress: _model.longPress,
                       blockOverlayBuilder: _margin,
+                      marginRows: marginRows,
                     ),
                   ),
                 ],

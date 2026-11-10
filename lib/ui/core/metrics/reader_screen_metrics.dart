@@ -38,15 +38,15 @@ abstract final class ReaderScreenMetrics {
   /// appended: an engineering margin, not a drawn value.
   static const double preloadViewports = 2;
 
-  /// How far a margin mark's start edge lies beyond the text column's: the
-  /// screen's edge, so the mark stands over the margin and its overhang
-  /// lies on the line beside it (D-140, 1). The boards draw no margin marks
-  /// in the surah-mode reader; the side and the reach are a reading, for the
-  /// owner's device session.
-  static const double marginMarkOutset = ReaderMetrics.textInset;
+  /// Below a row of margin marks, above the line it belongs to (D-181), and
+  /// between marks that share the row: `space-3`, the nearest spacing token
+  /// not under the `gap: 10px` the board draws between the text and «سجدة»
+  /// (`Mushaf.dc.html` l.79, «موضع السجدة»).
+  static const double marginRowGap = AppSpacing.space3;
 
-  /// The same for the bookmark ribbon, on the column's other side
-  /// (`Mushaf.dc.html`, «علامة مرجعية»: «شريط زمردي في الهامش»).
+  /// How far the bookmark ribbon's end edge lies beyond the text column's:
+  /// the screen's edge (`Mushaf.dc.html`, «علامة مرجعية»: «شريط زمردي في
+  /// الهامش»).
   static const double ribbonOutset = ReaderMetrics.textInset;
 
   /// Where the ayah toolbar floats over the text: `space-3` from the edges of

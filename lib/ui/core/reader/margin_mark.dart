@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/l10n/app_localizations.dart';
@@ -15,25 +17,82 @@ import 'surah_text.dart';
 /// and the three quarters have no words yet (D-115), so their star stands
 /// alone rather than repeat the hizb's start. The juz's
 /// name in Kufi over a gold line at a juz, and the word «سجدة» alone at a
-/// sajda, whose sign is in the text itself. Where it stands beside its line
-/// is the reader screen's.
+/// sajda, whose sign is in the text itself. Where it stands is the reader
+/// screen's: in a row above the line its ayah begins in (D-181).
 final class MarginMarkView extends StatelessWidget {
   const MarginMarkView(this.mark, {super.key});
 
   final MarginMark mark;
 
+  static final TextStyle _words = AppTextStyles.secondary.copyWith(
+    fontSize: ReaderMetrics.marginLabelSize,
+    fontWeight: FontWeight.w600,
+  );
+
+  static final TextStyle _starWords = _words.copyWith(
+    height: ReaderMetrics.marginLabelHeight,
+  );
+
+  static final TextStyle _juzName = AppTextStyles.surahHeader.copyWith(
+    fontSize: ReaderMetrics.juzNameSize,
+  );
+
+  static String _label(MarginMark mark, AppLocalizations strings) =>
+      switch (mark.kind) {
+        MarginMarkKind.sajda => strings.sajdaLabel,
+        MarginMarkKind.juz => strings.juzLabel(arabicDigits(mark.juz!)),
+        MarginMarkKind.rub when mark.quarter == 1 =>
+          '${strings.rubLabel}\n${strings.hizbLabel(arabicDigits(mark.hizb!))}',
+        MarginMarkKind.rub ||
+        MarginMarkKind.hizb => strings.hizbLabel(arabicDigits(mark.hizb!)),
+      };
+
+  static bool _starOnly(MarginMark mark) =>
+      mark.kind == MarginMarkKind.rub && mark.quarter != 1;
+
+  /// The height [mark] takes when laid out with [scaler], as [build] lays it
+  /// out; [bold] when the system asks for bold text, which `Text` follows.
+  static double heightOf(
+    MarginMark mark,
+    AppLocalizations strings,
+    TextScaler scaler, {
+    bool bold = false,
+  }) {
+    if (_starOnly(mark)) return ReaderMetrics.marginStar;
+    final style = switch (mark.kind) {
+      MarginMarkKind.sajda => _words,
+      MarginMarkKind.juz => _juzName,
+      MarginMarkKind.rub || MarginMarkKind.hizb => _starWords,
+    };
+    final painter = TextPainter(
+      text: TextSpan(
+        text: _label(mark, strings),
+        style: bold
+            ? style.merge(const TextStyle(fontWeight: FontWeight.bold))
+            : style,
+      ),
+      textDirection: TextDirection.rtl,
+      textScaler: scaler,
+    )..layout();
+    final words = painter.height;
+    painter.dispose();
+    return switch (mark.kind) {
+      MarginMarkKind.sajda => words,
+      MarginMarkKind.juz =>
+        words + ReaderMetrics.juzRuleGap + ReaderMetrics.juzRule,
+      MarginMarkKind.rub ||
+      MarginMarkKind.hizb => math.max(ReaderMetrics.marginStar, words),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final strings = AppLocalizations.of(context);
     final colors = context.colors;
-    final words = AppTextStyles.secondary.copyWith(
-      fontSize: ReaderMetrics.marginLabelSize,
-      fontWeight: FontWeight.w600,
-      color: colors.accent,
-    );
+    final label = _label(mark, strings);
     switch (mark.kind) {
       case MarginMarkKind.sajda:
-        return Text(strings.sajdaLabel, style: words);
+        return Text(label, style: _words.copyWith(color: colors.accent));
       case MarginMarkKind.juz:
         return Container(
           padding: const EdgeInsets.only(bottom: ReaderMetrics.juzRuleGap),
@@ -45,29 +104,18 @@ final class MarginMarkView extends StatelessWidget {
               ),
             ),
           ),
-          child: Text(
-            strings.juzLabel(arabicDigits(mark.juz!)),
-            style: AppTextStyles.surahHeader.copyWith(
-              fontSize: ReaderMetrics.juzNameSize,
-              color: colors.primary,
-            ),
-          ),
+          child: Text(label, style: _juzName.copyWith(color: colors.primary)),
         );
-      case MarginMarkKind.rub when mark.quarter != 1:
-        return const StarOutline(size: ReaderMetrics.marginStar);
       case MarginMarkKind.rub || MarginMarkKind.hizb:
-        final hizb = strings.hizbLabel(arabicDigits(mark.hizb!));
+        if (_starOnly(mark)) {
+          return const StarOutline(size: ReaderMetrics.marginStar);
+        }
         return Row(
           mainAxisSize: MainAxisSize.min,
           spacing: ReaderMetrics.marginStarGap,
           children: [
             const StarOutline(size: ReaderMetrics.marginStar),
-            Text(
-              mark.kind == MarginMarkKind.rub
-                  ? '${strings.rubLabel}\n$hizb'
-                  : hizb,
-              style: words.copyWith(height: ReaderMetrics.marginLabelHeight),
-            ),
+            Text(label, style: _starWords.copyWith(color: colors.accent)),
           ],
         );
     }

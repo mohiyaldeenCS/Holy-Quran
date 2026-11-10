@@ -6,8 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
+import 'package:holyquran/ui/core/metrics/reader_screen_metrics.dart';
 import 'package:holyquran/ui/core/reader/block_layout.dart';
 import 'package:holyquran/ui/core/reader/margin_mark.dart';
+import 'package:holyquran/ui/core/reader/margin_row.dart';
 import 'package:holyquran/ui/core/reader/reader_style.dart';
 import 'package:holyquran/ui/core/reader/reader_text_scale.dart';
 import 'package:holyquran/ui/core/reader/surah_layout.dart';
@@ -153,25 +155,36 @@ void main() {
     ]);
   });
 
-  test('each margin mark is anchored to its line', () {
+  test('each margin mark stands in a row above the line its ayah begins in, '
+      'in the order of the margin (D-181)', () {
     final surah = fixture.surahs[longSurah]!;
+    final rows = MarginRowMeasure(
+      lookupAppLocalizations(const Locale('ar')),
+      TextScaler.noScaling,
+    );
     final plan = SurahLayout.plan(
       surah,
       ReaderStyle(const ReaderTextScaler(TextScaler.noScaling, 1)),
       360,
+      marginRow: rows.heightOf,
     );
     final anchored = <MarginMark>[];
     for (final block in _laidOut(plan)) {
-      for (final (mark, band) in block.marginMarks) {
-        anchored.add(mark);
-        final line = band.top ~/ plan.lineHeight + block.block.firstLine;
-        expect(
-          line,
-          mark.kind == MarginMarkKind.sajda
-              ? plan.lineOfAyahEnd(mark.ayah)
-              : plan.lineOfAyahText(mark.ayah),
-        );
-        expect(band.height, plan.lineHeight);
+      for (final (marks, row) in block.marginRows) {
+        anchored.addAll(marks);
+        final order = [
+          for (final mark in marks) surah.marginMarks.indexOf(mark),
+        ];
+        expect(order, [...order]..sort());
+        final line =
+            plan.lineOfAyahText(marks.first.ayah) - block.block.firstLine;
+        for (final mark in marks) {
+          expect(plan.lineOfAyahText(mark.ayah) - block.block.firstLine, line);
+        }
+        final band = block.lineBand(line);
+        expect(row.bottom + ReaderScreenMetrics.marginRowGap, band.top);
+        expect(row.height, rows.heightOf(marks));
+        expect(row.width, plan.width);
       }
       block.dispose();
     }

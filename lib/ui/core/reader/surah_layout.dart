@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/ui/core/metrics/reader_metrics.dart';
+import 'package:holyquran/ui/core/metrics/reader_screen_metrics.dart';
 
 import 'break_units.dart';
 import 'line_breaker.dart';
@@ -43,6 +44,9 @@ final class Segment {
   int get lineCount => endLine - firstLine;
 }
 
+/// How tall [marks], which share a row, are drawn: the tallest of them.
+typedef MarginRowHeight = double Function(List<MarginMark> marks);
+
 /// Consecutive segments laid out and scrolled as one sliver child.
 final class Block {
   const Block(this.firstSegment, this.endSegment, this.firstLine, this.endLine);
@@ -60,8 +64,11 @@ final class Block {
 /// blocks. Only measuring is done here; blocks are laid out when shown
 /// (`BlockLayout`), so a long surah opens without laying out its text.
 ///
-/// Every line has one height (the style's strut), so a line's place is its
-/// index times [lineHeight], and positions are known before layout.
+/// Every line has one height (the style's strut). Planned with
+/// [MarginRowHeight], a line in which the text of an ayah with margin marks
+/// begins has a row for them above it (D-181), its marks' height and
+/// `marginRowGap`; a line's place is the sum of the lines and rows above it,
+/// and positions are known before layout.
 final class SurahLayout {
   SurahLayout._(
     this.text,
@@ -73,17 +80,22 @@ final class SurahLayout {
     this._leads,
     this._fontScales,
     this.lines,
+    this._rowMarks,
+    this._rowExtents,
+    this._slotTops,
     this.segments,
     this.blocks,
   );
 
   /// Plans [text] at [width] with [style]; blocks hold about [blockLines]
-  /// lines.
+  /// lines. With [marginRow], each line that margin marks belong to gets a
+  /// row for them above it, as tall as [marginRow] says.
   factory SurahLayout.plan(
     SurahText text,
     ReaderStyle style,
     double width, {
     int blockLines = defaultBlockLines,
+    MarginRowHeight? marginRow,
   }) {
     final slot = style.slot.width;
     final units = <AyahUnits>[];
@@ -125,6 +137,21 @@ final class SurahLayout {
       ]);
     }
     final lines = breakLines(measures, width, hang: style.markGap);
+    final rowMarks = <int, List<MarginMark>>{};
+    if (marginRow != null) {
+      for (final mark in text.marginMarks) {
+        final line = _lineOf(lines, mark.ayah - 1, leads[mark.ayah - 1]);
+        rowMarks.putIfAbsent(line, () => []).add(mark);
+      }
+    }
+    final rowExtents = {
+      for (final MapEntry(key: line, value: marks) in rowMarks.entries)
+        line: marginRow!(marks) + ReaderScreenMetrics.marginRowGap,
+    };
+    final slotTops = List<double>.filled(lines.length + 1, 0);
+    for (var k = 0; k < lines.length; k++) {
+      slotTops[k + 1] = slotTops[k] + (rowExtents[k] ?? 0) + lineHeight;
+    }
     final segments = _segments(lines, units, leads, fontScales);
     final basmala = text.basmala;
     return SurahLayout._(
@@ -139,6 +166,12 @@ final class SurahLayout {
       leads,
       fontScales,
       lines,
+      {
+        for (final MapEntry(:key, :value) in rowMarks.entries)
+          key: List.unmodifiable(value),
+      },
+      rowExtents,
+      List.unmodifiable(slotTops),
       segments,
       _blocks(segments, blockLines),
     );
@@ -158,17 +191,63 @@ final class SurahLayout {
   final List<int> _leads;
   final List<List<double>> _fontScales;
   final List<PlannedLine> lines;
+
+  /// The margin marks of each line that has a row of them above it, in the
+  /// order of [SurahText.marginMarks].
+  final Map<int, List<MarginMark>> _rowMarks;
+
+  /// The height of each such row with the gap below it.
+  final Map<int, double> _rowExtents;
+
+  /// The top of each line's row, or of the line where it has none, from the
+  /// top of the text; one more for the text's bottom.
+  final List<double> _slotTops;
   final List<Segment> segments;
   final List<Block> blocks;
 
-  double blockHeight(int block) => blocks[block].lineCount * lineHeight;
+  double blockHeight(int block) =>
+      _slotTops[blocks[block].endLine] - _slotTops[blocks[block].firstLine];
 
-  /// The top of [block] in the surah's sliver.
-  double blockTop(int block) =>
-      basmalaExtent + blocks[block].firstLine * lineHeight;
+  /// The top of [block] in the surah's sliver: of the row above its first
+  /// line, when there is one.
+  double blockTop(int block) => slotTop(blocks[block].firstLine);
 
   /// The height of the surah's sliver: the basmala and the text.
-  double get height => basmalaExtent + lines.length * lineHeight;
+  double get height => basmalaExtent + _slotTops.last;
+
+  /// The margin marks in the row above [line], none when it has no row.
+  List<MarginMark> marksAbove(int line) => _rowMarks[line] ?? const [];
+
+  /// The height of the row above [line] with the gap below it; 0 when it
+  /// has none.
+  double rowExtent(int line) => _rowExtents[line] ?? 0;
+
+  /// The top of the row above [line] in the surah's sliver, or of the line
+  /// where it has none.
+  double slotTop(int line) => basmalaExtent + _slotTops[line];
+
+  /// The top of [line] in the surah's sliver.
+  double lineTop(int line) => slotTop(line) + rowExtent(line);
+
+  /// The bottom of [line] in the surah's sliver.
+  double lineBottom(int line) => lineTop(line) + lineHeight;
+
+  /// The line at [y] in the surah's sliver, with the row above it: the
+  /// first above the text, the last past it.
+  int lineAt(double y) {
+    final top = y - basmalaExtent;
+    var low = 0;
+    var high = lines.length - 1;
+    while (low < high) {
+      final middle = (low + high + 1) ~/ 2;
+      if (_slotTops[middle] <= top) {
+        low = middle;
+      } else {
+        high = middle - 1;
+      }
+    }
+    return low;
+  }
 
   /// The line on which the ayah of [ayah] (numbered from 1) begins: the
   /// line of its page mark when it has one.
@@ -206,6 +285,10 @@ final class SurahLayout {
     lineOfAyah(index + 1),
   );
 
+  /// The line in [lines] holding [unit] of the ayah of [index].
+  static int _lineOf(List<PlannedLine> lines, int index, int unit) =>
+      lines.indexWhere((line) => line.holds(index, unit));
+
   /// Where line [line] starts by the plan.
   LineStart lineStart(int line) {
     final start = lines[line].start;
@@ -217,25 +300,20 @@ final class SurahLayout {
   }
 
   /// The top of the line on which the ayah of [address] begins in the
-  /// surah's sliver: where to scroll to restore a position or jump to an
-  /// address.
+  /// surah's sliver, with its row of margin marks: where to scroll to
+  /// restore a position or jump to an address.
   double offsetOf(QuranAddress address) {
     if (address.riwaya != text.riwaya || address.surah != text.surah) {
       throw ArgumentError.value(address, 'address', 'is not in this surah');
     }
-    return basmalaExtent + lineOfAyah(address.ayah) * lineHeight;
+    return slotTop(lineOfAyah(address.ayah));
   }
 
   /// The ayah a reader is at when [offset] into the surah's sliver is the
   /// top of the screen: the ayah of the first line still showing, the one
   /// the line continues when it starts inside an ayah.
-  QuranAddress ayahAt(double offset) {
-    final line = ((offset - basmalaExtent) / lineHeight).floor().clamp(
-      0,
-      lines.length - 1,
-    );
-    return text.addressOf(lines[line].start.ayah + 1);
-  }
+  QuranAddress ayahAt(double offset) =>
+      text.addressOf(lines[lineAt(offset)].start.ayah + 1);
 
   /// The block holding the text of the ayah of [ayah] (numbered from 1).
   int blockOfAyah(int ayah) {
