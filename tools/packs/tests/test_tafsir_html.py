@@ -7,7 +7,24 @@ from unittest import mock
 
 from hqpack import tafsir_html as th
 from hqpack.errors import PackError
-from tests.ziydia_factory import BOLD, CODE, END, HONORIFIC, PHRASE, QUOTE, RED, SMALL, code, para
+from tests.ziydia_factory import (
+    BOLD,
+    CODE,
+    END,
+    HONORIFIC,
+    HR,
+    NOTE,
+    PHRASE,
+    QUOTE,
+    RED,
+    SEPARATOR,
+    SMALL,
+    code,
+    digits,
+    mark,
+    note,
+    para,
+)
 
 PHRASES = {"\u00f7": HONORIFIC, "&": "Synthetic honorific"}
 CODE_2 = '<span  style="color: #800000;">'  # the code span with two spaces, as the site writes most of them
@@ -60,8 +77,8 @@ class ConversionTest(unittest.TestCase):
             (para('<span style="color: red;">x</span>'), "unknown markup <span>"),
             (para("<b>x</b>"), "unknown markup <b>"),
             (para("<div>x</div>"), "unknown markup <div>"),
-            (para('x<sup style="color: #800000;">(\u20631)</sup>'), "<sup> at offset 45 belongs to a footnote"),
-            (para("<hr>"), "<hr> at offset 44 belongs to a footnote"),
+            (para('x<sup style="color: #800000;">(\u20631)</sup>'), "the <sup> at offset 45 is not a footnote mark (U+2063 N)"),
+            (para("<hr>"), "<hr> at offset 44; the footnote line stands only in its empty paragraph"),
             (para("a < b"), "a stray < at offset"),
             (para("a > b"), "a stray > at offset"),
             (para("a & b"), "a stray & or an entity other than &nbsp"),
@@ -128,7 +145,6 @@ class SiteMarkupTest(unittest.TestCase):
         centred = th.DIV_OPEN + CODE_2 + "\ufdfd" + END + th.DIV_CLOSE
         misplaced = "is not &nbsp, then a <div> holding one code span, then </p>"
         cases = (
-            (th.FOOTNOTE_PARAGRAPH + "Synthetic</p>", "<p> at offset 0 belongs to a footnote"),
             (para("Synthetic" + div), misplaced),
             (para("&nbsp" + div), misplaced),
             (para(centred), misplaced),
@@ -167,6 +183,118 @@ class SiteMarkupTest(unittest.TestCase):
                 with self.assertRaisesRegex(PackError, "touches a letter"):
                     convert(html)
         self.assertEqual(convert(para("Synthetic\u2063 " + code("&"))), "Synthetic\u2063 Synthetic honorific")
+
+
+class FootnoteMarkupTest(unittest.TestCase):
+    """D-189: the three footnote markups, exactly as books 165, 440, 473 and 514 write them."""
+
+    def test_the_site_strings(self):
+        self.assertEqual(th.NOTE_OPEN, NOTE)
+        self.assertEqual(th.MARK_OPEN + th.MARK_CLOSE, '<sup style="color: #800000;"></sup>')
+        self.assertEqual(th.SEPARATOR, NOTE + HR + "</p>")
+        self.assertEqual(SEPARATOR, th.SEPARATOR)
+
+    def test_a_mark_stays_as_printed(self):
+        for number in (1, 2, 12):
+            with self.subTest(number=number):
+                paragraph = th.convert_paragraph(para("Synthetic" + mark(number) + " tail"), PHRASES, "p")
+                self.assertEqual(paragraph.text, "Synthetic\u2063(\u2063" + digits(number) + ") tail")
+                self.assertEqual(paragraph.marks, (digits(number),))
+                self.assertFalse(paragraph.note)
+        two = th.convert_paragraph(th.HEADING_OPEN + "Synthetic" + mark(2) + BOLD + mark(1) + END + "</p>", PHRASES, "p")
+        self.assertEqual(two.marks, (digits(2), digits(1)))
+
+    def test_a_note_paragraph(self):
+        paragraph = th.convert_paragraph(note(3, "Synthetic " + code("\u00f7")), PHRASES, "p")
+        self.assertEqual(paragraph.text, "(" + digits(3) + ") Synthetic " + HONORIFIC)
+        self.assertTrue(paragraph.note)
+        self.assertEqual(convert(note(None, BOLD + "Synthetic" + END + " more")), "Synthetic more")
+
+    def test_the_regex_path_agrees(self):
+        for html in (
+            para("Synthetic" + mark(1) + "," + mark(12)),
+            note(2, "Synthetic " + QUOTE + "quoted" + END),
+            note(None, "&nbsp Synthetic"),
+        ):
+            with self.subTest(html=html):
+                self.assertEqual(th.regex_text(html, PHRASES), convert(html))
+
+    def test_refusals(self):
+        sup = '<sup style="color: #800000;">'
+        cases = (
+            (note(1, "Synthetic" + mark(2)), "a footnote mark stands in a note paragraph"),
+            (para("x" + sup + "(1)</sup>"), "the <sup> at offset 45 is not a footnote mark (U+2063 N)"),
+            (para("x" + sup + "(" + digits(1) + ")</sup>"), "is not a footnote mark"),
+            (para("x" + sup + "(\u2063" + digits(1) + "</sup>"), "is not a footnote mark"),
+            (para("x" + sup + "(\u2063" + digits(1) + ") </sup>"), "is not a footnote mark"),
+            (para("x" + sup + "(\u2063" + digits(1) + ")"), "is not a footnote mark"),
+            (para("x" + sup + BOLD + "(\u2063" + digits(1) + ")" + END + "</sup>"), "is not a footnote mark"),
+            (para('x<sup style="color: #800000">(\u2063' + digits(1) + ")</sup>"), "unknown markup <sup>"),
+            (para("x</sup>"), "unknown markup <sup>"),
+            (sup + "(\u2063" + digits(1) + ")</sup>", "unknown markup <sup> at offset 0"),
+            (SEPARATOR, "<hr> at offset %d; the footnote line stands only in its empty paragraph" % len(NOTE)),
+            (para(HR), "<hr> at offset 44"),
+            (note(1, HR), "<hr> at offset"),
+        )
+        for html, expected in cases:
+            with self.subTest(expected=expected):
+                with self.assertRaises(PackError) as caught:
+                    convert(html)
+                self.assertIn(expected, str(caught.exception))
+                self.assertTrue(str(caught.exception).isascii())
+
+    def test_a_mark_piece_must_hold_a_mark_and_keep_it(self):
+        html = para("Synthetic" + mark(1))
+        pieces = th.tokenize(html, PHRASES, "p")
+        at = next(k for k, p in enumerate(pieces) if p.kind == "mark")
+        for source, text in (
+            (pieces[at].source, pieces[at].text[:-1]),
+            (pieces[at].source.replace("\u2063", ""), pieces[at].text.replace("\u2063", "")),
+        ):
+            with self.subTest(text=text):
+                changed = list(pieces)
+                changed[at] = th.Piece("mark", source, text)
+                with self.assertRaisesRegex(PackError, r"\(P1\)"):
+                    th.check_rejoins(html, changed, PHRASES, "p")
+
+    def test_a_mark_piece_whose_slice_is_not_a_mark_fails_p1(self):
+        sup = '<sup style="color: #800000;">(1)</sup>'
+        html = para("Synthetic" + sup)
+        pieces = [th.Piece("open", th.P_OPEN, ""), th.Piece("text", "Synthetic", "Synthetic"), th.Piece("mark", sup, "(1)"), th.Piece("close", "</p>", "")]
+        with self.assertRaisesRegex(PackError, r"piece 2 is not converted by the rule \(P1\)"):
+            th.check_rejoins(html, pieces, PHRASES, "p")
+
+    def test_a_tokenizer_that_drops_a_mark_character_fails_both_proofs(self):
+        original = th._mark
+        html = para("Synthetic" + mark(1) + " tail")
+
+        def mutated(html, at, where):
+            stop, piece = original(html, at, where)
+            return stop, th.Piece("mark", piece.source, piece.text[:-1])
+
+        with mock.patch.object(th, "_mark", mutated):
+            pieces = th.tokenize(html, PHRASES, "p")
+            with self.assertRaisesRegex(PackError, r"\(P1\)"):
+                th.check_rejoins(html, pieces, PHRASES, "p")
+            with self.assertRaisesRegex(PackError, r"\(P2\)"):
+                th.check_regex_agrees(html, PHRASES, th.assemble(pieces, "p"), "p")
+
+    def test_a_tokenizer_that_drops_a_note_character_fails_both_proofs(self):
+        original = th._text_run
+        html = note(1, "Synthetic note words")
+
+        def mutated(html, at):
+            end, piece = original(html, at)
+            if "note" in piece.source:
+                piece = th.Piece("text", piece.source.replace("note", "noe"), piece.text.replace("note", "noe"))
+            return end, piece
+
+        with mock.patch.object(th, "_text_run", mutated):
+            with self.assertRaisesRegex(PackError, r"\(P1\)"):
+                th.convert_paragraph(html, PHRASES, "p")
+            pieces = th.tokenize(html, PHRASES, "p")
+            with self.assertRaisesRegex(PackError, r"\(P2\)"):
+                th.check_regex_agrees(html, PHRASES, th.assemble(pieces, "p"), "p")
 
 
 class ProofTest(unittest.TestCase):

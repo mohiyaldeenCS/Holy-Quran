@@ -10,11 +10,16 @@ text takes from it:
   `</p>`): none;
 - a dark-red code span (`CODE_SPANS`) holding one table code: its approved
   phrase; holding U+FDFA, U+FDFB, U+FDFD, U+00B7 or a run of U+002E: itself;
+- a footnote mark, `<sup style="color: #800000;">` holding `(` U+2063 N `)`
+  with N in Arabic-Indic digits: its content, as printed (D-189);
 - `&nbsp` at either edge of the paragraph: none;
 - any other run of characters: itself.
 
-Everything else is refused: another tag, attribute or style; the footnote
-paragraph, `<sup>` and `<hr>` until footnotes are built (D-189, task C);
+A paragraph opens as a plain, a heading or a note paragraph
+(`NOTE_OPEN`, the indented 0.8em paragraph below a page's footnote line).
+Everything else is refused: another tag, attribute or style; a mark in a note
+paragraph, or a `<sup>` that is not a mark; `<hr>`, which only the empty
+separator paragraph holds (`SEPARATOR`, read by `tafsir_footnotes`);
 another entity, `&nbsp;`, `&nbsp` inside the paragraph, or a stray `<`, `>` or
 `&`; U+FFFD and U+FEFF; an unknown code; a table code outside its span or
 touching a letter (format characters, category Cf, are passed over to find
@@ -46,7 +51,11 @@ P_OPEN = '<p style="margin-top:1px;margin-bottom:1px">'
 HEADING_OPEN = (
     '<p class="border-r-4 px-2"  style="border-radius: 0px 3px 3px 0px;font-family:Ziydia-Bold;color: #800000;">'
 )
-PARAGRAPH_OPENS = (P_OPEN, HEADING_OPEN)
+NOTE_OPEN = (
+    '<p style="text-indent: -20px;padding-right: 20px;font-size: 0.8em;margin-top:1px;margin-bottom:1px;'
+    'color:#464646;text-align: justify;">'
+)
+PARAGRAPH_OPENS = (P_OPEN, HEADING_OPEN, NOTE_OPEN)
 P_CLOSE = "</p>"
 SPANS = (
     '<span style="font-family:Ziydia-Bold">',  # emphasised lead-in words
@@ -65,11 +74,15 @@ OPENS = PARAGRAPH_OPENS + SPANS + (DIV_OPEN,)
 CLOSES = (P_CLOSE, SPAN_CLOSE, DIV_CLOSE)
 ALLOWED = OPENS + CLOSES + CODE_SPANS
 NBSP = "&nbsp"
-FOOTNOTE_PARAGRAPH = (
-    '<p style="text-indent: -20px;padding-right: 20px;font-size: 0.8em;margin-top:1px;margin-bottom:1px;'
-    'color:#464646;text-align: justify;">'
+MARK_OPEN = '<sup style="color: #800000;">'
+MARK_CLOSE = "</sup>"
+DIGITS = "[\\u0660-\\u0669]+"  # Arabic-Indic digits, as the books number their footnotes
+MARK = re.compile("\\(\\u2063(" + DIGITS + ")\\)")
+HR = (
+    '<hr style="margin-top: 12px;margin-bottom: 12px;border: 0;height: 1px;'
+    'background-image: -webkit-linear-gradient(left, transparent, rgba(0, 0, 0, 0.2), transparent);">'
 )
-FOOTNOTE_TAGS = ("sup", "hr")
+SEPARATOR = NOTE_OPEN + HR + "</p>"  # the empty paragraph holding the footnote line
 
 _ASCII_SPACE = " \t\n\r\f\v"
 _WHITE = re.compile("[ \t\n\r\f\v]+")
@@ -79,7 +92,7 @@ _REFUSED = ("\ufffd", "\ufeff")
 
 @dataclass(frozen=True)
 class Piece:
-    kind: str  # open, close, text, nbsp, code (a table code), kept (a kept code)
+    kind: str  # open, close, text, nbsp, code (a table code), kept (a kept code), mark (a footnote mark)
     source: str  # the exact slice of the html
     text: str  # what the passage text takes from it, before white space is collapsed
 
@@ -89,6 +102,8 @@ class Paragraph:
     text: str  # empty when the paragraph holds nothing to show
     pieces: tuple
     replaced: Counter  # table code -> times replaced by its phrase
+    note: bool  # a note paragraph, below a page's footnote line
+    marks: tuple  # the N of each footnote mark, as printed, in order
 
 
 def convert_paragraph(html: str, phrases: dict, where: str) -> Paragraph:
@@ -102,6 +117,8 @@ def convert_paragraph(html: str, phrases: dict, where: str) -> Paragraph:
     pieces = tokenize(html, phrases, where)
     check_rejoins(html, pieces, phrases, where)
     _check_codes(pieces, phrases, where)
+    if pieces[0].source == NOTE_OPEN and any(p.kind == "mark" for p in pieces):
+        raise PackError("%s: a footnote mark stands in a note paragraph" % where)
     _check_divs(pieces, where)
     text = assemble(pieces, where)
     check_regex_agrees(html, phrases, text, where)
@@ -109,6 +126,8 @@ def convert_paragraph(html: str, phrases: dict, where: str) -> Paragraph:
         text=text,
         pieces=tuple(pieces),
         replaced=Counter(_code_inner(p.source) for p in pieces if p.kind == "code"),
+        note=pieces[0].source == NOTE_OPEN,
+        marks=tuple(MARK.fullmatch(p.text).group(1) for p in pieces if p.kind == "mark"),
     )
 
 
@@ -160,6 +179,7 @@ def _alternatives(tags):
 
 _P_BODY = re.compile(_alternatives(PARAGRAPH_OPENS) + "(.*)" + re.escape(P_CLOSE), re.S)
 _CODE_RE = re.compile(_alternatives(CODE_SPANS) + "([^<]*)" + re.escape(SPAN_CLOSE))
+_MARK_RE = re.compile(re.escape(MARK_OPEN) + "([^<]*)" + re.escape(MARK_CLOSE))
 _TAGS_RE = re.compile(_alternatives(SPANS + (SPAN_CLOSE, DIV_OPEN, DIV_CLOSE)))
 _EDGES_RE = re.compile(r"\A(?:[ \t\n\r\f\v]|&nbsp)+|(?:[ \t\n\r\f\v]|&nbsp)+\Z")
 
@@ -170,6 +190,7 @@ def regex_text(html: str, phrases: dict):
     if body is None:
         return None
     text = _CODE_RE.sub(lambda m: phrases.get(m.group(1), m.group(1)), body.group(1))
+    text = _MARK_RE.sub(lambda m: m.group(1), text)
     text = _EDGES_RE.sub("", _TAGS_RE.sub("", text))
     return _WHITE.sub(" ", text).strip(" ")
 
@@ -204,6 +225,8 @@ def _tag(html, at, open_tags, phrases, where):
     for span in CODE_SPANS:
         if open_tags and html.startswith(span, at):
             return _code_span(html, at, span, phrases, where)
+    if open_tags and html.startswith(MARK_OPEN, at):
+        return _mark(html, at, where)
     for span in SPANS:
         if open_tags and html.startswith(span, at):
             open_tags.append("span")
@@ -211,11 +234,8 @@ def _tag(html, at, open_tags, phrases, where):
     name = _TAG_NAME.match(html, at)
     if name is None:
         raise PackError("%s: a stray < at offset %d" % (where, at))
-    if name.group(1).lower() in FOOTNOTE_TAGS or (not open_tags and html.startswith(FOOTNOTE_PARAGRAPH, at)):
-        raise PackError(
-            "%s: <%s> at offset %d belongs to a footnote, refused until footnotes are built (D-189, task C)"
-            % (where, name.group(1).lower(), at)
-        )
+    if name.group(1).lower() == "hr":
+        raise PackError("%s: <hr> at offset %d; the footnote line stands only in its empty paragraph" % (where, at))
     raise PackError("%s: unknown markup <%s> at offset %d" % (where, name.group(1).lower(), at))
 
 
@@ -235,6 +255,15 @@ def _code_span(html, at, span, phrases, where):
         raise PackError("%s: the code span at offset %d holds %d characters, not a code" % (where, at, len(inner)))
     stop = end + len(SPAN_CLOSE)
     return stop, Piece(kind, html[at:stop], phrases.get(inner, inner))
+
+
+def _mark(html, at, where):
+    start = at + len(MARK_OPEN)
+    end = html.find(MARK_CLOSE, start)
+    if end < 0 or MARK.fullmatch(html[start:end]) is None:
+        raise PackError("%s: the <sup> at offset %d is not a footnote mark (U+2063 N)" % (where, at))
+    stop = end + len(MARK_CLOSE)
+    return stop, Piece("mark", html[at:stop], html[start:end])
 
 
 def _entity(html, at, where):
@@ -272,12 +301,19 @@ def _slice_fits(piece):
         return inner is not None and "<" not in inner
     if piece.kind == "text":
         return piece.source != "" and not any(c in piece.source for c in "<&>")
+    if piece.kind == "mark":
+        inner = piece.source[len(MARK_OPEN) : -len(MARK_CLOSE)]
+        return (
+            piece.source.startswith(MARK_OPEN) and piece.source.endswith(MARK_CLOSE) and MARK.fullmatch(inner) is not None
+        )
     return False
 
 
 def _rule(piece, phrases):
     if piece.kind == "text":
         return piece.source
+    if piece.kind == "mark":
+        return piece.source[len(MARK_OPEN) : -len(MARK_CLOSE)]
     if piece.kind in ("code", "kept"):
         inner = _code_inner(piece.source)
         return phrases.get(inner, inner)

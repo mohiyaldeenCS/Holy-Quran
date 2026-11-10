@@ -44,6 +44,33 @@ def code(c: str) -> str:
     return CODE + c + END
 
 
+# The footnote markup of books 165, 440, 473 and 514, each string as pages.jsonl holds it.
+NOTE = (
+    '<p style="text-indent: -20px;padding-right: 20px;font-size: 0.8em;margin-top:1px;margin-bottom:1px;'
+    'color:#464646;text-align: justify;">'
+)
+HR = (
+    '<hr style="margin-top: 12px;margin-bottom: 12px;border: 0;height: 1px;'
+    'background-image: -webkit-linear-gradient(left, transparent, rgba(0, 0, 0, 0.2), transparent);">'
+)
+SEPARATOR = NOTE + HR + "</p>"
+
+
+def digits(number: int) -> str:
+    """The number in Arabic-Indic digits, as the books number their footnotes."""
+    return "".join(chr(0x0660 + int(d)) for d in str(number))
+
+
+def mark(number: int) -> str:
+    return "\u2063" + '<sup style="color: #800000;">(\u2063' + digits(number) + ")</sup>"
+
+
+def note(number, body: str) -> str:
+    """A numbered note paragraph, or an unnumbered one when `number` is None."""
+    head = "" if number is None else RED + "(" + digits(number) + ")" + END + " "
+    return NOTE + head + body + "</p>"
+
+
 def entry(kind, surah, refs, *paragraphs, review=None, outcome=None):
     """`paragraphs` are (site_page, html); `outcome` is compare's, for kind passage."""
     return {
