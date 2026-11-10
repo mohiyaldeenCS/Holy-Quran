@@ -40,6 +40,7 @@ the extraction, the linker output, the honorific table and every built pack stay
 | A | `content-engineer` | `ziydia_link.py compare` also writes `outcomes: {"<n>": outcome}` for every linked passage (amends D-081); its tests and README | — |
 | B1 | `content-engineer` | Writing and checking the format, including the surah-level passage (D-184): `hqpack/database.py` takes `user_version`; new `tafsir_database.py`, `ayah_counts.py`, `verify_tafsir.py`; `manifest.py` `build_tafsir_manifest`; `verify.py` `pack_kind`; synthetic factory and tests | — |
 | B1-app | `data-builder` | The app reads the surah-level passage (D-184): `tafsir_pack_database.dart`, `tafsir_repository.dart`, their tests, and the integrity suite; `ui-builder` shows it where the surah's tafsir begins | B1's format text |
+| B1-ui | `ui-builder` + `data-builder` | Show `TafsirPosition.surahPassage` (#109) above the passage where a surah's tafsir begins; tafsir search (`TF-07`, `tafsir_search_repository.dart`) also searches surah-level passages, which `passagesOfSurah` now leaves out (review of #109). No real pack ships before this task | B1-app |
 | B2 | `content-engineer` | `honorifics.py`, `tafsir_html.py` (D-185), `ziydia_inputs.py`, `tafsir_passages.py` (D-186), `tafsir_config.py`, `tafsir_build.py`, the `tafsir` command, guard test forbidding the `html` module, tests, README "Tafsir packs" | A, B1 |
 | C | `content-engineer` | Footnotes appended to their passage (D-189) | B2 |
 
