@@ -1,4 +1,5 @@
-"""`manifest.json` of format v1: its fields in the format's order, and its bytes.
+"""`manifest.json` of format v1 (kind `text`) and format v2 (kind `tafsir`): its
+fields in the format's order, and its bytes.
 
 docs/CONTENT_PACKS.md, "Manifest". Errors name field paths only, never a
 value.
@@ -100,6 +101,45 @@ def build_manifest(
         "files": [{"name": "text.sqlite", "sha256": text_sha256, "bytes": text_bytes}],
         "surah_sha256": _surah_digests(surah_sha256, counts["surahs"]),
         "counts": counts,
+        "reviews": _ordered_list(reviews, _REVIEW_KEYS, "reviews"),
+    }
+
+
+def build_tafsir_manifest(
+    *,
+    pack_id,
+    version,
+    changelog,
+    riwaya,
+    sources,
+    tafsir_sha256,
+    tafsir_bytes,
+    passages,
+    reviews,
+) -> dict:
+    """Format 2, kind `tafsir`: no edition, font or surah digests, and only
+    `tafsir` sources (docs/CONTENT_PACKS.md, "Manifest by kind")."""
+    if riwaya is None:
+        raise PackError("manifest: riwaya of a tafsir pack is null")
+    if type(passages) is not int or passages < 1:
+        raise PackError("manifest: counts.passages is not a positive integer")
+    sources = [_source(s, "sources[%d]" % i) for i, s in enumerate(sources)]
+    if not sources:
+        raise PackError("manifest: a tafsir pack has no tafsir source")
+    for index, source in enumerate(sources):
+        if source["role"] != "tafsir":
+            raise PackError("manifest: sources[%d].role of a tafsir pack is not tafsir" % index)
+    return {
+        "format": "holyquran-pack",
+        "format_version": 2,
+        "id": pack_id,
+        "kind": "tafsir",
+        "version": version,
+        "changelog": _ordered_list(changelog, _CHANGE_KEYS, "changelog"),
+        "riwaya": riwaya,
+        "sources": sources,
+        "files": [{"name": "tafsir.sqlite", "sha256": tafsir_sha256, "bytes": tafsir_bytes}],
+        "counts": {"passages": passages},
         "reviews": _ordered_list(reviews, _REVIEW_KEYS, "reviews"),
     }
 

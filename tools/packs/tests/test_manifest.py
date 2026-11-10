@@ -4,7 +4,7 @@ import json
 import unittest
 
 from hqpack.errors import PackError
-from hqpack.manifest import build_manifest, encode_manifest, source_entry
+from hqpack.manifest import build_manifest, build_tafsir_manifest, encode_manifest, source_entry
 
 _HASH = "0" * 64
 # A synthetic notice in Arabic script, plainly not Quran text.
@@ -226,6 +226,69 @@ class EncodeTest(unittest.TestCase):
     def test_a_non_json_value_is_refused(self):
         with self.assertRaises(PackError):
             encode_manifest({"value": b"bytes"})
+
+
+def _tafsir_manifest(**changes):
+    arguments = dict(
+        pack_id="synthetic-tafsir",
+        version=1,
+        changelog=[{"summary": "Synthetic", "date": "2026-01-01", "version": 1}],
+        riwaya="hafs",
+        sources=[_source("tafsir", 18)],
+        tafsir_sha256="2" * 64,
+        tafsir_bytes=8192,
+        passages=5,
+        reviews=[{"scope": "synthetic", "date": "2026-01-02", "reviewer": "synthetic reviewer"}],
+    )
+    arguments.update(changes)
+    return build_tafsir_manifest(**arguments)
+
+
+class TafsirManifestTest(unittest.TestCase):
+    def test_keys_in_the_format_order(self):
+        manifest = _tafsir_manifest()
+        self.assertEqual(
+            list(manifest),
+            [
+                "format",
+                "format_version",
+                "id",
+                "kind",
+                "version",
+                "changelog",
+                "riwaya",
+                "sources",
+                "files",
+                "counts",
+                "reviews",
+            ],
+        )
+        self.assertEqual(manifest["format_version"], 2)
+        self.assertEqual(manifest["kind"], "tafsir")
+        self.assertEqual(manifest["files"], [{"name": "tafsir.sqlite", "sha256": "2" * 64, "bytes": 8192}])
+        self.assertEqual(manifest["counts"], {"passages": 5})
+        self.assertEqual(list(manifest["sources"][0]), list(_source()))
+        self.assertEqual(list(manifest["reviews"][0]), ["reviewer", "date", "scope"])
+
+    def test_encodes_and_round_trips(self):
+        data = encode_manifest(_tafsir_manifest())
+        self.assertEqual(json.loads(data.decode("utf-8")), _tafsir_manifest())
+        self.assertEqual(data, encode_manifest(_tafsir_manifest()))
+
+    def test_refusals(self):
+        cases = (
+            (dict(riwaya=None), "riwaya of a tafsir pack is null"),
+            (dict(passages=0), "counts.passages is not a positive integer"),
+            (dict(passages=True), "counts.passages is not a positive integer"),
+            (dict(sources=[]), "a tafsir pack has no tafsir source"),
+            (dict(sources=[_source("tafsir", 18), _source("text", 1)]), "sources[1].role of a tafsir pack is not tafsir"),
+            (dict(changelog=[{"version": 1, "date": "2026-01-01"}]), "changelog[0] lacks field summary"),
+        )
+        for changes, expected in cases:
+            with self.subTest(expected=expected):
+                with self.assertRaises(PackError) as caught:
+                    _tafsir_manifest(**changes)
+                self.assertIn(expected, str(caught.exception))
 
 
 if __name__ == "__main__":
