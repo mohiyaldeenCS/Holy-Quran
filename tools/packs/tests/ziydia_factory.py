@@ -56,9 +56,10 @@ def entry(kind, surah, refs, *paragraphs, review=None, outcome=None):
     }
 
 
-# In book order. Shipped as four passages: surah 1's surah-level text (2),
-# 1:1-3 (3 and 4 merged), 2:2-3 (7) and 3:1 (10). Held: 5 (not found) and 6
-# (flagged). Never shipped: 1, 8 and 9.
+# In book order. Shipped as four passages: surah 1's surah-level text (2,
+# cleared with its surah by `Book.cleared_surah_level`), 1:1-3 (3 and 4
+# merged), 2:2-3 (7) and 3:1 (10). Held: 5 (not found) and 6 (flagged). Never
+# shipped: 1, 8 and 9.
 ENTRIES = (
     entry("heading", 1, [], (10, para("Synthetic heading one"))),
     entry("unlinked", 1, [], (10, para("Synthetic surah-level opening " + PHRASE))),
@@ -79,6 +80,9 @@ ENTRIES = (
     entry("unlinked", None, [], (12, para("Synthetic unlinked"))),
     entry("passage", 3, [[1, 1]], (12, para("Synthetic last")), (12, para("&nbsp")), outcome="same"),
 )
+
+# tools/ziydia/README.md: report.json lists every kind a line can have.
+ENTRY_KINDS = ["passage", "unlinked", "heading", "text", "title_page", "ornament", "footnote", "above_the_rule"]
 
 TABLE = {
     "version": 1,
@@ -123,6 +127,7 @@ class Book:
         self.table = json.loads(json.dumps(TABLE))
         self.cleared = []
         self.excluded = []
+        self.cleared_surah_level = [1]  # surahs whose surah-level entries the record clears together
         self.profile = "bracket_numbers"
         self.out = self.root / "out"
 
@@ -146,6 +151,7 @@ class Book:
         report = {
             "book": self.book,
             "profile": self.profile,
+            "entry_kinds": ENTRY_KINDS,
             "input": {"pages_sha256": sha256(pages), "surahs_table_sha256": None},
             "counts": {},
             "checks": {},
@@ -178,11 +184,25 @@ class Book:
             "sample": {"reviewer": "Synthetic reviewer", "date": "2026-01-03", "sample_sha256": sha256(sample)},
             "cleared": [{"n": n, "reviewer": "Synthetic reviewer", "date": "2026-01-03"} for n in self.cleared],
             "excluded": [{"n": n, "reviewer": "Synthetic reviewer", "date": "2026-01-04"} for n in self.excluded],
+            "cleared_surah_level": [
+                {
+                    "surah": surah,
+                    "entries_sha256": self.surah_level_sha256(passages, surah),
+                    "reviewer": "Synthetic reviewer",
+                    "date": "2026-01-05",
+                }
+                for surah in self.cleared_surah_level
+            ],
         }
         self.write_file("review.json", (json.dumps(record, indent=1, sort_keys=True) + "\n").encode("ascii"))
         self.write_file("counts.json", counts_bytes())
         self.write_file("tafsir.json", dumps(self.description(pages, passages)))
         return self
+
+    def surah_level_sha256(self, passages: bytes, surah: int) -> str:
+        """The hash of the surah's lines of kind unlinked in passages.jsonl, each with its line break."""
+        lines = [line + b"\n" for line in passages.split(b"\n")[:-1]]
+        return sha256(b"".join(line for e, line in zip(self.entries, lines) if e["kind"] == "unlinked" and e["surah"] == surah))
 
     def write_file(self, name, data):
         (self.root / name).write_bytes(data)

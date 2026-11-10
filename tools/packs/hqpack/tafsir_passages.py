@@ -3,8 +3,11 @@
 The gate: an entry of kind `passage` ships when the reviewer cleared it, or
 when it has no review flag and its compare outcome is `same` or
 `same_but_for_spelling`. An entry of kind `unlinked` that names a surah ships
-as that surah's surah-level text (D-184) unless it is flagged and not
-cleared. An exclusion overrides everything; every other kind never ships.
+as that surah's surah-level text (D-184) only when the reviewer cleared it:
+by its own mark, or, when it has no review flag, by the record's clearance of
+its surah's surah-level entries (bound by their hash, `ziydia_inputs`). An
+exclusion overrides everything; every other kind never ships, book 514's
+`above_the_rule` paragraphs among them.
 
 A shipped entry's range is the union of its refs, checked against the P5
 counts: a range below ayah 1, past its surah or reversed stops the build, and
@@ -22,6 +25,7 @@ from dataclasses import dataclass
 
 from .errors import PackError
 from .tafsir_database import SURAH_LEVEL, PassageRow
+from .ziydia_inputs import is_surah_level
 
 CONFIRMED = ("same", "same_but_for_spelling")
 JOIN = "\n"  # between a passage's paragraphs (D-184)
@@ -31,7 +35,7 @@ JOIN = "\n"  # between a passage's paragraphs (D-184)
 class Held:
     n: int
     site_page: int
-    reason: str  # excluded, flagged, gapped_range or a compare outcome
+    reason: str  # excluded, flagged, not_cleared, gapped_range or a compare outcome
 
 
 @dataclass(frozen=True)
@@ -57,7 +61,7 @@ def select(entries, outcomes: dict, review, ayah_counts: dict) -> Selection:
         site_page = entry["paragraphs"][0]["site_page"]
         if kind == "passage":
             reason = _passage_gate(entry, outcomes[n], review)
-        elif kind == "unlinked" and surah is not None:
+        elif is_surah_level(entry):
             reason = _surah_level_gate(entry, review)
         else:
             never[kind] += 1
@@ -121,9 +125,11 @@ def _surah_level_gate(entry, review):
     n = entry["n"]
     if n in review.excluded:
         return "excluded"
-    if "review" in entry and n not in review.cleared:
+    if n in review.cleared:
+        return None
+    if "review" in entry:
         return "flagged"
-    return None
+    return None if entry["surah"] in review.cleared_surah_level else "not_cleared"
 
 
 def _surah(entry, ayah_counts):

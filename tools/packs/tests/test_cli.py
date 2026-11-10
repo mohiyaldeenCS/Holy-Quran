@@ -306,9 +306,23 @@ class TafsirVerifyTest(TafsirCliCase):
         self.assertIn("unsigned", out)
 
     def test_verify_with_the_tafsir_font_reports_what_it_lacks(self):
-        code, out, _ = self.run_cli("verify", self.tafsir(), "--ayah-counts", self.ayah_counts(), "--font", FONT)
+        passages = tafsir_pack_factory.PASSAGES[:-1] + ((5, 2, 2, 3, "Synthetic \u4e00 not drawn"),)
+        tafsir = tafsir_pack_factory.write_pack(self.work / "packs" / "undrawn", passages=passages)
+        code, out, _ = self.run_cli("verify", tafsir, "--ayah-counts", self.ayah_counts(), "--font", OTHER_FONT)
         self.assertEqual(code, cli.EX_DATAERR)
-        self.assertRegex(out, r"problem: U\+[0-9A-F]{4,} is not in the font; first at ")
+        self.assertIn("problem: U+4E00 is not in the font; first at passage 5", out)
+        code, out, _ = self.run_cli("verify", self.tafsir(), "--ayah-counts", self.ayah_counts(), "--font", OTHER_FONT)
+        self.assertEqual(code, 0, out)
+
+    def test_verify_and_sign_refuse_a_font_that_is_not_the_tafsir_font(self):
+        tafsir = self.tafsir()
+        for command in (("verify",), ("sign", "--key", self.work / "absent.pem")):
+            with self.subTest(command=command[0]):
+                code, out, err = self.run_cli(*command, tafsir, "--ayah-counts", self.ayah_counts(), "--font", FONT)
+                self.assertEqual(code, cli.EX_DATAERR)
+                self.assertIn("not that of the tafsir font", err)
+                self.assertNotIn("verified", out)
+        self.assertFalse((tafsir / "manifest.json.sig").exists())
 
     def test_verify_reports_a_tafsir_fault(self):
         code, out, _ = self.run_cli("verify", self.tafsir("overlap"), "--ayah-counts", self.ayah_counts())

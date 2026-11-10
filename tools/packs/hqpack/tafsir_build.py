@@ -129,7 +129,7 @@ def build_tafsir_pack(config_path, honorifics_path, reviews_path, ayah_counts_pa
         held=selection.held,
         tafsir_sha256=tafsir_sha256,
         manifest_sha256=digest.sha256_bytes(manifest_bytes),
-        report=_report(config, inputs, counts, selection),
+        report=_report(config, inputs, counts, selection, review),
     )
 
 
@@ -225,7 +225,11 @@ def _reviews(table, review):
         },
     ]
     marks = Counter()
-    for name, given in (("cleared", review.cleared), ("excluded", review.excluded)):
+    for name, given in (
+        ("cleared", review.cleared),
+        ("excluded", review.excluded),
+        ("surahs", review.cleared_surah_level),
+    ):
         for mark in given.values():
             marks[(mark.reviewer, mark.date, name)] += 1
     for reviewer, date in sorted({(r, d) for r, d, _ in marks}):
@@ -233,14 +237,19 @@ def _reviews(table, review):
             {
                 "reviewer": reviewer,
                 "date": date,
-                "scope": "review record SHA-256 %s: cleared %d, excluded %d (D-186)"
-                % (review.sha256, marks[(reviewer, date, "cleared")], marks[(reviewer, date, "excluded")]),
+                "scope": "review record SHA-256 %s: cleared %d, excluded %d, surah-level entries cleared for %d surahs (D-186)"
+                % (
+                    review.sha256,
+                    marks[(reviewer, date, "cleared")],
+                    marks[(reviewer, date, "excluded")],
+                    marks[(reviewer, date, "surahs")],
+                ),
             }
         )
     return entries
 
 
-def _report(config, inputs, counts, selection):
+def _report(config, inputs, counts, selection, review):
     report = {
         "book": config.book,
         "pack": {"id": config.pack_id, "version": config.version},
@@ -249,5 +258,13 @@ def _report(config, inputs, counts, selection):
         "held": [{"n": h.n, "site_page": h.site_page, "reason": h.reason} for h in selection.held],
         "held_by_reason": dict(sorted(Counter(h.reason for h in selection.held).items())),
         "never_shipped_by_kind": dict(sorted(selection.never.items())),
+        "surah_level": {
+            str(surah): {
+                "entries": list(level.entries),
+                "entries_sha256": level.sha256,
+                "cleared_together": surah in review.cleared_surah_level,
+            }
+            for surah, level in sorted(inputs.surah_level.items())
+        },
     }
     return (json.dumps(report, ensure_ascii=True, indent=1, sort_keys=True) + "\n").encode("ascii")

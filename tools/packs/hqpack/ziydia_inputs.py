@@ -33,8 +33,8 @@ LINKER_PROFILES = {
     473: "inner_numbers",
     471: "items",
 }
-# tools/ziydia/README.md, "What a line of passages.jsonl holds".
-ENTRY_KINDS = ("passage", "unlinked", "heading", "text", "title_page", "ornament", "footnote")
+# ziydia_link.py ENTRY_KINDS, which report.json lists as `entry_kinds`.
+ENTRY_KINDS = ("passage", "unlinked", "heading", "text", "title_page", "ornament", "footnote", "above_the_rule")
 # tools/ziydia/README.md, "What compare.json holds".
 OUTCOMES = (
     "same",
@@ -59,9 +59,10 @@ CARD_LABELS = (_TITLE, _AUTHOR, PUBLISHER, EDITION, _PAGES)
 
 _META_KEYS = ("id", "url", "title", "author", "date_added", "card")
 _META_OPTIONAL = ("category", "author_id", "author_line", "category_id")
-_RECORD_KEYS = ("book", "passages_sha256", "compare_sha256", "sample", "cleared", "excluded")
+_RECORD_KEYS = ("book", "passages_sha256", "compare_sha256", "sample", "cleared", "excluded", "cleared_surah_level")
 _SAMPLE_KEYS = ("reviewer", "date", "sample_sha256")
 _MARK_KEYS = ("n", "reviewer", "date")
+_SURAH_KEYS = ("surah", "entries_sha256", "reviewer", "date")
 _PARAGRAPH = re.compile(r"<p\b[^>]*>.*?</p>", re.S)  # as ziydia_link.py PARA
 _FACT_REFUSED = ("\n", "\ufeff", "\ufffd")
 
@@ -74,6 +75,20 @@ class ReviewMark:
 
 
 @dataclass(frozen=True)
+class SurahClearance:
+    surah: int
+    entries_sha256: str  # of the surah's surah-level lines of passages.jsonl
+    reviewer: str
+    date: str
+
+
+@dataclass(frozen=True)
+class SurahLevel:
+    entries: tuple  # the n of each surah-level entry of the surah, in book order
+    sha256: str  # of their lines of passages.jsonl, each with its line break, in book order
+
+
+@dataclass(frozen=True)
 class ReviewRecord:
     book: int
     passages_sha256: str
@@ -81,6 +96,7 @@ class ReviewRecord:
     sample: dict  # reviewer, date, sample_sha256
     cleared: dict  # n -> ReviewMark
     excluded: dict  # n -> ReviewMark
+    cleared_surah_level: dict  # surah -> SurahClearance
     sha256: str  # of the file's bytes
 
 
@@ -96,6 +112,7 @@ class BookInputs:
     passages_sha256: str
     outcomes: dict  # n -> compare outcome, for every entry of kind passage
     compare_sha256: str
+    surah_level: dict  # surah -> SurahLevel, for each surah with an entry of kind unlinked
 
 
 def read_review_record(data: bytes) -> ReviewRecord:
@@ -114,6 +131,7 @@ def read_review_record(data: bytes) -> ReviewRecord:
             },
             cleared=_marks(record["cleared"], "cleared"),
             excluded=_marks(record["excluded"], "excluded"),
+            cleared_surah_level=_surah_clearances(record["cleared_surah_level"]),
             sha256=sha256_bytes(data),
         )
     except PackError as error:
@@ -141,7 +159,9 @@ def read_book_inputs(extraction, links, book: int, pages_sha256: str, passages_s
     facts, url, date_added = _meta(meta, book)
     entries = _entries(passages_bytes, book)
     outcomes = _outcomes(compare, entries)
+    surah_level = _surah_level(passages_bytes, entries)
     _check_marks(review, entries)
+    _check_surah_clearances(review, surah_level)
     return BookInputs(
         book=book,
         facts=facts,
@@ -153,7 +173,13 @@ def read_book_inputs(extraction, links, book: int, pages_sha256: str, passages_s
         passages_sha256=passages_sha256,
         outcomes=outcomes,
         compare_sha256=compare_sha256,
+        surah_level=surah_level,
     )
+
+
+def is_surah_level(entry) -> bool:
+    """An entry of kind `unlinked` that names a surah (D-184)."""
+    return entry["kind"] == "unlinked" and entry["surah"] is not None
 
 
 class PageParagraphs:
@@ -216,6 +242,11 @@ def _check_report(report, book, pages_sha256, passages_sha256):
         raise PackError("report.json: input.pages_sha256 is not the hash of pages.jsonl")
     if report.get("passages_sha256") != passages_sha256:
         raise PackError("report.json: passages_sha256 is not the hash of passages.jsonl")
+    if report.get("entry_kinds") != list(ENTRY_KINDS):
+        raise PackError(
+            "report.json: entry_kinds is not the list of kinds the builder knows; link the book again "
+            "with the current ziydia_link.py"
+        )
 
 
 def _check_compare(compare, book, passages_sha256):
@@ -366,8 +397,33 @@ def _check_marks(review, entries):
             entry = entries[n - 1] if n <= len(entries) else None
             if entry is None:
                 raise PackError("review record: %s names %d, which passages.jsonl lacks" % (name, n))
-            if entry["kind"] != "passage" and not (entry["kind"] == "unlinked" and entry["surah"] is not None):
+            if entry["kind"] != "passage" and not is_surah_level(entry):
                 raise PackError("review record: %s names %d, an entry that never ships" % (name, n))
+
+
+def _surah_level(data: bytes, entries) -> dict:
+    lines = data.split(b"\n")[:-1]
+    found = {}
+    for entry, line in zip(entries, lines):
+        if is_surah_level(entry):
+            found.setdefault(entry["surah"], []).append((entry["n"], line + b"\n"))
+    return {
+        surah: SurahLevel(tuple(n for n, _ in given), sha256_bytes(b"".join(line for _, line in given)))
+        for surah, given in found.items()
+    }
+
+
+def _check_surah_clearances(review, surah_level):
+    for surah in sorted(review.cleared_surah_level):
+        where = "review record: cleared_surah_level of surah %d" % surah
+        if surah not in surah_level:
+            raise PackError("%s: passages.jsonl has no surah-level entry of that surah" % where)
+        found = surah_level[surah].sha256
+        if review.cleared_surah_level[surah].entries_sha256 != found:
+            raise PackError(
+                "%s: entries_sha256 is not the hash of its %d surah-level entries, %s"
+                % (where, len(surah_level[surah].entries), found)
+            )
 
 
 def _lines(data: bytes, name: str):
@@ -405,6 +461,25 @@ def _marks(value, where):
             raise PackError("%s.n %d repeats" % (at, n))
         marks[n] = ReviewMark(n, _name(mark["reviewer"], at + ".reviewer"), sj.date(mark["date"], at + ".date"))
     return marks
+
+
+def _surah_clearances(value):
+    if not isinstance(value, list):
+        raise PackError("cleared_surah_level is not a list")
+    clearances = {}
+    for index, given in enumerate(value):
+        at = "cleared_surah_level[%d]" % index
+        sj.fields(given, _SURAH_KEYS, at)
+        surah = sj.positive_int(given["surah"], at + ".surah")
+        if surah in clearances:
+            raise PackError("%s.surah %d repeats" % (at, surah))
+        clearances[surah] = SurahClearance(
+            surah=surah,
+            entries_sha256=sj.sha256(given["entries_sha256"], at + ".entries_sha256"),
+            reviewer=_name(given["reviewer"], at + ".reviewer"),
+            date=sj.date(given["date"], at + ".date"),
+        )
+    return clearances
 
 
 def _name(value, where):

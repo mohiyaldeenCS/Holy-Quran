@@ -81,6 +81,11 @@ class TafsirPackTest(_Case):
         self.assertTrue(report.read_bytes().isascii())
         self.assertEqual(held["held"], [{"n": 5, "reason": "not_found", "site_page": 11}, {"n": 6, "reason": "flagged", "site_page": 11}])
         self.assertEqual(held["never_shipped_by_kind"], {"heading": 1, "text": 1, "unlinked": 1})
+        passages = (self.book.links / "passages.jsonl").read_bytes()
+        self.assertEqual(
+            held["surah_level"],
+            {"1": {"entries": [2], "entries_sha256": self.book.surah_level_sha256(passages, 1), "cleared_together": True}},
+        )
 
     def test_the_stored_texts_read_back_equal(self):
         self.assertEqual(self.tafsir()[0], 0)
@@ -119,9 +124,15 @@ class TafsirPackTest(_Case):
         table_sha256 = zf.sha256(self.book.path("table.json").read_bytes())
         self.assertEqual(
             [(r["reviewer"], r["date"]) for r in manifest["reviews"]],
-            [("Synthetic approver", "2026-01-02"), ("Synthetic reviewer", "2026-01-03")],
+            [("Synthetic approver", "2026-01-02"), ("Synthetic reviewer", "2026-01-03"), ("Synthetic reviewer", "2026-01-05")],
         )
         self.assertIn(table_sha256, manifest["reviews"][0]["scope"])
+        record_sha256 = zf.sha256(self.book.path("review.json").read_bytes())
+        self.assertEqual(
+            manifest["reviews"][2]["scope"],
+            "review record SHA-256 %s: cleared 0, excluded 0, surah-level entries cleared for 1 surahs (D-186)"
+            % record_sha256,
+        )
 
     def test_clearances_and_exclusions_are_bound_in_the_reviews(self):
         self.book.cleared, self.book.excluded = [6], [3]
@@ -134,14 +145,58 @@ class TafsirPackTest(_Case):
         self.assertEqual(
             [r["scope"] for r in manifest["reviews"][2:]],
             [
-                "review record SHA-256 %s: cleared 1, excluded 0 (D-186)" % record_sha256,
-                "review record SHA-256 %s: cleared 0, excluded 1 (D-186)" % record_sha256,
+                "review record SHA-256 %s: cleared 1, excluded 0, surah-level entries cleared for 0 surahs (D-186)"
+                % record_sha256,
+                "review record SHA-256 %s: cleared 0, excluded 1, surah-level entries cleared for 0 surahs (D-186)"
+                % record_sha256,
+                "review record SHA-256 %s: cleared 0, excluded 0, surah-level entries cleared for 1 surahs (D-186)"
+                % record_sha256,
             ],
         )
         with sqlite3.connect(str(self.pack / "tafsir.sqlite")) as db:
             ranges = db.execute("SELECT surah, first_ayah, last_ayah FROM passage ORDER BY number").fetchall()
         db.close()
         self.assertEqual(ranges, [(1, 0, 0), (1, 2, 3), (2, 1, 1), (2, 2, 3), (3, 1, 1)])
+
+    def test_a_surah_level_entry_ships_only_when_the_record_clears_it(self):
+        self.book.cleared_surah_level = []
+        self.book.write()
+        report = self.work / "held.json"
+        code, out, _ = self.tafsir(report=report)
+        self.assertEqual(code, 0, out)
+        self.assertIn("counts passages 3 surah-level 0", out)
+        held = json.loads(report.read_bytes())
+        self.assertIn({"n": 2, "reason": "not_cleared", "site_page": 10}, held["held"])
+        self.assertFalse(held["surah_level"]["1"]["cleared_together"])
+        self.assertNotIn(b"surah-level opening", (self.pack / "tafsir.sqlite").read_bytes())
+
+    def test_a_single_clearance_ships_a_surah_level_entry_and_an_exclusion_holds_it(self):
+        self.book.cleared_surah_level, self.book.cleared = [], [2]
+        self.book.write()
+        code, out, _ = self.tafsir()
+        self.assertEqual(code, 0, out)
+        self.assertIn("counts passages 4 surah-level 1", out)
+        self.book.cleared, self.book.excluded, self.book.cleared_surah_level = [2], [2], [1]
+        self.book.write()
+        self.book.out = self.work / "out-excluded"
+        code, out, _ = self.tafsir()
+        self.assertEqual(code, 0, out)
+        self.assertIn("counts passages 3 surah-level 0", out)
+
+    def test_paragraphs_above_the_rule_never_ship(self):
+        above = zf.entry("above_the_rule", 1, [], (12, zf.para(zf.SENTINEL + " above")))
+        self.book.entries.insert(2, above)
+        self.book.write()
+        report = self.work / "held.json"
+        code, out, _ = self.tafsir(report=report)
+        self.assertEqual(code, 0, out)
+        self.assertIn("counts passages 4 surah-level 1", out)
+        self.assertEqual(json.loads(report.read_bytes())["never_shipped_by_kind"]["above_the_rule"], 1)
+        for name in ("tafsir.sqlite", "manifest.json"):
+            self.assertNotIn(zf.SENTINEL.encode("ascii"), (self.pack / name).read_bytes())
+        self.book.cleared, self.book.out = [3], self.work / "out-cleared"
+        self.book.write()
+        self.assert_refused("review record: cleared names 3, an entry that never ships")
 
     def test_a_kind_that_never_ships_never_reaches_the_pack(self):
         self.assertEqual(self.tafsir()[0], 0)
@@ -186,6 +241,14 @@ class TafsirRefusalTest(_Case):
         self.assertEqual(code, cli.EX_DATAERR)
         self.assertIn("is inside the Git working tree", err)
         self.assertFalse((REPO / "held-never-written.json").exists())
+
+    def test_a_report_that_exists_or_has_no_folder(self):
+        existing = self.work / "held.json"
+        existing.write_bytes(b"synthetic earlier report")
+        self.assert_refused("exists; a report is never overwritten", report=existing)
+        self.assertEqual(existing.read_bytes(), b"synthetic earlier report")
+        self.assert_refused("does not exist", report=self.work / "absent" / "held.json")
+        self.assertFalse((self.work / "absent").exists())
 
     def test_a_riwaya_other_than_hafs(self):
         path = self.book.path("tafsir.json")

@@ -13,8 +13,9 @@ from hqpack.tafsir_passages import assemble, select
 COUNTS = {1: 7, 2: 5, 3: 1}
 
 
-def review(cleared=(), excluded=()):
-    return SimpleNamespace(cleared=set(cleared), excluded=set(excluded))
+def review(cleared=(), excluded=(), surahs=()):
+    """`surahs`: the surahs whose surah-level entries the record clears together."""
+    return SimpleNamespace(cleared=set(cleared), excluded=set(excluded), cleared_surah_level=set(surahs))
 
 
 def entries(*specs):
@@ -83,7 +84,7 @@ class GateTest(unittest.TestCase):
 
     def test_an_exclusion_overrides_a_clearance_and_a_confirmation(self):
         listed = entries(("passage", 1, [[1, 1]]), ("passage", 1, [[2, 2]]), ("unlinked", 1, []), ("passage", 1, [[3, 3]]))
-        selection, rows = build(listed, given=review(cleared=[2], excluded=[1, 2, 3]))
+        selection, rows = build(listed, given=review(cleared=[2], excluded=[1, 2, 3], surahs=[1]))
         self.assertEqual([(h.n, h.reason) for h in selection.held], [(1, "excluded"), (2, "excluded"), (3, "excluded")])
         self.assertEqual([r.first_ayah for r in rows], [3])
 
@@ -96,18 +97,31 @@ class GateTest(unittest.TestCase):
             ("footnote", 1, []),
             ("unlinked", None, []),
             ("passage", 1, [[1, 1]]),
+            ("above_the_rule", 1, []),
         )
-        selection, rows = build(listed)
+        selection, rows = build(listed, given=review(cleared=[8], surahs=[1]))
         self.assertEqual([c.n for c in selection.chosen], [7])
         self.assertEqual(
             dict(selection.never),
-            {"heading": 1, "text": 1, "title_page": 1, "ornament": 1, "footnote": 1, "unlinked": 1},
+            {"heading": 1, "text": 1, "title_page": 1, "ornament": 1, "footnote": 1, "unlinked": 1, "above_the_rule": 1},
         )
         self.assertEqual(len(rows), 1)
 
-    def test_a_flagged_surah_level_entry_is_held_until_cleared(self):
-        listed = entries(("unlinked", 2, [], ["synthetic_flag"]), ("passage", 2, [[1, 1]]))
+    def test_a_surah_level_entry_ships_only_when_cleared(self):
+        listed = entries(("unlinked", 2, []), ("unlinked", 1, []), ("passage", 2, [[1, 1]]))
         selection, rows = build(listed)
+        self.assertEqual([(h.n, h.reason) for h in selection.held], [(1, "not_cleared"), (2, "not_cleared")])
+        self.assertEqual([(r.surah, r.first_ayah) for r in rows], [(2, 1)])
+        selection, rows = build(listed, given=review(surahs=[2]))
+        self.assertEqual([(h.n, h.reason) for h in selection.held], [(2, "not_cleared")])
+        self.assertEqual([(r.surah, r.first_ayah) for r in rows], [(2, 0), (2, 1)])
+        selection, rows = build(listed, given=review(cleared=[2]))
+        self.assertEqual([(h.n, h.reason) for h in selection.held], [(1, "not_cleared")])
+        self.assertEqual([(r.surah, r.first_ayah) for r in rows], [(1, 0), (2, 1)])
+
+    def test_a_flagged_surah_level_entry_needs_its_own_clearance(self):
+        listed = entries(("unlinked", 2, [], ["synthetic_flag"]), ("passage", 2, [[1, 1]]))
+        selection, rows = build(listed, given=review(surahs=[2]))
         self.assertEqual([(h.n, h.reason) for h in selection.held], [(1, "flagged")])
         selection, rows = build(listed, given=review(cleared=[1]))
         self.assertEqual([(r.surah, r.first_ayah, r.last_ayah) for r in rows], [(2, 0, 0), (2, 1, 1)])
@@ -133,7 +147,7 @@ class RangeTest(unittest.TestCase):
         for spec, expected in cases:
             with self.subTest(expected=expected):
                 with self.assertRaisesRegex(PackError, re.escape(expected)):
-                    build(entries(spec))
+                    build(entries(spec), given=review(surahs=[4]))
 
     def test_a_range_is_checked_only_when_its_entry_ships(self):
         selection, _ = build(entries(("passage", 1, [[1, 9]]), ("passage", 1, [[1, 1]])), {1: "not_found", 2: "same"})
@@ -165,7 +179,7 @@ class MergeAndOrderTest(unittest.TestCase):
             ("passage", 1, [[7, 7]]),
             ("unlinked", 1, []),
         )
-        _, rows = build(listed)
+        _, rows = build(listed, given=review(surahs=[1, 2]))
         self.assertEqual(
             rows,
             [

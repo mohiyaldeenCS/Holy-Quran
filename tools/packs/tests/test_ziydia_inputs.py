@@ -106,6 +106,39 @@ class InputsTest(_Case):
         self.book.write()
         self.assert_refused("book 183 is not linked with one of the linker's six profiles")
 
+    def test_the_linker_lists_the_kinds_the_builder_knows(self):
+        for change in (lambda r: r.pop("entry_kinds"), lambda r: r["entry_kinds"].remove("above_the_rule")):
+            self.book.write()
+            self.edit_json(self.book.links / "report.json", change)
+            self.assert_refused("report.json: entry_kinds is not the list of kinds the builder knows")
+
+    def test_the_surah_level_entries_of_each_surah_and_their_hash(self):
+        self.book.entries.insert(1, zf.entry("unlinked", 1, [], (10, zf.para("Synthetic another surah-level"))))
+        self.book.entries.append(zf.entry("above_the_rule", 1, [], (12, zf.para("Synthetic above"))))
+        self.book.write()
+        passages = (self.book.links / "passages.jsonl").read_bytes()
+        lines = passages.split(b"\n")
+        level = self.read().surah_level
+        self.assertEqual(sorted(level), [1])
+        self.assertEqual(level[1].entries, (2, 3))
+        self.assertEqual(level[1].sha256, zf.sha256(lines[1] + b"\n" + lines[2] + b"\n"))
+
+    def test_a_surah_clearance_is_bound_by_the_hash_of_its_entries(self):
+        def wrong_hash(record):
+            record["cleared_surah_level"][0]["entries_sha256"] = "0" * 64
+
+        def other_surah(record):
+            record["cleared_surah_level"][0]["surah"] = 2
+
+        for change, expected in (
+            (wrong_hash, "cleared_surah_level of surah 1: entries_sha256 is not the hash of its 1 surah-level entries"),
+            (other_surah, "cleared_surah_level of surah 2: passages.jsonl has no surah-level entry of that surah"),
+        ):
+            with self.subTest(expected=expected):
+                self.book.write()
+                self.edit_json(self.book.path("review.json"), change)
+                self.assert_refused(expected)
+
     def test_the_book_is_the_same_everywhere(self):
         self.book.write()
         self.edit_json(self.book.links / "report.json", lambda r: r.update(book=514))
@@ -194,6 +227,9 @@ class ReviewRecordTest(unittest.TestCase):
         "sample": {"reviewer": "Synthetic reviewer", "date": "2026-01-03", "sample_sha256": "3" * 64},
         "cleared": [{"n": 4, "reviewer": "Synthetic reviewer", "date": "2026-01-03"}],
         "excluded": [{"n": 5, "reviewer": "Another reviewer", "date": "2026-01-04"}],
+        "cleared_surah_level": [
+            {"surah": 2, "entries_sha256": "4" * 64, "reviewer": "Synthetic reviewer", "date": "2026-01-05"}
+        ],
     }
 
     def encode(self, record):
@@ -205,6 +241,9 @@ class ReviewRecordTest(unittest.TestCase):
         self.assertEqual(sorted(record.cleared), [4])
         self.assertEqual(record.excluded[5].reviewer, "Another reviewer")
         self.assertEqual(record.sample["sample_sha256"], "3" * 64)
+        self.assertEqual(sorted(record.cleared_surah_level), [2])
+        self.assertEqual(record.cleared_surah_level[2].entries_sha256, "4" * 64)
+        self.assertEqual(record.cleared_surah_level[2].date, "2026-01-05")
 
     def test_refusals(self):
         cases = (
@@ -218,6 +257,15 @@ class ReviewRecordTest(unittest.TestCase):
             (lambda r: r["excluded"][0].update(n=True), "excluded[0].n must be a positive integer"),
             (lambda r: r["cleared"][0].update(reviewer=" x"), "cleared[0].reviewer has spaces at its edges"),
             (lambda r: r.update(cleared={}), "cleared is not a list"),
+            (lambda r: r.pop("cleared_surah_level"), "cleared_surah_level is missing"),
+            (lambda r: r.update(cleared_surah_level={}), "cleared_surah_level is not a list"),
+            (lambda r: r["cleared_surah_level"].append(dict(r["cleared_surah_level"][0])), "cleared_surah_level[1].surah 2 repeats"),
+            (lambda r: r["cleared_surah_level"][0].update(surah=0), "cleared_surah_level[0].surah must be a positive integer"),
+            (lambda r: r["cleared_surah_level"][0].pop("entries_sha256"), "cleared_surah_level[0].entries_sha256 is missing"),
+            (lambda r: r["cleared_surah_level"][0].update(entries_sha256="4" * 63), "cleared_surah_level[0].entries_sha256 must be"),
+            (lambda r: r["cleared_surah_level"][0].update(entries=[1]), "cleared_surah_level[0] has an unknown key entries"),
+            (lambda r: r["cleared_surah_level"][0].update(reviewer=""), "cleared_surah_level[0].reviewer"),
+            (lambda r: r["cleared_surah_level"][0].update(date="2026-02-30"), "cleared_surah_level[0].date must be a real date"),
         )
         for change, expected in cases:
             with self.subTest(expected=expected):

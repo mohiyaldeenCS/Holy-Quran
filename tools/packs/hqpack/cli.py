@@ -25,7 +25,7 @@ from .git_tree import git_tree
 from .kfgqpc_counts import encode_counts, kfgqpc_counts
 from .mark_table import read_mark_table
 from .profiles import PROFILES
-from .tafsir_build import build_tafsir_pack
+from .tafsir_build import TAFSIR_FONT_SHA256, build_tafsir_pack
 from .tanzil_metadata import read_tanzil_metadata
 from .tanzil_text import read_tanzil_text
 from .signing import SIGNATURE_FILE, OpenSslEd25519Signer, sign_pack, verify_signature
@@ -104,7 +104,10 @@ def _parser():
     tafsir.add_argument("--font", required=True, type=Path, help="assets/fonts/IBMPlexSansArabic-Regular.ttf")
     tafsir.add_argument("--out", required=True, type=Path, help="a folder outside every Git working tree")
     tafsir.add_argument(
-        "--report", type=Path, help="where the held-out entries (numbers and reasons only) are written, outside every Git tree"
+        "--report",
+        type=Path,
+        help="a new file, in an existing folder outside every Git tree, for the held-out entries and the "
+        "surah-level hashes (numbers, reasons and hashes only)",
     )
     tafsir.set_defaults(run=_tafsir)
 
@@ -181,7 +184,13 @@ def _parser():
 
 def _pack_inputs(parser):
     parser.add_argument("pack", type=Path, help="the pack directory <id>/<version>")
-    parser.add_argument("--font", type=Path, help="check the font's coverage, and for a text pack its hash, name and version")
+    parser.add_argument(
+        "--font",
+        type=Path,
+        help="the pack's font: for a text pack its coverage, hash, name and version are checked; for a tafsir "
+        "pack it must be the pinned tafsir font (assets/fonts/IBMPlexSansArabic-Regular.ttf) and its coverage "
+        "is checked",
+    )
     parser.add_argument("--mark-table", type=Path, help="text pack: check every mark against the mark table")
     parser.add_argument(
         "--ayah-counts", type=Path, help="tafsir pack, required: the P5 counts file, to check every passage's range"
@@ -224,6 +233,10 @@ def _tafsir(args, out):
             raise PackError("the report %s is inside the Git working tree %s" % (args.report, tree))
         if args.report.is_dir():
             raise PackError("the report %s is a folder" % args.report)
+        if args.report.exists():
+            raise PackError("the report %s exists; a report is never overwritten" % args.report)
+        if not args.report.parent.is_dir():
+            raise PackError("the report's folder %s does not exist" % args.report.parent)
     result = build_tafsir_pack(args.config, args.honorifics, args.reviews, args.ayah_counts, args.font, args.out)
     counts = result.counts
     print("pack %s" % result.directory, file=out)
@@ -243,7 +256,8 @@ def _tafsir(args, out):
     print("tafsir.sqlite sha256 %s" % result.tafsir_sha256, file=out)
     print("manifest.json sha256 %s" % result.manifest_sha256, file=out)
     if args.report is not None:
-        args.report.write_bytes(result.report)
+        with open(args.report, "xb") as handle:
+            handle.write(result.report)
         print("report %s" % args.report, file=out)
     print("verified", file=out)
     print(UNSIGNED, file=out)
@@ -398,6 +412,8 @@ def _report(args, signing):
         if signing and (args.font is None or args.mark_table is None):
             raise _Usage("sign needs --font and --mark-table for a text pack")
     font = read_font(args.font.read_bytes()) if args.font else None
+    if tafsir and font is not None and font.sha256 != TAFSIR_FONT_SHA256:
+        raise PackError("the font has SHA-256 %s, not that of the tafsir font %s" % (font.sha256, TAFSIR_FONT_SHA256))
     if tafsir:
         return verify_tafsir_pack(args.pack, read_ayah_counts(args.ayah_counts.read_bytes()), font=font)
     marks = read_mark_table(args.mark_table.read_bytes()) if args.mark_table else None
