@@ -232,22 +232,20 @@ final class BlockLayout {
 
   /// The rows of margin marks in this block (`RD-02`, `RD-15`, D-181), each
   /// with the rect its marks are drawn in: the block's width, the marks'
-  /// height, its bottom a gap above the line in which the text of their
-  /// ayah begins. None when the plan was made without rows.
+  /// height, its bottom a gap above the next row or above the line in which
+  /// the text of their ayah begins (D-183). In reading order; none when the
+  /// plan was made without rows.
   List<(List<MarginMark>, Rect)> get marginRows => [
-    for (var line = 0; line < lineCount; line++)
-      if (plan.marksAbove(block.firstLine + line) case final marks
-          when marks.isNotEmpty)
-        (
-          marks,
-          Rect.fromLTRB(
-            0,
-            lineBand(line).top - plan.rowExtent(block.firstLine + line),
-            plan.width,
-            lineBand(line).top - ReaderScreenMetrics.marginRowGap,
-          ),
-        ),
+    for (var line = 0; line < lineCount; line++) ..._rowsAbove(line),
   ];
+
+  Iterable<(List<MarginMark>, Rect)> _rowsAbove(int line) sync* {
+    var top = lineBand(line).top - plan.rowExtent(block.firstLine + line);
+    for (final row in plan.rowsAbove(block.firstLine + line)) {
+      yield (row.marks, Rect.fromLTWH(0, top, plan.width, row.height));
+      top += row.height + ReaderScreenMetrics.marginRowGap;
+    }
+  }
 
   /// Where each line starts, as the paragraphs broke them.
   List<LineStart> get laidLineStarts => [

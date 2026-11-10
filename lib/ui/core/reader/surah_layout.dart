@@ -47,6 +47,9 @@ final class Segment {
 /// How tall [marks], which share a row, are drawn: the tallest of them.
 typedef MarginRowHeight = double Function(List<MarginMark> marks);
 
+/// How wide [mark] is drawn.
+typedef MarginMarkWidth = double Function(MarginMark mark);
+
 /// Consecutive segments laid out and scrolled as one sliver child.
 final class Block {
   const Block(this.firstSegment, this.endSegment, this.firstLine, this.endLine);
@@ -67,8 +70,10 @@ final class Block {
 /// Every line has one height (the style's strut). Planned with
 /// [MarginRowHeight], a line in which the text of an ayah with margin marks
 /// begins has a row for them above it (D-181), its marks' height and
-/// `marginRowGap`; a line's place is the sum of the lines and rows above it,
-/// and positions are known before layout.
+/// `marginRowGap`; with [MarginMarkWidth] too, the marks that do not fit the
+/// width in one row go on to further rows above the same line (D-183). A
+/// line's place is the sum of the lines and rows above it, and positions are
+/// known before layout.
 final class SurahLayout {
   SurahLayout._(
     this.text,
@@ -80,7 +85,7 @@ final class SurahLayout {
     this._leads,
     this._fontScales,
     this.lines,
-    this._rowMarks,
+    this._rows,
     this._rowExtents,
     this._slotTops,
     this.segments,
@@ -89,13 +94,16 @@ final class SurahLayout {
 
   /// Plans [text] at [width] with [style]; blocks hold about [blockLines]
   /// lines. With [marginRow], each line that margin marks belong to gets a
-  /// row for them above it, as tall as [marginRow] says.
+  /// row for them above it, in ayah order, as tall as [marginRow] says. With
+  /// [marginMarkWidth], a mark that would take the row past [width] starts
+  /// another row below it; a mark is never made smaller.
   factory SurahLayout.plan(
     SurahText text,
     ReaderStyle style,
     double width, {
     int blockLines = defaultBlockLines,
     MarginRowHeight? marginRow,
+    MarginMarkWidth? marginMarkWidth,
   }) {
     final slot = style.slot.width;
     final units = <AyahUnits>[];
@@ -137,16 +145,26 @@ final class SurahLayout {
       ]);
     }
     final lines = breakLines(measures, width, hang: style.markGap);
-    final rowMarks = <int, List<MarginMark>>{};
+    final lineMarks = <int, List<MarginMark>>{};
     if (marginRow != null) {
-      for (final mark in text.marginMarks) {
+      for (final mark in _inAyahOrder(text.marginMarks)) {
         final line = _lineOf(lines, mark.ayah - 1, leads[mark.ayah - 1]);
-        rowMarks.putIfAbsent(line, () => []).add(mark);
+        lineMarks.putIfAbsent(line, () => []).add(mark);
       }
     }
+    final rows = {
+      for (final MapEntry(key: line, value: marks) in lineMarks.entries)
+        line: List<MarginRow>.unmodifiable([
+          for (final row in _fill(marks, width, marginMarkWidth))
+            (marks: row, height: marginRow!(row)),
+        ]),
+    };
     final rowExtents = {
-      for (final MapEntry(key: line, value: marks) in rowMarks.entries)
-        line: marginRow!(marks) + ReaderScreenMetrics.marginRowGap,
+      for (final MapEntry(key: line, value: lineRows) in rows.entries)
+        line: lineRows.fold(
+          0.0,
+          (sum, row) => sum + row.height + ReaderScreenMetrics.marginRowGap,
+        ),
     };
     final slotTops = List<double>.filled(lines.length + 1, 0);
     for (var k = 0; k < lines.length; k++) {
@@ -166,10 +184,7 @@ final class SurahLayout {
       leads,
       fontScales,
       lines,
-      {
-        for (final MapEntry(:key, :value) in rowMarks.entries)
-          key: List.unmodifiable(value),
-      },
+      rows,
       rowExtents,
       List.unmodifiable(slotTops),
       segments,
@@ -192,11 +207,10 @@ final class SurahLayout {
   final List<List<double>> _fontScales;
   final List<PlannedLine> lines;
 
-  /// The margin marks of each line that has a row of them above it, in the
-  /// order of [SurahText.marginMarks].
-  final Map<int, List<MarginMark>> _rowMarks;
+  /// The rows of margin marks above each line that has them, from the top.
+  final Map<int, List<MarginRow>> _rows;
 
-  /// The height of each such row with the gap below it.
+  /// The height of each line's rows with the gap below each.
   final Map<int, double> _rowExtents;
 
   /// The top of each line's row, or of the line where it has none, from the
@@ -215,14 +229,21 @@ final class SurahLayout {
   /// The height of the surah's sliver: the basmala and the text.
   double get height => basmalaExtent + _slotTops.last;
 
-  /// The margin marks in the row above [line], none when it has no row.
-  List<MarginMark> marksAbove(int line) => _rowMarks[line] ?? const [];
+  /// The margin marks in the rows above [line], in ayah order; none when it
+  /// has no row.
+  List<MarginMark> marksAbove(int line) => [
+    for (final row in rowsAbove(line)) ...row.marks,
+  ];
 
-  /// The height of the row above [line] with the gap below it; 0 when it
-  /// has none.
+  /// The rows of margin marks above [line], from the top; none when it has
+  /// none.
+  List<MarginRow> rowsAbove(int line) => _rows[line] ?? const [];
+
+  /// The height of the rows above [line], each with the gap below it; 0
+  /// when it has none.
   double rowExtent(int line) => _rowExtents[line] ?? 0;
 
-  /// The top of the row above [line] in the surah's sliver, or of the line
+  /// The top of the rows above [line] in the surah's sliver, or of the line
   /// where it has none.
   double slotTop(int line) => basmalaExtent + _slotTops[line];
 
@@ -284,6 +305,46 @@ final class SurahLayout {
     (line) => line.holds(index, unit),
     lineOfAyah(index + 1),
   );
+
+  /// [marks] in the order a screen reader meets them: by ayah, and at one
+  /// ayah in the margin's order.
+  static List<MarginMark> _inAyahOrder(List<MarginMark> marks) {
+    final order = [for (var k = 0; k < marks.length; k++) k]
+      ..sort((a, b) {
+        final byAyah = marks[a].ayah.compareTo(marks[b].ayah);
+        return byAyah != 0 ? byAyah : a.compareTo(b);
+      });
+    return [for (final k in order) marks[k]];
+  }
+
+  /// [marks] cut into rows no wider than [width], in order, `marginRowGap`
+  /// between neighbours; one row when their widths are not known. A mark
+  /// wider than [width] has a row of its own.
+  static List<List<MarginMark>> _fill(
+    List<MarginMark> marks,
+    double width,
+    MarginMarkWidth? widthOf,
+  ) {
+    if (widthOf == null) return [List.unmodifiable(marks)];
+    final rows = <List<MarginMark>>[];
+    var row = <MarginMark>[];
+    var used = 0.0;
+    for (final mark in marks) {
+      final markWidth = widthOf(mark);
+      final next = row.isEmpty
+          ? markWidth
+          : used + ReaderScreenMetrics.marginRowGap + markWidth;
+      if (row.isNotEmpty && next > width) {
+        rows.add(List.unmodifiable(row));
+        row = [mark];
+        used = markWidth;
+      } else {
+        row.add(mark);
+        used = next;
+      }
+    }
+    return [...rows, List.unmodifiable(row)];
+  }
 
   /// The line in [lines] holding [unit] of the ayah of [index].
   static int _lineOf(List<PlannedLine> lines, int index, int unit) =>
@@ -469,6 +530,10 @@ final class SurahLayout {
     return List.unmodifiable(blocks);
   }
 }
+
+/// One row of margin marks above a line: its marks from the start edge, and
+/// how tall they are drawn.
+typedef MarginRow = ({List<MarginMark> marks, double height});
 
 /// About a screen of lines per block: small enough to lay out within a
 /// frame while scrolling (S1: 5 to 16 ms for a page-sized block in debug).

@@ -57,8 +57,19 @@ final class MarginMarkView extends StatelessWidget {
     AppLocalizations strings,
     TextScaler scaler, {
     bool bold = false,
+  }) => sizeOf(mark, strings, scaler, bold: bold).height;
+
+  /// The size [mark] takes when laid out with [scaler], as [build] lays it
+  /// out; [bold] when the system asks for bold text, which `Text` follows.
+  static Size sizeOf(
+    MarginMark mark,
+    AppLocalizations strings,
+    TextScaler scaler, {
+    bool bold = false,
   }) {
-    if (_starOnly(mark)) return ReaderMetrics.marginStar;
+    if (_starOnly(mark)) {
+      return const Size.square(ReaderMetrics.marginStar);
+    }
     final style = switch (mark.kind) {
       MarginMarkKind.sajda => _words,
       MarginMarkKind.juz => _juzName,
@@ -74,14 +85,18 @@ final class MarginMarkView extends StatelessWidget {
       textDirection: TextDirection.rtl,
       textScaler: scaler,
     )..layout();
-    final words = painter.height;
+    final words = painter.size;
     painter.dispose();
     return switch (mark.kind) {
       MarginMarkKind.sajda => words,
-      MarginMarkKind.juz =>
-        words + ReaderMetrics.juzRuleGap + ReaderMetrics.juzRule,
-      MarginMarkKind.rub ||
-      MarginMarkKind.hizb => math.max(ReaderMetrics.marginStar, words),
+      MarginMarkKind.juz => Size(
+        words.width,
+        words.height + ReaderMetrics.juzRuleGap + ReaderMetrics.juzRule,
+      ),
+      MarginMarkKind.rub || MarginMarkKind.hizb => Size(
+        ReaderMetrics.marginStar + ReaderMetrics.marginStarGap + words.width,
+        math.max(ReaderMetrics.marginStar, words.height),
+      ),
     };
   }
 
