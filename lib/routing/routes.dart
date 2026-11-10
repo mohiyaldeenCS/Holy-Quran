@@ -27,6 +27,10 @@ abstract final class Routes {
   static const recitations = '$listen/${RoutePaths.recitations}';
   static const study = '/study';
   static const search = '$study/${RoutePaths.search}';
+
+  /// The tafsir reader at no ayah: where the study tab's entry leads while
+  /// the base pack serves no text, so that the reader says why (D-180).
+  static const studyTafsirAlert = '$study/${RoutePaths.studyTafsirAlert}';
   static const more = '/more';
   static const bookmarks = '$more/${RoutePaths.bookmarks}';
   static const resources = '$more/${RoutePaths.resources}';
@@ -117,6 +121,7 @@ abstract final class RoutePaths {
   static const recitations = 'recitations';
   static const search = 'search';
   static const studyTafsir = 'tafsir/:${Routes.addressParameter}';
+  static const studyTafsirAlert = 'tafsir';
   static const bookmarks = 'bookmarks';
   static const resources = 'resources';
   static const settings = 'settings';

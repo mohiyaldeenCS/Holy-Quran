@@ -6,6 +6,7 @@ import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/pack_integrity.dart';
+import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/quran_structure.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/router.dart';
@@ -17,6 +18,7 @@ import 'package:holyquran/routing/routes/more_routes.dart';
 import 'package:holyquran/routing/routes/mushaf_routes.dart';
 import 'package:holyquran/routing/routes/search_routes.dart';
 import 'package:holyquran/routing/routes/study_routes.dart';
+import 'package:holyquran/routing/routes/tafsir_routes.dart';
 import 'package:holyquran/ui/core/app.dart';
 import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/level_switch.dart';
@@ -24,6 +26,7 @@ import 'package:holyquran/ui/core/widgets/surah_list_item.dart';
 import 'package:holyquran/ui/features/index/views/index_screen.dart';
 import 'package:holyquran/ui/features/mushaf/views/mushaf_screen.dart';
 import 'package:holyquran/ui/features/search/views/search_screen.dart';
+import 'package:holyquran/ui/features/tafsir/views/tafsir_reader_screen.dart';
 import 'package:provider/provider.dart';
 
 import '../../testing/fakes/fake_app_settings_repository.dart';
@@ -53,7 +56,8 @@ Future<GoRouter> _pump(
       indexRoutesFor(basePack),
       searchRoutesFor(basePack),
       listenRoutes,
-      studyRoutes,
+      studyRoutesFor(basePack),
+      tafsirRoutesFor(basePack),
       moreRoutes,
     ],
   );
@@ -102,6 +106,20 @@ void _expectAlert({required bool missing}) {
   }
 }
 
+/// The tafsir reader, which says why it has no text in place of an empty
+/// body.
+void _expectTafsirAlert({required bool missing}) {
+  expect(find.byType(TafsirReaderScreen), findsOneWidget);
+  expect(find.text(_l10n.tafsirReaderTitle), findsOneWidget);
+  _expectAlert(missing: missing);
+}
+
+Future<void> _openTafsirFromStudy(WidgetTester tester, GoRouter router) async {
+  await _go(tester, router, Routes.study);
+  await tester.tap(find.text(_l10n.tafsirReaderTitle));
+  await tester.pumpAndSettle();
+}
+
 void _expectNoIndex() {
   expect(find.byType(SurahListItem), findsNothing);
   expect(find.byType(LevelSwitch), findsNothing);
@@ -144,13 +162,28 @@ void main() {
       expect(find.byType(SearchScreen), findsOneWidget);
       _expectAlert(missing: true);
     });
+
+    testWidgets('the study tab leads to the tafsir reader, which shows the '
+        'missing alert', (tester) async {
+      final router = await _pump(tester, FakePackIntegrityRepository());
+      await _openTafsirFromStudy(tester, router);
+
+      expect(router.state.uri.path, Routes.studyTafsirAlert);
+      _expectTafsirAlert(missing: true);
+    });
   });
 
   group('a base pack reported missing', () {
     PackIntegrityRepository missing() =>
         FakePackIntegrityRepository({_pack.id: const IntegrityMissing()});
 
-    for (final location in [Routes.mushafIndex, Routes.mushaf, Routes.search]) {
+    for (final location in [
+      Routes.mushafIndex,
+      Routes.mushaf,
+      Routes.search,
+      Routes.studyTafsirAlert,
+      Routes.studyTafsir(QuranAddress('hafs', 1, 1)),
+    ]) {
       testWidgets('$location shows the missing alert', (tester) async {
         final router = await _pump(tester, missing());
         await _go(tester, router, location);
@@ -171,6 +204,7 @@ void main() {
       Routes.mushafIndex,
       Routes.mushaf,
       Routes.search,
+      Routes.studyTafsirAlert,
     ]) {
       testWidgets('$location keeps the failed alert', (tester) async {
         final router = await _pump(tester, failed());
@@ -180,6 +214,23 @@ void main() {
         _expectNoIndex();
       });
     }
+
+    testWidgets('the study tab leads to the tafsir reader, which shows the '
+        'failed alert', (tester) async {
+      final router = await _pump(tester, failed());
+      await _openTafsirFromStudy(tester, router);
+
+      _expectTafsirAlert(missing: false);
+    });
+
+    testWidgets('the tafsir reader at an ayah shows the failed alert', (
+      tester,
+    ) async {
+      final router = await _pump(tester, failed());
+      await _go(tester, router, Routes.studyTafsir(QuranAddress('hafs', 1, 1)));
+
+      _expectTafsirAlert(missing: false);
+    });
 
     testWidgets('the index shows the failed alert in place of its rows when '
         'the pack stops serving', (tester) async {
@@ -213,5 +264,15 @@ void main() {
     expect(find.text(_l10n.indexTitle), findsOneWidget);
     expect(find.byType(IntegrityAlert), findsNothing);
     _expectNoIndex();
+  });
+
+  testWidgets('a build that reads no base pack has no tafsir entry', (
+    tester,
+  ) async {
+    final router = await _pump(tester, null, basePack: null);
+    await _go(tester, router, Routes.study);
+
+    expect(find.text(_l10n.searchTitle), findsOneWidget);
+    expect(find.text(_l10n.tafsirReaderTitle), findsNothing);
   });
 }

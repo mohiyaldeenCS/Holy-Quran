@@ -1,7 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/route_table.dart';
 import 'package:holyquran/routing/routes.dart';
@@ -12,23 +11,22 @@ import 'package:holyquran/ui/core/widgets/button.dart';
 
 /// The study tab's hub (PRD §7.1), laid out as the More hub is: the title and
 /// a column of entries. Each entry opens its screen, and is shown only once
-/// that screen has a route. [tafsirAddress] is where the tafsir reader opens;
-/// without one the reader has no entry.
+/// that screen has a route. [tafsirLocation] is where the tafsir reader
+/// opens; without one the reader has no entry.
 class StudyScreen extends StatelessWidget {
-  const StudyScreen({required this.tafsirAddress, super.key});
+  const StudyScreen({required this.tafsirLocation, super.key});
 
-  final QuranAddress? tafsirAddress;
+  final String? tafsirLocation;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final router = GoRouter.of(context);
-    final tafsirAddress = this.tafsirAddress;
+    final tafsirLocation = this.tafsirLocation;
     final entries = [
       for (final (label, location) in [
         (l10n.searchTitle, Routes.search),
-        if (tafsirAddress != null)
-          (l10n.tafsirReaderTitle, Routes.studyTafsir(tafsirAddress)),
+        if (tafsirLocation != null) (l10n.tafsirReaderTitle, tafsirLocation),
       ])
         if (hasRoute(router, location)) (label, location),
     ];

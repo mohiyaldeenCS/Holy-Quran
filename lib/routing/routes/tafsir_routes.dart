@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:holyquran/config/base_pack.dart';
 import 'package:holyquran/data/repositories/catalogue_repository.dart';
+import 'package:holyquran/data/repositories/pack_integrity_repository.dart';
 import 'package:holyquran/data/repositories/quran_text_repository.dart';
 import 'package:holyquran/data/repositories/tafsir_repository.dart';
 import 'package:holyquran/data/services/clipboard_service.dart';
@@ -12,6 +14,7 @@ import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/routing/routes/feature_routes.dart';
 import 'package:holyquran/routing/routes/sheet_needs.dart';
+import 'package:holyquran/ui/core/base_pack_problem.dart';
 import 'package:holyquran/ui/features/tafsir/tafsir_copy_text.dart';
 import 'package:holyquran/ui/features/tafsir/view_models/tafsir_view_model.dart';
 import 'package:holyquran/ui/features/tafsir/views/tafsir_reader_screen.dart';
@@ -22,27 +25,55 @@ import 'package:provider/provider.dart';
 /// of the ayah tools (`TF-02`, which the toolbar opens once it exists,
 /// P1-23). Both read the text pack and, when the app provides them, the
 /// tafsir repository, the catalogue and the clipboard; without a tafsir
-/// repository they show the ayah and that no tafsir is downloaded.
-final tafsirRoutes = FeatureRoutes(
-  tabChildren: {
-    ShellTab.study: [GoRoute(path: RoutePaths.studyTafsir, builder: _reader)],
-  },
-  sheets: [
-    SheetRoute(
-      path: RoutePaths.tafsirSheet,
-      owner: (state) => Routes.mushafRead(Routes.addressOf(state)!),
-      builder: _sheet,
-    ),
-  ],
+/// repository they show the ayah and that no tafsir is downloaded. Without a
+/// text pack the reader shows its title and the alert of the base pack, or
+/// its title alone when the build reads none (D-180).
+final tafsirRoutes = tafsirRoutesFor(basePackInUse);
+
+/// The tafsir routes over [basePack], the pack this build reads; a parameter
+/// so a test can give it the test copy's pack, as `homeRoutesFor` does.
+FeatureRoutes tafsirRoutesFor(({String id, int version})? basePack) =>
+    FeatureRoutes(
+      tabChildren: {
+        ShellTab.study: [
+          GoRoute(
+            path: RoutePaths.studyTafsirAlert,
+            // With a text the reader opens at an ayah, from the study tab.
+            redirect: (context, state) =>
+                context.read<QuranTextRepository?>() == null
+                ? null
+                : Routes.study,
+            builder: (context, state) => _alert(context, basePack?.id),
+          ),
+          GoRoute(
+            path: RoutePaths.studyTafsir,
+            builder: (context, state) => _reader(context, state, basePack?.id),
+          ),
+        ],
+      },
+      sheets: [
+        SheetRoute(
+          path: RoutePaths.tafsirSheet,
+          owner: (state) => Routes.mushafRead(Routes.addressOf(state)!),
+          builder: _sheet,
+        ),
+      ],
+    );
+
+Widget _alert(BuildContext context, String? basePackId) => TafsirReaderScreen(
+  viewModel: null,
+  onOfferDownload: null,
+  baseProblem: basePackProblem(
+    context.read<PackIntegrityRepository?>(),
+    basePackId,
+  ),
 );
 
-Widget _reader(BuildContext context, GoRouterState state) {
+Widget _reader(BuildContext context, GoRouterState state, String? basePackId) {
   final quran = context.read<QuranTextRepository?>();
-  // Without a text pack there is nothing to read: the screen shows its title
-  // alone. The router has already sent an address that is not canonical home.
-  if (quran == null) {
-    return const TafsirReaderScreen(viewModel: null, onOfferDownload: null);
-  }
+  // Without a text pack there is nothing to read. The router has already
+  // sent an address that is not canonical home.
+  if (quran == null) return _alert(context, basePackId);
   final address = Routes.addressOf(state)!;
   // Read here: a provider's create callback may not depend on the locale.
   final l10n = AppLocalizations.of(context);
