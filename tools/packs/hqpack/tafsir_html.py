@@ -4,19 +4,23 @@ A closed tokenizer reads the paragraph's `html` (pages.jsonl, as the site
 served it) into pieces, each an exact slice of the `html` and what the passage
 text takes from it:
 
-- the tags of `ALLOWED`, exactly as written there, nested in balance: none;
-- a dark-red code span (`CODE_SPAN`) holding one table code: its approved
+- the tags of `ALLOWED`, exactly as the site writes them (tools/packs/README.md,
+  "The markup a paragraph may hold"), nested in balance, a `<div>` only
+  directly inside the paragraph: none;
+- a dark-red code span (`CODE_SPANS`) holding one table code: its approved
   phrase; holding U+FDFA, U+FDFB, U+FDFD, U+00B7 or a run of U+002E: itself;
 - `&nbsp` at either edge of the paragraph: none;
 - any other run of characters: itself.
 
-Everything else is refused: another tag, attribute or style; `<sup>` and
-`<hr>` until footnotes are built (D-189, task C); another entity, `&nbsp;`,
-`&nbsp` inside the paragraph, or a stray `<`, `>` or `&`; U+FFFD and U+FEFF; an
-unknown code; a table code outside its span or touching a letter. The pieces'
-texts are joined, every run of ASCII white space becomes one U+0020, and
-U+0020 is trimmed from the edges. Nothing else changes: no entity is decoded
-and nothing is normalised.
+Everything else is refused: another tag, attribute or style; the footnote
+paragraph, `<sup>` and `<hr>` until footnotes are built (D-189, task C);
+another entity, `&nbsp;`, `&nbsp` inside the paragraph, or a stray `<`, `>` or
+`&`; U+FFFD and U+FEFF; an unknown code; a table code outside its span or
+touching a letter (format characters, category Cf, are passed over to find
+the code's neighbours); text touching the outside of a `<div>`, whose words
+would otherwise run together. The pieces' texts are joined, every run of
+ASCII white space becomes one U+0020, and U+0020 is trimmed from the edges.
+Nothing else changes: no entity is decoded and nothing is normalised.
 
 Two proofs run on every paragraph: P1, the pieces rejoin the `html` exactly
 and each piece's text is what the rule gives its slice; P2, an independent
@@ -36,9 +40,13 @@ from dataclasses import dataclass
 from .errors import PackError, code_point
 from .honorifics import DOT, KEPT_CODES
 
-# The site's paragraph and its spans (docs/content/ZIYDIA_LIBRARY.md,
-# "Extracted data format", and the constants of tools/ziydia/ziydia_link.py).
+# The site's markup, each string exactly as pages.jsonl holds it, double
+# spaces included (the markup of the eight books, tools/packs/README.md).
 P_OPEN = '<p style="margin-top:1px;margin-bottom:1px">'
+HEADING_OPEN = (
+    '<p class="border-r-4 px-2"  style="border-radius: 0px 3px 3px 0px;font-family:Ziydia-Bold;color: #800000;">'
+)
+PARAGRAPH_OPENS = (P_OPEN, HEADING_OPEN)
 P_CLOSE = "</p>"
 SPANS = (
     '<span style="font-family:Ziydia-Bold">',  # emphasised lead-in words
@@ -47,9 +55,20 @@ SPANS = (
     '<span style="color: #be0000;">',  # the number opening an item
 )
 SPAN_CLOSE = "</span>"
-CODE_SPAN = '<span style="color: #800000;">'  # an honorific code (dark red)
-ALLOWED = (P_OPEN, P_CLOSE) + SPANS + (CODE_SPAN, SPAN_CLOSE)
+CODE_SPANS = (
+    '<span  style="color: #800000;">',  # an honorific code (dark red)
+    '<span style="color: #800000;">',  # the same, as the site writes it around U+0023
+)
+DIV_OPEN = '<div style="text-align: center;">'
+DIV_CLOSE = "</div>"
+OPENS = PARAGRAPH_OPENS + SPANS + (DIV_OPEN,)
+CLOSES = (P_CLOSE, SPAN_CLOSE, DIV_CLOSE)
+ALLOWED = OPENS + CLOSES + CODE_SPANS
 NBSP = "&nbsp"
+FOOTNOTE_PARAGRAPH = (
+    '<p style="text-indent: -20px;padding-right: 20px;font-size: 0.8em;margin-top:1px;margin-bottom:1px;'
+    'color:#464646;text-align: justify;">'
+)
 FOOTNOTE_TAGS = ("sup", "hr")
 
 _ASCII_SPACE = " \t\n\r\f\v"
@@ -83,12 +102,13 @@ def convert_paragraph(html: str, phrases: dict, where: str) -> Paragraph:
     pieces = tokenize(html, phrases, where)
     check_rejoins(html, pieces, phrases, where)
     _check_codes(pieces, phrases, where)
+    _check_divs(pieces, where)
     text = assemble(pieces, where)
     check_regex_agrees(html, phrases, text, where)
     return Paragraph(
         text=text,
         pieces=tuple(pieces),
-        replaced=Counter(p.source[len(CODE_SPAN)] for p in pieces if p.kind == "code"),
+        replaced=Counter(_code_inner(p.source) for p in pieces if p.kind == "code"),
     )
 
 
@@ -130,13 +150,17 @@ def check_rejoins(html: str, pieces, phrases: dict, where: str) -> None:
     if "".join(p.source for p in pieces) != html:
         raise PackError("%s: the pieces do not rejoin the html (P1)" % where)
     for k, piece in enumerate(pieces):
-        if piece.text != _rule(piece, phrases):
+        if not _slice_fits(piece) or piece.text != _rule(piece, phrases):
             raise PackError("%s: piece %d is not converted by the rule (P1)" % (where, k))
 
 
-_P_BODY = re.compile(re.escape(P_OPEN) + "(.*)" + re.escape(P_CLOSE), re.S)
-_CODE_RE = re.compile(re.escape(CODE_SPAN) + "([^<]*)" + re.escape(SPAN_CLOSE))
-_TAGS_RE = re.compile("|".join(re.escape(tag) for tag in SPANS + (SPAN_CLOSE,)))
+def _alternatives(tags):
+    return "(?:%s)" % "|".join(re.escape(tag) for tag in tags)
+
+
+_P_BODY = re.compile(_alternatives(PARAGRAPH_OPENS) + "(.*)" + re.escape(P_CLOSE), re.S)
+_CODE_RE = re.compile(_alternatives(CODE_SPANS) + "([^<]*)" + re.escape(SPAN_CLOSE))
+_TAGS_RE = re.compile(_alternatives(SPANS + (SPAN_CLOSE, DIV_OPEN, DIV_CLOSE)))
 _EDGES_RE = re.compile(r"\A(?:[ \t\n\r\f\v]|&nbsp)+|(?:[ \t\n\r\f\v]|&nbsp)+\Z")
 
 
@@ -157,21 +181,29 @@ def check_regex_agrees(html: str, phrases: dict, text: str, where: str) -> None:
 
 
 def _tag(html, at, open_tags, phrases, where):
-    if html.startswith(P_OPEN, at) and not open_tags:
-        open_tags.append("p")
-        return at + len(P_OPEN), Piece("open", P_OPEN, "")
+    for opening in PARAGRAPH_OPENS:
+        if not open_tags and html.startswith(opening, at):
+            open_tags.append("p")
+            return at + len(opening), Piece("open", opening, "")
     if open_tags and html.startswith(P_CLOSE, at):
         if open_tags != ["p"]:
-            raise PackError("%s: </p> at offset %d closes a <span>" % (where, at))
+            raise PackError("%s: </p> at offset %d closes a <%s>" % (where, at, open_tags[-1]))
         open_tags.pop()
         return at + len(P_CLOSE), Piece("close", P_CLOSE, "")
-    if open_tags and html.startswith(SPAN_CLOSE, at):
-        if open_tags[-1] != "span":
-            raise PackError("%s: </span> at offset %d has no <span>" % (where, at))
-        open_tags.pop()
-        return at + len(SPAN_CLOSE), Piece("close", SPAN_CLOSE, "")
-    if open_tags and html.startswith(CODE_SPAN, at):
-        return _code_span(html, at, phrases, where)
+    for closing, name in ((SPAN_CLOSE, "span"), (DIV_CLOSE, "div")):
+        if open_tags and html.startswith(closing, at):
+            if open_tags[-1] != name:
+                raise PackError("%s: </%s> at offset %d has no <%s>" % (where, name, at, name))
+            open_tags.pop()
+            return at + len(closing), Piece("close", closing, "")
+    if open_tags and html.startswith(DIV_OPEN, at):
+        if open_tags != ["p"]:
+            raise PackError("%s: the <div> at offset %d is not directly inside the paragraph" % (where, at))
+        open_tags.append("div")
+        return at + len(DIV_OPEN), Piece("open", DIV_OPEN, "")
+    for span in CODE_SPANS:
+        if open_tags and html.startswith(span, at):
+            return _code_span(html, at, span, phrases, where)
     for span in SPANS:
         if open_tags and html.startswith(span, at):
             open_tags.append("span")
@@ -179,7 +211,7 @@ def _tag(html, at, open_tags, phrases, where):
     name = _TAG_NAME.match(html, at)
     if name is None:
         raise PackError("%s: a stray < at offset %d" % (where, at))
-    if name.group(1).lower() in FOOTNOTE_TAGS:
+    if name.group(1).lower() in FOOTNOTE_TAGS or (not open_tags and html.startswith(FOOTNOTE_PARAGRAPH, at)):
         raise PackError(
             "%s: <%s> at offset %d belongs to a footnote, refused until footnotes are built (D-189, task C)"
             % (where, name.group(1).lower(), at)
@@ -187,8 +219,8 @@ def _tag(html, at, open_tags, phrases, where):
     raise PackError("%s: unknown markup <%s> at offset %d" % (where, name.group(1).lower(), at))
 
 
-def _code_span(html, at, phrases, where):
-    start = at + len(CODE_SPAN)
+def _code_span(html, at, span, phrases, where):
+    start = at + len(span)
     end = html.find(SPAN_CLOSE, start)
     if end < 0:
         raise PackError("%s: the code span at offset %d is not closed" % (where, at))
@@ -220,11 +252,34 @@ def _text_run(html, at):
     return end, Piece("text", html[at:end], html[at:end])
 
 
+def _code_inner(source):
+    for span in CODE_SPANS:
+        if source.startswith(span) and source.endswith(SPAN_CLOSE) and len(source) >= len(span) + len(SPAN_CLOSE):
+            return source[len(span) : -len(SPAN_CLOSE)]
+    return None
+
+
+def _slice_fits(piece):
+    """P1: each piece's slice is one its kind may have."""
+    if piece.kind == "open":
+        return piece.source in OPENS
+    if piece.kind == "close":
+        return piece.source in CLOSES
+    if piece.kind == "nbsp":
+        return piece.source == NBSP
+    if piece.kind in ("code", "kept"):
+        inner = _code_inner(piece.source)
+        return inner is not None and "<" not in inner
+    if piece.kind == "text":
+        return piece.source != "" and not any(c in piece.source for c in "<&>")
+    return False
+
+
 def _rule(piece, phrases):
     if piece.kind == "text":
         return piece.source
     if piece.kind in ("code", "kept"):
-        inner = piece.source[len(CODE_SPAN) : -len(SPAN_CLOSE)]
+        inner = _code_inner(piece.source)
         return phrases.get(inner, inner)
     return ""
 
@@ -237,10 +292,32 @@ def _check_codes(pieces, phrases, where):
                 if c in phrases:
                     raise PackError("%s: the code %s stands outside its span (piece %d)" % (where, code_point(c), k))
         elif piece.kind == "code":
-            before = "".join(texts[:k])[-1:]
-            after = "".join(texts[k + 1 :])[:1]
+            before = _neighbour(reversed("".join(texts[:k])))
+            after = _neighbour("".join(texts[k + 1 :]))
             for c in before + after:
                 if unicodedata.category(c)[0] in "LM":
                     raise PackError(
-                        "%s: the code %s touches a letter (piece %d)" % (where, code_point(piece.source[len(CODE_SPAN)]), k)
+                        "%s: the code %s touches a letter (piece %d)" % (where, code_point(_code_inner(piece.source)), k)
                     )
+
+
+def _neighbour(characters) -> str:
+    """The first character that is not a format character (Cf), or nothing."""
+    for c in characters:
+        if unicodedata.category(c) != "Cf":
+            return c
+    return ""
+
+
+def _check_divs(pieces, where):
+    """Text touching a <div> from outside would run into the words beyond it."""
+    texts = [p.text for p in pieces]
+    for k, piece in enumerate(pieces):
+        if piece.kind == "open" and piece.source == DIV_OPEN:
+            outside = "".join(texts[:k])[-1:]
+        elif piece.kind == "close" and piece.source == DIV_CLOSE:
+            outside = "".join(texts[k + 1 :])[:1]
+        else:
+            continue
+        if outside and outside not in _ASCII_SPACE:
+            raise PackError("%s: text touches the outside of the <div> (piece %d)" % (where, k))

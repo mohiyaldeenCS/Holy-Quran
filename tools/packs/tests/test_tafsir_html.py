@@ -10,6 +10,7 @@ from hqpack.errors import PackError
 from tests.ziydia_factory import BOLD, CODE, END, HONORIFIC, PHRASE, QUOTE, RED, SMALL, code, para
 
 PHRASES = {"\u00f7": HONORIFIC, "&": "Synthetic honorific"}
+CODE_2 = '<span  style="color: #800000;">'  # the code span with two spaces, as the site writes most of them
 
 
 def convert(html, phrases=PHRASES):
@@ -95,6 +96,68 @@ class ConversionTest(unittest.TestCase):
         self.assertEqual(convert(para("Synthetic" + code("..."))), "Synthetic...")
 
 
+class SiteMarkupTest(unittest.TestCase):
+    """The markup of the eight books, each string as pages.jsonl holds it."""
+
+    def test_the_heading_paragraph(self):
+        html = th.HEADING_OPEN + "Synthetic heading " + CODE_2 + "\u00f7" + END + "</p>"
+        self.assertEqual(convert(html), "Synthetic heading " + HONORIFIC)
+
+    def test_both_forms_of_the_code_span(self):
+        for span in th.CODE_SPANS:
+            with self.subTest(span=span):
+                paragraph = th.convert_paragraph(para("Synthetic " + span + "\u00f7" + END), PHRASES, "p")
+                self.assertEqual(paragraph.text, "Synthetic " + HONORIFIC)
+                self.assertEqual(paragraph.replaced, {"\u00f7": 1})
+        self.assertEqual(convert(para("Synthetic " + CODE_2 + "..." + END)), "Synthetic ...")
+
+    def test_a_centred_div_directly_inside_the_paragraph(self):
+        html = para("&nbsp" + th.DIV_OPEN + CODE_2 + "\u00f7" + END + " Synthetic" + th.DIV_CLOSE)
+        self.assertEqual(convert(html), HONORIFIC + " Synthetic")
+        self.assertEqual(convert(para("Synthetic " + th.DIV_OPEN + "centred" + th.DIV_CLOSE + " tail")), "Synthetic centred tail")
+
+    def test_the_regex_path_agrees_on_the_site_markup(self):
+        for html in (
+            th.HEADING_OPEN + "Synthetic " + CODE_2 + "&" + END + "</p>",
+            para("&nbsp" + th.DIV_OPEN + CODE_2 + "\u00f7" + END + th.DIV_CLOSE),
+        ):
+            with self.subTest(html=html):
+                self.assertEqual(th.regex_text(html, PHRASES), convert(html))
+
+    def test_refusals(self):
+        div = th.DIV_OPEN + "centred" + th.DIV_CLOSE
+        cases = (
+            (th.FOOTNOTE_PARAGRAPH + "Synthetic</p>", "<p> at offset 0 belongs to a footnote"),
+            (para("Synthetic" + div), "text touches the outside of the <div>"),
+            (para(div + "Synthetic"), "text touches the outside of the <div>"),
+            (para("Synthetic" + BOLD + END + div), "text touches the outside of the <div>"),
+            (para(BOLD + div + END), "the <div> at offset 82 is not directly inside the paragraph"),
+            (para(th.DIV_OPEN + th.DIV_OPEN + th.DIV_CLOSE + th.DIV_CLOSE), "is not directly inside the paragraph"),
+            (para("x" + th.DIV_CLOSE), "</div> at offset 45 has no <div>"),
+            (para(th.DIV_OPEN + BOLD + "x" + th.DIV_CLOSE + END), "</div> at offset"),
+            (para(th.DIV_OPEN + "x"), "</p> at offset 78 closes a <div>"),
+            ('<div style="text-align: center;">' + para("x") + "</div>", "unknown markup <div> at offset 0"),
+            (para('<span style="color: #800000;" >x</span>'), "unknown markup <span>"),
+        )
+        for html, expected in cases:
+            with self.subTest(expected=expected):
+                with self.assertRaises(PackError) as caught:
+                    convert(html)
+                self.assertIn(expected, str(caught.exception))
+                self.assertNotIn("Synthetic", str(caught.exception))
+
+    def test_format_characters_are_passed_over_to_find_the_neighbour(self):
+        for html in (
+            para("\u0646\u2063" + code("&")),
+            para(code("&") + "\u200f\u0646"),
+            para("Synthetic\u2063" + BOLD + "\u200e" + END + code("\u00f7")),
+        ):
+            with self.subTest(html=html):
+                with self.assertRaisesRegex(PackError, "touches a letter"):
+                    convert(html)
+        self.assertEqual(convert(para("Synthetic\u2063 " + code("&"))), "Synthetic\u2063 Synthetic honorific")
+
+
 class ProofTest(unittest.TestCase):
     HTML = para("&nbsp" + BOLD + "Synthetic:" + END + " words " + code("\u00f7") + " " + SMALL + "[2]" + END + " end")
 
@@ -150,6 +213,19 @@ class ProofTest(unittest.TestCase):
             th.check_rejoins(self.HTML, pieces, PHRASES, "p")
         with self.assertRaisesRegex(PackError, r"\(P2\)"):
             th.check_regex_agrees(self.HTML, PHRASES, th.assemble(pieces, "p"), "p")
+
+    def test_a_piece_whose_slice_is_not_one_its_kind_may_have_fails_p1(self):
+        pieces = th.tokenize(self.HTML, PHRASES, "p")
+        at = next(k for k, p in enumerate(pieces) if p.kind == "text" and p.source.strip())
+        for kind in ("open", "close", "nbsp", "kept", "unknown"):
+            with self.subTest(kind=kind):
+                changed = list(pieces)
+                changed[at] = th.Piece(kind, pieces[at].source, "" if kind != "kept" else pieces[at].source)
+                with self.assertRaisesRegex(PackError, r"piece %d is not converted by the rule \(P1\)" % at):
+                    th.check_rejoins(self.HTML, changed, PHRASES, "p")
+        empty = th.Piece("text", "", "")
+        with self.assertRaisesRegex(PackError, r"piece 0 is not converted by the rule \(P1\)"):
+            th.check_rejoins(self.HTML, [empty] + pieces, PHRASES, "p")
 
     def test_the_regex_path_agrees_on_every_synthetic_paragraph(self):
         from tests.ziydia_factory import ENTRIES

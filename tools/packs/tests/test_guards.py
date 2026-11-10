@@ -64,6 +64,12 @@ class GuardTest(unittest.TestCase):
                 elif isinstance(node, ast.Name):
                     self.assertNotIn(node.id, ("unescape", "HTMLParser"), where)
 
+    def test_the_tafsir_conversion_imports_no_html_module_at_all(self):
+        paths = sorted(ROOT.glob("hqpack/tafsir_*.py")) + [ROOT / "hqpack" / "ziydia_inputs.py", ROOT / "hqpack" / "honorifics.py"]
+        self.assertGreaterEqual(len(paths), 7)
+        for path in paths:
+            self.assertNotIn("html", set(_imports(_tree(path))), path.name)
+
     def test_no_tolerant_xml_parser(self):
         for path in PIPELINE:
             for module in _imports(_tree(path)):
