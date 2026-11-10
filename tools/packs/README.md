@@ -45,7 +45,7 @@ All under `hqpack/`. Each raises `errors.PackError` with a message as above.
 | `strict_json.py` | Strict JSON for the tafsir inputs: UTF-8 without a BOM (or ASCII), no repeated key, no NaN, objects with exactly the expected keys | `load(data, ascii_only=False)`, `loads(text)`, `fields(value, keys, where, optional=())`, `string`, `positive_int`, `date`, `sha256` |
 | `honorifics.py` | The honorific table (D-188) and its refusals | `read_honorific_table(data) -> HonorificTable(version, approved_by, approved_on, derived_from_font_sha256, phrases: {code: phrase}, sha256)` |
 | `tafsir_html.py` | A paragraph's `html` to passage text (D-185): the closed tokenizer, the conversion and proofs P1 and P2 | `convert_paragraph(html, phrases, where) -> Paragraph(text, pieces, replaced)`, `tokenize`, `assemble`, `check_rejoins`, `regex_text`, `check_regex_agrees` |
-| `ziydia_inputs.py` | The extraction's and the linker's files of one book and the reviewer's record, read strictly and tied by their hashes; proof P3 | `read_review_record(data) -> ReviewRecord`, `read_book_inputs(extraction, links, book, pages_sha256, passages_sha256, review) -> BookInputs`, `PageParagraphs(pages).take(site_page, html, where)` |
+| `ziydia_inputs.py` | The extraction's and the linker's files of one book and the reviewer's record, read strictly and tied by their hashes, with each surah's surah-level entries and their hash; proof P3 | `read_review_record(data) -> ReviewRecord`, `read_book_inputs(extraction, links, book, pages_sha256, passages_sha256, review) -> BookInputs`, `is_surah_level(entry)`, `PageParagraphs(pages).take(site_page, html, where)` |
 | `tafsir_passages.py` | The gate (D-186), ranges against the P5 counts, the surah-level passage (D-184), merging, mushaf order and numbering | `select(entries, outcomes, review, ayah_counts) -> Selection(chosen, held, never)`, `assemble(chosen, texts) -> [PassageRow]` |
 | `tafsir_config.py` | The tafsir description | `read_tafsir_config(path) -> TafsirConfig` |
 | `tafsir_build.py` | The tafsir pipeline: inputs, gate, conversion, font, database, read-back (P4), manifest, verifier, move into place | `build_tafsir_pack(config, honorifics, reviews, ayah_counts, font, out) -> TafsirBuildResult`, `TAFSIR_FONT_SHA256` |
@@ -110,7 +110,7 @@ python3 tools/packs/pack.py drift --timing <quran-align json> --audio <folder of
 | --- | --- |
 | `build` | Reads the build description, runs every build check below, and writes `<out>/<id>/<version>/` with `manifest.json` and `text.sqlite`, unsigned. An existing version directory is refused: a released pack is never rebuilt in place. A `hafs` build needs `--kfgqpc` and `--table` and runs the KFGQPC comparison after every other check; any other build refuses both. Today a `hafs` build stops there even when the comparison passes (see "The KFGQPC comparison"). `--unapproved-test-copy` builds the owner's local test copy (see "Test-copy mode") |
 | `tafsir` | Builds an unsigned tafsir pack from a Zaydi-library book, its links and the reviewer's record (see "Tafsir packs") |
-| `verify` | Runs the independent verifier of the pack's kind (`pack_kind`). A text pack: with `--font` and `--mark-table` it also checks the font pair and every mark; `--ayah-counts` is a usage error. A tafsir pack: `--ayah-counts` (the P5 file) is required and checks every range; with `--font` it checks coverage; `--mark-table` is a usage error. A manifest whose kind cannot be read, given `--ayah-counts`, is refused (65) |
+| `verify` | Runs the independent verifier of the pack's kind (`pack_kind`). A text pack: with `--font` and `--mark-table` it also checks the font pair and every mark; `--ayah-counts` is a usage error. A tafsir pack: `--ayah-counts` (the P5 file) is required and checks every range; `--font` must be the pinned tafsir font (`TAFSIR_FONT_SHA256`; any other is refused, 65) and its coverage is checked; `--mark-table` is a usage error. A manifest whose kind cannot be read, given `--ayah-counts`, is refused (65) |
 | `sign` | Verifies the pack as `verify` does, then writes `manifest.json.sig` with OpenSSL (D-080). A text pack needs `--font` and `--mark-table`, a tafsir pack `--font` and `--ayah-counts`. Refuses a pack that already has one |
 | `verify-signature` | Checks `manifest.json.sig` against a public key |
 | `compare` | Runs the KFGQPC comparison against the `hafs` profile (6,236 ayat) and writes the report; exits 65 when the report has any problem, 0 when it has none |
@@ -731,16 +731,18 @@ record, the description and the pack.
 ```
 python3 tools/packs/pack.py tafsir --config <tafsir.json> --honorifics <table.json> --reviews <book_N.json> \
   --ayah-counts <kfgqpc-hafs-counts.json> --font assets/fonts/IBMPlexSansArabic-Regular.ttf \
-  --out <folder outside every Git tree> [--report <held.json outside every Git tree>]
+  --out <folder outside every Git tree> [--report <new held.json, in an existing folder outside every Git tree>]
 ```
 
 Exit codes: `0` built; `64` usage; `65` any refusal (a hash mismatch, a missing or
 unapproved table or record, unknown markup or code, U+FFFD or U+FEFF, a code point
 outside the font, a range outside its surah, no passage left, an output inside a Git
-tree or an existing version, any verifier problem); `70` anything else. The command
+tree or an existing version, a `--report` inside a Git tree, that exists already or
+whose folder does not exist, any verifier problem); `70` anything else. The command
 prints paths, counts, hashes, passage and entry numbers, site pages and `U+XXXX`,
 never a text. `verify` and `sign` then take the pack with `--ayah-counts` and the
-font, as for any tafsir pack.
+font, as for any tafsir pack; for a tafsir pack they refuse (65) a `--font` whose
+SHA-256 is not `TAFSIR_FONT_SHA256`.
 
 ### Inputs
 
@@ -748,7 +750,7 @@ font, as for any tafsir pack.
 | --- | --- | --- |
 | `--config` | The description: `id`, `version`, `changelog`, `riwaya` (only `hafs`, the riwaya of the only P5 counts), `book`, `extraction` and `links` (folders holding `book_<N>/`, absolute or relative to the description), `pages_sha256`, `passages_sha256`, `source` (`name`, `publisher`, `fetched_on`, `trust_grade`, `licence` with `text`, `permission_ref`, `allows_export`) and `reviews` (copied to the manifest first) | `tafsir_config.py` |
 | `--honorifics` | The approved honorific table (D-188): `{version, approved_by, approved_on, derived_from_font_sha256, codes: [{code: "U+00F7", phrase}]}` | `honorifics.py` |
-| `--reviews` | The reviewer's record of the book (D-186), ASCII JSON with no text: `{book, passages_sha256, compare_sha256, sample: {reviewer, date, sample_sha256}, cleared: [{n, reviewer, date}], excluded: [{n, reviewer, date}]}` | `ziydia_inputs.py` |
+| `--reviews` | The reviewer's record of the book (D-186), ASCII JSON with no text; every key is required (see "The review record") | `ziydia_inputs.py` |
 | `--ayah-counts` | The P5 counts (`pack.py kfgqpc-counts`) | `ayah_counts.py` |
 | `--font` | The tafsir font, pinned by its SHA-256 (`tafsir_build.TAFSIR_FONT_SHA256`, the hash in `design/README.md`); any other file is refused | `font.py` |
 
@@ -768,7 +770,9 @@ counts, the table and the record, and only then the book; each link below must h
 - `sha256(compare.json)` = the record's `compare_sha256`;
   `sha256(sample.html)` = the record's `sample.sample_sha256`.
 - `state.json` says `"done": true`; `report.json`'s `profile` is the linker's
-  profile of that book (one of its six); every file names the same book.
+  profile of that book (one of its six), and its `entry_kinds` is exactly the list
+  of kinds the builder knows (`ziydia_inputs.ENTRY_KINDS`), so output of a linker
+  older than the kind `above_the_rule` is refused; every file names the same book.
 - `meta.json`: `id`, `url` `https://ziydia.com/book/<id>`, `title`, `author`,
   `date_added` and the `card`, whose labels are only the five of D-187 (book,
   author, publisher, edition, page count), none repeated; any other label, an
@@ -777,17 +781,46 @@ counts, the table and the record, and only then the book; each link below must h
   is not empty, has no space at its edges and holds no U+000A, U+FEFF or U+FFFD.
 - `compare.json`'s `outcomes` hold exactly the entries of kind `passage` (Task A).
 - The record's `cleared` and `excluded` name entries that exist and could ship.
+- Each `cleared_surah_level` item names a surah that has surah-level entries, and its
+  `entries_sha256` is their hash (below).
 
 The builder reads the linker's files; it does not import `ziydia_link.py`. The few
 facts it needs of the linker (its six profiles, the entry kinds and the outcome
 names) are copied into `ziydia_inputs.py` with their source.
+
+### The review record
+
+```
+{
+  "book": 183,
+  "passages_sha256": "<sha256 of passages.jsonl>",
+  "compare_sha256": "<sha256 of compare.json>",
+  "sample": {"reviewer": "...", "date": "YYYY-MM-DD", "sample_sha256": "<sha256 of sample.html>"},
+  "cleared": [{"n": 12, "reviewer": "...", "date": "YYYY-MM-DD"}],
+  "excluded": [{"n": 40, "reviewer": "...", "date": "YYYY-MM-DD"}],
+  "cleared_surah_level": [{"surah": 2, "entries_sha256": "<hash>", "reviewer": "...", "date": "YYYY-MM-DD"}]
+}
+```
+
+ASCII only, no text, every key present (an empty list where nothing is marked), no
+other key. `cleared` and `excluded` name single entries by `n`.
+`cleared_surah_level` clears all the surah-level entries of one surah together: the
+entries of kind `unlinked` that name that surah. `entries_sha256` is the SHA-256 of
+their lines of `passages.jsonl`, bytes as written, each with its line break, in book
+order. The `--report` of a build lists, for every surah that has such entries, their
+`n` and this hash (`surah_level`), so the reviewer reads the entries, then copies the
+hash. A hash that does not match stops the build: any change to those lines voids the
+clearance (and any change to `passages.jsonl` voids the whole record through
+`passages_sha256`). A surah named twice, a surah with no surah-level entry, a
+malformed hash, name or date is refused.
 
 ### The gate, the ranges and the passages (D-186, D-184)
 
 | Entry | Ships when |
 | --- | --- |
 | kind `passage` | not excluded, and cleared, or not flagged with outcome `same` or `same_but_for_spelling`. Otherwise held, with the reason `excluded`, `flagged` or the outcome |
-| kind `unlinked` naming a surah | not excluded, and not flagged or cleared: the surah's surah-level text |
+| kind `unlinked` naming a surah (D-184) | only when the record clears it, and it is not excluded: by its own `cleared` mark, or, when it is not flagged, by its surah's `cleared_surah_level` item. A flagged one needs its own mark. Otherwise held, with the reason `excluded`, `flagged` or `not_cleared`. It becomes the surah's surah-level text |
+| kind `above_the_rule` (book 514) | never, cleared or not: a paragraph of the printed Quran block above the rule of dashes that is not a quotation (`ziydia_link.py` `take_text` and `release_held`). The record may not name it |
 | any other kind | never; counted by kind in the report |
 
 A shipped entry's range is the union of its `refs`. A range below ayah 1, past its
@@ -799,32 +832,79 @@ sorted into mushaf order and numbered from 1. A passage's text is its paragraphs
 texts joined by U+000A, the empty ones left out and counted. No passage left stops
 the build.
 
-`--report` writes the held entries (`n`, first site page, reason), the counts and the
-kinds that never ship, as ASCII JSON.
+`--report` writes the held entries (`n`, first site page, reason), the counts, the
+kinds that never ship and, per surah with surah-level entries, their `n`, their
+`entries_sha256` and whether the record clears them together, as ASCII JSON. It is a
+new file: an existing one is refused, and its folder must exist, both before the
+build starts.
+
+#### Why book 514 has its own kind
+
+Book 514 prints each surah's Quran text above a rule of dashes and the commentary
+below it. A paragraph above the rule that is not a quotation used to be written as
+kind `unlinked` with its surah, so it looked like surah-level commentary. The linker
+now writes it as `above_the_rule` and notes it
+(`paragraph_above_the_rule_is_not_a_quotation`); the builder never ships that kind
+and refuses a `report.json` whose `entry_kinds` lacks it. Book 514's commentary that
+opens a surah below the rule stays `unlinked` and is gated like any other
+surah-level entry.
 
 ### The conversion (D-185)
 
 `tafsir_html.py` reads each shipped paragraph's `html` with a closed tokenizer. The
-allow-list is exact strings:
+allow-list is exact strings, given in "The markup a paragraph may hold":
 
 | Markup | Becomes |
 | --- | --- |
-| `<p style="margin-top:1px;margin-bottom:1px">` and `</p>`, once, around the whole paragraph | nothing |
-| `<span style="font-family:Ziydia-Bold">`, `<span style="color: #00AA00;font-family: Ziydia-Q;">`, `<span style="font-size: 0.8em;">`, `<span style="color: #be0000;">`, and `</span>`, nested in balance | nothing; their content is kept |
-| `<span style="color: #800000;">` holding one table code | the code's approved phrase, unchanged |
+| a paragraph opening (the plain or the heading paragraph) and `</p>`, once, around the whole paragraph | nothing |
+| the four plain spans and `</span>`, nested in balance | nothing; their content is kept |
+| `<div style="text-align: center;">` and `</div>`, directly inside the paragraph, its spans inside it | nothing; its content is kept. Text may not touch it from outside, or two words would run together |
+| either form of the dark-red code span holding one table code | the code's approved phrase, unchanged |
 | the same span holding U+FDFA, U+FDFB, U+FDFD, U+00B7 or a run of U+002E | its content |
 | `&nbsp` at either edge of the paragraph | nothing |
 | any other character | itself; ASCII white-space runs then become one U+0020 and the edges are trimmed |
 
 Refused, naming the offset, the tag name or the code point: any other tag, attribute
-or style (the surah heading's paragraph among them, which never ships); `<sup>` and
-`<hr>`, until footnotes are built (D-189, task C); any entity but `&nbsp`, and
-`&nbsp;`; `&nbsp` inside the paragraph; a stray `<`, `>` or `&`; U+FFFD and U+FEFF;
-a code the table lacks; a table code outside its span, or touching a letter or mark.
-No `html` module, no entity decoding, no normalisation (a guard test forbids
-`html.unescape` and `html.parser` in `hqpack`). Every code point of the book and the
-passages must then be in the tafsir font, except U+2009 and U+2063, and U+000A in a
-passage.
+or style, or an allowed tag written otherwise (one space more or less); the footnote
+paragraph, `<sup>` and `<hr>`, until footnotes are built (D-189, task C); any entity
+but `&nbsp`, and `&nbsp;`; `&nbsp` inside the paragraph; a stray `<`, `>` or `&`;
+U+FFFD and U+FEFF; a code the table lacks; a table code outside its span, or touching
+a letter or mark (format characters, category Cf such as U+2063 or U+200F, are passed
+over to find the code's neighbours). No `html` module at all in `tafsir_*.py`,
+`ziydia_inputs.py` and `honorifics.py`, no entity decoding, no normalisation (guard
+tests forbid any `html` import there, and `html.unescape` and `html.parser` in all of
+`hqpack`). Every code point of the book and the passages must then be in the tafsir
+font, except U+2009 and U+2063, and U+000A in a passage.
+
+#### The markup a paragraph may hold
+
+Counted over the `html` of books 165, 183, 276, 440, 471, 473, 514 and 737, every tag
+exactly as `pages.jsonl` holds it (counts and markup only; no text). The lead's
+inventory (`markup_inventory_8books.txt`) collapsed white space inside tags; the
+strings here keep it, since the tokenizer compares exact strings.
+
+| Count | Markup, exactly | Books | Here |
+| --- | --- | --- | --- |
+| 86340 | `&nbsp` (inventory count) | all eight | at the paragraph's edges |
+| 49605 | `<span style="color: #00AA00;font-family: Ziydia-Q;">` | all eight | allowed (quotation) |
+| 43170 | `<p style="margin-top:1px;margin-bottom:1px">` | all eight | allowed (paragraph) |
+| 12349 | `<span style="font-family:Ziydia-Bold">` | all eight | allowed |
+| 10987 | `<span style="color: #be0000;">` | 165, 276, 440, 471, 473, 514, 737 | allowed |
+| 9762 | `<span  style="color: #800000;">` (two spaces) | all eight | allowed (code span) |
+| 8177 | `<span style="font-size: 0.8em;">` | 165, 183, 276, 440, 471, 473, 514 | allowed |
+| 2573 | `<span style="color: #800000;">` (one space; it holds U+0023 only) | all eight | allowed (code span) |
+| 1881 | `<p style="text-indent: -20px;padding-right: 20px;font-size: 0.8em;margin-top:1px;margin-bottom:1px;color:#464646;text-align: justify;">` | 165, 440, 473, 514 | refused (footnote paragraph, task C) |
+| 1227 | `<sup style="color: #800000;">` and `</sup>` | 165, 440, 473, 514 | refused (footnote, task C) |
+| 1049 | `<p class="border-r-4 px-2"  style="border-radius: 0px 3px 3px 0px;font-family:Ziydia-Bold;color: #800000;">` (two spaces) | all eight | allowed (heading paragraph) |
+| 428 | `<hr style="margin-top: 12px;margin-bottom: 12px;border: 0;height: 1px;background-image: -webkit-linear-gradient(left, transparent, rgba(0, 0, 0, 0.2), transparent);">` | 165, 440, 473, 514 | refused (footnote line, task C) |
+| 136 | `<div style="text-align: center;">` and `</div>` | all eight | allowed, directly inside the paragraph |
+
+Closing tags: `</span>` 93453, `</p>` 46100. In all 136 cases the `<div>` follows
+`&nbsp` inside a plain paragraph, holds one code span, and its `</div>` is followed by
+`</p>`. The one-character code spans hold U+0023 (one-space form) and, in the
+two-space form, U+0024, U+0026, U+0040, U+005E, U+007C, U+007E, U+00A4, U+00A5,
+U+00A6, U+00AA, U+00AE, U+00B7, U+00BF, U+00C0, U+00F7, U+00F8, U+FDFA, U+FDFB and
+U+FDFD; the longer ones hold runs of U+002E only.
 
 Four proofs:
 
@@ -843,18 +923,21 @@ and P2, and that an assembly that drops one fails P2.
 
 Refused: `approved_by` or `approved_on` missing, null or empty; a date that is not a
 calendar date; an unknown key; a code that is not one character written `U+XXXX`, a
-surrogate, a control, white space, `<`, `>`, U+002E or a kept code (U+FDFA, U+FDFB,
-U+FDFD, U+00B7), or a code that repeats; a phrase that is empty, has white space at
-its edges, or holds `<`, `>`, `&`, a control or a code of the table. U+0026 may be a
-code: the site writes one honorific so.
+surrogate, a control, white space, `<`, `>`, U+002E, a kept code (U+FDFA, U+FDFB,
+U+FDFD, U+00B7) or a combining mark (category M), or a code that repeats; a phrase
+that is empty, has white space at its edges, holds any ASCII white space other than
+single U+0020 characters (the conversion collapses white-space runs, so such a
+phrase would not be stored as approved), or holds `<`, `>`, `&`, a control or a code
+of the table. U+0026 may be a code: the site writes one honorific so. A letter
+(category L) may be a code too: the site's codes include U+00AA, U+00C0 and U+00F8.
 
 ### The manifest
 
 Format 2, kind `tafsir`, riwaya `hafs`; one `tafsir` source as above, `options` null
 and `licence.notice` null; `reviews` are the description's, then one entry each for
 the honorific table (its version and SHA-256), the linking sample (the SHA-256 of
-`sample.html` and `passages.jsonl`) and, per reviewer and date, the clearances and
-exclusions of the record (its SHA-256 and counts).
+`sample.html` and `passages.jsonl`) and, per reviewer and date, the clearances,
+exclusions and surahs cleared together of the record (its SHA-256 and counts).
 
 ### Tests
 
@@ -866,8 +949,9 @@ the conversion, the table, the passages, the inputs and the pack.
 
 ### Pending human checks
 
-- The religious reviewer's sample per book and the clearing of flagged links; his
-  agreement with D-082 as gated here and with the merge rule.
+- The religious reviewer's sample per book, the clearing of flagged links and of
+  every surah-level entry; his agreement with D-082 as gated here and with the merge
+  rule.
 - Approval of the honorific table with its drawn images.
 - The integrity suite on each real pack, the owner's look at a book on his phone, and
   checks against a printed copy.
@@ -897,11 +981,8 @@ be replaced. Another kind of signer, such as a hardware token, would be another
 
 - Footnotes of books 473 and 440 (D-189, task C): until then `<sup>` and `<hr>` are
   refused, so those books do not build.
-- The allow-list of tags is the exact markup the repository documents
-  (`docs/content/ZIYDIA_LIBRARY.md` and `ziydia_link.py`). The plan counts about eleven
-  style or class values in the real books; any other the books use (a `div`, a
-  heading paragraph inside a shipped passage) stops the build until it is listed with
-  its source.
+- The allow-list of tags is the markup of the eight books listed above. A book with
+  other markup stops the build until that markup is listed with its count.
 - Recording the KFGQPC file and the table in the manifest. Format 1 has no place for
   them, so a `hafs` build stops after a passing comparison (D-175). Until the lead
   decides, no approved `hafs` pack is built; only the unapproved test copy (D-165,
