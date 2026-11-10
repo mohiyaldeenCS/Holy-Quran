@@ -6,8 +6,8 @@ text takes from it:
 
 - the tags of `ALLOWED`, exactly as the site writes them (tools/packs/README.md,
   "The markup a paragraph may hold"), nested in balance, a `<div>` only
-  where the books put it (`&nbsp`, the `<div>` holding one code span,
-  `</p>`): none;
+  where the books put it (`&nbsp`, the `<div>` holding one code span or one
+  code span and U+003A, `</p>`): none;
 - a dark-red code span (`CODE_SPANS`) holding one table code: its approved
   phrase; holding U+FDFA, U+FDFB, U+FDFD, U+00B7 or a run of U+002E: itself;
 - a footnote mark, `<sup style="color: #800000;">` holding `(` U+2063 N `)`
@@ -347,17 +347,22 @@ def _neighbour(characters) -> str:
 
 def _check_divs(pieces, where):
     """A <div> only where the eight books put it: in a plain paragraph, after
-    `&nbsp`, holding one code span, and followed by `</p>`. Anywhere else its
-    words could run into the words around it."""
+    `&nbsp`, holding one code span, or one code span and U+003A (book 473,
+    D-194), and followed by `</p>`. Anywhere else its words could run into the
+    words around it."""
     for k, piece in enumerate(pieces):
         if piece.kind == "open" and piece.source == DIV_OPEN and not _div_in_place(pieces, k):
             raise PackError(
-                "%s: the <div> (piece %d) is not &nbsp, then a <div> holding one code span, then </p>" % (where, k)
+                "%s: the <div> (piece %d) is not &nbsp, then a <div> holding one code span (and U+003A), then </p>"
+                % (where, k)
             )
 
 
 def _div_in_place(pieces, k):
-    if pieces[0].source != P_OPEN or k + 4 != len(pieces):
-        return False
-    before, inner, close, end = pieces[k - 1], pieces[k + 1], pieces[k + 2], pieces[k + 3]
-    return before.kind == "nbsp" and inner.kind in ("code", "kept") and close.source == DIV_CLOSE and end.source == P_CLOSE
+    inside = [p.kind if p.kind in ("code", "kept") else p.source for p in pieces[k + 1 : -2]]
+    return (
+        pieces[0].source == P_OPEN
+        and pieces[k - 1].kind == "nbsp"
+        and inside in (["code"], ["kept"], ["code", ":"], ["kept", ":"])
+        and [p.source for p in pieces[-2:]] == [DIV_CLOSE, P_CLOSE]
+    )

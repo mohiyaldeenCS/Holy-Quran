@@ -45,7 +45,7 @@ All under `hqpack/`. Each raises `errors.PackError` with a message as above.
 | `strict_json.py` | Strict JSON for the tafsir inputs: UTF-8 without a BOM (or ASCII), no repeated key, no NaN, objects with exactly the expected keys | `load(data, ascii_only=False)`, `loads(text)`, `fields(value, keys, where, optional=())`, `string`, `positive_int`, `date`, `sha256` |
 | `honorifics.py` | The honorific table (D-188) and its refusals | `read_honorific_table(data) -> HonorificTable(version, approved_by, approved_on, derived_from_font_sha256, phrases: {code: phrase}, sha256)` |
 | `tafsir_html.py` | A paragraph's `html` to passage text (D-185): the closed tokenizer, the conversion and proofs P1 and P2; footnote marks and note paragraphs (D-189) | `convert_paragraph(html, phrases, where) -> Paragraph(text, pieces, replaced, note, marks)`, `tokenize`, `assemble`, `check_rejoins`, `regex_text`, `check_regex_agrees`, `NOTE_OPEN`, `SEPARATOR` |
-| `tafsir_footnotes.py` | Footnotes (D-189): a page's marks and notes, their pairing, the cases that stop the build, and P2 over a whole passage | `read_page(html, site_page) -> PageNotes`, `notes_of_marks(shipped_marks, pages) -> (notes, [Case])`, `repeated_in_passages(groups, shipped_marks)`, `refuse(book, cases)`, `regex_passage_text(paragraphs, pages, phrases)` |
+| `tafsir_footnotes.py` | Footnotes (D-189, D-194): a page's marks and notes, their pairing by (site page, N), the cases that stop the build, and P2 over a whole passage | `read_page(html, site_page) -> PageNotes`, `notes_of_marks(shipped_marks, pages) -> (notes, [Case])`, `refuse(book, cases)`, `regex_passage_text(paragraphs, pages, phrases)` |
 | `ziydia_inputs.py` | The extraction's and the linker's files of one book and the reviewer's record, read strictly and tied by their hashes, with each surah's surah-level entries and their hash; proof P3 | `read_review_record(data) -> ReviewRecord`, `read_book_inputs(extraction, links, book, pages_sha256, passages_sha256, review) -> BookInputs`, `is_surah_level(entry)`, `PageParagraphs(pages).take(site_page, html, where)` |
 | `tafsir_passages.py` | The gate (D-186), ranges against the P5 counts, the surah-level passage (D-184), merging, mushaf order and numbering | `select(entries, outcomes, review, ayah_counts) -> Selection(chosen, held, never)`, `group(chosen)`, `assemble(chosen, texts, marks=None, notes=None) -> [PassageRow]` |
 | `tafsir_config.py` | The tafsir description | `read_tafsir_config(path) -> TafsirConfig` |
@@ -860,7 +860,7 @@ allow-list is exact strings, given in "The markup a paragraph may hold":
 | --- | --- |
 | a paragraph opening (the plain, the heading or the note paragraph) and `</p>`, once, around the whole paragraph | nothing |
 | the four plain spans and `</span>`, nested in balance | nothing; their content is kept |
-| `<div style="text-align: center;">` and `</div>`, only where the books put it: in a plain paragraph, `&nbsp`, then the `<div>` holding exactly one code span, then `</p>` | nothing; the code span inside it converts as below |
+| `<div style="text-align: center;">` and `</div>`, only where the books put it: in a plain paragraph, `&nbsp`, then the `<div>` holding exactly one code span, or exactly one code span and U+003A (D-194), then `</p>` | nothing; the code span inside it converts as below, and U+003A stays |
 | either form of the dark-red code span holding one table code | the code's approved phrase, unchanged |
 | the same span holding U+FDFA, U+FDFB, U+FDFD, U+00B7 or a run of U+002E | its content |
 | a footnote mark: `<sup style="color: #800000;">` holding `(` U+2063 N `)`, N in Arabic-Indic digits, then `</sup>`, anywhere in a plain or heading paragraph | its content, as printed (D-189) |
@@ -901,13 +901,13 @@ strings here keep it, since the tokenizer compares exact strings.
 | 1227 | `<sup style="color: #800000;">` and `</sup>` | 165, 440, 473, 514 | allowed (footnote mark, D-189) |
 | 1049 | `<p class="border-r-4 px-2"  style="border-radius: 0px 3px 3px 0px;font-family:Ziydia-Bold;color: #800000;">` (two spaces) | all eight | allowed (heading paragraph) |
 | 428 | `<hr style="margin-top: 12px;margin-bottom: 12px;border: 0;height: 1px;background-image: -webkit-linear-gradient(left, transparent, rgba(0, 0, 0, 0.2), transparent);">` | 165, 440, 473, 514 | only as the separator: the note paragraph opening, this, `</p>`, nothing else (D-189) |
-| 136 | `<div style="text-align: center;">` and `</div>` | all eight | allowed only as `&nbsp`, the `<div>` holding one code span, `</p>` |
+| 136 | `<div style="text-align: center;">` and `</div>` | all eight | allowed only as `&nbsp`, the `<div>` holding one code span (or one code span and U+003A), `</p>` |
 
 Closing tags: `</span>` 93453, `</p>` 46100. In all 136 cases the `<div>` follows
 `&nbsp&nbsp` at the start of a plain paragraph and its `</div>` is followed by `</p>`.
 In 129 the `<div>` holds one code span (U+FDFD) and nothing else; in 7, all in book
-473, U+003A follows the code span inside the `<div>`, and those 7 paragraphs are
-refused. The one-character code spans hold U+0023 (one-space form) and, in the
+473, U+003A follows the code span inside the `<div>`. Both exact forms are allowed
+(D-194); nothing looser is. The one-character code spans hold U+0023 (one-space form) and, in the
 two-space form, U+0024, U+0026, U+0040, U+005E, U+007C, U+007E, U+00A4, U+00A5,
 U+00A6, U+00AA, U+00AE, U+00B7, U+00BF, U+00C0, U+00F7, U+00F8, U+FDFA, U+FDFB and
 U+FDFD; the longer ones hold runs of U+002E only.
@@ -939,7 +939,9 @@ Its note is the note paragraph on the same page whose text opens with `(N)` (aft
 it up to the next numbered one. After a passage's body (all its merged entries) come
 the notes of its marks, in the marks' order, each note paragraph joined by U+000A like
 any other. Nothing else is added: no label, no separator text. N is compared as the
-printed digits.
+printed digits. The books number their footnotes afresh on every page, so marks pair
+with notes by (site page, N), never by N alone: a passage whose marks repeat a number
+from different pages ships each mark's own page's note, in the marks' order (D-194).
 
 Marks and notes pair one to one per page. On every page where a shipped passage has a
 mark, and on the page after one whose last note it uses, each of these stops the build
@@ -948,8 +950,7 @@ mark, and on the page after one whose last note it uses, each of these stops the
 | Case | What |
 | --- | --- |
 | `unnumbered_note_opens_page` | the first note paragraph of the page has no number (it may continue the previous page's last note) |
-| `number_repeated_on_page` | N twice among the page's marks or among its notes |
-| `number_repeated_in_passage` | N twice among one passage's marks (from different pages, or merged entries); the entries carrying that N are named |
+| `number_repeated_on_page` | N twice among the page's marks or among its notes, whether in one passage or in two |
 | `mark_without_note`, `note_without_mark` | a mark with no note of its N on the page, or a note with no mark |
 | `separator_not_empty` | a paragraph holding `<hr>` that is not exactly the separator |
 | `page_layout` | a note paragraph above the line, anything but a note below it, a second line, a mark in a note, or a passage carrying a note paragraph or the separator as its own paragraph |

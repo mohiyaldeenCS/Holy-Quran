@@ -36,7 +36,7 @@ from .honorifics import read_honorific_table
 from .manifest import build_tafsir_manifest, encode_manifest, source_entry
 from .tafsir_config import read_tafsir_config
 from .tafsir_database import SURAH_LEVEL, read_tafsir_texts, write_tafsir_database
-from .tafsir_footnotes import Case, notes_of_marks, refuse, regex_passage_text, repeated_in_passages
+from .tafsir_footnotes import Case, notes_of_marks, refuse, regex_passage_text
 from .tafsir_html import NOTE_OPEN, SEPARATOR, convert_paragraph
 from .tafsir_passages import JOIN, assemble, group, select
 from .verify_tafsir import verify_tafsir_pack
@@ -87,7 +87,7 @@ def build_tafsir_pack(config_path, honorifics_path, reviews_path, ayah_counts_pa
     on_pages = PageParagraphs(inputs.pages)
     texts, marks, empty, replaced, cases = _convert(selection.chosen, on_pages, table.phrases)
     notes_html, page_cases = notes_of_marks(marks, inputs.pages)
-    refuse(config.book, cases + page_cases + repeated_in_passages(group(selection.chosen), marks))
+    refuse(config.book, cases + page_cases)
     notes, note_paragraphs, note_empty = _convert_notes(notes_html, on_pages, table.phrases, replaced)
     rows = assemble(selection.chosen, texts, marks, notes)
     _check_passages_by_regex(selection.chosen, rows, inputs.pages, table.phrases)

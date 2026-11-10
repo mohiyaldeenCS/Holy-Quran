@@ -9,11 +9,13 @@ paragraphs that follow it up to the next numbered one. After a passage's body
 the notes of its marks follow in the marks' order, each paragraph joined by
 U+000A like any other. Nothing else is added.
 
-Marks and notes pair one to one per page. Checked on every page where a
-shipped passage has a mark, and on the page after one whose last note it
-uses, these stop the build (`Case`): an unnumbered note paragraph opening a
-page (it may continue the previous page's last note); a number repeated among
-a page's marks or notes, or among a passage's marks; a mark without its note
+Marks and notes pair one to one per page, by (site page, N): the books
+number their footnotes afresh on every page, so a number that comes again in
+one passage from another page is another note, appended in its mark's place
+(D-194). Checked on every page where a shipped passage has a mark, and on the
+page after one whose last note it uses, these stop the build (`Case`): an
+unnumbered note paragraph opening a page (it may continue the previous page's
+last note); a number repeated among a page's marks or notes; a mark without its note
 or a note without its mark; a footnote-line paragraph that is not the empty
 separator; and a page laid out otherwise (a note above the line, something
 else below it, a second line, a note or the line carried as a passage's own
@@ -39,7 +41,6 @@ from .ziydia_inputs import page_paragraphs
 KINDS = (
     "unnumbered_note_opens_page",
     "number_repeated_on_page",
-    "number_repeated_in_passage",
     "mark_without_note",
     "note_without_mark",
     "separator_not_empty",
@@ -132,21 +133,6 @@ def notes_of_marks(shipped_marks: dict, pages: dict):
                     owners = tuple(sorted(shipped[page.order[-1]]))
                     cases.append(Case("unnumbered_note_opens_page", after, "", owners))
     return found, cases
-
-
-def repeated_in_passages(groups, shipped_marks: dict) -> list:
-    """A number repeated among the marks of one passage (its merged entries),
-    naming the entries of the passage that carry that number."""
-    cases = []
-    for group in groups:
-        seen = set()
-        for entry in group:
-            for site_page, number in shipped_marks.get(entry.n, ()):
-                if number in seen:
-                    carriers = tuple(e.n for e in group if any(m == number for _, m in shipped_marks.get(e.n, ())))
-                    cases.append(Case("number_repeated_in_passage", site_page, number, carriers))
-                seen.add(number)
-    return cases
 
 
 def refuse(book: int, cases) -> None:

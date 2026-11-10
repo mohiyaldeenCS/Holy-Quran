@@ -131,6 +131,10 @@ class SiteMarkupTest(unittest.TestCase):
     def test_a_centred_div_where_the_books_put_it(self):
         self.assertEqual(convert(para("&nbsp&nbsp" + th.DIV_OPEN + CODE_2 + "\ufdfd" + END + th.DIV_CLOSE)), "\ufdfd")
         self.assertEqual(convert(para("&nbsp" + th.DIV_OPEN + CODE_2 + "\u00f7" + END + th.DIV_CLOSE)), HONORIFIC)
+        # Book 473's second form (D-194): the code span, then U+003A.
+        colon = para("&nbsp&nbsp" + th.DIV_OPEN + CODE_2 + "\ufdfd" + END + ":" + th.DIV_CLOSE)
+        self.assertEqual(convert(colon), "\ufdfd:")
+        self.assertEqual(th.regex_text(colon, PHRASES), "\ufdfd:")
 
     def test_the_regex_path_agrees_on_the_site_markup(self):
         for html in (
@@ -143,7 +147,7 @@ class SiteMarkupTest(unittest.TestCase):
     def test_refusals(self):
         div = th.DIV_OPEN + "centred" + th.DIV_CLOSE
         centred = th.DIV_OPEN + CODE_2 + "\ufdfd" + END + th.DIV_CLOSE
-        misplaced = "is not &nbsp, then a <div> holding one code span, then </p>"
+        misplaced = "is not &nbsp, then a <div> holding one code span (and U+003A), then </p>"
         cases = (
             (para("Synthetic" + div), misplaced),
             (para("&nbsp" + div), misplaced),
@@ -152,7 +156,14 @@ class SiteMarkupTest(unittest.TestCase):
             (para("&nbsp" + centred + " "), misplaced),
             (para("&nbsp" + centred + "Synthetic"), misplaced),
             (para("&nbsp" + centred + "&nbsp"), misplaced),
-            (para("&nbsp" + th.DIV_OPEN + CODE_2 + "\ufdfd" + END + ":" + th.DIV_CLOSE), misplaced),
+            (para("&nbsp" + centred + ":"), misplaced),
+            (para("&nbsp" + th.DIV_OPEN + CODE_2 + "\ufdfd" + END + ": " + th.DIV_CLOSE), misplaced),
+            (para("&nbsp" + th.DIV_OPEN + CODE_2 + "\ufdfd" + END + "::" + th.DIV_CLOSE), misplaced),
+            (para("&nbsp" + th.DIV_OPEN + CODE_2 + "\ufdfd" + END + ":x" + th.DIV_CLOSE), misplaced),
+            (para("&nbsp" + th.DIV_OPEN + ":" + CODE_2 + "\ufdfd" + END + th.DIV_CLOSE), misplaced),
+            (para("&nbsp" + th.DIV_OPEN + ":" + th.DIV_CLOSE), misplaced),
+            (para("&nbsp" + th.DIV_OPEN + CODE_2 + "\ufdfd" + END + ":" + BOLD + END + th.DIV_CLOSE), misplaced),
+            (para("Synthetic" + th.DIV_OPEN + CODE_2 + "\ufdfd" + END + ":" + th.DIV_CLOSE), misplaced),
             (para("&nbsp" + th.DIV_OPEN + " " + CODE_2 + "\ufdfd" + END + th.DIV_CLOSE), misplaced),
             (para("&nbsp" + th.DIV_OPEN + CODE_2 + "\ufdfd" + END + CODE_2 + "\ufdfd" + END + th.DIV_CLOSE), misplaced),
             (para("&nbsp" + th.DIV_OPEN + BOLD + "x" + END + th.DIV_CLOSE), misplaced),

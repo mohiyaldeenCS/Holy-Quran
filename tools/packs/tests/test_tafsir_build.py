@@ -268,11 +268,33 @@ class FootnoteBuildTest(_Case):
         self.book.write()
         self._refused("1 footnote cases stop the build", "site page 11 unnumbered_note_opens_page (entries 3)")
 
-    def test_a_number_repeated_inside_one_passage(self):
+    def test_a_number_repeated_in_a_passage_from_another_page_takes_its_pages_note(self):
         self.book.entries[3] = dict(self.book.entries[3], paragraphs=[(11, zf.para("Synthetic second part" + zf.mark(1)))])
-        self.book.extra_paragraphs[11][1] = zf.note(1, "Synthetic note")
+        self.book.extra_paragraphs[11][1] = zf.note(1, "Synthetic note eleven")
         self.book.write()
-        self._refused("site page 11 N 1 number_repeated_in_passage (entries 3, 4)")
+        code, out, _ = self.tafsir()
+        self.assertEqual(code, 0, out)
+        self.assertIn("footnotes appended 3, note paragraphs 4", out)
+        with sqlite3.connect(str(self.pack / "tafsir.sqlite")) as db:
+            stored = bytes(db.execute("SELECT CAST(text AS BLOB) FROM passage WHERE number = 2").fetchone()[0])
+        db.close()
+        notes = stored.decode("utf-8").split("\n")[2:]
+        self.assertEqual(
+            notes,
+            [
+                "(" + zf.digits(2) + ") Synthetic note two",
+                "(" + zf.digits(1) + ") Synthetic note one",
+                "Synthetic note one more",
+                "(" + zf.digits(1) + ") Synthetic note eleven",
+            ],
+        )
+
+    def test_a_number_repeated_on_one_page_of_one_passage(self):
+        self.book.entries[2] = dict(
+            self.book.entries[2], paragraphs=[(10, zf.para("Synthetic first" + zf.mark(1) + " and" + zf.mark(2) + zf.mark(1)))]
+        )
+        self.book.write()
+        self._refused("1 footnote cases stop the build (number_repeated_on_page 1)", "site page 10 N 1 number_repeated_on_page (entries 3)")
 
     def test_a_number_repeated_on_a_page(self):
         self.book.extra_paragraphs[10].append(zf.note(2, "Synthetic again"))

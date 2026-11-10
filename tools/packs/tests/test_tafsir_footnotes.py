@@ -6,7 +6,6 @@ import unittest
 
 from hqpack import tafsir_footnotes as tf
 from hqpack.errors import PackError
-from hqpack.tafsir_passages import Chosen
 from tests.ziydia_factory import BOLD, END, HR, NOTE, SEPARATOR, code, digits, mark, note, para
 
 PHRASES = {"\u00f7": "Synthetic honorific"}
@@ -115,13 +114,17 @@ class NotesOfMarksTest(unittest.TestCase):
         self.assertEqual(tf.notes_of_marks({3: [(10, digits(2))]}, pages)[1], [])
 
 
-class RepeatedInPassageTest(unittest.TestCase):
-    def test_a_number_repeated_among_a_passages_marks(self):
-        first, second, third = Chosen(3, 1, 1, 2, ()), Chosen(4, 1, 2, 3, ()), Chosen(5, 1, 3, 3, ())
-        marks = {3: [(10, digits(1))], 4: [(11, digits(1)), (11, digits(2))], 5: [(12, digits(3))]}
-        cases = tf.repeated_in_passages([[first, third, second]], marks)
-        self.assertEqual(cases, [tf.Case("number_repeated_in_passage", 11, digits(1), (3, 4))])
-        self.assertEqual(tf.repeated_in_passages([[first], [second]], marks), [])
+class PairingByPageTest(unittest.TestCase):
+    def test_the_same_number_on_two_pages_pairs_with_each_pages_note(self):
+        pages = {10: PAGES[10], 11: page(para("Synthetic" + mark(1)), SEPARATOR, note(1, "Synthetic eleven"))}
+        found, cases = tf.notes_of_marks({3: [(10, digits(1)), (10, digits(2))], 4: [(11, digits(1))]}, pages)
+        self.assertEqual(cases, [])
+        self.assertEqual(found[(10, digits(1))], NOTES[:2])
+        self.assertEqual(found[(11, digits(1))], (note(1, "Synthetic eleven"),))
+        self.assertEqual(
+            tf.regex_passage_text([(10, BODY), (11, para("Synthetic" + mark(1)))], pages, PHRASES)[2:],
+            ["(" + digits(2) + ") Synthetic two", "(" + digits(1) + ") Synthetic one", "Synthetic one more", "(" + digits(1) + ") Synthetic eleven"],
+        )
 
 
 class RefuseTest(unittest.TestCase):
