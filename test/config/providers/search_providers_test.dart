@@ -186,6 +186,6 @@ void main() {
     final hits = (await repository.search('Synthetic', [
       'synthetic-tafsir',
     ]) as Ok<List<TafsirHit>>).value;
-    expect([for (final hit in hits) hit.passage.number], [3, 4]);
+    expect([for (final hit in hits) hit.passage!.number], [3, 4]);
   });
 }

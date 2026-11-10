@@ -1001,6 +1001,10 @@
   "@tafsirNoPassage": {
     "description": "One of the fixed sentences: the chosen tafsir has no passage for this ayah. Source: docs/DESIGN_SYSTEM.md (\"When data is missing\"; PRD §8.8 acceptance criteria)."
   },
+  "tafsirAboutSurah": "عن السورة",
+  "@tafsirAboutSurah": {
+    "description": "Heading above a tafsir book's passage on a surah as a whole, where the surah's tafsir begins (D-184). Source: the owner, through AskUserQuestion, 2026-11-10."
+  },
   "connectionFailed": "تعذّر الاتصال",
   "@connectionFailed": {
     "description": "One of the identity's short error sentences: the connection failed. Source: docs/prd/PRD.ar.md (§7.5)."

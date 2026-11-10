@@ -1,6 +1,7 @@
 import 'package:holyquran/domain/models/tafsir_book.dart';
 import 'package:holyquran/domain/models/tafsir_passage.dart';
 import 'package:holyquran/domain/models/tafsir_position.dart';
+import 'package:holyquran/domain/models/tafsir_surah_passage.dart';
 
 /// An ayah as the chosen book explains it, with the facts of the source
 /// badge (`TF-05`).
@@ -24,6 +25,10 @@ final class TafsirPage {
   final int version;
 
   TafsirPassage? get passage => position.passage;
+
+  /// The book's passage on the surah as a whole, where the surah's tafsir
+  /// begins (D-184).
+  TafsirSurahPassage? get surahPassage => position.surahPassage;
 
   /// The first and last ayah number of the passage when it explains more
   /// than one ayah together (`TF-04`); null otherwise.
