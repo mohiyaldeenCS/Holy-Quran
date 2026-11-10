@@ -110,7 +110,7 @@ Options: `--in DIR` (default `ziydia_out`), `--out DIR` (default `ziydia_links`)
 | `link <id>` | `ziydia_links/book_<id>/{passages.jsonl, report.json, sample.html, review.html}` |
 | `names 183 514` | `ziydia_links/surahs.json`: surah names as the two books print them, and the last ayah number book 514 prints in each surah. It stops if a name stands for two surahs |
 | `link 183 --surahs …` | The same links, and a flag on any number beyond the end of its surah. Book 473 takes the table in the same way; books 276, 471 and 440 cannot be linked without it |
-| `compare <id>` | `compare.json` and `compare.html` in the book's folder: the linked passages whose quotation is not found in the ayat they are linked to, as book 514 prints them. It changes no link |
+| `compare <id>` | `compare.json` and `compare.html` in the book's folder: the outcome of every linked passage, and the passages whose quotation is not found in the ayat they are linked to, as book 514 prints them. It changes no link |
 | `inspect <id>` | Counts of headings, quotations, reference shapes, numbered openings and every honorific code, printed to the console. Only the twelve most frequent reference shapes and openings are shown |
 
 Exit code 0 means done, with points for review listed in `report.json`. Exit code 2
@@ -131,6 +131,34 @@ book's earlier results, so a stopped run leaves none behind.
 | `item`, `heading` | Item or question number (276, 471, 440); words of a heading |
 | `starts_inside_ayah`, `ends_inside_ayah` | Book 514 text: the paragraph begins or ends in the middle of an ayah |
 | `paragraphs` | `site_page`, `part`, `printed_page`, `html` (unchanged), `carried` when the paragraph has no number of its own and follows a numbered one, `role` `opening` for the line a surah opens with |
+
+## What `compare.json` holds
+
+It holds numbers and outcome names only, never text.
+
+| Field | Meaning |
+| --- | --- |
+| `book`, `passages_sha256` | The book compared and the hash of its `passages.jsonl` |
+| `text_from_book`, `text_passages_sha256` | Book 514 and the hash of its `passages.jsonl`, the text compared with |
+| `counts` | Passages per outcome; `flagged_by_the_linker_and_confirmed` counts flagged passages whose outcome confirms the link |
+| `outcomes` | `{"<n>": outcome}` for every passage of kind `passage`, keyed by its `n` |
+| `not_confirmed` | `n`, `site_page`, `surah`, `refs`, `outcome` and `found_at` (up to eight ayah numbers) of each passage whose outcome does not confirm its link |
+
+| Outcome | Meaning |
+| --- | --- |
+| `same` | Every piece of the quotation is found in the linked ayat |
+| `same_but_for_spelling` | Found once the letters that spelling conventions add, drop or swap are set aside |
+| `too_short_to_compare` | No piece of the quotation has four letters, weak letters aside, to compare |
+| `no_quotation` | The link rests on no quotation that can be compared |
+| `in_a_neighbouring_ayah` | Found only when the ayah before and after are included |
+| `partly_found` | Some pieces are found in the linked ayat and others are not |
+| `elsewhere_in_the_surah` | The first piece is found in other ayat of the surah, listed in `found_at` |
+| `not_found` | The first piece is found nowhere in the surah |
+| `range_not_usable` | A printed range ends before it starts, so nothing is compared |
+
+The first two confirm a link; the next two compare nothing; the four after them,
+listed in `not_confirmed`, do not confirm it. Where a passage rests on several
+quotations, the worst outcome in this order is its outcome.
 
 ## Review flags
 
