@@ -1,4 +1,4 @@
-"""The command line: build, verify, sign, verify-signature, compare, review-page, kfgqpc-counts and drift.
+"""The command line: build, tafsir, verify, sign, verify-signature, compare, review-page, kfgqpc-counts and drift.
 
 `verify` and `sign` choose their checks by the manifest's kind: a text pack
 with its font and mark table, a tafsir pack with the P5 ayah counts and its
@@ -21,9 +21,11 @@ from .build import build_pack
 from .digest import sha256_bytes
 from .errors import PackError
 from .font import read_font
+from .git_tree import git_tree
 from .kfgqpc_counts import encode_counts, kfgqpc_counts
 from .mark_table import read_mark_table
 from .profiles import PROFILES
+from .tafsir_build import build_tafsir_pack
 from .tanzil_metadata import read_tanzil_metadata
 from .tanzil_text import read_tanzil_text
 from .signing import SIGNATURE_FILE, OpenSslEd25519Signer, sign_pack, verify_signature
@@ -89,6 +91,22 @@ def _parser():
     build.add_argument("--kfgqpc", type=Path, help="KFGQPC's hafsData_v2-0.json; required for a hafs pack (PRD 9.4)")
     build.add_argument("--table", type=Path, help="the table of known differences; required with --kfgqpc")
     build.set_defaults(run=_build)
+
+    tafsir = commands.add_parser(
+        "tafsir",
+        help="build an unsigned tafsir pack from a Zaydi-library book, its links and the reviewer's record "
+        "(B0.7, D-184 to D-188)",
+    )
+    tafsir.add_argument("--config", required=True, type=Path, help="the tafsir description (JSON)")
+    tafsir.add_argument("--honorifics", required=True, type=Path, help="the approved honorific table (D-188)")
+    tafsir.add_argument("--reviews", required=True, type=Path, help="the reviewer's record of the book (D-186)")
+    tafsir.add_argument("--ayah-counts", required=True, type=Path, help="the P5 counts file (KFGQPC Hafs)")
+    tafsir.add_argument("--font", required=True, type=Path, help="assets/fonts/IBMPlexSansArabic-Regular.ttf")
+    tafsir.add_argument("--out", required=True, type=Path, help="a folder outside every Git working tree")
+    tafsir.add_argument(
+        "--report", type=Path, help="where the held-out entries (numbers and reasons only) are written, outside every Git tree"
+    )
+    tafsir.set_defaults(run=_tafsir)
 
     verify = commands.add_parser("verify", help="verify a pack directory <id>/<version>")
     _pack_inputs(verify)
@@ -195,6 +213,39 @@ def _build(args, out):
     print("verified", file=out)
     if args.unapproved_test_copy:
         print(TEST_COPY, file=out)
+    print(UNSIGNED, file=out)
+    return 0
+
+
+def _tafsir(args, out):
+    if args.report is not None:
+        tree = git_tree(args.report)
+        if tree is not None:
+            raise PackError("the report %s is inside the Git working tree %s" % (args.report, tree))
+        if args.report.is_dir():
+            raise PackError("the report %s is a folder" % args.report)
+    result = build_tafsir_pack(args.config, args.honorifics, args.reviews, args.ayah_counts, args.font, args.out)
+    counts = result.counts
+    print("pack %s" % result.directory, file=out)
+    print("sqlite %s" % result.sqlite_version, file=out)
+    print("counts passages %d surah-level %d" % (counts["passages"], counts["surah_level"]), file=out)
+    print(
+        "entries shipped %d held %d; paragraphs %d, empty left out %d; honorific codes replaced %d"
+        % (
+            counts["entries_shipped"],
+            counts["entries_held"],
+            counts["paragraphs"],
+            counts["empty_paragraphs"],
+            counts["codes_replaced"],
+        ),
+        file=out,
+    )
+    print("tafsir.sqlite sha256 %s" % result.tafsir_sha256, file=out)
+    print("manifest.json sha256 %s" % result.manifest_sha256, file=out)
+    if args.report is not None:
+        args.report.write_bytes(result.report)
+        print("report %s" % args.report, file=out)
+    print("verified", file=out)
     print(UNSIGNED, file=out)
     return 0
 
