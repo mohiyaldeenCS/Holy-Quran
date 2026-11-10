@@ -422,9 +422,7 @@ D-128, D-129), #55 (the suite runs on Windows: `.gitattributes` LF, the generato
   play-range and download entries stay skipped on a device (no recitation file, no host).
   Reviewed by `code-reviewer` (opus) twice; nits left: one comment line over 80 characters
   in `test/ui/core/share/ayah_copy_text_test.dart:26`.
-- Open, in `HANDOFF.md`'s order: **AU-01** (#80): the stall between ayat fixed with an exhaustive
-  interleaving test, in its fifth review. **T2** (#87): the unapproved test copy's banner (D-164), a
-  sizing fix after its audit. **P1-35**: not started; its audit was interrupted.
+- Since merged: **AU-01** (#80), **T2** (#87) and **P1-35** (#91, 2026-11-09).
 - Local checks use `C:/SDK/flutter`, Flutter 3.47.9 (D-154); no second SDK is kept.
 
 Agent runs so far (estimates from the SDK): about $160 across both keys for M0.4
@@ -434,6 +432,8 @@ Stream B: the owner is extracting book 466. B0.11 (the pack pipeline) is on `mai
 (D-098).
 
 ## Next actions — stream A (the implementing account)
+
+Current (2026-11-09, local lead): the missing base pack (D-180, pull request #101), then a second mark row when one row does not fit (D-183); `HANDOFF.md` section 0 holds the order.
 
 Work runs through agents in GitHub Actions; the lead only manages them (D-159). The
 current queue, in order, with how to start a run, is `HANDOFF.md`, sections 2 and 3.
@@ -535,7 +535,7 @@ Open decisions that come later (full list in `docs/DECISIONS.md`):
 | O-08 | «أين تُستضاف حزم المحتوى للتجربة ثم للإطلاق؟ يكفي أي استضافة ملفات ثابتة عبر HTTPS.» | Answered 2026-10-12: GitHub Releases of this repository host the packs for testing (recommended); the launch host is chosen before the end of Phase 1 (D-119). |
 | O-11 | «هل لديك حساب مطوّر في Google Play وفي App Store؟ ومن يحتفظ بمفتاح توقيع التطبيق؟» | M1.11 |
 | O-09 | «أي خدمة خادم نعتمد للحسابات والمزامنة في المرحلة 2؟» | Phase 2 |
-| P1-14-1 | «أين توضع علامات الربع والحزب والجزء و«سجدة» في وضع السورة، والهامش ٢٨ فقط؟» Options: «تُرسم فوق حافة الهامش دون تضييق النص (موصى به)» or «يُضيَّق عمود النص لإفساح الهامش». Not asked yet | Answered 2026-10-28: over the margin's edge, without narrowing the text (D-140 (1)). |
+| P1-14-1 | «أين توضع علامات الربع والحزب والجزء و«سجدة» في وضع السورة، والهامش ٢٨ فقط؟» Options: «تُرسم فوق حافة الهامش دون تضييق النص (موصى به)» or «يُضيَّق عمود النص لإفساح الهامش». Not asked yet | Answered 2026-10-28: over the margin's edge, without narrowing the text (D-140 (1)); amended by D-181 (own row above the line) and D-183. |
 | P1-27-1 | The mini player is black on black in the contrast theme and barely stands apart in night, from the identity's own tokens; ask whether a border or token may be added, or it stays as drawn. Not asked yet | Answered 2026-10-28: a 1px `line-strong` border in night and contrast (D-140 (2)). |
 
 Permission conditions to confirm with him when each is first needed are listed in
