@@ -563,7 +563,7 @@ Permission conditions to confirm with him when each is first needed are listed i
 | P1-27 | TalkBack and VoiceOver on the player, the mini player and the picker (the track moves in 5-second steps); 200% text on a device | Owner, on his phone | An APK built from `main`, once a recitation can play (P1-33) |
 | OF-04 | Downloads on `background_downloader` 9.6.5 (D-154 (6)): Wi-Fi-only on a metered hotspot, the network dropping and returning in mid-file, and the app killed while offline, then opened again | Owner, on his phone | With the first real recitation or pack download |
 | B0.5 | Listening check of word timing for Minshawi mujawwad and Abdul Basit murattal (D-182); the measure could not tell them from chance | Owner, on his phone | A build with their recitation packs |
-| D-181 | The margin-mark rows in the reader at 100 % and 200 % text, in the four themes | Owner, on his phone | The next test copy built from `main` |
+| D-181 | The margin-mark rows in the reader at 100 % and 200 % text, in the four themes, never touch real text (marks below letters on the line above are not in the synthetic tests; review of #100, finding 1) | Owner, on his phone | The next test copy built from `main` |
 
 Pending human checks of P1-14 and later beyond this table are under each task in "In progress"; the first device session gathers them.
 
