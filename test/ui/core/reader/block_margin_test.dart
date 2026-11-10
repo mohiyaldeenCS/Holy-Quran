@@ -174,7 +174,7 @@ void main() {
         expect(
           tester.getSize(find.byType(MarginMarkView)).height,
           closeTo(
-            MarginMarkView.heightOf(mark, strings, scaler, bold: bold),
+            MarginMarkView.sizeOf(mark, strings, scaler, bold: bold).height,
             0.5,
           ),
           reason: name,
@@ -186,7 +186,7 @@ void main() {
             bold: bold,
           ).heightOf([mark, const MarginMark(MarginMarkKind.sajda, 1)]),
           greaterThanOrEqualTo(
-            MarginMarkView.heightOf(mark, strings, scaler, bold: bold),
+            MarginMarkView.sizeOf(mark, strings, scaler, bold: bold).height,
           ),
         );
       }

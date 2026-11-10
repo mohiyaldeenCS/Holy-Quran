@@ -8,6 +8,7 @@ import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/domain/models/tafsir_book.dart';
 import 'package:holyquran/domain/models/tafsir_position.dart';
+import 'package:holyquran/ui/core/base_pack_problem.dart';
 import 'package:holyquran/ui/core/tafsir/source_details_sheet.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/ayah_row.dart';
@@ -455,6 +456,61 @@ void main() {
     expect(find.text(tafsirL10n.tafsirReaderTitle), findsOneWidget);
     expect(find.byType(AyahRow), findsNothing);
   });
+
+  for (final (problem, title, body, other) in [
+    (
+      BasePackProblem.missing,
+      tafsirL10n.integrityBaseMissingTitle,
+      tafsirL10n.integrityBaseMissingBody,
+      tafsirL10n.integrityBaseTitle,
+    ),
+    (
+      BasePackProblem.failed,
+      tafsirL10n.integrityBaseTitle,
+      tafsirL10n.integrityBaseBody,
+      tafsirL10n.integrityBaseMissingTitle,
+    ),
+  ]) {
+    tafsirTest('says the base pack is ${problem.name} under its title', (
+      tester,
+      fixture,
+    ) async {
+      await pumpScreen(
+        tester,
+        TafsirReaderScreen(
+          viewModel: null,
+          onOfferDownload: null,
+          baseProblem: problem,
+        ),
+      );
+
+      expect(find.text(tafsirL10n.tafsirReaderTitle), findsOneWidget);
+      expect(find.byType(IntegrityAlert), findsOneWidget);
+      expect(find.text(title), findsOneWidget);
+      expect(find.text(body), findsOneWidget);
+      expect(find.text(other), findsNothing);
+      expect(find.byType(AyahRow), findsNothing);
+    });
+
+    for (final theme in ReadingTheme.values) {
+      tafsirTest('the ${problem.name} alert lays out without overflow in '
+          '${theme.name} at 200%', (tester, fixture) async {
+        await pumpScreen(
+          tester,
+          TafsirReaderScreen(
+            viewModel: null,
+            onOfferDownload: null,
+            baseProblem: problem,
+          ),
+          theme: theme,
+          textScale: 2,
+        );
+
+        expect(tester.takeException(), isNull);
+        expect(find.text(body), findsOneWidget);
+      });
+    }
+  }
 
   for (final theme in ReadingTheme.values) {
     for (final scale in [1.0, 2.0]) {

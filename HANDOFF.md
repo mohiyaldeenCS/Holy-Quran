@@ -8,7 +8,7 @@ Delete it, with the owner's permission, once "In flight" is empty.
 
 ## 0. Start here (local lead, 2026-11-09)
 
-The last session ran **locally on the owner's Windows machine** (`D:/projects/Holy-Quran`, Flutter 3.47.9, his phone SM-G998U on `adb`, Python `py -3`), not in the cloud. It ran his test copy end to end, found and fixed three pipeline defects, fetched the KFGQPC Hafs text, built the KFGQPC comparison and the reciter's review page. Since then #98 (records), #91 (P1-35), #99 (recitation drift tool) and #100 (margin-mark rows) are merged, and the records of 2026-11-09 (D-179 to D-182, drift in `RIGHTS_REGISTER.md`) are on `main` through `claude/records-2026-11-09`. D-183 (2026-11-10): a second mark row when one row does not fit. D-184 to D-191 (2026-11-10): the Zaydi tafsir packs (`docs/plans/B07_TAFSIR_PACK.md`) and local agents while no API key works. The next free decision number is D-192.
+The last session ran **locally on the owner's Windows machine** (`D:/projects/Holy-Quran`, Flutter 3.47.9, his phone SM-G998U on `adb`, Python `py -3`), not in the cloud. It ran his test copy end to end, found and fixed three pipeline defects, fetched the KFGQPC Hafs text, built the KFGQPC comparison and the reciter's review page. Since then #98 (records), #91 (P1-35), #99 (recitation drift tool) and #100 (margin-mark rows) are merged, and the records of 2026-11-09 (D-179 to D-182, drift in `RIGHTS_REGISTER.md`) are on `main` through `claude/records-2026-11-09`. D-183 (2026-11-10): a second mark row when one row does not fit. D-184 to D-191 (2026-11-10): the Zaydi tafsir packs (`docs/plans/B07_TAFSIR_PACK.md`) and local agents while no API key works. D-192: the `/study/tafsir` alert route. The next free decision number is D-193.
 
 **State that is not in Git** (owner's machine, never committed or uploaded):
 - `$HOME/holyquran-test-copy/`: `raw/` (Tanzil Uthmani 1.1 fetched without `rub`, sha256 `5ea5cbab…`; metadata `8867c1d8…`), `build.json`, `kfgqpc/` (KFGQPC `UthmanicHafs_v2-0.zip`, MD5/SHA-1 equal to KFGQPC's published values; extracted in `kfgqpc/x/`), `compare/report*.json` (code points only), `review/` (**the reciter's review page**: `review.html` + two fonts, built from `main` `06bb22f`), `screens/` (phone screenshots), `diag/` (diagnostic pulls: delete it), `shot.sh`.
@@ -123,7 +123,7 @@ record for the head.
 content yet and none has run on a device since the spike of 2026-10-12.** **Before the first
 run on a branch, check it:** `git merge-base --is-ancestor origin/main origin/<branch>`. If
 `main` changed `.github/` and the branch lacks it, merge `main` into the branch from your own
-session. Decision numbers: D-001 to D-191 are in `docs/DECISIONS.md` (D-073 to D-075 have no row, as on `main` before) (D-172 to D-178 are #93 to #97 and the owner's answers; D-179 to D-191 are the records of 2026-11-09 and 10); the next free number is D-192.
+session. Decision numbers: D-001 to D-192 are in `docs/DECISIONS.md` (D-073 to D-075 have no row, as on `main` before) (D-172 to D-178 are #93 to #97 and the owner's answers; D-179 to D-191 are the records of 2026-11-09 and 10); the next free number is D-193.
 
 The queue, after the table above:
 

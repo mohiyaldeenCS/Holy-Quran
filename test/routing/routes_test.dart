@@ -62,6 +62,7 @@ List<_Case> _cases() => [
   _case(Routes.recitations, Routes.recitations),
   _case(Routes.study, Routes.study),
   _case(Routes.search, Routes.search),
+  _case(Routes.studyTafsirAlert, Routes.studyTafsirAlert),
   _case(Routes.more, Routes.more),
   _case(Routes.bookmarks, Routes.bookmarks),
   _case(Routes.resources, Routes.resources),
@@ -134,7 +135,11 @@ GoRouter _patternRouter() {
       tab(Routes.home, []),
       tab(Routes.mushaf, [RoutePaths.mushafRead, RoutePaths.mushafIndex]),
       tab(Routes.listen, [RoutePaths.recitations]),
-      tab(Routes.study, [RoutePaths.search, RoutePaths.studyTafsir]),
+      tab(Routes.study, [
+        RoutePaths.search,
+        RoutePaths.studyTafsirAlert,
+        RoutePaths.studyTafsir,
+      ]),
       tab(Routes.more, [
         RoutePaths.bookmarks,
         RoutePaths.resources,

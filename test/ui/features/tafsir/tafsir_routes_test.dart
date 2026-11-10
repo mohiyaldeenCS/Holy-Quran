@@ -42,6 +42,17 @@ void main() {
     expect(router.state.uri.path, Routes.home);
   });
 
+  tafsirTest('the reader at no ayah goes to the study tab while there is a '
+      'text', (tester, fixture) async {
+    final router = await pumpApp(tester, fixture);
+
+    router.go(Routes.studyTafsirAlert);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TafsirReaderScreen), findsNothing);
+    expect(router.state.uri.path, Routes.study);
+  });
+
   tafsirTest('the reader shows the ayah alone while the app provides no '
       'tafsirs', (tester, fixture) async {
     final router = await pumpApp(tester, fixture, tafsirs: false);

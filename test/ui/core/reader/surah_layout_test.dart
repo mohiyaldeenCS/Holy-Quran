@@ -600,4 +600,74 @@ void main() {
       surah.addressOf(plan.lines.last.start.ayah + 1),
     );
   });
+
+  group('marks that do not fit one row (D-183)', () {
+    const width = 300.0;
+    const gap = ReaderScreenMetrics.marginRowGap;
+
+    // Every mark at the first ayah, so that all of them belong to one line;
+    // each told apart, and given its made-up width, by its hizb.
+    MarginMark mark(int hizb) =>
+        MarginMark(MarginMarkKind.rub, 1, hizb: hizb, quarter: 2);
+
+    List<List<int>> rowsOf(List<double> widths) {
+      final base = fixture.surahs[longSurah]!;
+      final text = SurahText(
+        riwaya: base.riwaya,
+        surah: base.surah,
+        ayat: base.ayat,
+        basmala: base.basmala,
+        pageStarts: base.pageStarts,
+        marginMarks: [for (var k = 0; k < widths.length; k++) mark(k + 1)],
+      );
+      final plan = SurahLayout.plan(
+        text,
+        _style(1, 1),
+        width,
+        marginRow: _rowHeight,
+        marginMarkWidth: (mark) => widths[mark.hizb! - 1],
+      );
+      final line = plan.lineOfAyahText(1);
+      for (var k = 0; k < plan.lines.length; k++) {
+        if (k != line) expect(plan.rowsAbove(k), isEmpty);
+      }
+      return [
+        for (final row in plan.rowsAbove(line))
+          [for (final mark in row.marks) mark.hizb!],
+      ];
+    }
+
+    test('marks exactly as wide as the column stay in one row', () {
+      expect(rowsOf([100, width - 100 - gap]), [
+        [1, 2],
+      ]);
+    });
+
+    test('a mark one pixel past the column starts the next row', () {
+      expect(rowsOf([100, width - 100 - gap + 1]), [
+        [1],
+        [2],
+      ]);
+    });
+
+    test('marks fill three rows in their order', () {
+      expect(rowsOf([140, 140, 200, 120, 150]), [
+        [1, 2],
+        [3],
+        [4, 5],
+      ]);
+    });
+
+    test('a mark wider than the column has a row of its own', () {
+      expect(rowsOf([width + 100, 50]), [
+        [1],
+        [2],
+      ]);
+      expect(rowsOf([100, width + 100, 100]), [
+        [1],
+        [2],
+        [3],
+      ]);
+    });
+  });
 }

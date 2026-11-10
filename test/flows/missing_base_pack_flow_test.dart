@@ -9,6 +9,8 @@ import 'package:holyquran/ui/core/widgets/surah_list_item.dart';
 import 'package:holyquran/ui/features/home/views/home_screen.dart';
 import 'package:holyquran/ui/features/index/views/index_screen.dart';
 import 'package:holyquran/ui/features/mushaf/views/mushaf_screen.dart';
+import 'package:holyquran/ui/features/study/views/study_screen.dart';
+import 'package:holyquran/ui/features/tafsir/views/tafsir_reader_screen.dart';
 
 import '../../testing/flows/flow_driver.dart';
 import '../../testing/flows/flow_rig.dart';
@@ -37,10 +39,8 @@ void main() {
       });
 
   FlowRig().test('at the first start a missing pack is called missing, on '
-      'home, the index and the reader, and no index is listed', (
-    tester,
-    run,
-  ) async {
+      'home, the index, the reader and the tafsir reader, and no index is '
+      'listed', (tester, run) async {
     final pack = await absent(
       tester,
       await real(tester, () => buildFlowTestCopy(parent)),
@@ -65,6 +65,12 @@ void main() {
 
         await tapNamed(tester, flowL10n.tabMushaf);
         expect(find.byType(MushafScreen), findsOneWidget);
+        _expectMissing();
+
+        await tapNamed(tester, flowL10n.tabStudy);
+        expect(find.byType(StudyScreen), findsOneWidget);
+        await tapNamed(tester, flowL10n.tafsirReaderTitle);
+        expect(find.byType(TafsirReaderScreen), findsOneWidget);
         _expectMissing();
       },
     );
