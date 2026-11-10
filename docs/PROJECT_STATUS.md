@@ -8,12 +8,12 @@ corrected first.
 
 | | |
 | --- | --- |
-| Updated | 2026-11-09 |
+| Updated | 2026-11-11 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
 | Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **All 40 merged** (P1-35 as #91, 2026-11-09), of which 20 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-34, P1-36, P1-37, P1-40). The composition root is wired (#72, D-151). **A local test copy with real text runs on the owner's phone (`HANDOFF.md` section 0); no real content is in `main` or any APK built from it** |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/*`), worked by agents in GitHub Actions (D-159) |
-| Last session | 2026-11-06 to 2026-11-09, local lead on the owner's machine: test copy on his phone, #93–#97 (Tanzil real files, push permissions, KFGQPC comparison, reciter's review page), #98 (records), #91 (P1-35), #99 (recitation drift tool), #100 (margin-mark rows), D-172–D-182; drift measured on the four recitations. **Read `HANDOFF.md` section 0 first** |
+| Last session | 2026-11-06 to 2026-11-11, local lead on the owner's machine: test copy on his phone, #93–#111 (Tanzil real files, KFGQPC comparison, reciter's review page, recitation drift, margin-mark rows, missing-pack alert, accessibility pass, and the Zaydi tafsir pipeline and app support of B0.7), D-172–D-194. **Read `HANDOFF.md` section 0 first** |
 
 ## What is in the repository
 
@@ -564,6 +564,7 @@ Permission conditions to confirm with him when each is first needed are listed i
 | OF-04 | Downloads on `background_downloader` 9.6.5 (D-154 (6)): Wi-Fi-only on a metered hotspot, the network dropping and returning in mid-file, and the app killed while offline, then opened again | Owner, on his phone | With the first real recitation or pack download |
 | B0.5 | Listening check of word timing for Minshawi mujawwad and Abdul Basit murattal (D-182); the measure could not tell them from chance | Owner, on his phone | A build with their recitation packs |
 | D-181 | The margin-mark rows in the reader at 100 % and 200 % text, in the four themes, never touch real text (marks below letters on the line above are not in the synthetic tests; review of #100, finding 1) | Owner, on his phone | The next test copy built from `main` |
+| D-180 | The missing-pack alert («نص المصحف غير موجود») on home, index, reader, search and the tafsir reader, with TalkBack, from the first start of a test copy without its pack | Owner, on his phone | A test copy built from `main` with its pack removed |
 
 Pending human checks of P1-14 and later beyond this table are under each task in "In progress"; the first device session gathers them.
 
