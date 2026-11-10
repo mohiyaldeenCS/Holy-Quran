@@ -42,6 +42,7 @@ Widget _reader(
   bool margin = true,
   Key? surface,
   MarginRowMeasure? rows,
+  double step = 1,
 }) => goldenApp(
   theme,
   SizedBox.fromSize(
@@ -54,6 +55,7 @@ Widget _reader(
             padding: ReaderScreenMetrics.blockPadding,
             sliver: InteractiveSurahSliver(
               text: text,
+              step: step,
               marginRows: rows ?? MarginRowMeasure.of(context),
               blockOverlayBuilder: margin
                   ? (context, layout) =>
@@ -545,4 +547,352 @@ void main() {
       }
     }
   }
+
+  SurahLayout planOf(WidgetTester tester) =>
+      tester.widget<ReaderBlock>(find.byType(ReaderBlock).first).layout.plan;
+
+  Finder viewOf(MarginMark mark) =>
+      find.byWidgetPredicate((w) => w is MarginMarkView && w.mark == mark);
+
+  testWidgets('a mark is as wide as it is drawn, at 1.0x, 2.0x and 3.1x, '
+      'bold or not', (tester) async {
+    for (final scale in [1.0, 2.0, 3.1]) {
+      for (final bold in [false, true]) {
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        tester.platformDispatcher.accessibilityFeaturesTestValue =
+            FakeAccessibilityFeatures(boldText: bold);
+        final measure = MarginRowMeasure(
+          strings,
+          TextScaler.linear(scale),
+          bold: bold,
+        );
+        for (final mark in const [
+          MarginMark(MarginMarkKind.juz, 1, juz: 28),
+          MarginMark(MarginMarkKind.hizb, 1, hizb: 58),
+          MarginMark(MarginMarkKind.rub, 1, hizb: 58, quarter: 1),
+          MarginMark(MarginMarkKind.rub, 1, hizb: 58, quarter: 3),
+          MarginMark(MarginMarkKind.sajda, 1),
+        ]) {
+          await tester.pumpWidget(
+            goldenApp(
+              ReadingTheme.paper,
+              Align(alignment: Alignment.topRight, child: MarginMarkView(mark)),
+            ),
+          );
+          expect(
+            tester.getSize(find.byType(MarginMarkView)),
+            within(distance: 0.5, from: measure.sizeOf(mark)),
+            reason: '${mark.kind.name} ${mark.quarter ?? ''} $scale $bold',
+          );
+        }
+      }
+    }
+    tester.platformDispatcher.clearTextScaleFactorTestValue();
+    tester.platformDispatcher.clearAccessibilityFeaturesTestValue();
+  });
+
+  testWidgets('a mark is measured once, and marks drawn alike once', (
+    tester,
+  ) async {
+    final measure = MarginRowMeasure(strings, const TextScaler.linear(2));
+    const marks = [
+      MarginMark(MarginMarkKind.sajda, 3),
+      MarginMark(MarginMarkKind.sajda, 9),
+      MarginMark(MarginMarkKind.rub, 5, hizb: 2, quarter: 1),
+    ];
+    final height = measure.heightOf(marks);
+    expect(measure.measured, 2);
+    for (final mark in marks) {
+      expect(
+        measure.sizeOf(mark),
+        MarginMarkView.sizeOf(mark, strings, const TextScaler.linear(2)),
+      );
+    }
+    expect(measure.heightOf(marks), height);
+    expect(measure.measured, 2);
+  });
+
+  testWidgets('a pinch step plans again without measuring the marks again', (
+    tester,
+  ) async {
+    setView(tester);
+    final surah = fixture.surahs[longSurah]!;
+    final first = MarginRowMeasure(strings, TextScaler.noScaling);
+    await tester.pumpWidget(_reader(surah, const {}, rows: first));
+    final before = planOf(tester);
+    final measured = first.measured;
+    expect(measured, greaterThan(0));
+    final second = MarginRowMeasure(strings, TextScaler.noScaling);
+    await tester.pumpWidget(_reader(surah, const {}, rows: second, step: 1.25));
+    expect(identical(planOf(tester), before), isFalse);
+    expect(planOf(tester).style, isNot(before.style));
+    expect(second.measured, 0);
+    expect(first.measured, measured);
+  });
+
+  testWidgets('up to 2.0x, bold or not, a division mark and a sajda at one '
+      'ayah fit one row on a 320 dp screen', (tester) async {
+    const column = 320 - 2 * ReaderMetrics.textInset;
+    const sajda = MarginMark(MarginMarkKind.sajda, 1);
+    for (final scale in [1.0, 2.0]) {
+      for (final bold in [false, true]) {
+        final measure = MarginRowMeasure(
+          strings,
+          TextScaler.linear(scale),
+          bold: bold,
+        );
+        for (final mark in const [
+          MarginMark(MarginMarkKind.juz, 1, juz: 28),
+          MarginMark(MarginMarkKind.hizb, 1, hizb: 58),
+          MarginMark(MarginMarkKind.rub, 1, hizb: 58, quarter: 1),
+        ]) {
+          expect(
+            measure.widthOf(mark) +
+                ReaderScreenMetrics.marginRowGap +
+                measure.widthOf(sajda),
+            lessThanOrEqualTo(column),
+            reason: '${mark.kind.name} $scale $bold',
+          );
+        }
+      }
+    }
+  });
+
+  testWidgets('the marks of a row stand in reading order: a sajda before a '
+      'quarter at the next ayah of its line', (tester) async {
+    final handle = tester.ensureSemantics();
+    setView(tester);
+    final base = fixture.surahs[longSurah]!;
+    await tester.pumpWidget(
+      _reader(_withMarks(base, const []), const {}, margin: false),
+    );
+    final plain = planOf(tester);
+    final k = [
+      for (var a = 2; a < base.ayat.length; a++)
+        if (plain.lineOfAyahText(a) == plain.lineOfAyahText(a + 1)) a,
+    ].first;
+    final rub = MarginMark(MarginMarkKind.rub, k + 1, hizb: 2, quarter: 1);
+    final sajda = MarginMark(MarginMarkKind.sajda, k);
+    // In the margin's order, as marginMarksIn gives it: sajdas last.
+    await tester.pumpWidget(_reader(_withMarks(base, [rub, sajda]), const {}));
+    final layouts = [
+      for (final element in find.byType(ReaderBlock).evaluate())
+        (element.widget as ReaderBlock).layout,
+    ];
+    expect(
+      [for (final layout in layouts) ...layout.marginRows.map((r) => r.$1)],
+      [
+        [sajda, rub],
+      ],
+    );
+    final sajdaBox = tester.getRect(viewOf(sajda));
+    final rubBox = tester.getRect(viewOf(rub));
+    expect(sajdaBox.right, closeTo(_width - ReaderMetrics.textInset, 0.5));
+    expect(
+      rubBox.right,
+      closeTo(sajdaBox.left - ReaderScreenMetrics.marginRowGap, 0.5),
+    );
+    final labels = _labels(tester);
+    final rubLabel =
+        '${strings.rubLabel}\n${strings.hizbLabel(arabicDigits(2))}';
+    expect(labels.indexOf(strings.sajdaLabel), isNonNegative);
+    expect(
+      labels.indexOf(strings.sajdaLabel),
+      lessThan(labels.indexOf(rubLabel)),
+    );
+    handle.dispose();
+  });
+
+  // D-183: at about 310 % text on a 320 dp screen, a quarter mark with words
+  // and «سجدة» at one ayah are wider than the column together; the sajda
+  // goes on to a second row above the same line. Neither leaves the column,
+  // meets a line or changes a pixel of text ink, and no line breaks anew.
+  for (final theme in ReadingTheme.values) {
+    testWidgets('marks too wide for one row take a second row and touch no '
+        'text, in ${theme.name} at 3.1x on 320x640', (tester) async {
+      const screen = Size(320, 640);
+      const scale = 3.1;
+      setView(tester, screen);
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final base = fixture.surahs[longSurah]!;
+      const surface = ValueKey('margin-surface');
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        _reader(
+          _withMarks(base, const []),
+          const {},
+          theme: theme,
+          size: screen,
+          margin: false,
+        ),
+      );
+      final plain = planOf(tester);
+      final column = screen.width - 2 * ReaderMetrics.textInset;
+      expect(plain.width, column);
+      final extents = <(double, double)>[];
+      for (var b = 0; b < plain.blocks.length; b++) {
+        final block = BlockLayout(plain, b, ink: AppColors.paper.quranInk);
+        extents.addAll(block.laidLineExtents);
+        block.dispose();
+      }
+      final ayah = [
+        for (var a = 2; a <= base.ayat.length; a++)
+          if (extents[plain.lineOfAyahText(a)] case (final l, final r)
+              when l <= 1 && r >= column - 1)
+            a,
+      ].first;
+      final rub = MarginMark(MarginMarkKind.rub, ayah, hizb: 59, quarter: 1);
+      final sajda = MarginMark(MarginMarkKind.sajda, ayah);
+      final measure = MarginRowMeasure(strings, const TextScaler.linear(scale));
+      expect(
+        measure.widthOf(rub) +
+            ReaderScreenMetrics.marginRowGap +
+            measure.widthOf(sajda),
+        greaterThan(column),
+        reason: 'the two do not fit one row',
+      );
+      final text = _withMarks(base, [rub, sajda]);
+
+      Future<Uint8List> render({required bool margin}) async {
+        await tester.pumpWidget(
+          _reader(
+            text,
+            const {},
+            theme: theme,
+            size: screen,
+            controller: controller,
+            margin: margin,
+            surface: surface,
+          ),
+        );
+        final boundary = tester.renderObject<RenderRepaintBoundary>(
+          find.byKey(surface),
+        );
+        return (await tester.runAsync(() async {
+          final image = await boundary.toImage();
+          final bytes = await image.toByteData();
+          image.dispose();
+          return bytes!.buffer.asUint8List();
+        }))!;
+      }
+
+      int pixel(Uint8List bytes, int at) =>
+          (0xFF << 24) |
+          (bytes[at] << 16) |
+          (bytes[at + 1] << 8) |
+          bytes[at + 2];
+
+      await render(margin: false);
+      final plan = planOf(tester);
+      expect(
+        [for (final l in plan.lines) (l.start, l.end, l.stretch)],
+        [for (final l in plain.lines) (l.start, l.end, l.stretch)],
+      );
+      final line = plan.lineOfAyahText(ayah);
+      expect(
+        [for (final row in plan.rowsAbove(line)) row.marks],
+        [
+          [rub],
+          [sajda],
+        ],
+      );
+      expect(
+        plan.rowExtent(line),
+        closeTo(
+          measure.heightOf([rub]) +
+              measure.heightOf([sajda]) +
+              2 * ReaderScreenMetrics.marginRowGap,
+          1e-6,
+        ),
+      );
+      controller.jumpTo(
+        (plan.slotTop(line) - screen.height / 3).clamp(
+          0,
+          controller.position.maxScrollExtent,
+        ),
+      );
+      final drawnWith = await render(margin: true);
+      final offset = controller.offset;
+
+      final blocks = [
+        for (final element in find.byType(ReaderBlock).evaluate())
+          (
+            (element.widget as ReaderBlock).layout,
+            tester.getTopLeft(find.byWidget(element.widget)),
+          ),
+      ];
+      final lineBoxes = [
+        for (final (layout, origin) in blocks)
+          for (final (k, (left, right)) in layout.laidLineExtents.indexed)
+            Rect.fromLTRB(
+              left,
+              layout.lineBand(k).top,
+              right,
+              layout.lineBand(k).bottom,
+            ).shift(origin),
+      ];
+      final (layout, origin) = blocks.firstWhere(
+        (b) => line >= b.$1.block.firstLine && line < b.$1.block.endLine,
+      );
+      final band = layout.lineBand(line - layout.block.firstLine).shift(origin);
+      final boxes = [
+        for (final mark in [rub, sajda]) tester.getRect(viewOf(mark)),
+      ];
+      for (final (k, box) in boxes.indexed) {
+        expect(box.left, greaterThanOrEqualTo(ReaderMetrics.textInset - 0.5));
+        expect(
+          box.right,
+          closeTo(screen.width - ReaderMetrics.textInset, 0.5),
+          reason: 'mark $k from the start edge',
+        );
+        for (final lineBox in lineBoxes) {
+          expect(
+            box.overlaps(lineBox),
+            isFalse,
+            reason: 'mark $k: its box $box meets a line at $lineBox',
+          );
+        }
+      }
+      expect(
+        boxes[1].top,
+        greaterThanOrEqualTo(
+          boxes[0].bottom + ReaderScreenMetrics.marginRowGap - 0.01,
+        ),
+      );
+      expect(
+        boxes[1].bottom,
+        lessThanOrEqualTo(band.top - ReaderScreenMetrics.marginRowGap + 0.01),
+      );
+
+      final without = await render(margin: false);
+      expect(controller.offset, offset);
+      final ink = AppColors.byId[theme.name]!.quranInk.toARGB32();
+      var drawn = 0;
+      var inkPixels = 0;
+      var onInk = 0;
+      for (var at = 0; at < without.length; at += 4) {
+        final before = pixel(without, at);
+        final changed = pixel(drawnWith, at) != before;
+        if (changed) drawn++;
+        if (before != ink) continue;
+        inkPixels++;
+        if (changed) onInk++;
+      }
+      expect(onInk, 0, reason: '$onInk mark pixels on text ink');
+      expect(drawn, greaterThan(100), reason: 'the marks were drawn');
+      expect(inkPixels, greaterThan(1000), reason: 'the text was drawn');
+    });
+  }
 }
+
+SurahText _withMarks(SurahText base, List<MarginMark> marks) => SurahText(
+  riwaya: base.riwaya,
+  surah: base.surah,
+  ayat: base.ayat,
+  basmala: base.basmala,
+  pageStarts: base.pageStarts,
+  marginMarks: marks,
+);

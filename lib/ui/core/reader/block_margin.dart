@@ -14,10 +14,10 @@ import 'ribbon_category.dart';
 
 /// What a block shows besides its text (`RD-02`, `RD-15`, `UD-05`): the
 /// margin marks of each row of [BlockLayout.marginRows], from the start edge
-/// of the text column, in the row the plan left for them above the line their
-/// ayah begins in, so that they never cover the text (D-181); and a
-/// [BookmarkRibbon] at the end side beside the first line of each bookmarked
-/// ayah that begins in the block.
+/// of the text column, in the rows the plan left for them above the line
+/// their ayah begins in, so that they never cover the text (D-181, D-183);
+/// and a [BookmarkRibbon] at the end side beside the first line of each
+/// bookmarked ayah that begins in the block.
 ///
 /// It takes no part in taps. A screen reader reads a mark before the ayah it
 /// belongs to, and a ribbon after it.

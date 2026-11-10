@@ -29,7 +29,8 @@ typedef BlockOverlayBuilder = Widget Function(
 /// (`RD-02`, PRD §7.4).
 ///
 /// With [marginRows], the plan leaves a row above each line its margin marks
-/// belong to, as tall as [MarginRowMeasure] says (D-181).
+/// belong to, as tall as [MarginRowMeasure] says (D-181), and more rows
+/// above it for the marks that do not fit its width (D-183).
 /// [blockOverlayBuilder], when given, adds a layer above each block's text
 /// that does not take part in tap resolution; it is where the screen draws
 /// the block's margin marks in their rows ([BlockLayout.marginRows]). It is
@@ -103,12 +104,15 @@ final class _InteractiveSurahSliverState extends State<InteractiveSurahSliver> {
         _rows == widget.marginRows) {
       return _list ??= _buildList(last, scaler);
     }
-    final rows = _rows = widget.marginRows;
+    // An equal measure is kept, with the marks it has measured.
+    if (_rows != widget.marginRows) _rows = widget.marginRows;
+    final rows = _rows;
     final layout = _layout = SurahLayout.plan(
       widget.text,
       style,
       width,
       marginRow: rows?.heightOf,
+      marginMarkWidth: rows?.widthOf,
     );
     if (widget.onLayout case final onLayout?) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

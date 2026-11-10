@@ -130,7 +130,9 @@ void main() {
       expect(find.byType(BookmarkRibbon), findsNothing);
     });
 
-    readerTest('the margin marks stand beside their lines', (tester) async {
+    readerTest('the margin marks stand in rows above their lines', (
+      tester,
+    ) async {
       await pumpReader(tester);
       expect(find.byType(MarginMarkView), findsWidgets);
     });
