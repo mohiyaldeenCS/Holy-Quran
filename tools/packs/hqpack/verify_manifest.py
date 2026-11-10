@@ -1,5 +1,7 @@
 """The manifest.json rules of a text pack (docs/CONTENT_PACKS.md), as the
-app's strict parser applies them, for the independent verifier."""
+app's strict parser applies them, for the independent verifier; and the
+parts every kind shares (`read_checked`, `Fields`, the riwaya, changelog,
+sources, files and reviews), which `verify_tafsir` uses."""
 
 from __future__ import annotations
 
@@ -68,6 +70,12 @@ def _finite(literal):
 
 def read_manifest(path, problems):
     """The manifest when it parses with every rule met, else None."""
+    return read_checked(path, problems, _manifest_problems)
+
+
+def read_checked(path, problems, check):
+    """The manifest when it parses strictly and `check(manifest, problems)`
+    finds nothing, else None."""
     if not path.is_file():
         problems.append("manifest.json is missing")
         return None
@@ -96,7 +104,7 @@ def read_manifest(path, problems):
             % (e.lineno, e.colno))
         return None
     found = []
-    _manifest_problems(manifest, found)
+    check(manifest, found)
     _bom_string_problems(manifest, "manifest", found)
     problems.extend(found)
     return None if found else manifest
@@ -116,12 +124,12 @@ def _bom_string_problems(value, path, problems):
             _bom_string_problems(item, "%s[%d]" % (path, index), problems)
 
 
-_BAD = object()
+BAD = object()
 
 
-class _Object:
+class Fields:
     """A JSON object of the manifest, read field by field; a field of the
-    wrong type or form adds a problem and reads as _BAD."""
+    wrong type or form adds a problem and reads as BAD."""
 
     def __init__(self, value, path, problems):
         self.value = value
@@ -144,12 +152,12 @@ class _Object:
 
     def field(self, key, accept, kind):
         if key not in self.value:
-            return _BAD
+            return BAD
         value = self.value[key]
         if accept(value):
             return value
         self.field_problem(key, "is not " + kind)
-        return _BAD
+        return BAD
 
     def string(self, key):
         return self.field(key, lambda v: isinstance(v, str), "a string")
@@ -172,56 +180,56 @@ class _Object:
 
     def _at_least(self, key, low, text):
         value = self.integer(key)
-        if value is not _BAD and value < low:
+        if value is not BAD and value < low:
             self.field_problem(key, text)
-            return _BAD
+            return BAD
         return value
 
     def hash(self, key):
         value = self.string(key)
-        if value is not _BAD and not _HASH.fullmatch(value):
+        if value is not BAD and not _HASH.fullmatch(value):
             self.field_problem(key, "is not lowercase hex SHA-256")
-            return _BAD
+            return BAD
         return value
 
     def date(self, key):
         value = self.string(key)
-        if value is _BAD:
+        if value is BAD:
             return value
         match = _DATE.fullmatch(value)
         if match is None:
             self.field_problem(key, "is not YYYY-MM-DD")
-            return _BAD
+            return BAD
         try:
             datetime.date(*(int(group) for group in match.groups()))
         except ValueError:
             self.field_problem(key, "is not a calendar date")
-            return _BAD
+            return BAD
         return value
 
     def object(self, key):
         value = self.field(key, lambda v: isinstance(v, dict), "an object")
-        if value is _BAD:
+        if value is BAD:
             return None
-        return _Object(value, "%s.%s" % (self.path, key), self.problems)
+        return Fields(value, "%s.%s" % (self.path, key), self.problems)
 
     def nullable_object(self, key):
         value = self.field(
             key, lambda v: v is None or isinstance(v, dict),
             "an object or null")
-        if value is _BAD or value is None:
+        if value is BAD or value is None:
             return value
-        return _Object(value, "%s.%s" % (self.path, key), self.problems)
+        return Fields(value, "%s.%s" % (self.path, key), self.problems)
 
     def objects(self, key):
         items = self.field(key, lambda v: isinstance(v, list), "a list")
-        if items is _BAD:
+        if items is BAD:
             return None
         objects = []
         for index, item in enumerate(items):
             where = "%s.%s[%d]" % (self.path, key, index)
             if isinstance(item, dict):
-                objects.append(_Object(item, where, self.problems))
+                objects.append(Fields(item, where, self.problems))
             else:
                 self.problems.append("%s is not an object" % where)
         return objects
@@ -239,30 +247,38 @@ def _manifest_problems(manifest, problems):
             "manifest.format_version is not %d, the format version this "
             "verifier knows" % FORMAT_VERSION)
         return
-    root = _Object(manifest, "manifest", problems)
+    root = Fields(manifest, "manifest", problems)
     root.expect_keys(_MANIFEST_KEYS)
     kind = root.string("kind")
-    if kind is not _BAD and kind != "text":
+    if kind is not BAD and kind != "text":
         root.field_problem("kind", "is not a known kind")
-    _riwaya_problems(root)
+    riwaya_problems(root, "text")
     root.string("id")
     root.positive("version")
     root.string("edition")
-    for change in root.objects("changelog") or ():
-        change.expect_keys(("version", "date", "summary"))
-        change.positive("version")
-        change.date("date")
-        change.string("summary")
+    changelog_problems(root)
     font = root.object("font")
     if font is not None:
         font.expect_keys(("family", "version", "sha256"))
         font.string("family")
         font.string("version")
         font.hash("sha256")
-    _sources_problems(root)
-    _files_problems(root)
+    sources_problems(root, "text", ("text", "edition_map"))
+    files_problems(root, "text", TEXT)
     surahs = _counts_problems(root.object("counts"))
     _surah_sha256_problems(root.object("surah_sha256"), surahs)
+    review_problems(root)
+
+
+def changelog_problems(root):
+    for change in root.objects("changelog") or ():
+        change.expect_keys(("version", "date", "summary"))
+        change.positive("version")
+        change.date("date")
+        change.string("summary")
+
+
+def review_problems(root):
     for review in root.objects("reviews") or ():
         review.expect_keys(("reviewer", "date", "scope"))
         review.string("reviewer")
@@ -270,43 +286,45 @@ def _manifest_problems(manifest, problems):
         review.string("scope")
 
 
-def _riwaya_problems(root):
+def riwaya_problems(root, kind):
     riwaya = root.nullable_string("riwaya")
     if riwaya is None:
-        root.field_problem("riwaya", "of a text pack is null")
-    elif riwaya is not _BAD and not _RIWAYA.fullmatch(riwaya):
+        root.field_problem("riwaya", "of a %s pack is null" % kind)
+    elif riwaya is not BAD and not _RIWAYA.fullmatch(riwaya):
         root.field_problem("riwaya", "is not of the form ^[a-z][a-z0-9_]*$")
 
 
-def _sources_problems(root):
+def sources_problems(root, kind, roles):
+    """`roles[0]` is the role a pack of `kind` must name."""
     sources = root.objects("sources")
     if sources is None:
         return
     if not root.value["sources"]:
         root.field_problem("sources", "is empty")
-    roles = []
+    found = []
     for source in sources:
         source.expect_keys(_SOURCE_KEYS)
         role = source.string("role")
-        if role is not _BAD and role not in ("text", "edition_map"):
-            source.field_problem("role", "is not text or edition_map")
-        roles.append(role)
+        if role is not BAD and role not in roles:
+            source.field_problem("role", "is not " + " or ".join(roles))
+        found.append(role)
         source.positive("registry_row")
         for key in ("name", "publisher", "url", "version"):
             source.string(key)
         source.date("fetched_on")
         source.hash("file_sha256")
         grade = source.string("trust_grade")
-        if grade is not _BAD and grade not in ("A", "B", "C"):
+        if grade is not BAD and grade not in ("A", "B", "C"):
             source.field_problem("trust_grade", "is not A, B or C")
         _options_problems(source.nullable_object("options"))
         _licence_problems(source.object("licence"))
-    if sources and "text" not in roles:
-        root.field_problem("sources", "of a text pack has no text source")
+    if sources and roles[0] not in found:
+        root.field_problem(
+            "sources", "of a %s pack has no %s source" % (kind, roles[0]))
 
 
 def _options_problems(options):
-    if options is None or options is _BAD:
+    if options is None or options is BAD:
         return
     if not options.value:
         options.problem("is empty; use null")
@@ -330,7 +348,7 @@ def _licence_problems(licence):
     licence.boolean("allows_export")
 
 
-def _files_problems(root):
+def files_problems(root, kind, data_file):
     files = root.objects("files")
     if files is None:
         return
@@ -338,22 +356,23 @@ def _files_problems(root):
     for file in files:
         file.expect_keys(("name", "sha256", "bytes"))
         name = file.string("name")
-        if name is not _BAD and (
+        if name is not BAD and (
                 name in ("", ".") or "/" in name or "\\" in name
                 or ".." in name):
             file.field_problem("name", "is not a bare file name")
-            name = _BAD
+            name = BAD
         names.append(name)
         file.hash("sha256")
         file.count("bytes")
-    if len(root.value["files"]) != 1 or names != [TEXT]:
-        root.field_problem("files", "of a text pack is not exactly text.sqlite")
+    if len(root.value["files"]) != 1 or names != [data_file]:
+        root.field_problem(
+            "files", "of a %s pack is not exactly %s" % (kind, data_file))
 
 
 def _counts_problems(counts):
-    """counts.surahs, or _BAD."""
+    """counts.surahs, or BAD."""
     if counts is None:
-        return _BAD
+        return BAD
     counts.expect_keys(_COUNT_KEYS)
     surahs = counts.count("surahs")
     for key in _COUNT_KEYS[1:4] + ("sajdas",):
@@ -371,14 +390,14 @@ def _surah_sha256_problems(digests, surahs):
         return
     numbers = set()
     for key in digests.value:
-        if surahs is not _BAD and (
+        if surahs is not BAD and (
                 not _SURAH_KEY.fullmatch(key) or int(key) > surahs):
             digests.problem("has unknown field %s" % safe_name(key))
             continue
         digests.hash(key)
         if _SURAH_KEY.fullmatch(key):
             numbers.add(int(key))
-    if surahs is _BAD or len(numbers) == surahs:
+    if surahs is BAD or len(numbers) == surahs:
         return
     first = next(n for n in range(1, surahs + 1) if n not in numbers)
     digests.problem(

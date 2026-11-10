@@ -6,12 +6,15 @@ stored bytes. Problems name addresses, numbers, field paths, file names and
 code points only, never a text value of the pack.
 
 This module checks the directory, the file and its header and runs the rest:
-`verify_manifest`, `verify_database` and `verify_spans`.
+`verify_manifest`, `verify_database` and `verify_spans`. Its directory, file
+and header checks serve every kind; `pack_kind` tells the command line which
+verifier a pack needs.
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 import sqlite3
 import struct
 from dataclasses import dataclass
@@ -41,26 +44,40 @@ def verify_pack(directory, mark_code_points=None, font=None) -> Report:
     problems = []
     if not directory.is_dir():
         return Report(["the pack directory does not exist"], None, False)
-    signed = _directory_problems(directory, problems)
+    signed = directory_problems(directory, TEXT, problems)
     manifest = read_manifest(directory / MANIFEST, problems)
     if manifest is None:
         return Report(problems, None, signed)
     counts = manifest["counts"]
-    _location_problems(directory, manifest, problems)
+    location_problems(directory, manifest, problems)
     if font is not None:
         _font_identity_problems(manifest["font"], font, problems)
     text = directory / TEXT
     if not text.is_file() or text.is_symlink():
         problems.append("text.sqlite is missing")
         return Report(problems, counts, signed)
-    _file_problems(text, manifest["files"][0], problems)
-    if _header_problems(text, problems):
+    file_problems(text, manifest["files"][0], problems)
+    if header_problems(text, FORMAT_VERSION, problems):
         _database_problems(text, manifest, mark_code_points, font, problems)
     return Report(problems, counts, signed)
 
 
-def _directory_problems(directory, problems):
-    allowed = (MANIFEST, TEXT, SIGNATURE)
+def pack_kind(directory):
+    """The manifest's `kind` when manifest.json is a JSON object with a
+    string kind, else None; the verifier of that kind checks the rest."""
+    try:
+        manifest = json.loads(
+            (Path(directory) / MANIFEST).read_bytes().decode("utf-8"))
+    except (OSError, ValueError):
+        return None
+    if isinstance(manifest, dict) and isinstance(manifest.get("kind"), str):
+        return manifest["kind"]
+    return None
+
+
+def directory_problems(directory, data_file, problems):
+    """True when the pack carries a signature file."""
+    allowed = (MANIFEST, data_file, SIGNATURE)
     for entry in sorted(directory.iterdir()):
         if entry.name not in allowed:
             problems.append(
@@ -78,7 +95,7 @@ def _directory_problems(directory, problems):
     return True
 
 
-def _location_problems(directory, manifest, problems):
+def location_problems(directory, manifest, problems):
     parts = directory.resolve().parts
     if len(parts) < 3 or parts[-2] != manifest["id"]:
         problems.append(
@@ -99,51 +116,51 @@ def _font_identity_problems(listed, font, problems):
         problems.append("font.version is not the version of the font file")
 
 
-def _file_problems(path, listed, problems):
+def file_problems(path, listed, problems):
     size = path.stat().st_size
     if size != listed["bytes"]:
         problems.append(
-            "text.sqlite has %d bytes; files[0].bytes is %d"
-            % (size, listed["bytes"]))
+            "%s has %d bytes; files[0].bytes is %d"
+            % (path.name, size, listed["bytes"]))
     digest = hashlib.sha256()
     with path.open("rb") as stream:
         for block in iter(lambda: stream.read(1 << 20), b""):
             digest.update(block)
     if digest.hexdigest() != listed["sha256"]:
-        problems.append("text.sqlite: SHA-256 differs from files[0].sha256")
+        problems.append("%s: SHA-256 differs from files[0].sha256" % path.name)
 
 
-def _header_problems(path, problems):
+def header_problems(path, user_version, problems):
     """False when the file is not SQLite 3 at all."""
+    name = path.name
     with path.open("rb") as stream:
         header = stream.read(100)
     if len(header) < 100 or not header.startswith(b"SQLite format 3\x00"):
-        problems.append("text.sqlite is not an SQLite 3 file")
+        problems.append("%s is not an SQLite 3 file" % name)
         return False
     for offset in (18, 19):
         if header[offset] != 1:
             problems.append(
-                "text.sqlite: header byte %d is %d, not 1 (journal_mode "
-                "DELETE)" % (offset, header[offset]))
+                "%s: header byte %d is %d, not 1 (journal_mode "
+                "DELETE)" % (name, offset, header[offset]))
 
     def u32(offset):
         return struct.unpack(">I", header[offset:offset + 4])[0]
 
     if u32(56) != 1:
         problems.append(
-            "text.sqlite: text encoding is %d, not UTF-8 (1)" % u32(56))
-    if u32(60) != FORMAT_VERSION:
+            "%s: text encoding is %d, not UTF-8 (1)" % (name, u32(56)))
+    if u32(60) != user_version:
         problems.append(
-            "text.sqlite: user_version is %d, not %d"
-            % (u32(60), FORMAT_VERSION))
+            "%s: user_version is %d, not %d" % (name, u32(60), user_version))
     if u32(68) != APPLICATION_ID:
         problems.append(
-            "text.sqlite: application_id is %d, not %d"
-            % (u32(68), APPLICATION_ID))
+            "%s: application_id is %d, not %d"
+            % (name, u32(68), APPLICATION_ID))
     if u32(36) != 0:
         problems.append(
-            "text.sqlite: %d free pages: the build did not end with VACUUM"
-            % u32(36))
+            "%s: %d free pages: the build did not end with VACUUM"
+            % (name, u32(36)))
     return True
 
 
