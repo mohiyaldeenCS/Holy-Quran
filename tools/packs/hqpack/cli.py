@@ -253,6 +253,7 @@ def _tafsir(args, out):
         ),
         file=out,
     )
+    print("footnotes appended %d, note paragraphs %d" % (counts["footnotes"], counts["note_paragraphs"]), file=out)
     print("tafsir.sqlite sha256 %s" % result.tafsir_sha256, file=out)
     print("manifest.json sha256 %s" % result.manifest_sha256, file=out)
     if args.report is not None:

@@ -5,8 +5,12 @@ counts, the approved honorific table and the reviewer's record are read and
 checked before the book; then every input is tied by its hash
 (`ziydia_inputs`); the gate chooses the entries (`tafsir_passages`); each
 shipped paragraph is found on its page (P3) and converted with its proofs
-(`tafsir_html`, P1 and P2); every code point is checked against the font;
-the passages are merged, ordered and numbered; the database is written in a
+(`tafsir_html`, P1 and P2); the notes of its footnote marks are paired on
+their pages, found there (P3) and converted the same way (`tafsir_footnotes`,
+D-189), any footnote case stopping the build; the passages are merged,
+ordered and numbered, their notes after their body, and each is rebuilt by
+the regular-expression path (P2); every code point is checked against the
+font; the database is written in a
 temporary folder and read back (P4); the manifest is written; the independent
 verifier runs; and only then is the pack moved to `<out>/<id>/<version>/`.
 Any failure leaves nothing behind. Signing is a separate step.
@@ -32,8 +36,9 @@ from .honorifics import read_honorific_table
 from .manifest import build_tafsir_manifest, encode_manifest, source_entry
 from .tafsir_config import read_tafsir_config
 from .tafsir_database import SURAH_LEVEL, read_tafsir_texts, write_tafsir_database
-from .tafsir_html import convert_paragraph
-from .tafsir_passages import JOIN, assemble, select
+from .tafsir_footnotes import Case, notes_of_marks, refuse, regex_passage_text, repeated_in_passages
+from .tafsir_html import NOTE_OPEN, SEPARATOR, convert_paragraph
+from .tafsir_passages import JOIN, assemble, group, select
 from .verify_tafsir import verify_tafsir_pack
 from .ziydia_inputs import PageParagraphs, read_book_inputs, read_review_record
 
@@ -79,8 +84,13 @@ def build_tafsir_pack(config_path, honorifics_path, reviews_path, ayah_counts_pa
     )
 
     selection = select(inputs.entries, inputs.outcomes, review, ayah_counts)
-    texts, empty, replaced = _convert(selection.chosen, inputs.pages, table.phrases)
-    rows = assemble(selection.chosen, texts)
+    on_pages = PageParagraphs(inputs.pages)
+    texts, marks, empty, replaced, cases = _convert(selection.chosen, on_pages, table.phrases)
+    notes_html, page_cases = notes_of_marks(marks, inputs.pages)
+    refuse(config.book, cases + page_cases + repeated_in_passages(group(selection.chosen), marks))
+    notes, note_paragraphs, note_empty = _convert_notes(notes_html, on_pages, table.phrases, replaced)
+    rows = assemble(selection.chosen, texts, marks, notes)
+    _check_passages_by_regex(selection.chosen, rows, inputs.pages, table.phrases)
     _check_font(inputs.facts, rows, font)
     counts = {
         "passages": len(rows),
@@ -88,8 +98,10 @@ def build_tafsir_pack(config_path, honorifics_path, reviews_path, ayah_counts_pa
         "entries_shipped": len(selection.chosen),
         "entries_held": len(selection.held),
         "paragraphs": sum(len(t) for t in texts.values()),
-        "empty_paragraphs": empty,
+        "empty_paragraphs": empty + note_empty,
         "codes_replaced": sum(replaced.values()),
+        "footnotes": sum(len(m) for m in marks.values()),
+        "note_paragraphs": note_paragraphs,
     }
 
     out_root.mkdir(parents=True, exist_ok=True)
@@ -140,22 +152,54 @@ def _read(path, what):
         raise PackError("%s cannot be read (%s)" % (what, path)) from None
 
 
-def _convert(chosen, pages, phrases):
-    """{n: the texts of its paragraphs, empty ones left out}, the empty count, and the codes replaced."""
-    on_pages = PageParagraphs(pages)
-    texts, empty, replaced = {}, 0, Counter()
+def _convert(chosen, on_pages, phrases):
+    """{n: the texts of its paragraphs, empty ones left out}, {n: its footnote
+    marks [(site_page, N)]}, the empty count, the codes replaced, and a case
+    for each note or footnote line an entry carries as its own paragraph."""
+    texts, marks, empty, replaced, cases = {}, {}, 0, Counter(), []
     for entry in chosen:
-        texts[entry.n] = []
+        texts[entry.n], marks[entry.n] = [], []
         for index, (site_page, html) in enumerate(entry.paragraphs, 1):
             where = "entry %d paragraph %d (site page %d)" % (entry.n, index, site_page)
             on_pages.take(site_page, html, where)
+            if html == SEPARATOR or html.startswith(NOTE_OPEN):
+                cases.append(Case("page_layout", site_page, "", (entry.n,)))
+                continue
             paragraph = convert_paragraph(html, phrases, where)
             replaced.update(paragraph.replaced)
+            marks[entry.n] += [(site_page, number) for number in paragraph.marks]
             if paragraph.text:
                 texts[entry.n].append(paragraph.text)
             else:
                 empty += 1
-    return texts, empty, replaced
+    return texts, marks, empty, replaced, cases
+
+
+def _convert_notes(notes_html, on_pages, phrases, replaced):
+    """{(site_page, N): the texts of the note's paragraphs, empty ones left out},
+    the paragraphs kept and the empty ones; each note paragraph found on its page (P3)."""
+    notes, kept, empty = {}, 0, 0
+    for (site_page, number), paragraphs in sorted(notes_html.items()):
+        notes[(site_page, number)] = []
+        for index, html in enumerate(paragraphs, 1):
+            where = "note %d paragraph %d (site page %d)" % (int(number), index, site_page)
+            on_pages.take(site_page, html, where)
+            paragraph = convert_paragraph(html, phrases, where)
+            replaced.update(paragraph.replaced)
+            if paragraph.text:
+                notes[(site_page, number)].append(paragraph.text)
+                kept += 1
+            else:
+                empty += 1
+    return notes, kept, empty
+
+
+def _check_passages_by_regex(chosen, rows, pages, phrases):
+    """P2 for whole passages, notes included."""
+    for entries, row in zip(group(chosen), rows):
+        paragraphs = [paragraph for e in entries for paragraph in e.paragraphs]
+        if JOIN.join(regex_passage_text(paragraphs, pages, phrases)) != row.text:
+            raise PackError("passage %d: the text rebuilt from the html by the second path differs (P2)" % row.number)
 
 
 def _check_font(facts, rows, font):

@@ -15,7 +15,8 @@ a union that is not one interval is held out. In one surah, overlapping or
 equal ranges merge in book order (touching ones do not), and all of a
 surah's surah-level entries become its one surah-level passage. Passages are
 sorted into mushaf order and numbered from 1; each one's text is its
-paragraphs' texts joined by U+000A.
+paragraphs' texts, then the notes of its footnote marks in the marks' order
+(D-189, `tafsir_footnotes`), joined by U+000A.
 """
 
 from __future__ import annotations
@@ -81,9 +82,8 @@ def select(entries, outcomes: dict, review, ayah_counts: dict) -> Selection:
     return Selection(chosen, held, never)
 
 
-def assemble(chosen, texts: dict) -> list:
-    """`texts` maps each chosen entry's n to its paragraphs' texts, the empty
-    ones left out. Returns the passage rows, numbered in mushaf order."""
+def group(chosen) -> list:
+    """The entries of each passage, in book order; the passages in mushaf order."""
     groups = {}
     for entry in chosen:
         if entry.first == SURAH_LEVEL:
@@ -93,18 +93,27 @@ def assemble(chosen, texts: dict) -> list:
         if entry.first != SURAH_LEVEL:
             by_surah.setdefault(entry.surah, []).append(entry)
     for surah, entries in by_surah.items():
-        for group in _merged(entries):
-            groups[(surah, min(e.first for e in group))] = group
+        for merged in _merged(entries):
+            groups[(surah, min(e.first for e in merged))] = merged
+    return [sorted(groups[key], key=lambda e: e.n) for key in sorted(groups)]
+
+
+def assemble(chosen, texts: dict, marks=None, notes=None) -> list:
+    """`texts` maps each chosen entry's n to its paragraphs' texts, the empty
+    ones left out; `marks` maps it to its footnote marks [(site_page, N)] and
+    `notes` each mark to its note's texts. Returns the passage rows, numbered
+    in mushaf order."""
+    marks, notes = marks or {}, notes or {}
     rows = []
-    for number, key in enumerate(sorted(groups), 1):
-        group = sorted(groups[key], key=lambda e: e.n)
-        paragraphs = [text for e in group for text in texts[e.n]]
-        if not paragraphs:
+    for number, entries in enumerate(group(chosen), 1):
+        body = [text for e in entries for text in texts[e.n]]
+        paragraphs = body + [text for e in entries for mark in marks.get(e.n, ()) for text in notes[mark]]
+        surah, first = entries[0].surah, min(e.first for e in entries)
+        if not body:
             raise PackError(
-                "entries %s of surah %d have no text after conversion"
-                % (", ".join(str(e.n) for e in group), key[0])
+                "entries %s of surah %d have no text after conversion" % (", ".join(str(e.n) for e in entries), surah)
             )
-        rows.append(PassageRow(number, key[0], key[1], max(e.last for e in group), JOIN.join(paragraphs)))
+        rows.append(PassageRow(number, surah, first, max(e.last for e in entries), JOIN.join(paragraphs)))
     if not rows:
         raise PackError("no passage is left to ship")
     return rows
