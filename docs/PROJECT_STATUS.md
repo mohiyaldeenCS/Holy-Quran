@@ -435,7 +435,7 @@ Stream B: the owner is extracting book 466. B0.11 (the pack pipeline) is on `mai
 
 Current (2026-11-10, local lead; agents run locally under D-191 while no API key works): the Zaydi tafsir packs by `docs/plans/B07_TAFSIR_PACK.md` (tasks A and B1 first; D-184 to D-190), then a second mark row when one row does not fit (D-183). Follow-up from the review of #101: the tafsir reader (`tafsir_routes.dart`, `study_routes.dart`) shows its title alone when the base pack is missing or failed; give it the base-pack alert as the index and search have (D-180). `HANDOFF.md` section 0 holds the order.
 
-Work runs through agents in GitHub Actions; the lead only manages them (D-159). The
+Work runs through agents in GitHub Actions; the lead only manages them (D-159; suspended by D-191 while no API key works). The
 current queue, in order, with how to start a run, is `HANDOFF.md`, sections 2 and 3.
 Decision numbers: take the number after the highest on `main` and every open pull request
 (D-076); D-155 to D-159 are taken.
