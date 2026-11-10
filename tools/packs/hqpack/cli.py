@@ -328,7 +328,12 @@ def _drift(args, out):
 
 def _report(args, signing):
     """Usage is checked for the pack's kind before any input is read."""
-    tafsir = pack_kind(args.pack) == "tafsir"
+    kind = pack_kind(args.pack)
+    tafsir = kind == "tafsir"
+    if kind is None and args.ayah_counts is not None:
+        raise PackError(
+            "manifest.json of %s is unreadable (no JSON object with a kind), so its kind is unknown" % args.pack
+        )
     if tafsir:
         if args.mark_table is not None:
             raise _Usage("--mark-table is for a text pack; this is a tafsir pack")

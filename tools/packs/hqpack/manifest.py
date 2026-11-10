@@ -121,6 +121,8 @@ def build_tafsir_manifest(
     `tafsir` sources (docs/CONTENT_PACKS.md, "Manifest by kind")."""
     if riwaya is None:
         raise PackError("manifest: riwaya of a tafsir pack is null")
+    if riwaya != "hafs":
+        raise PackError("manifest: riwaya of a tafsir pack is not hafs, the riwaya of the only ayah counts (P5)")
     if type(passages) is not int or passages < 1:
         raise PackError("manifest: counts.passages is not a positive integer")
     sources = [_source(s, "sources[%d]" % i) for i, s in enumerate(sources)]

@@ -146,6 +146,44 @@ class VerifyTafsirTest(_Case):
             ],
         )
 
+    def test_u000a_only_joins_two_paragraphs_of_a_passage(self):
+        cases = (
+            ((1, 1, 0, 0, "\nSynthetic"), "passage 1 begins with U+000A"),
+            ((1, 1, 0, 0, "Synthetic\n"), "passage 1 ends with U+000A"),
+            ((1, 1, 0, 0, "Synthetic\n\nline"), "passage 1 holds U+000A U+000A at code point 9"),
+        )
+        for index, (passage, expected) in enumerate(cases):
+            with self.subTest(expected=expected):
+                directory = factory.write_pack(self.root / ("line-break-%d" % index), passages=(passage,))
+                self.assertEqual(self.verify(directory).problems, [expected])
+        book = ("Synthetic\ntitle",) + factory.BOOK[1:]
+        problems = self.verify(self.pack(book=book)).problems
+        self.assertEqual(problems, ["book.title holds U+000A"])
+
+    def test_the_font_exempts_u000a_in_passages_only(self):
+        book = ("Synthetic\ntitle",) + factory.BOOK[1:]
+        directory = self.pack(book=book)
+        font = Font("Synthetic", "1", "0" * 64, factory.code_points(book=book) - {0x000A, 0x2063, 0x2009})
+        self.assertEqual(
+            self.verify(directory, font=font).problems,
+            [
+                "book.title holds U+000A",
+                "U+000A is not in the font; first at book.title",
+                "1 code points of the text are not in the font",
+            ],
+        )
+
+    def test_the_riwaya_is_hafs(self):
+        directory = self.pack()
+        path = directory / "manifest.json"
+        manifest = json.loads(path.read_bytes())
+        manifest["riwaya"] = "warsh"
+        path.write_text(json.dumps(manifest), encoding="utf-8")
+        self.assertIn(
+            "manifest.riwaya of a tafsir pack is not hafs, the riwaya of the only ayah counts (KFGQPC Hafs)",
+            self.verify(directory).problems,
+        )
+
     def test_a_text_pack_is_not_a_tafsir_pack(self):
         directory = pack_factory.write_pack(self.root / "text")
         report = self.verify(directory)

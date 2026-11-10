@@ -278,6 +278,7 @@ class TafsirManifestTest(unittest.TestCase):
     def test_refusals(self):
         cases = (
             (dict(riwaya=None), "riwaya of a tafsir pack is null"),
+            (dict(riwaya="warsh"), "riwaya of a tafsir pack is not hafs"),
             (dict(passages=0), "counts.passages is not a positive integer"),
             (dict(passages=True), "counts.passages is not a positive integer"),
             (dict(sources=[]), "a tafsir pack has no tafsir source"),

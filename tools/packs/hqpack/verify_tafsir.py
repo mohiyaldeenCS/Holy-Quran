@@ -12,23 +12,25 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
-from types import SimpleNamespace
 
+from .errors import code_point
 from .verify import (
     MANIFEST, Report, directory_problems, file_problems, header_problems,
     location_problems)
 from .verify_manifest import (
     BAD, Fields, changelog_problems, files_problems, read_checked,
     review_problems, riwaya_problems, safe_name, sources_problems)
-from .verify_spans import coverage_problems
 
 TAFSIR = "tafsir.sqlite"
 FORMAT_VERSION = 2
 SURAH_LEVEL = (0, 0)
-# Code points a passage may hold that the tafsir font need not draw: U+000A
-# joins a passage's paragraphs (D-184) and is laid out as a line break, not a
-# glyph; U+2009 and U+2063 are the two D-185 keeps that the font lacks.
-FONT_EXEMPT = frozenset({0x000A, 0x2009, 0x2063})
+RIWAYA = "hafs"  # the only ayah counts (P5) are KFGQPC Hafs's
+JOIN = 0x000A
+# Code points the tafsir font need not draw: U+2009 and U+2063, the two D-185
+# keeps that it lacks, anywhere; U+000A only in a passage, where it joins two
+# paragraphs (D-184) and is laid out as a line break, not a glyph.
+FONT_EXEMPT = frozenset({0x2009, 0x2063})
+PASSAGE_FONT_EXEMPT = FONT_EXEMPT | {JOIN}
 
 _MANIFEST_KEYS = (
     "format", "format_version", "id", "kind", "version", "changelog",
@@ -103,6 +105,11 @@ def _manifest_problems(manifest, problems):
     if kind is not BAD and kind != "tafsir":
         root.field_problem("kind", "is not tafsir")
     riwaya_problems(root, "tafsir")
+    riwaya = manifest.get("riwaya")
+    if isinstance(riwaya, str) and riwaya != RIWAYA:
+        root.field_problem(
+            "riwaya", "of a tafsir pack is not %s, the riwaya of the only "
+            "ayah counts (KFGQPC Hafs)" % RIWAYA)
     root.string("id")
     root.positive("version")
     changelog_problems(root)
@@ -133,10 +140,10 @@ def _database_problems(path, listed, ayah_counts, font, problems):
                 "SELECT number, surah, first_ayah, last_ayah, "
                 "CAST(text AS BLOB) FROM passage ORDER BY number"
             ).fetchall(), listed, ayah_counts, texts, problems)
+            _line_break_problems(texts, problems)
             if font is not None:
-                covered = SimpleNamespace(
-                    code_points=frozenset(font.code_points) | FONT_EXEMPT)
-                coverage_problems(texts, covered, problems)
+                _coverage_problems(texts, frozenset(font.code_points),
+                                   problems)
     except sqlite3.Error as e:
         problems.append("tafsir.sqlite cannot be read (%s)" % type(e).__name__)
     finally:
@@ -277,6 +284,41 @@ def _order_problems(before, passage, problems):
             % (number, b_number))
     elif surah == b_surah and first <= b_last:
         problems.append("passages %d and %d overlap" % (b_number, number))
+
+
+def _line_break_problems(texts, problems):
+    """U+000A only joins two paragraphs of a passage (D-184)."""
+    for where, text in texts.items():
+        if not text:
+            continue
+        if not where.startswith("passage "):
+            if chr(JOIN) in text:
+                problems.append("%s holds U+000A" % where)
+            continue
+        if text.startswith(chr(JOIN)):
+            problems.append("%s begins with U+000A" % where)
+        if text.endswith(chr(JOIN)):
+            problems.append("%s ends with U+000A" % where)
+        at = text.find(chr(JOIN) * 2)
+        if at >= 0:
+            problems.append(
+                "%s holds U+000A U+000A at code point %d" % (where, at))
+
+
+def _coverage_problems(texts, code_points, problems):
+    missing = {}
+    for where, text in texts.items():
+        exempt = (PASSAGE_FONT_EXEMPT if where.startswith("passage ")
+                  else FONT_EXEMPT)
+        for ch in text or "":
+            if ord(ch) not in code_points and ord(ch) not in exempt:
+                missing.setdefault(ord(ch), where)
+    for cp in sorted(missing):
+        problems.append(
+            "%s is not in the font; first at %s" % (code_point(cp), missing[cp]))
+    if missing:
+        problems.append(
+            "%d code points of the text are not in the font" % len(missing))
 
 
 def _decoded(data, where, problems):

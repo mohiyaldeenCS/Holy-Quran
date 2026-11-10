@@ -343,6 +343,20 @@ class TafsirVerifyTest(TafsirCliCase):
         self.assertEqual(code, cli.EX_USAGE)
         self.assertIn("--ayah-counts is for a tafsir pack", err)
 
+    def test_an_unreadable_manifest_with_tafsir_options_is_refused_not_a_usage_error(self):
+        counts = self.ayah_counts()
+        for name, data in (("garbage", b"\xff not json"), ("array", b"[]"), ("no-kind", b'{"format": 2}')):
+            with self.subTest(name=name):
+                pack = self.work / "unreadable" / name / "1"
+                pack.mkdir(parents=True)
+                (pack / "manifest.json").write_bytes(data)
+                for command in (("verify", pack), ("sign", pack, "--key", self.work / "absent.pem")):
+                    code, _, err = self.run_cli(*command, "--ayah-counts", counts)
+                    self.assertEqual(code, cli.EX_DATAERR, err)
+                    self.assertIn("refused: manifest.json of ", err)
+                    self.assertIn("is unreadable (no JSON object with a kind), so its kind is unknown", err)
+        self.assertFalse((self.work / "unreadable" / "absent" / "1").exists())
+
     def test_sign_of_a_tafsir_pack_needs_its_font(self):
         tafsir = self.tafsir()
         code, _, err = self.run_cli("sign", tafsir, "--key", self.work / "absent.pem", "--ayah-counts", self.ayah_counts())
