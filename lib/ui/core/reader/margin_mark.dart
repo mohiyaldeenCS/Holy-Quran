@@ -50,15 +50,6 @@ final class MarginMarkView extends StatelessWidget {
   static bool _starOnly(MarginMark mark) =>
       mark.kind == MarginMarkKind.rub && mark.quarter != 1;
 
-  /// The height [mark] takes when laid out with [scaler], as [build] lays it
-  /// out; [bold] when the system asks for bold text, which `Text` follows.
-  static double heightOf(
-    MarginMark mark,
-    AppLocalizations strings,
-    TextScaler scaler, {
-    bool bold = false,
-  }) => sizeOf(mark, strings, scaler, bold: bold).height;
-
   /// The size [mark] takes when laid out with [scaler], as [build] lays it
   /// out; [bold] when the system asks for bold text, which `Text` follows.
   static Size sizeOf(
