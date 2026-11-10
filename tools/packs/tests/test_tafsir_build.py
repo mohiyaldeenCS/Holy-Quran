@@ -205,6 +205,156 @@ class TafsirPackTest(_Case):
         self.assertIn(b"Synthetic last", (self.pack / "tafsir.sqlite").read_bytes())
 
 
+class FootnoteBuildTest(_Case):
+    """D-189: each mark's note follows its passage's body, in the marks' order; every footnote case stops the build."""
+
+    def setUp(self):
+        super().setUp()
+        entries = self.book.entries
+        entries[2] = dict(entries[2], paragraphs=[(10, zf.para("&nbsp&nbsp" + zf.BOLD + "Synthetic lead:" + zf.END + " first part" + zf.mark(2) + " and" + zf.mark(1)))])
+        entries[3] = dict(
+            entries[3],
+            paragraphs=[(11, zf.para("Synthetic " + zf.QUOTE + "quoted words" + zf.END + "\u2063" + zf.SMALL + "[3]" + zf.END + " second part" + zf.mark(3)))],
+        )
+        entries[4] = dict(entries[4], paragraphs=[(11, zf.para("Synthetic not found" + zf.mark(4)))])
+        self.book.extra_paragraphs = {
+            10: [zf.SEPARATOR, zf.note(1, "Synthetic note one"), zf.note(None, "Synthetic note one more"), zf.note(2, "Synthetic note two")],
+            11: [zf.SEPARATOR, zf.note(3, "Synthetic note three " + zf.code("\u00f7")), zf.note(4, zf.SENTINEL + " note")],
+        }
+        self.book.write()
+
+    def test_notes_follow_the_body_in_the_marks_order(self):
+        code, out, _ = self.tafsir()
+        self.assertEqual(code, 0, out)
+        self.assertIn("counts passages 4 surah-level 1", out)
+        self.assertIn("footnotes appended 3, note paragraphs 4", out)
+        self.assertIn("honorific codes replaced 3", out)
+        expected = "\n".join(
+            (
+                "Synthetic lead: first part\u2063(\u2063" + zf.digits(2) + ") and\u2063(\u2063" + zf.digits(1) + ")",
+                "Synthetic quoted words\u2063[3] second part\u2063(\u2063" + zf.digits(3) + ")",
+                "(" + zf.digits(2) + ") Synthetic note two",
+                "(" + zf.digits(1) + ") Synthetic note one",
+                "Synthetic note one more",
+                "(" + zf.digits(3) + ") Synthetic note three " + zf.HONORIFIC,
+            )
+        )
+        with sqlite3.connect(str(self.pack / "tafsir.sqlite")) as db:
+            stored = db.execute("SELECT CAST(text AS BLOB) FROM passage WHERE number = 2").fetchone()[0]
+        db.close()
+        self.assertEqual(bytes(stored), expected.encode("utf-8"))
+        self.assertNotIn(zf.SENTINEL.encode("ascii"), (self.pack / "tafsir.sqlite").read_bytes())
+        self.assertEqual(verify_tafsir_pack(self.pack, zf.AYAH_COUNTS).problems, [])
+
+    def _refused(self, *expected):
+        err = self.assert_refused("refused: book 183: ")
+        for part in expected:
+            self.assertIn(part, err)
+        self.assertIn("the review record settles one only by excluding its entries", err)
+
+    def test_an_unnumbered_note_that_opens_a_page(self):
+        self.book.extra_paragraphs[11].insert(1, zf.note(None, "Synthetic orphan"))
+        self.book.write()
+        self._refused(
+            "2 footnote cases stop the build (unnumbered_note_opens_page 2)",
+            "site page 11 unnumbered_note_opens_page (entries 3)",
+            "site page 11 unnumbered_note_opens_page (entries 4)",
+        )
+
+    def test_an_unnumbered_note_that_opens_the_page_after_a_used_last_note(self):
+        self.book.entries[3] = dict(self.book.entries[3], paragraphs=[(11, zf.para("Synthetic second part"))])
+        self.book.entries[4] = dict(self.book.entries[4], paragraphs=[(11, zf.para("Synthetic not found"))])
+        self.book.extra_paragraphs[11] = [zf.SEPARATOR, zf.note(None, "Synthetic orphan")]
+        self.book.write()
+        self._refused("1 footnote cases stop the build", "site page 11 unnumbered_note_opens_page (entries 3)")
+
+    def test_a_number_repeated_in_a_passage_from_another_page_takes_its_pages_note(self):
+        self.book.entries[3] = dict(self.book.entries[3], paragraphs=[(11, zf.para("Synthetic second part" + zf.mark(1)))])
+        self.book.extra_paragraphs[11][1] = zf.note(1, "Synthetic note eleven")
+        self.book.write()
+        code, out, _ = self.tafsir()
+        self.assertEqual(code, 0, out)
+        self.assertIn("footnotes appended 3, note paragraphs 4", out)
+        with sqlite3.connect(str(self.pack / "tafsir.sqlite")) as db:
+            stored = bytes(db.execute("SELECT CAST(text AS BLOB) FROM passage WHERE number = 2").fetchone()[0])
+        db.close()
+        notes = stored.decode("utf-8").split("\n")[2:]
+        self.assertEqual(
+            notes,
+            [
+                "(" + zf.digits(2) + ") Synthetic note two",
+                "(" + zf.digits(1) + ") Synthetic note one",
+                "Synthetic note one more",
+                "(" + zf.digits(1) + ") Synthetic note eleven",
+            ],
+        )
+
+    def test_a_number_repeated_on_one_page_of_one_passage(self):
+        self.book.entries[2] = dict(
+            self.book.entries[2], paragraphs=[(10, zf.para("Synthetic first" + zf.mark(1) + " and" + zf.mark(2) + zf.mark(1)))]
+        )
+        self.book.write()
+        self._refused("1 footnote cases stop the build (number_repeated_on_page 1)", "site page 10 N 1 number_repeated_on_page (entries 3)")
+
+    def test_a_number_repeated_on_a_page(self):
+        self.book.extra_paragraphs[10].append(zf.note(2, "Synthetic again"))
+        self.book.write()
+        self._refused("site page 10 N 2 number_repeated_on_page (entries 3)")
+
+    def test_a_mark_without_its_note(self):
+        self.book.extra_paragraphs[10].pop()
+        self.book.write()
+        self._refused("1 footnote cases stop the build (mark_without_note 1)", "site page 10 N 2 mark_without_note (entries 3)")
+
+    def test_a_note_without_its_mark(self):
+        self.book.extra_paragraphs[10].append(zf.note(12, "Synthetic"))
+        self.book.write()
+        self._refused("site page 10 N 12 note_without_mark (entries 3)")
+
+    def test_a_separator_that_is_not_empty(self):
+        self.book.extra_paragraphs[10][0] = zf.NOTE + zf.HR + "Synthetic</p>"
+        self.book.write()
+        self._refused("site page 10 separator_not_empty (entries 3)")
+
+    def test_a_note_carried_as_a_passage_paragraph(self):
+        self.book.entries[9] = dict(
+            self.book.entries[9], paragraphs=self.book.entries[9]["paragraphs"] + [(12, zf.note(None, "Synthetic carried"))]
+        )
+        self.book.write()
+        self._refused("site page 12 page_layout (entries 10)")
+
+    def test_excluding_the_entries_settles_a_case(self):
+        self.book.extra_paragraphs[10].pop()
+        self.book.excluded = [3]
+        self.book.write()
+        report = self.work / "held.json"
+        code, out, _ = self.tafsir(report=report)
+        self.assertEqual(code, 0, out)
+        self.assertIn("footnotes appended 1, note paragraphs 1", out)
+        self.assertIn({"n": 3, "reason": "excluded", "site_page": 10}, json.loads(report.read_bytes())["held"])
+
+    def test_a_note_conversion_that_drops_a_character_fails_p2(self):
+        real = tafsir_build._convert_notes
+
+        def dropping(*args):
+            notes, kept, empty = real(*args)
+            key = sorted(notes)[0]
+            notes[key] = [notes[key][0][:-1]] + notes[key][1:]
+            return notes, kept, empty
+
+        with mock.patch.object(tafsir_build, "_convert_notes", dropping):
+            self.assert_refused("passage 2: the text rebuilt from the html by the second path differs (P2)")
+
+    def test_notes_appended_out_of_the_marks_order_fail_p2(self):
+        real = tafsir_build.assemble
+
+        def reordered(chosen, texts, marks, notes):
+            return real(chosen, texts, {n: list(reversed(m)) for n, m in marks.items()}, notes)
+
+        with mock.patch.object(tafsir_build, "assemble", reordered):
+            self.assert_refused("passage 2: the text rebuilt from the html by the second path differs (P2)")
+
+
 class TafsirRefusalTest(_Case):
     def test_usage(self):
         code, _, err = self.run_cli("tafsir", *self.book.args(honorifics=None))
@@ -250,6 +400,21 @@ class TafsirRefusalTest(_Case):
         self.assert_refused("does not exist", report=self.work / "absent" / "held.json")
         self.assertFalse((self.work / "absent").exists())
 
+    def test_a_report_created_by_another_process_during_the_build(self):
+        report = self.work / "held.json"
+        real = cli.build_tafsir_pack
+
+        def racing(*args):
+            result = real(*args)
+            report.write_bytes(b"synthetic report of another process")
+            return result
+
+        with mock.patch.object(cli, "build_tafsir_pack", racing):
+            code, _, err = self.tafsir(report=report)
+        self.assertEqual(code, cli.EX_DATAERR, err)
+        self.assertIn("was created by another process during the build and is not overwritten", err)
+        self.assertEqual(report.read_bytes(), b"synthetic report of another process")
+
     def test_a_riwaya_other_than_hafs(self):
         path = self.book.path("tafsir.json")
         description = json.loads(path.read_bytes())
@@ -268,7 +433,7 @@ class TafsirRefusalTest(_Case):
         for html, expected in (
             (zf.para("<i>Synthetic</i>"), "entry 3 paragraph 1 (site page 10): unknown markup <i>"),
             (zf.para("Synthetic " + zf.code("\u00d7")), "the code U+00D7 at offset 54 is not in the honorific table"),
-            (zf.para("Synthetic<sup>1</sup>"), "<sup> at offset 53 belongs to a footnote"),
+            (zf.para("Synthetic<sup>1</sup>"), "unknown markup <sup> at offset 53"),
         ):
             with self.subTest(expected=expected):
                 self.book.entries[2] = dict(self.book.entries[2], paragraphs=[(10, html)])

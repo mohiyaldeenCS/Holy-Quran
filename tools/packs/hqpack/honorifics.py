@@ -26,12 +26,15 @@ _CODE = re.compile(r"U\+([0-9A-F]{4,6})")
 # apart from a kept one.
 KEPT_CODES = frozenset("\ufdfa\ufdfb\ufdfd\u00b7")
 DOT = "."
-# A code here would be read as markup, collapsed as white space, or refused.
+# A code here would be read as markup, collapsed as white space, or refused;
+# a control (category Cc, C0 or C1) is refused too.
 # U+0026 is one of the site's codes (docs/plans/B07_TAFSIR_PACK.md).
 _NOT_A_CODE = KEPT_CODES | frozenset(DOT + "<>\ufeff\ufffd \t\n\r\f\v")
 _NOT_IN_A_PHRASE = frozenset("<>&\ufeff\ufffd")
 # The conversion collapses every run of ASCII white space (tafsir_html), so a
 # phrase holds only single U+0020 between its words and is stored unchanged.
+# No other separator (category Z: U+00A0, U+2009, U+2028, U+2029 ...) and no
+# control (Cc) may stand in a phrase either.
 _WHITE = re.compile("[ \t\n\r\f\v]+")
 
 
@@ -93,7 +96,7 @@ def _code(value, where: str) -> str:
     if number > 0x10FFFF or 0xD800 <= number <= 0xDFFF:
         raise PackError("%s is not a Unicode scalar value" % where)
     c = chr(number)
-    if c in _NOT_A_CODE or number < 0x20 or number == 0x7F:
+    if c in _NOT_A_CODE or unicodedata.category(c) == "Cc":
         raise PackError(
             "%s %s is markup, white space, a control or a character the conversion keeps" % (where, code_point(c))
         )
@@ -110,6 +113,7 @@ def _phrase(value, where: str) -> str:
     if _WHITE.sub(" ", value) != value:
         raise PackError("%s holds white space other than single U+0020 characters" % where)
     for c in value:
-        if c in _NOT_IN_A_PHRASE or ord(c) < 0x20 or ord(c) == 0x7F:
+        category = unicodedata.category(c)
+        if c in _NOT_IN_A_PHRASE or category == "Cc" or (category[0] == "Z" and c != " "):
             raise PackError("%s holds %s" % (where, code_point(c)))
     return value
