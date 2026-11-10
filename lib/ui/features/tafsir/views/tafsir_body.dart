@@ -18,11 +18,14 @@ import 'package:holyquran/ui/core/widgets/tafsir_text.dart';
 import 'package:holyquran/ui/features/tafsir/view_models/tafsir_view_model.dart';
 
 /// What the tafsir reader and the tafsir sheet show for an ayah (`TF-03`,
-/// `TF-04`): the ayah above, the range the passage explains when it is more
-/// than one ayah, the passage, and the source badge with the copy button
-/// beneath it. An ayah the book has no passage for shows the fixed sentence
-/// (D-033); with no book downloaded, the book's absence and, while the
-/// catalogue offers one, the way to the download.
+/// `TF-04`): the ayah above; where the surah's tafsir begins, the book's
+/// passage on the surah as a whole (D-184), with no range and no label of
+/// its own, as the identity draws none; the range the passage explains when
+/// it is more than one ayah, the passage, and the source badge with the copy
+/// button beneath it. The copy takes the ayah passage only, as its
+/// attribution names an ayah. An ayah the book has no passage for shows the
+/// fixed sentence (D-033); with no book downloaded, the book's absence and,
+/// while the catalogue offers one, the way to the download.
 class TafsirBody extends StatelessWidget {
   const TafsirBody({
     required this.viewModel,
@@ -82,9 +85,11 @@ class TafsirBody extends StatelessWidget {
     TextStyle muted,
   ) {
     final l10n = AppLocalizations.of(context);
+    final surahPassage = page.surahPassage;
     final passage = page.passage;
     final range = page.range;
     return [
+      if (surahPassage != null) TafsirText(surahPassage.text),
       if (range != null)
         Text(
           l10n.tafsirRange(arabicDigits(range.first), arabicDigits(range.last)),
