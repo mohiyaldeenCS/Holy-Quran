@@ -6,7 +6,8 @@ text takes from it:
 
 - the tags of `ALLOWED`, exactly as the site writes them (tools/packs/README.md,
   "The markup a paragraph may hold"), nested in balance, a `<div>` only
-  directly inside the paragraph: none;
+  where the books put it (`&nbsp`, the `<div>` holding one code span,
+  `</p>`): none;
 - a dark-red code span (`CODE_SPANS`) holding one table code: its approved
   phrase; holding U+FDFA, U+FDFB, U+FDFD, U+00B7 or a run of U+002E: itself;
 - `&nbsp` at either edge of the paragraph: none;
@@ -17,8 +18,7 @@ paragraph, `<sup>` and `<hr>` until footnotes are built (D-189, task C);
 another entity, `&nbsp;`, `&nbsp` inside the paragraph, or a stray `<`, `>` or
 `&`; U+FFFD and U+FEFF; an unknown code; a table code outside its span or
 touching a letter (format characters, category Cf, are passed over to find
-the code's neighbours); text touching the outside of a `<div>`, whose words
-would otherwise run together. The pieces' texts are joined, every run of
+the code's neighbours); a `<div>` anywhere else. The pieces' texts are joined, every run of
 ASCII white space becomes one U+0020, and U+0020 is trimmed from the edges.
 Nothing else changes: no entity is decoded and nothing is normalised.
 
@@ -310,14 +310,18 @@ def _neighbour(characters) -> str:
 
 
 def _check_divs(pieces, where):
-    """Text touching a <div> from outside would run into the words beyond it."""
-    texts = [p.text for p in pieces]
+    """A <div> only where the eight books put it: in a plain paragraph, after
+    `&nbsp`, holding one code span, and followed by `</p>`. Anywhere else its
+    words could run into the words around it."""
     for k, piece in enumerate(pieces):
-        if piece.kind == "open" and piece.source == DIV_OPEN:
-            outside = "".join(texts[:k])[-1:]
-        elif piece.kind == "close" and piece.source == DIV_CLOSE:
-            outside = "".join(texts[k + 1 :])[:1]
-        else:
-            continue
-        if outside and outside not in _ASCII_SPACE:
-            raise PackError("%s: text touches the outside of the <div> (piece %d)" % (where, k))
+        if piece.kind == "open" and piece.source == DIV_OPEN and not _div_in_place(pieces, k):
+            raise PackError(
+                "%s: the <div> (piece %d) is not &nbsp, then a <div> holding one code span, then </p>" % (where, k)
+            )
+
+
+def _div_in_place(pieces, k):
+    if pieces[0].source != P_OPEN or k + 4 != len(pieces):
+        return False
+    before, inner, close, end = pieces[k - 1], pieces[k + 1], pieces[k + 2], pieces[k + 3]
+    return before.kind == "nbsp" and inner.kind in ("code", "kept") and close.source == DIV_CLOSE and end.source == P_CLOSE

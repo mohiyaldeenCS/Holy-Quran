@@ -111,10 +111,9 @@ class SiteMarkupTest(unittest.TestCase):
                 self.assertEqual(paragraph.replaced, {"\u00f7": 1})
         self.assertEqual(convert(para("Synthetic " + CODE_2 + "..." + END)), "Synthetic ...")
 
-    def test_a_centred_div_directly_inside_the_paragraph(self):
-        html = para("&nbsp" + th.DIV_OPEN + CODE_2 + "\u00f7" + END + " Synthetic" + th.DIV_CLOSE)
-        self.assertEqual(convert(html), HONORIFIC + " Synthetic")
-        self.assertEqual(convert(para("Synthetic " + th.DIV_OPEN + "centred" + th.DIV_CLOSE + " tail")), "Synthetic centred tail")
+    def test_a_centred_div_where_the_books_put_it(self):
+        self.assertEqual(convert(para("&nbsp&nbsp" + th.DIV_OPEN + CODE_2 + "\ufdfd" + END + th.DIV_CLOSE)), "\ufdfd")
+        self.assertEqual(convert(para("&nbsp" + th.DIV_OPEN + CODE_2 + "\u00f7" + END + th.DIV_CLOSE)), HONORIFIC)
 
     def test_the_regex_path_agrees_on_the_site_markup(self):
         for html in (
@@ -126,11 +125,23 @@ class SiteMarkupTest(unittest.TestCase):
 
     def test_refusals(self):
         div = th.DIV_OPEN + "centred" + th.DIV_CLOSE
+        centred = th.DIV_OPEN + CODE_2 + "\ufdfd" + END + th.DIV_CLOSE
+        misplaced = "is not &nbsp, then a <div> holding one code span, then </p>"
         cases = (
             (th.FOOTNOTE_PARAGRAPH + "Synthetic</p>", "<p> at offset 0 belongs to a footnote"),
-            (para("Synthetic" + div), "text touches the outside of the <div>"),
-            (para(div + "Synthetic"), "text touches the outside of the <div>"),
-            (para("Synthetic" + BOLD + END + div), "text touches the outside of the <div>"),
+            (para("Synthetic" + div), misplaced),
+            (para("&nbsp" + div), misplaced),
+            (para(centred), misplaced),
+            (para("Synthetic " + centred), misplaced),
+            (para("&nbsp" + centred + " "), misplaced),
+            (para("&nbsp" + centred + "Synthetic"), misplaced),
+            (para("&nbsp" + centred + "&nbsp"), misplaced),
+            (para("&nbsp" + th.DIV_OPEN + CODE_2 + "\ufdfd" + END + ":" + th.DIV_CLOSE), misplaced),
+            (para("&nbsp" + th.DIV_OPEN + " " + CODE_2 + "\ufdfd" + END + th.DIV_CLOSE), misplaced),
+            (para("&nbsp" + th.DIV_OPEN + CODE_2 + "\ufdfd" + END + CODE_2 + "\ufdfd" + END + th.DIV_CLOSE), misplaced),
+            (para("&nbsp" + th.DIV_OPEN + BOLD + "x" + END + th.DIV_CLOSE), misplaced),
+            (para("&nbsp" + th.DIV_OPEN + th.DIV_CLOSE), misplaced),
+            (th.HEADING_OPEN + "&nbsp" + centred + "</p>", misplaced),
             (para(BOLD + div + END), "the <div> at offset 82 is not directly inside the paragraph"),
             (para(th.DIV_OPEN + th.DIV_OPEN + th.DIV_CLOSE + th.DIV_CLOSE), "is not directly inside the paragraph"),
             (para("x" + th.DIV_CLOSE), "</div> at offset 45 has no <div>"),
