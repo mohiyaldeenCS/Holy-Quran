@@ -439,7 +439,23 @@ class TextAndCommentaryTest(LinkCase):
         self.assertEqual(result.checks["title_pages"], 2)
         self.assertIn("paragraph_above_the_rule_is_not_a_quotation", self.note_kinds(result))
         lone = [p for p in result.passages if p["paragraphs"][0]["site_page"] == 40][0]
-        self.assertEqual((lone["kind"], lone["surah"]), ("unlinked", 1))
+        self.assertEqual((lone["kind"], lone["surah"]), ("above_the_rule", 1))
+
+    def test_words_above_the_rule_are_never_commentary(self):
+        pages = self.book()
+        pages[2] = page(3, head("سورة الأولى"),
+                        text_block(WORDS, ar(1), WORDS, ar(2), WORDS),
+                        para("سطر فوق الخط"),
+                        RULE,
+                        para("تفسير (سورة الأولى)"),
+                        opens(1),
+                        para("تتمة الشرح"))
+        result = self.link(514, pages, profile=self.PROFILE)
+        self.assertIn("paragraph_above_the_rule_is_not_a_quotation", self.note_kinds(result))
+        above = [p for p in result.passages if p["kind"] == "above_the_rule"]
+        self.assertEqual([(p["surah"], len(p["paragraphs"])) for p in above], [(1, 1)])
+        self.assertEqual(result.counts["passages_by_kind"]["above_the_rule"], 1)
+        self.assertEqual(result.counts["paragraphs_linked_to_a_surah_only"], 1)
 
     def test_printed_numbers_are_kept_and_flagged(self):
         result = self.run_book(extra_first=[opens(3, 1), opens(1, 3, 4)])
@@ -1082,6 +1098,7 @@ class OutputTest(LinkCase):
         with open(os.path.join(folder, "report.json"), encoding="utf-8") as handle:
             report = json.load(handle)
         self.assertEqual(report["passages_sha256"], z.file_sha256(os.path.join(folder, "passages.jsonl")))
+        self.assertEqual(report["entry_kinds"], list(z.ENTRY_KINDS))
         self.assertEqual(report["input"], {
             "pages_sha256": z.file_sha256(os.path.join(self.inp, "book_183", "pages.jsonl")),
             "surahs_table_sha256": None,

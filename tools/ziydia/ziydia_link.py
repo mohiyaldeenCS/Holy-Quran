@@ -87,6 +87,14 @@ FOOTNOTE_MARK = re.compile(r"\}?\s*" + chr(0x2063) + r"?\(" + chr(0x2063) + "?("
 MARK_IN_TEXT = re.compile(chr(0x2063) + r"\(" + chr(0x2063) + "?" + NUM + r"\)")
 FOOTNOTE_REF = re.compile(SURAH + r"\s+([^،]+?)\s*،\s*الآية\s*(" + RANGE + r")\s*\.?")
 
+# Every kind a line of passages.jsonl can have; report.json lists them so that the
+# content pipeline can refuse output written before a kind was added.
+# "above_the_rule": a paragraph of book 514's printed Quran block that is not a
+# quotation. It is never commentary.
+ENTRY_KINDS = (
+    "passage", "unlinked", "heading", "text", "title_page", "ornament", "footnote", "above_the_rule",
+)
+
 # How each book prints its links. A book without a profile is not linked: run
 # "inspect" on it, study the result, then add a profile and its tests.
 PROFILES = {
@@ -305,6 +313,8 @@ class Result:
         self.notes.append({"kind": kind, "site_page": where, "detail": detail})
 
     def add(self, kind, surah, refs, basis, paragraph=None):
+        if kind not in ENTRY_KINDS:
+            raise LinkError("kind %r is not one of ENTRY_KINDS" % kind)
         passage = {
             "n": len(self.passages) + 1,
             "book": self.book,
@@ -522,7 +532,7 @@ class TextAndCommentary:
             self.take_front(held)
         else:
             self.result.note("paragraph_above_the_rule_is_not_a_quotation", held.where, "")
-            self.result.add("unlinked", self.surah, [], "heading", held)
+            self.result.add("above_the_rule", self.surah, [], "heading", held)
 
     def take_front(self, paragraph):
         if self.commentary is None:
@@ -574,7 +584,7 @@ class TextAndCommentary:
         found = text_numbers(paragraph.html)
         if found is None:
             result.note("paragraph_above_the_rule_is_not_a_quotation", paragraph.where, "")
-            result.add("unlinked", self.surah, [], "heading", paragraph)
+            result.add("above_the_rule", self.surah, [], "heading", paragraph)
             return
         numbers, tail = found
         block = result.add("text", self.surah, [], "printed_numbers")
@@ -1090,6 +1100,7 @@ def write_result(result, folder, inputs):
     write_json(os.path.join(folder, "report.json"), {
         "book": result.book,
         "profile": result.kind,
+        "entry_kinds": list(ENTRY_KINDS),
         "input": inputs,
         "counts": result.counts,
         "checks": result.checks,
