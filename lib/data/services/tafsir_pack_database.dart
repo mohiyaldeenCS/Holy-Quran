@@ -3,6 +3,7 @@ import '../../domain/models/quran_address.dart';
 import '../../domain/models/quran_range.dart';
 import '../../domain/models/tafsir_book.dart';
 import '../../domain/models/tafsir_passage.dart';
+import '../../domain/models/tafsir_surah_passage.dart';
 import 'pack_database.dart';
 
 /// A tafsir pack's `tafsir.sqlite` (docs/CONTENT_PACKS.md, "Tafsir pack"),
@@ -13,6 +14,10 @@ import 'pack_database.dart';
 /// [PackSqliteFile.open], [TextEncodingRejected] when a passage is not strict
 /// UTF-8 or begins with U+FEFF, and [PackInconsistent] when the book is not
 /// one row or a passage breaks the format.
+///
+/// A surah-level passage (D-184) is the row whose range is the reserved
+/// `0..0`. It is read only by [surahPassageOf]; any other range from below
+/// ayah 1 is refused wherever it is read.
 final class TafsirPackDatabase {
   TafsirPackDatabase._(this._file, this._riwaya);
 
@@ -113,13 +118,14 @@ final class TafsirPackDatabase {
     };
   }
 
-  /// The passages of [surah] in order; empty when it has none. Passages that
-  /// overlap, or whose numbers do not follow their order, are
-  /// [PackInconsistent].
+  /// The ayah passages of [surah] in order, without its surah-level passage;
+  /// empty when it has none. Passages that overlap, or whose numbers do not
+  /// follow their order, are [PackInconsistent].
   List<TafsirPassage> passagesOfSurah(int surah) {
     final passages = [
       for (final row in _file.select(
         'SELECT $_passageColumns FROM passage WHERE surah = ? '
+        'AND NOT (first_ayah = 0 AND last_ayah = 0) '
         'ORDER BY first_ayah',
         [surah],
       ))
@@ -136,6 +142,36 @@ final class TafsirPackDatabase {
       }
     }
     return passages;
+  }
+
+  /// The passage on [surah] as a whole, or null when the book has none for
+  /// it. More than one is [PackInconsistent].
+  TafsirSurahPassage? surahPassageOf(int surah) {
+    final rows = _file.select(
+      'SELECT number, CAST(text AS BLOB) FROM passage '
+      'WHERE surah = ? AND first_ayah = 0 AND last_ayah = 0 '
+      'ORDER BY number',
+      [surah],
+    );
+    return switch (rows) {
+      [] => null,
+      [final row] => _surahPassage(row, surah),
+      [final first, final second, ...] => throw PackInconsistent(
+        _path,
+        'passages ${first.integer(0)} and ${second.integer(0)} are both on '
+        'surah $surah as a whole',
+      ),
+    };
+  }
+
+  TafsirSurahPassage _surahPassage(PackRow row, int surah) {
+    final number = row.integer(0);
+    final text = row.text(1, () => TextEncodingRejected(_path, surah, null));
+    try {
+      return TafsirSurahPassage(number: number, surah: surah, text: text);
+    } on ArgumentError catch (error) {
+      throw PackInconsistent(_path, 'passage $number: $error');
+    }
   }
 
   TafsirPassage _passage(PackRow row) {

@@ -106,21 +106,29 @@ Future<List<String>> tafsirNumberingProblems(PackFileUnderTest pack) async {
   ];
 }
 
-/// Each range starts at ayah 1 or later and ends no earlier; passages
-/// follow in mushaf order with no overlap.
+/// Each range starts at ayah 1 or later and ends no earlier, except the
+/// reserved `0..0` of a surah-level passage, which comes first in its surah
+/// (D-184); passages follow in mushaf order with no overlap.
 Future<List<String>> tafsirRangeProblems(PackFileUnderTest pack) async {
   final problems = <String>[];
   (int, int)? previousEnd;
   for (final (number, surah, first, last, _) in _passages(pack)) {
-    if (surah < 1 || first < 1) {
+    final surahLevel = first == 0 && last == 0;
+    if (surah < 1 || (first < 1 && !surahLevel)) {
       problems.add('passage $number starts at $surah:$first');
     }
     if (last < first) {
       problems.add('passage $number ends at $surah:$last, before $first');
     }
-    if (previousEnd case (final s, final a)
-        when surah < s || (surah == s && first <= a)) {
-      problems.add('passage $number starts at $surah:$first, not after $s:$a');
+    switch (previousEnd) {
+      case (final s, _) when surahLevel && surah == s:
+        problems.add(
+          'passage $number is on surah $surah as a whole but not first in it',
+        );
+      case (final s, final a) when surah < s || (surah == s && first <= a):
+        problems.add(
+          'passage $number starts at $surah:$first, not after $s:$a',
+        );
     }
     previousEnd = (surah, last);
   }
@@ -189,14 +197,29 @@ Future<List<String>> tafsirReadProblems(PackFileUnderTest pack) async {
     final read = [
       for (final surah in surahs) ...database.passagesOfSurah(surah),
     ];
-    if (read.length != passages.length) {
+    final wholes = [
+      for (final surah in surahs) ?database.surahPassageOf(surah),
+    ];
+    if (read.length + wholes.length != passages.length) {
       problems.add(
-        'the app gives ${read.length} passages; the file holds '
-        '${passages.length}',
+        'the app gives ${read.length + wholes.length} passages; the file '
+        'holds ${passages.length}',
       );
     }
     final byNumber = {for (final passage in read) passage.number: passage};
+    final wholeByNumber = {for (final whole in wholes) whole.number: whole};
     for (final (number, surah, first, last, bytes) in passages) {
+      if ((first, last) == (0, 0)) {
+        final whole = wholeByNumber[number];
+        if (whole == null || whole.surah != surah) {
+          problems.add(
+            'passage $number: the app does not give it on surah $surah',
+          );
+        } else {
+          expectBytes('passage $number', whole.text, bytes);
+        }
+        continue;
+      }
       final passage = byNumber[number];
       if (passage == null) {
         problems.add('passage $number: the app gives none');

@@ -7,12 +7,16 @@ import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/quran_range.dart';
 import 'package:holyquran/domain/models/tafsir_passage.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 import '../../../testing/packs/raw_pack.dart';
 import '../../../testing/packs/synthetic_pack.dart';
 import '../../../testing/packs/synthetic_tafsir_pack.dart';
 
 // Every string is synthetic; non-ASCII characters are written as escapes.
+
+(int, int?) _where(TextEncodingRejected failure) =>
+    (failure.surah, failure.ayah);
 
 void main() {
   late Directory root;
@@ -178,6 +182,107 @@ void main() {
         throwsFailure<FileHashMismatch>(),
       );
       expect(File(path).existsSync(), isFalse);
+    });
+  });
+
+  group('surah-level passages (D-184)', () {
+    late SyntheticTafsirPack pack;
+    late TafsirPackDatabase db;
+
+    setUp(() async {
+      pack = await buildSyntheticTafsirPack(
+        root,
+        passages: syntheticPassagesWithSurahLevel,
+      );
+      db = open(pack);
+    });
+
+    test('each is read for its surah, its text as stored', () {
+      for (final (surah, index) in [(1, 0), (2, 2)]) {
+        final whole = db.surahPassageOf(surah);
+        expect(whole, isNotNull, reason: '$surah');
+        expect(whole!.number, index + 1);
+        expect(whole.surah, surah);
+        expect(
+          utf8.encode(whole.text.verbatim),
+          utf8.encode(pack.passages[index].text),
+        );
+      }
+    });
+
+    test('a surah without one has none', () async {
+      expect(db.surahPassageOf(3), isNull);
+      expect(db.surahPassageOf(4), isNull);
+      final plain = open(
+        await buildSyntheticTafsirPack(Directory('${root.path}/plain')),
+      );
+      for (var surah = 1; surah <= 3; surah++) {
+        expect(plain.surahPassageOf(surah), isNull);
+      }
+    });
+
+    test('is neither an ayah passage nor reached by ayah', () {
+      expect(db.passagesOfSurah(1).map((p) => p.number), [2]);
+      expect(db.passagesOfSurah(2).map((p) => p.number), [4, 5]);
+      expect(db.passageAt(1, 1)!.number, 2);
+      expect(db.passageAt(2, 1)!.number, 4);
+      expect(db.passageCount(), pack.passages.length);
+    });
+  });
+
+  group('refuses on a surah as a whole', () {
+    Future<TafsirPackDatabase> faulty(SyntheticTafsirFault fault) async =>
+        open(await buildSyntheticTafsirPack(root, fault: fault));
+
+    test('two passages in one surah', () async {
+      final db = await faulty(SyntheticTafsirFault.twoSurahLevelPassages);
+      expect(
+        () => db.surahPassageOf(1),
+        throwsFailure<PackInconsistent>(
+          (f) => f.reason,
+          'passages 1 and 2 are both on surah 1 as a whole',
+        ),
+      );
+      expect(db.passagesOfSurah(1).map((p) => p.number), [3]);
+    });
+
+    test('a range from ayah 0 that is not 0..0', () async {
+      final db = await faulty(SyntheticTafsirFault.rangeFromAyahZero);
+      expect(() => db.passagesOfSurah(1), throwsFailure<PackInconsistent>());
+      expect(() => db.passageAt(1, 1), throwsFailure<PackInconsistent>());
+      expect(db.surahPassageOf(1), isNull);
+    });
+
+    test('a text that begins with U+FEFF', () async {
+      final pack = await buildSyntheticTafsirPack(
+        root,
+        passages: const [
+          SyntheticPassage.surahLevel(2, '\u{FEFF}Synthetic'),
+          SyntheticPassage(2, 1, 1, 'Synthetic'),
+        ],
+      );
+      final db = open(pack);
+      expect(
+        () => db.surahPassageOf(2),
+        throwsFailure<TextEncodingRejected>(_where, (2, null)),
+      );
+      expect(db.passagesOfSurah(2), hasLength(1));
+    });
+
+    test('a text that is not UTF-8', () async {
+      final pack = await buildSyntheticTafsirPack(
+        root,
+        passages: const [SyntheticPassage.surahLevel(2, 'Synthetic')],
+      );
+      sqlite3.open(pack.file.path)
+        ..execute(
+          "UPDATE passage SET text = CAST(X'53FF' AS TEXT) WHERE number = 1",
+        )
+        ..close();
+      expect(
+        () => open(pack).surahPassageOf(2),
+        throwsFailure<TextEncodingRejected>(_where, (2, null)),
+      );
     });
   });
 
