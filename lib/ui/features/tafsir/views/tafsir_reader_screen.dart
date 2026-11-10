@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/l10n/app_localizations.dart';
+import 'package:holyquran/ui/core/base_pack_problem.dart';
 import 'package:holyquran/ui/core/metrics/tafsir_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/base_pack_alert.dart';
 import 'package:holyquran/ui/core/widgets/icon_button.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
 import 'package:holyquran/ui/features/tafsir/view_models/tafsir_view_model.dart';
@@ -19,16 +21,19 @@ import 'package:holyquran/ui/features/tafsir/views/tafsir_steps.dart';
 /// passage and the list the default tafsir is chosen from; the steps between
 /// ayat stand beneath.
 ///
-/// A null [viewModel] means the app provides no text pack yet; the screen
-/// then shows its title alone.
+/// A null [viewModel] means the app provides no text pack; the screen then
+/// shows its title and the alert of [baseProblem], or its title alone when
+/// there is none (D-180).
 class TafsirReaderScreen extends StatelessWidget {
   const TafsirReaderScreen({
     required this.viewModel,
     required this.onOfferDownload,
+    this.baseProblem,
     super.key,
   });
 
   final TafsirViewModel? viewModel;
+  final BasePackProblem? baseProblem;
 
   /// Opens the offer of the first download (`TF-06`); null when there is
   /// nothing to open.
@@ -71,7 +76,13 @@ class TafsirReaderScreen extends StatelessWidget {
             ),
             Expanded(
               child: viewModel == null
-                  ? const SizedBox.shrink()
+                  ? switch (baseProblem) {
+                      final problem? => ListView(
+                        padding: tafsirBodyPadding,
+                        children: [BasePackAlert(problem)],
+                      ),
+                      null => const SizedBox.shrink(),
+                    }
                   : ListenableBuilder(
                       listenable: viewModel,
                       builder: (context, _) => _Content(
