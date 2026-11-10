@@ -690,6 +690,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get tafsirNoPassage => 'لا يوجد تفسير لهذه الآية في هذا الكتاب';
 
   @override
+  String get tafsirAboutSurah => 'عن السورة';
+
+  @override
   String get connectionFailed => 'تعذّر الاتصال';
 
   @override

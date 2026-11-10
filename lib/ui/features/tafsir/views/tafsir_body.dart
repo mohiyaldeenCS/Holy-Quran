@@ -4,6 +4,7 @@ import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/tafsir/source_details_sheet.dart';
+import 'package:holyquran/ui/core/tafsir/surah_passage_section.dart';
 import 'package:holyquran/ui/core/tafsir/tafsir_page.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
@@ -19,13 +20,13 @@ import 'package:holyquran/ui/features/tafsir/view_models/tafsir_view_model.dart'
 
 /// What the tafsir reader and the tafsir sheet show for an ayah (`TF-03`,
 /// `TF-04`): the ayah above; where the surah's tafsir begins, the book's
-/// passage on the surah as a whole (D-184), with no range and no label of
-/// its own, as the identity draws none; the range the passage explains when
-/// it is more than one ayah, the passage, and the source badge with the copy
-/// button beneath it. The copy takes the ayah passage only, as its
-/// attribution names an ayah. An ayah the book has no passage for shows the
-/// fixed sentence (D-033); with no book downloaded, the book's absence and,
-/// while the catalogue offers one, the way to the download.
+/// passage on the surah as a whole under its heading (D-184); the range the
+/// passage explains when it is more than one ayah, the passage, and the
+/// source badge with the copy button beneath it. The copy takes the ayah
+/// passage only, as its attribution names an ayah. An ayah the book has no
+/// passage for shows the fixed sentence (D-033); with no book downloaded,
+/// the book's absence and, while the catalogue offers one, the way to the
+/// download.
 class TafsirBody extends StatelessWidget {
   const TafsirBody({
     required this.viewModel,
@@ -48,34 +49,40 @@ class TafsirBody extends StatelessWidget {
     final page = viewModel.page;
     final failure = viewModel.failure;
     final muted = AppTextStyles.body.copyWith(color: colors.inkMuted);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: AppSpacing.space4,
-      children: [
-        if (surahName != null)
-          SurahName(
-            surahName,
-            format: SurahNameFormat.titled,
-            style: AppTextStyles.secondary.copyWith(color: colors.inkMuted),
-          ),
-        if (ayahText != null)
-          AyahRow(number: viewModel.address.ayah, text: ayahText),
-        if (!viewModel.hasTafsirs) ...[
-          Text(l10n.noTafsirsYet, style: muted),
-          if (viewModel.available.isNotEmpty && onOfferDownload != null)
-            Button(
-              label: l10n.resourceDownload,
-              variant: ButtonVariant.tonal,
-              onPressed: onOfferDownload,
+    // Each text is read on its own, top to bottom, so that the heading of
+    // the passage on the surah is read between the ayah and that passage.
+    return Semantics(
+      container: true,
+      explicitChildNodes: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: AppSpacing.space4,
+        children: [
+          if (surahName != null)
+            SurahName(
+              surahName,
+              format: SurahNameFormat.titled,
+              style: AppTextStyles.secondary.copyWith(color: colors.inkMuted),
             ),
-        ] else if (failure is PackFailure && failure is! AddressNotInPack)
-          IntegrityAlert(
-            title: l10n.integrityPackTitle,
-            body: l10n.integrityPackBody,
-          )
-        else if (page != null)
-          ..._passage(context, page, muted),
-      ],
+          if (ayahText != null)
+            AyahRow(number: viewModel.address.ayah, text: ayahText),
+          if (!viewModel.hasTafsirs) ...[
+            Text(l10n.noTafsirsYet, style: muted),
+            if (viewModel.available.isNotEmpty && onOfferDownload != null)
+              Button(
+                label: l10n.resourceDownload,
+                variant: ButtonVariant.tonal,
+                onPressed: onOfferDownload,
+              ),
+          ] else if (failure is PackFailure && failure is! AddressNotInPack)
+            IntegrityAlert(
+              title: l10n.integrityPackTitle,
+              body: l10n.integrityPackBody,
+            )
+          else if (page != null)
+            ..._passage(context, page, muted),
+        ],
+      ),
     );
   }
 
@@ -89,7 +96,7 @@ class TafsirBody extends StatelessWidget {
     final passage = page.passage;
     final range = page.range;
     return [
-      if (surahPassage != null) TafsirText(surahPassage.text),
+      if (surahPassage != null) SurahPassageSection(surahPassage),
       if (range != null)
         Text(
           l10n.tafsirRange(arabicDigits(range.first), arabicDigits(range.last)),

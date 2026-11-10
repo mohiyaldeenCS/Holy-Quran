@@ -1288,6 +1288,12 @@ abstract class AppLocalizations {
   /// **'لا يوجد تفسير لهذه الآية في هذا الكتاب'**
   String get tafsirNoPassage;
 
+  /// Heading above a tafsir book's passage on a surah as a whole, where the surah's tafsir begins (D-184). Source: the owner, through AskUserQuestion, 2026-11-10.
+  ///
+  /// In ar, this message translates to:
+  /// **'عن السورة'**
+  String get tafsirAboutSurah;
+
   /// One of the identity's short error sentences: the connection failed. Source: docs/prd/PRD.ar.md (§7.5).
   ///
   /// In ar, this message translates to:

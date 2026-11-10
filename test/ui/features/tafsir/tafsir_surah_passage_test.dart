@@ -40,6 +40,8 @@ void main() {
   QuranAddress at(TafsirFixture fixture, int surah, int ayah) =>
       QuranAddress(fixture.quran.riwaya, surah, ayah);
 
+  final heading = find.text(tafsirL10n.tafsirAboutSurah);
+
   /// Every passage of the book's text style on the screen.
   Finder passages() => find.byWidgetPredicate(
     (widget) => widget is TafsirText && widget.style == AppTextStyles.tafsir,
@@ -77,7 +79,9 @@ void main() {
     );
     final range = find.text(tafsirL10n.tafsirRange('١', '٣'));
     double top(Finder finder) => tester.getTopLeft(finder).dy;
-    expect(top(find.byType(AyahRow)), lessThan(top(passageOf(_surahOne))));
+    expect(heading, findsOneWidget);
+    expect(top(find.byType(AyahRow)), lessThan(top(heading)));
+    expect(top(heading), lessThan(top(passageOf(_surahOne))));
     expect(top(passageOf(_surahOne)), lessThan(top(range)));
     expect(top(range), lessThan(top(passageOf(_overThree))));
     // Its U+000A is drawn as a break: two lines, where the one-line passage
@@ -116,6 +120,7 @@ void main() {
           surah == 2 && shown ? findsOneWidget : findsNothing,
           reason: where,
         );
+        expect(heading, shown ? findsOneWidget : findsNothing, reason: where);
       }
     }
   }, install: false);
@@ -132,6 +137,10 @@ void main() {
     final none = find.text(tafsirL10n.tafsirNoPassage);
     expect(none, findsOneWidget);
     expect(
+      tester.getTopLeft(heading).dy,
+      lessThan(tester.getTopLeft(passageOf(_surahTwo)).dy),
+    );
+    expect(
       tester.getTopLeft(passageOf(_surahTwo)).dy,
       lessThan(tester.getTopLeft(none).dy),
     );
@@ -144,7 +153,7 @@ void main() {
     );
   }, install: false);
 
-  group('a screen reader reads it before the passage', () {
+  group('a screen reader reads its heading, then it, then the passage', () {
     /// Everything read, in traversal order; texts merged into one node are
     /// read in their order within it.
     String read(WidgetTester tester) => [
@@ -159,8 +168,11 @@ void main() {
       await pumpScreen(tester, reader(model));
 
       final all = read(tester);
+      final title = all.indexOf(tafsirL10n.tafsirAboutSurah);
+      expect(title, isNonNegative);
+      expect(tester.getSemantics(heading).flagsCollection.isHeader, isTrue);
       final whole = all.indexOf(_surahOne);
-      expect(whole, isNonNegative);
+      expect(whole, greaterThan(title));
       final range = all.indexOf(tafsirL10n.tafsirRange('١', '٣'));
       expect(range, greaterThan(whole));
       expect(all.indexOf(_overThree), greaterThan(range));
@@ -174,8 +186,10 @@ void main() {
       await pumpScreen(tester, reader(model));
 
       final all = read(tester);
+      final title = all.indexOf(tafsirL10n.tafsirAboutSurah);
+      expect(title, isNonNegative);
       final whole = all.indexOf(_surahTwo);
-      expect(whole, isNonNegative);
+      expect(whole, greaterThan(title));
       expect(all.indexOf(tafsirL10n.tafsirNoPassage), greaterThan(whole));
       handle.dispose();
     }, install: false);
@@ -199,6 +213,7 @@ void main() {
       );
       expect(tester.takeException(), isNull);
       expect(passageOf(_surahOne), findsOneWidget);
+      expect(heading, findsOneWidget);
     }, install: false);
   }
 
