@@ -11,6 +11,7 @@ never a phrase.
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass
 
 from . import strict_json as sj
@@ -29,6 +30,9 @@ DOT = "."
 # U+0026 is one of the site's codes (docs/plans/B07_TAFSIR_PACK.md).
 _NOT_A_CODE = KEPT_CODES | frozenset(DOT + "<>\ufeff\ufffd \t\n\r\f\v")
 _NOT_IN_A_PHRASE = frozenset("<>&\ufeff\ufffd")
+# The conversion collapses every run of ASCII white space (tafsir_html), so a
+# phrase holds only single U+0020 between its words and is stored unchanged.
+_WHITE = re.compile("[ \t\n\r\f\v]+")
 
 
 @dataclass(frozen=True)
@@ -93,6 +97,8 @@ def _code(value, where: str) -> str:
         raise PackError(
             "%s %s is markup, white space, a control or a character the conversion keeps" % (where, code_point(c))
         )
+    if unicodedata.category(c)[0] == "M":
+        raise PackError("%s %s is a combining mark, which would join the character before it" % (where, code_point(c)))
     return c
 
 
@@ -101,6 +107,8 @@ def _phrase(value, where: str) -> str:
         raise PackError("%s is empty" % where)
     if value[0].isspace() or value[-1].isspace():
         raise PackError("%s has spaces at its edges" % where)
+    if _WHITE.sub(" ", value) != value:
+        raise PackError("%s holds white space other than single U+0020 characters" % where)
     for c in value:
         if c in _NOT_IN_A_PHRASE or ord(c) < 0x20 or ord(c) == 0x7F:
             raise PackError("%s holds %s" % (where, code_point(c)))

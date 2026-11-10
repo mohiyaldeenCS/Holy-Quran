@@ -60,7 +60,13 @@ class HonorificTableTest(unittest.TestCase):
             (code(0, phrase="Synthetic <b>"), "codes[0].phrase holds U+003C"),
             (code(0, phrase="Synthetic >"), "codes[0].phrase holds U+003E"),
             (code(0, phrase="Synthetic & more"), "codes[0].phrase holds U+0026"),
-            (code(0, phrase="Synthetic\nline"), "codes[0].phrase holds U+000A"),
+            (code(0, phrase="Synthetic\u001fline"), "codes[0].phrase holds U+001F"),
+            (code(0, phrase="Synthetic\nline"), "codes[0].phrase holds white space other than single U+0020 characters"),
+            (code(0, phrase="Synthetic\tline"), "codes[0].phrase holds white space other than single U+0020 characters"),
+            (code(0, phrase="Synthetic  line"), "codes[0].phrase holds white space other than single U+0020 characters"),
+            (code(0, phrase="Synthetic \u000bline"), "codes[0].phrase holds white space other than single U+0020"),
+            (code(0, code="U+064B"), "codes[0].code U+064B is a combining mark"),
+            (code(0, code="U+0301"), "codes[0].code U+0301 is a combining mark"),
             (code(1, phrase="Synthetic \u00f7"), "the phrase of U+0026 holds the code U+00F7"),
         )
         for change, expected in cases:
@@ -72,6 +78,12 @@ class HonorificTableTest(unittest.TestCase):
                 self.assertIn(expected, str(caught.exception))
                 self.assertTrue(str(caught.exception).startswith("honorific table: "))
                 self.assertNotIn("Synthetic", str(caught.exception))
+
+    def test_a_phrase_with_single_spaces_and_a_letter_code_are_kept(self):
+        # The site's own codes include letters (U+00AA, U+00C0, U+00F8), so a letter is a code.
+        table = copy.deepcopy(TABLE)
+        table["codes"][0].update(code="U+00F8", phrase="Synthetic phrase \u00a0 of words")
+        self.assertEqual(read_honorific_table(encode(table)).phrases["\u00f8"], "Synthetic phrase \u00a0 of words")
 
     def test_refuses_what_is_not_strict_json(self):
         cases = (
