@@ -6,6 +6,9 @@ import 'package:holyquran/config/test_copy.dart';
 import 'package:holyquran/routing/router.dart';
 import 'package:holyquran/routing/routes/feature_routes.dart';
 import 'package:holyquran/routing/routes/home_routes.dart';
+import 'package:holyquran/routing/routes/index_routes.dart';
+import 'package:holyquran/routing/routes/mushaf_routes.dart';
+import 'package:holyquran/routing/routes/search_routes.dart';
 
 import 'flow_pack.dart';
 
@@ -43,11 +46,20 @@ Future<TestCopyPack> buildFlowTestCopy(
   return (root: root, copy: copy);
 }
 
-/// The app's routes as a build of the test copy [pack] has them. Home reads
-/// the id of the base pack from a constant fixed when the app is built
-/// (`basePackInUse`), and a test cannot build with the defines, so home is
-/// the one route given the copy's pack here.
+/// The app's routes as a build of the test copy [pack] has them. Home, the
+/// reader, the index and search read the id of the base pack from a constant
+/// fixed when the app is built (`basePackInUse`), and a test cannot build
+/// with the defines, so these are the routes given the copy's pack here.
 List<FeatureRoutes> testCopyFeatures(TestCopyPack pack) => [
   for (final feature in appFeatures)
-    identical(feature, homeRoutes) ? homeRoutesFor(pack.copy.pack) : feature,
+    if (identical(feature, homeRoutes))
+      homeRoutesFor(pack.copy.pack)
+    else if (identical(feature, mushafRoutes))
+      mushafRoutesFor(pack.copy.pack)
+    else if (identical(feature, indexRoutes))
+      indexRoutesFor(pack.copy.pack)
+    else if (identical(feature, searchRoutes))
+      searchRoutesFor(pack.copy.pack)
+    else
+      feature,
 ];

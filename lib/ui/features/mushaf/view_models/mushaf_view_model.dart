@@ -17,6 +17,7 @@ import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/quran_position.dart';
 import 'package:holyquran/domain/models/ui_level.dart';
+import 'package:holyquran/ui/core/base_pack_problem.dart';
 import 'package:holyquran/ui/core/reader/gesture_target.dart';
 import 'package:holyquran/ui/core/reader/reader_anchors.dart';
 import 'package:holyquran/ui/core/reader/reader_text_scale.dart';
@@ -74,6 +75,7 @@ final class MushafViewModel extends ChangeNotifier {
     this._index,
     this._positions,
     this._integrity,
+    this._basePackId,
     this._address,
     AppSettingsRepository? settings,
     BookmarkRepository? bookmarks,
@@ -117,6 +119,9 @@ final class MushafViewModel extends ChangeNotifier {
   final QuranIndexRepository? _index;
   final ReadingPositionRepository? _positions;
   final PackIntegrityRepository? _integrity;
+
+  /// The id of the base pack the app reads; null when it reads none.
+  final String? _basePackId;
   final QuranAddress? _address;
   bool _moved = false;
   EditionMap? _map;
@@ -153,6 +158,11 @@ final class MushafViewModel extends ChangeNotifier {
   int _writes = 0;
 
   ReaderStatus get status => _status;
+
+  /// What the alert says while [status] is unavailable: a base pack that is
+  /// missing is not called failed (D-180); any other reason reads as failed.
+  BasePackProblem get unavailableProblem =>
+      basePackProblem(_integrity, _basePackId) ?? BasePackProblem.failed;
 
   /// The surahs shown, consecutive from the one opened; replaced, never
   /// changed, so that the identity says whether they did.

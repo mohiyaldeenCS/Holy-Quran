@@ -8,13 +8,14 @@ import 'package:holyquran/domain/models/quran_position.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/route_table.dart';
 import 'package:holyquran/routing/routes.dart';
+import 'package:holyquran/ui/core/base_pack_problem.dart';
 import 'package:holyquran/ui/core/metrics/reader_screen_metrics.dart';
 import 'package:holyquran/ui/core/reader/page_mark.dart';
 import 'package:holyquran/ui/core/reader/position_bar_button.dart';
 import 'package:holyquran/ui/core/shell_chrome.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/ayah_toolbar.dart';
-import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
+import 'package:holyquran/ui/core/widgets/base_pack_alert.dart';
 import 'package:holyquran/ui/core/widgets/position_bar.dart';
 import 'package:holyquran/ui/core/widgets/reader_player_bar.dart';
 import 'package:holyquran/ui/core/widgets/small_button.dart';
@@ -140,7 +141,7 @@ class _MushafScreenState extends State<MushafScreen> {
       listenable: _model,
       builder: (context, _) => switch (_model.status) {
         ReaderStatus.loading => const SizedBox.expand(),
-        ReaderStatus.unavailable => const _Unavailable(),
+        ReaderStatus.unavailable => _Unavailable(_model.unavailableProblem),
         ReaderStatus.ready => _Reader(viewModel: _model, active: _active),
       },
     ),
@@ -297,19 +298,15 @@ class _Toolbar extends StatelessWidget {
 }
 
 class _Unavailable extends StatelessWidget {
-  const _Unavailable();
+  const _Unavailable(this.problem);
+
+  final BasePackProblem problem;
 
   @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Center(
-      child: Padding(
-        padding: ReaderScreenMetrics.messagePadding,
-        child: IntegrityAlert(
-          title: l10n.integrityBaseTitle,
-          body: l10n.integrityBaseBody,
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: ReaderScreenMetrics.messagePadding,
+      child: BasePackAlert(problem),
+    ),
+  );
 }

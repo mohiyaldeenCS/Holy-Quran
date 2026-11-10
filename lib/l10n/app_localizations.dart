@@ -1858,6 +1858,18 @@ abstract class AppLocalizations {
   /// **'لن يُعرض نص لم يجتز التحقق. حدّث التطبيق أو أعد تثبيته.'**
   String get integrityBaseBody;
 
+  /// Title of the integrity alert when the base pack is missing, not failed. Wording given by the owner, 2026-11-09 (D-180).
+  ///
+  /// In ar, this message translates to:
+  /// **'نص المصحف غير موجود'**
+  String get integrityBaseMissingTitle;
+
+  /// Body of the integrity alert when the base pack is missing, not failed. Wording given by the owner, 2026-11-09 (D-180).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يُعثر على نص المصحف في التطبيق. حدّث التطبيق أو أعد تثبيته.'**
+  String get integrityBaseMissingBody;
+
   /// Lead, 2026-10-28, D-128 (5)
   ///
   /// In ar, this message translates to:

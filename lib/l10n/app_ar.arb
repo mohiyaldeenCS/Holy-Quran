@@ -1447,6 +1447,14 @@
   "@integrityBaseBody": {
     "description": "Lead, 2026-10-28, D-128 (5)"
   },
+  "integrityBaseMissingTitle": "نص المصحف غير موجود",
+  "@integrityBaseMissingTitle": {
+    "description": "Title of the integrity alert when the base pack is missing, not failed. Wording given by the owner, 2026-11-09 (D-180)."
+  },
+  "integrityBaseMissingBody": "لم يُعثر على نص المصحف في التطبيق. حدّث التطبيق أو أعد تثبيته.",
+  "@integrityBaseMissingBody": {
+    "description": "Body of the integrity alert when the base pack is missing, not failed. Wording given by the owner, 2026-11-09 (D-180)."
+  },
   "integrityPackTitle": "هذه الحزمة لم تجتز التحقق",
   "@integrityPackTitle": {
     "description": "Lead, 2026-10-28, D-128 (5)"

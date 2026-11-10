@@ -5,11 +5,12 @@ import 'package:go_router/go_router.dart';
 
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes.dart';
+import 'package:holyquran/ui/core/base_pack_problem.dart';
 import 'package:holyquran/ui/core/metrics/search_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
+import 'package:holyquran/ui/core/widgets/base_pack_alert.dart';
 import 'package:holyquran/ui/core/widgets/icon_button.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
-import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/mode_chips.dart';
 import 'package:holyquran/ui/core/widgets/number_field.dart';
 import 'package:holyquran/ui/core/widgets/place_refusal.dart';
@@ -24,11 +25,13 @@ import 'package:holyquran/ui/features/search/views/search_results.dart';
 /// the pack has data for, the summary and the result cards. The board does
 /// not draw the scope, which `SR-06` asks for: it is a second group of chips
 /// and a number field built from the same parts. [viewModel] is null while
-/// the app has no base pack, and then only the title is shown.
+/// the app has no verified base pack, and then the title is shown with the
+/// alert of [baseProblem], or alone when there is none (D-180).
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({required this.viewModel, super.key});
+  const SearchScreen({required this.viewModel, this.baseProblem, super.key});
 
   final SearchViewModel? viewModel;
+  final BasePackProblem? baseProblem;
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -100,28 +103,18 @@ class _SearchScreenState extends State<SearchScreen> {
                 listenable: viewModel,
                 builder: (context, _) => _body(viewModel),
               ),
-            ),
+            )
+          else if (widget.baseProblem case final problem?)
+            _BaseAlert(problem),
         ],
       ),
     );
   }
 
   Widget _body(SearchViewModel viewModel) {
-    final l10n = AppLocalizations.of(context);
     // A pack that fails its check shows no text, not even in a result
     // (PRD §9.5), whether it failed before the screen opened or after.
-    if (!viewModel.hasData) {
-      return Padding(
-        padding: SearchMetrics.controls,
-        child: Align(
-          alignment: AlignmentDirectional.topStart,
-          child: IntegrityAlert(
-            title: l10n.integrityBaseTitle,
-            body: l10n.integrityBaseBody,
-          ),
-        ),
-      );
-    }
+    if (!viewModel.hasData) return const _BaseAlert(BasePackProblem.failed);
     // Which chips there are is not known until the pack has answered, which
     // the first index build can make slow: the field waits, disabled.
     if (!viewModel.loaded) {
@@ -231,4 +224,20 @@ class _Controls extends StatelessWidget {
       ],
     );
   }
+}
+
+/// The alert of the base pack where the controls would be.
+class _BaseAlert extends StatelessWidget {
+  const _BaseAlert(this.problem);
+
+  final BasePackProblem problem;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: SearchMetrics.controls,
+    child: Align(
+      alignment: AlignmentDirectional.topStart,
+      child: BasePackAlert(problem),
+    ),
+  );
 }
