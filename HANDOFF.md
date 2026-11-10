@@ -8,21 +8,22 @@ Delete it, with the owner's permission, once "In flight" is empty.
 
 ## 0. Start here (local lead, 2026-11-09)
 
-The last session ran **locally on the owner's Windows machine** (`D:/projects/Holy-Quran`, Flutter 3.47.9, his phone SM-G998U on `adb`, Python `py -3`), not in the cloud. It ran his test copy end to end, found and fixed three pipeline defects, fetched the KFGQPC Hafs text, built the KFGQPC comparison and the reciter's review page. `main` is at `06bb22f` (#93–#97 merged). **This records branch (`claude/quran-app-leadership-kcenv4`) is not merged into `main`**: open a pull request for it first, get a short review (sonnet) and merge it, so that `main` holds this file, D-166…D-178 and the rights register.
+The last session ran **locally on the owner's Windows machine** (`D:/projects/Holy-Quran`, Flutter 3.47.9, his phone SM-G998U on `adb`, Python `py -3`), not in the cloud. It ran his test copy end to end, found and fixed three pipeline defects, fetched the KFGQPC Hafs text, built the KFGQPC comparison and the reciter's review page. Since then #98 (records), #91 (P1-35), #99 (recitation drift tool) and #100 (margin-mark rows) are merged, and the records of 2026-11-09 (D-179 to D-182, drift in `RIGHTS_REGISTER.md`) are on `main` through `claude/records-2026-11-09`. D-183 (2026-11-10): a second mark row when one row does not fit. The next free decision number is D-184.
 
 **State that is not in Git** (owner's machine, never committed or uploaded):
 - `$HOME/holyquran-test-copy/`: `raw/` (Tanzil Uthmani 1.1 fetched without `rub`, sha256 `5ea5cbab…`; metadata `8867c1d8…`), `build.json`, `kfgqpc/` (KFGQPC `UthmanicHafs_v2-0.zip`, MD5/SHA-1 equal to KFGQPC's published values; extracted in `kfgqpc/x/`), `compare/report*.json` (code points only), `review/` (**the reciter's review page**: `review.html` + two fonts, built from `main` `06bb22f`), `screens/` (phone screenshots), `diag/` (diagnostic pulls: delete it), `shot.sh`.
 - The phone runs a **debug** build of the test copy (same defines, same data), because the profile rebuild failed for lack of memory on 2026-11-06. Reinstall the profile build with `tools/test_copy/test_copy.sh` when memory allows (the script now opens the pushed folders, D-173).
+- `$HOME/holyquran-test-copy/recitations/`: quran-align release 2016-11-24 (`align/`, SHA-1 matching its README), 72 MP3s per recitation (`audio/<folder>/`, `SHA256SUMS`), drift reports (`reports/drift72-*.json`). Rerun: `py -3 tools/packs/pack.py drift --timing … --audio … --edition … --text raw/quran-uthmani.xml --metadata raw/quran-data.xml --report …` (without `-I`, which breaks the `hqpack` import).
 - `D:/projects/New folder/ziydia_out/`: the owner's Zaydi extraction, 34 books; book 466 stopped at page 30.
 
 **Waiting on the owner:** the reciter's decisions file from `review/review.html` (D-176). Then: approved encoding patterns become kind (b) rules (`approved_by` the reciter, the date); the owner decides the base text (Tanzil or KFGQPC, D-176 (1)); then the manifest change so pages, juz and quarters come from KFGQPC (D-176 (2)).
 
 **Next, decided by the owner on 2026-11-09 (all three; at most two lanes at a time, in this order):**
-1. **Recitations (B0.5):** fetch quran-align timing for the four folders of D-167 and a sample of each recitation from everyayah.com to a work folder outside Git; a `content-engineer` task for a drift-measurement tool; run it on the owner's machine; record drift in `RIGHTS_REGISTER.md` (rows are `Open: drift`).
-2. **App fixes:** (a) a missing base pack reads as «نص المصحف لم يجتز التحقق» and on first start as an empty index with no alert — the states should differ; (b) the margin label «الجزء ١» overlaps the first word of the first line in the reader (identity audit first); (c) #91 `agent/p1-35-accessibility-pass`, idle since 2026-11-04 with a CHANGES REQUIRED review: its fix (ring under the text), goldens, review, merge.
+1. **Recitations (B0.5): done.** Drift measured (D-179, D-182). Left: the owner's listening check of two recitations; word-index problems at `hafs:10:1` and `hafs:14:1` to look at when the recitation packs are built.
+2. **App fixes:** (b) and (c) done (#100, #91). **Left: (a)**, the missing base pack (D-180, pull request #101: goldens, review, merge), then (d) a second mark row when one does not fit (D-183), a `ui-builder` task.
 3. **Zaydi tafsir:** derive the sixteen-code honorific table from the site's font with images for approval (D-140 (7)); then the tafsir pack (pack format v2 `tafsir`, D-110 proposed). The owner finishes book 466.
 
-**Rules learned this session:** every question to the owner through `AskUserQuestion`, in Arabic, recommended option first; D-176 (4): merge any pull request that passes an independent review and CI, and tell him; run long waits with `gh run watch <id>` in a background command (it wakes the session), never polling; the owner's global rules (`~/.claude/CLAUDE.md`): Opus for code and review, Sonnet for mechanical work, at most two lanes, `model` passed explicitly. Agents' spend this session ≈ $35 (largest: #95 $7.10, #97 $10.64).
+**Rules learned this session:** every question to the owner through `AskUserQuestion`, in Arabic, recommended option first; D-176 (4): merge any pull request that passes an independent review and CI, and tell him; run long waits as one background command (`until [ "$(gh run view <id> --json status -q .status)" = completed ]; do sleep 60; done`; `gh run watch` once exited early), never polling; API key 2 is out of credit, so start runs with `key=1` until the owner tops it up; the owner's global rules (`~/.claude/CLAUDE.md`): Opus for code and review, Sonnet for mechanical work, at most two lanes, `model` passed explicitly. Agents' spend this session ≈ $35 (largest: #95 $7.10, #97 $10.64).
 
 ## 1. Your role (D-159)
 
@@ -76,7 +77,7 @@ gh workflow run agent.yml --ref main \
   actions/jobs/<id>/logs). Two runs on one branch queue (`concurrency: agent-<branch>`); a
   third cancels the waiting one.
 
-## 3. In flight, in order
+## 3. In flight, in order (history: the cloud lead's queue of 2026-11-04; all of it is merged or superseded, see section 0)
 
 **Where each pull request stands** (cloud lead, 2026-11-04 07:00 UTC; check a run with `gh api
 repos/mohiyaldeenCS/Holy-Quran/actions/runs/<id>`; task texts the lead wrote are kept in the
@@ -118,11 +119,11 @@ which runs, and a `pull_request` run that waits for approval. The dispatch run i
 record for the head.
 **Spend this session**, by the SDK's estimates: $74.74 for 56 finished runs by 19:00 UTC, summed from the run logs; the caps of the runs out keep the worst case under $100 (the largest single run: #80's last round, $14.63). The owner raised the cap to $150 at about $82.
 
-`main` holds 37 of 40 tasks (18 partial); see the status file. **No app build has real
+`main` holds all 40 tasks (20 partial, 2026-11-09); see the status file. **No app build has real
 content yet and none has run on a device since the spike of 2026-10-12.** **Before the first
 run on a branch, check it:** `git merge-base --is-ancestor origin/main origin/<branch>`. If
 `main` changed `.github/` and the branch lacks it, merge `main` into the branch from your own
-session. Decision numbers: D-001 to D-178 are in `docs/DECISIONS.md` (D-073 to D-075 have no row, as on `main` before) (D-172 to D-178 are #93 to #97 and the owner's answers); the next free number is D-179.
+session. Decision numbers: D-001 to D-183 are in `docs/DECISIONS.md` (D-073 to D-075 have no row, as on `main` before) (D-172 to D-178 are #93 to #97 and the owner's answers; D-179 to D-183 are the records of 2026-11-09 and 10); the next free number is D-184.
 
 The queue, after the table above:
 
