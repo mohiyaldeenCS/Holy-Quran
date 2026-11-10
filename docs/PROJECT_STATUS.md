@@ -8,12 +8,12 @@ corrected first.
 
 | | |
 | --- | --- |
-| Updated | 2026-11-09 |
+| Updated | 2026-11-11 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
 | Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **All 40 merged** (P1-35 as #91, 2026-11-09), of which 20 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-34, P1-36, P1-37, P1-40). The composition root is wired (#72, D-151). **A local test copy with real text runs on the owner's phone (`HANDOFF.md` section 0); no real content is in `main` or any APK built from it** |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/*`), worked by agents in GitHub Actions (D-159) |
-| Last session | 2026-11-06 to 2026-11-09, local lead on the owner's machine: test copy on his phone, #93–#97 (Tanzil real files, push permissions, KFGQPC comparison, reciter's review page), #98 (records), #91 (P1-35), #99 (recitation drift tool), #100 (margin-mark rows), D-172–D-182; drift measured on the four recitations. **Read `HANDOFF.md` section 0 first** |
+| Last session | 2026-11-06 to 2026-11-11, local lead on the owner's machine: test copy on his phone, #93–#111 (Tanzil real files, KFGQPC comparison, reciter's review page, recitation drift, margin-mark rows, missing-pack alert, accessibility pass, and the Zaydi tafsir pipeline and app support of B0.7), D-172–D-194. **Read `HANDOFF.md` section 0 first** |
 
 ## What is in the repository
 
@@ -433,7 +433,7 @@ Stream B: the owner is extracting book 466. B0.11 (the pack pipeline) is on `mai
 
 ## Next actions — stream A (the implementing account)
 
-Current (2026-11-10, local lead; agents run locally under D-191 while no API key works): the Zaydi tafsir packs by `docs/plans/B07_TAFSIR_PACK.md` (tasks A and B1 first; D-184 to D-190), then a second mark row when one row does not fit (D-183). The tafsir reader shows the base-pack alert since #107 (D-180, D-192); #105 (tafsir format) and #106 (second mark row) are merged. `HANDOFF.md` section 0 holds the order.
+Current (2026-11-11, local lead; agents run locally under D-191 while no API key works — both secrets return "Invalid API key"): B0.7's code is merged (#104, #105, #108 to #111). Next: the honorific table once the owner has the site's font; rerun the linker and give the religious reviewer the review pages; the P5 counts file; then build the first real tafsir pack. Follow-ups from reviews: `tafsir_footnotes.py` should also stop when the page after a shipped last note opens with a note paragraph but has no footnote line (review of #111, finding 1; no real case); the README's P2 wording ("shares only the markup constants"); `test/perf/perf_scenarios_test.dart` flakes under full-suite load (a bookmark reload after teardown).
 
 Work runs through agents in GitHub Actions; the lead only manages them (D-159; suspended by D-191 while no API key works). The
 current queue, in order, with how to start a run, is `HANDOFF.md`, sections 2 and 3.
@@ -564,6 +564,7 @@ Permission conditions to confirm with him when each is first needed are listed i
 | OF-04 | Downloads on `background_downloader` 9.6.5 (D-154 (6)): Wi-Fi-only on a metered hotspot, the network dropping and returning in mid-file, and the app killed while offline, then opened again | Owner, on his phone | With the first real recitation or pack download |
 | B0.5 | Listening check of word timing for Minshawi mujawwad and Abdul Basit murattal (D-182); the measure could not tell them from chance | Owner, on his phone | A build with their recitation packs |
 | D-181 | The margin-mark rows in the reader at 100 % and 200 % text, in the four themes, never touch real text (marks below letters on the line above are not in the synthetic tests; review of #100, finding 1) | Owner, on his phone | The next test copy built from `main` |
+| D-180 | The missing-pack alert («نص المصحف غير موجود») on home, index, reader, search and the tafsir reader, with TalkBack, from the first start of a test copy without its pack | Owner, on his phone | A test copy built from `main` with its pack removed |
 
 Pending human checks of P1-14 and later beyond this table are under each task in "In progress"; the first device session gathers them.
 
@@ -640,6 +641,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-11-10–11 | Local lead, continued | Merged #103 to #111: the B0.7 plan and decisions D-184 to D-194, linker outcomes, the tafsir pack format with surah-level passages, `pack.py tafsir` (two reviews; the surah-level review gate D-193), the app reading and showing surah passages under «عن السورة» (owner's choice), footnotes; also #106 (second mark row, D-183) and #107 (tafsir reader alert, D-192). All agents ran locally (D-191) | `main` |
 | 2026-11-10 | Local lead, continued | Merged #102 (records) and #101 (missing base pack, D-180). The Zaydi site now refuses the fetch tool (403); the owner is asking the site owner. Both API keys fail (D-191). Planned B0.7 (`docs/plans/B07_TAFSIR_PACK.md`); owner's answers D-184 to D-190 | `main`, this branch |
 | 2026-11-09 | Local lead, continued | Merged #98 (records), #91 (P1-35, after its fix and goldens), #99 (recitation drift tool, B0.5) and #100 (margin-mark rows, D-181). Fetched quran-align and 72 ayat of each recitation outside Git and measured drift (two pass, two to a listening check). Owner's answers D-180 to D-182. Key 2 is out of credit | `main`, this branch |
 | 2026-11-06–09 | Local lead (owner's machine) | Ran `tools/test_copy/README.md`: the build stopped on Tanzil's real files (no metadata notice; `rub=false` turns U+06DE on) → #93; installed on the phone; the app could not read the pushed pack (folder modes) → #94; fetched the KFGQPC Hafs text (checksums matched); built the comparison #95, #96 (54,797 differences in 93 patterns: encoding, spaces, 355 pause marks, ~30 letters; 56 page, 2 juz, 2 quarter differences) and the reciter's review page #97; recorded the recitation rights and the owner's answers (D-174, D-176). Pending human checks: the reciter's review; the 42 surah-opening quarter starts; the test copy on the phone (debug build) | `main` `06bb22f`; records branch `claude/quran-app-leadership-kcenv4` |
