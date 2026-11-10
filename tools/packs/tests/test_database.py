@@ -252,14 +252,14 @@ class RefusalTest(_TempDirTest):
     def test_foreign_key_check_names_the_orphan(self):
         # With enforcement off the insert succeeds, so the final check is
         # what stops the build.
-        real_run = database._run
+        real_run = database.run
 
-        def run(db, sql, step, parameters=()):
+        def run(db, sql, step, parameters=(), file=database._FILE):
             if sql == "PRAGMA foreign_keys = ON":
                 sql = "PRAGMA foreign_keys = OFF"
-            return real_run(db, sql, step, parameters)
+            return real_run(db, sql, step, parameters, file)
 
-        with mock.patch.object(database, "_run", run):
+        with mock.patch.object(database, "run", run):
             with self.assertRaises(PackError) as caught:
                 write_text_database(self.path, _SURAHS, _DIVISIONS, _SAJDAS + [(3, 7)])
         self.assertIn("sajda at 3:7", str(caught.exception))
@@ -289,6 +289,24 @@ class RefusalTest(_TempDirTest):
     def test_reading_a_missing_file_raises(self):
         with self.assertRaises(PackError):
             read_stored_texts(self.path)
+
+
+class SetHeaderTest(_TempDirTest):
+    def test_user_version_is_the_one_given_and_errors_name_the_file(self):
+        path = os.path.join(self.dir, "other.sqlite")
+        with closing(sqlite3.connect(path, isolation_level=None)) as db:
+            database.set_header(db, 2, "other.sqlite")
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone(), (2,))
+            self.assertEqual(db.execute("PRAGMA application_id").fetchone(), (APPLICATION_ID,))
+            with self.assertRaises(PackError) as caught:
+                database.run(db, "SELECT * FROM absent", "reading", file="other.sqlite")
+        self.assertEqual(str(caught.exception), "other.sqlite: reading failed (OperationalError)")
+
+    def test_create_new_refuses_an_existing_path_naming_the_file(self):
+        path = database.create_new(os.path.join(self.dir, "other.sqlite"), "other.sqlite")
+        with self.assertRaises(PackError) as caught:
+            database.create_new(path, "other.sqlite")
+        self.assertEqual(str(caught.exception), "other.sqlite: the output path already exists")
 
 
 class RequireSqliteTest(unittest.TestCase):

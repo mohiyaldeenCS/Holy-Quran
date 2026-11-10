@@ -13,9 +13,12 @@ from unittest import mock
 
 import synthetic_source as synthetic
 from hqpack import cli
+from hqpack.kfgqpc_counts import encode_counts, kfgqpc_counts
+from hqpack.profiles import PROFILES
 from hqpack.review_page import KFGQPC_FONT_NAME
 
-from tests.build_support import FONT, HAFS_ID, TEST_COPY_ID, BuildCase, hafs_shaped_profiles
+from tests import tafsir_pack_factory
+from tests.build_support import FONT, HAFS_ID, OTHER_FONT, TEST_COPY_ID, BuildCase, hafs_shaped_profiles
 from tests.test_review_page import synthetic_kfgqpc_font
 
 PACK_PY = Path(__file__).resolve().parents[1] / "pack.py"
@@ -284,8 +287,82 @@ class KfgqpcCliTest(CliCase):
         self.assertFalse(out_file.exists())
 
 
+class TafsirCliCase(CliCase):
+    def tafsir(self, fault=None):
+        return tafsir_pack_factory.write_pack(self.work / "packs" / (fault or "clean"), fault=fault)
+
+    def ayah_counts(self):
+        path = self.work / "kfgqpc-hafs-counts.json"
+        path.write_bytes(encode_counts(kfgqpc_counts(self.write_kfgqpc(), "2026-11-06", PROFILES["synthetic"])))
+        return path
+
+
+class TafsirVerifyTest(TafsirCliCase):
+    def test_verify_chooses_the_tafsir_checks(self):
+        code, out, _ = self.run_cli("verify", self.tafsir(), "--ayah-counts", self.ayah_counts())
+        self.assertEqual(code, 0, out)
+        self.assertIn("counts passages 5", out)
+        self.assertIn("verified", out)
+        self.assertIn("unsigned", out)
+
+    def test_verify_with_the_tafsir_font_reports_what_it_lacks(self):
+        code, out, _ = self.run_cli("verify", self.tafsir(), "--ayah-counts", self.ayah_counts(), "--font", FONT)
+        self.assertEqual(code, cli.EX_DATAERR)
+        self.assertRegex(out, r"problem: U\+[0-9A-F]{4,} is not in the font; first at ")
+
+    def test_verify_reports_a_tafsir_fault(self):
+        code, out, _ = self.run_cli("verify", self.tafsir("overlap"), "--ayah-counts", self.ayah_counts())
+        self.assertEqual(code, cli.EX_DATAERR)
+        self.assertIn("problem: passages 2 and 3 overlap", out)
+        self.assertIn("1 problems", out)
+
+    def test_the_counts_decide_the_ranges(self):
+        counts = self.ayah_counts()
+        data = counts.read_bytes().replace(b'"1": 4', b'"1": 3').replace(b'"total": 8', b'"total": 7')
+        counts.write_bytes(data)
+        code, out, _ = self.run_cli("verify", self.tafsir(), "--ayah-counts", counts)
+        self.assertEqual(code, cli.EX_DATAERR)
+        self.assertIn("problem: passage 3 reaches ayah 4 of surah 1, which has 3", out)
+
+    def test_a_counts_file_that_is_not_p5_is_refused(self):
+        counts = self.ayah_counts()
+        counts.write_bytes(counts.read_bytes().rstrip(b"\n"))
+        code, _, err = self.run_cli("verify", self.tafsir(), "--ayah-counts", counts)
+        self.assertEqual(code, cli.EX_DATAERR)
+        self.assertIn("refused: ayah counts:", err)
+
+    def test_inputs_of_the_other_kind_are_usage_errors(self):
+        tafsir = self.tafsir()
+        counts = self.ayah_counts()
+        self.assertEqual(self.run_cli("verify", tafsir)[0], cli.EX_USAGE)
+        self.assertEqual(
+            self.run_cli("verify", tafsir, "--ayah-counts", counts, "--mark-table", counts)[0], cli.EX_USAGE
+        )
+        text, _ = self.build()
+        code, _, err = self.run_cli("verify", text, "--ayah-counts", counts)
+        self.assertEqual(code, cli.EX_USAGE)
+        self.assertIn("--ayah-counts is for a tafsir pack", err)
+
+    def test_sign_of_a_tafsir_pack_needs_its_font(self):
+        tafsir = self.tafsir()
+        code, _, err = self.run_cli("sign", tafsir, "--key", self.work / "absent.pem", "--ayah-counts", self.ayah_counts())
+        self.assertEqual(code, cli.EX_USAGE)
+        self.assertIn("sign needs --font for a tafsir pack", err)
+        self.assertFalse((tafsir / "manifest.json.sig").exists())
+
+    def test_a_tafsir_pack_that_does_not_verify_is_not_signed(self):
+        tafsir = self.tafsir("gap_in_numbering")
+        code, out, err = self.run_cli(
+            "sign", tafsir, "--key", self.work / "absent.pem", "--ayah-counts", self.ayah_counts(), "--font", OTHER_FONT
+        )
+        self.assertEqual(code, cli.EX_DATAERR)
+        self.assertIn("problem: passage 3 is numbered 4", out)
+        self.assertIn("not signed", err)
+        self.assertFalse((tafsir / "manifest.json.sig").exists())
+
+
 @unittest.skipUnless(_openssl_ed25519(), "needs OpenSSL with Ed25519")
-class SignTest(CliCase):
+class SignTest(TafsirCliCase):
     def keys(self, name):
         private, public = self.work / (name + ".pem"), self.work / (name + ".pub.pem")
         for argv in (
@@ -326,6 +403,16 @@ class SignTest(CliCase):
         )
         self.assertEqual(code, 0, out)
         self.assertEqual(self.run_cli("verify-signature", pack, "--public-key", public)[0], 0)
+
+    def test_sign_a_tafsir_pack_then_verify_signature(self):
+        tafsir = self.tafsir()
+        private, public = self.keys("throwaway")
+        code, out, _ = self.run_cli(
+            "sign", tafsir, "--key", private, "--ayah-counts", self.ayah_counts(), "--font", OTHER_FONT
+        )
+        self.assertEqual(code, 0, out)
+        self.assertEqual(len((tafsir / "manifest.json.sig").read_bytes()), 64)
+        self.assertEqual(self.run_cli("verify-signature", tafsir, "--public-key", public)[0], 0)
 
     def test_sign_needs_the_font_and_the_mark_table(self):
         pack, _ = self.build()

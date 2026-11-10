@@ -1,4 +1,6 @@
-"""`text.sqlite` of format v1 (docs/CONTENT_PACKS.md, "Text pack").
+"""`text.sqlite` of format v1 (docs/CONTENT_PACKS.md, "Text pack"), and the
+file rules every data file of a pack shares: `create_new`, `set_header`,
+`run`, `check_text` and `remove_partial`, each naming its file.
 
 Every text is bound as the Python str the strict reader produced; Python's
 sqlite3 binds a str as its exact UTF-8 bytes. Nothing is stripped,
@@ -110,37 +112,43 @@ class StoredTexts:
     ayat: dict  # (surah, ayah) -> bytes
 
 
-def require_sqlite() -> str:
+def require_sqlite(file=_FILE) -> str:
     """The SQLite version; STRICT tables need 3.37 or later."""
     version = sqlite3.sqlite_version
     found = tuple(int(part) for part in version.split(".")[:3])
     if found < MIN_SQLITE:
         raise PackError(
             "SQLite %s found; %s needs %d.%d.%d or later"
-            % ((version, _FILE) + MIN_SQLITE)
+            % ((version, file) + MIN_SQLITE)
         )
     return version
 
 
-def write_text_database(path, surahs, divisions, sajdas) -> None:
-    """Writes a new `text.sqlite` at `path`; refuses an existing path."""
-    require_sqlite()
+def create_new(path, file) -> str:
+    """Creates the empty file at `path` and returns it; refuses an existing path."""
+    require_sqlite(file)
     path = os.fspath(path)
     try:
         open(path, "xb").close()
     except FileExistsError:
-        raise PackError("%s: the output path already exists" % _FILE) from None
+        raise PackError("%s: the output path already exists" % file) from None
     except OSError as e:
-        raise PackError("%s: creating the file failed (%s)" % (_FILE, type(e).__name__)) from None
+        raise PackError("%s: creating the file failed (%s)" % (file, type(e).__name__)) from None
+    return path
+
+
+def write_text_database(path, surahs, divisions, sajdas) -> None:
+    """Writes a new `text.sqlite` at `path`; refuses an existing path."""
+    path = create_new(path, _FILE)
     try:
         with closing(sqlite3.connect(path, isolation_level=None)) as db:
-            _set_header(db)
+            set_header(db, FORMAT_VERSION)
             _create_tables(db)
             _insert_all(db, surahs, divisions, sajdas)
             _check_foreign_keys(db)
-            _run(db, "VACUUM", "vacuum")
+            run(db, "VACUUM", "vacuum")
     except BaseException:
-        _remove(path)
+        remove_partial(path)
         raise
 
 
@@ -168,30 +176,32 @@ def read_stored_texts(path) -> StoredTexts:
     )
 
 
-def _set_header(db) -> None:
-    _run(db, "PRAGMA encoding = 'UTF-8'", "setting the encoding")
-    _run(db, "PRAGMA application_id = %d" % APPLICATION_ID, "setting application_id")
-    _run(db, "PRAGMA user_version = %d" % FORMAT_VERSION, "setting user_version")
-    mode = _run(db, "PRAGMA journal_mode = DELETE", "setting journal_mode").fetchone()
+def set_header(db, user_version, file=_FILE) -> None:
+    """UTF-8 before any table, HQPK, `user_version` (the pack's format
+    version), journal_mode DELETE and foreign keys on."""
+    run(db, "PRAGMA encoding = 'UTF-8'", "setting the encoding", file=file)
+    run(db, "PRAGMA application_id = %d" % APPLICATION_ID, "setting application_id", file=file)
+    run(db, "PRAGMA user_version = %d" % user_version, "setting user_version", file=file)
+    mode = run(db, "PRAGMA journal_mode = DELETE", "setting journal_mode", file=file).fetchone()
     if mode is None or mode[0] != "delete":
-        raise PackError("%s: journal_mode is not delete" % _FILE)
-    _run(db, "PRAGMA foreign_keys = ON", "enabling foreign keys")
-    encoding = _run(db, "PRAGMA encoding", "reading the encoding").fetchone()
+        raise PackError("%s: journal_mode is not delete" % file)
+    run(db, "PRAGMA foreign_keys = ON", "enabling foreign keys", file=file)
+    encoding = run(db, "PRAGMA encoding", "reading the encoding", file=file).fetchone()
     if encoding is None or encoding[0] != "UTF-8":
-        raise PackError("%s: the encoding is not UTF-8" % _FILE)
+        raise PackError("%s: the encoding is not UTF-8" % file)
 
 
 def _create_tables(db) -> None:
     for number, statement in enumerate(_SCHEMA, 1):
-        _run(db, statement, "creating table %d of %d" % (number, len(_SCHEMA)))
+        run(db, statement, "creating table %d of %d" % (number, len(_SCHEMA)))
 
 
 def _insert_all(db, surahs, divisions, sajdas) -> None:
-    _run(db, "BEGIN", "beginning the transaction")
+    run(db, "BEGIN", "beginning the transaction")
     for surah in surahs:
         _insert_surah(db, surah)
     for kind, number, surah, ayah in divisions:
-        _run(
+        run(
             db,
             "INSERT INTO division VALUES (?, ?, ?, ?)",
             "inserting division %s %s (surah %s, ayah %s)"
@@ -199,21 +209,21 @@ def _insert_all(db, surahs, divisions, sajdas) -> None:
             (kind, number, surah, ayah),
         )
     for surah, ayah in sajdas:
-        _run(
+        run(
             db,
             "INSERT INTO sajda VALUES (?, ?)",
             "inserting sajda %s:%s" % (surah, ayah),
             (surah, ayah),
         )
-    _run(db, "COMMIT", "committing")
+    run(db, "COMMIT", "committing")
 
 
 def _insert_surah(db, surah: SurahRow) -> None:
     where = "surah %s" % surah.number
-    _check_text(surah.name, where + " name")
+    check_text(surah.name, where + " name")
     if surah.basmala is not None:
-        _check_text(surah.basmala, where + " basmala")
-    _run(
+        check_text(surah.basmala, where + " basmala")
+    run(
         db,
         "INSERT INTO surah VALUES (?, ?, ?, ?, ?, ?)",
         "inserting " + where,
@@ -232,22 +242,22 @@ def _insert_surah(db, surah: SurahRow) -> None:
 
 def _insert_ayah(db, surah: int, ayah: AyahRow) -> None:
     address = "%s:%s" % (surah, ayah.number)
-    _check_text(ayah.text, "ayah " + address)
-    _run(
+    check_text(ayah.text, "ayah " + address)
+    run(
         db,
         "INSERT INTO ayah VALUES (?, ?, ?)",
         "inserting ayah " + address,
         (surah, ayah.number, ayah.text),
     )
     for number, (start, end) in enumerate(ayah.words, 1):
-        _run(
+        run(
             db,
             "INSERT INTO word VALUES (?, ?, ?, ?, ?)",
             "inserting word %s:%d" % (address, number),
             (surah, ayah.number, number, start, end),
         )
     for number, (after_word, start, end) in enumerate(ayah.marks, 1):
-        _run(
+        run(
             db,
             "INSERT INTO mark VALUES (?, ?, ?, ?, ?, ?)",
             "inserting mark %s:%d" % (address, number),
@@ -255,21 +265,21 @@ def _insert_ayah(db, surah: int, ayah: AyahRow) -> None:
         )
 
 
-def _check_text(value, where: str) -> None:
+def check_text(value, where: str, file=_FILE) -> None:
     if not isinstance(value, str):
-        raise PackError("%s: %s is not a string" % (_FILE, where))
+        raise PackError("%s: %s is not a string" % (file, where))
     if value.startswith("\ufeff"):
-        raise PackError("%s: %s begins with U+FEFF" % (_FILE, where))
+        raise PackError("%s: %s begins with U+FEFF" % (file, where))
     try:
         value.encode("utf-8", "strict")
     except UnicodeEncodeError as e:
         raise PackError(
-            "%s: %s holds a lone surrogate at index %d" % (_FILE, where, e.start)
+            "%s: %s holds a lone surrogate at index %d" % (file, where, e.start)
         ) from None
 
 
 def _check_foreign_keys(db) -> None:
-    violations = _run(db, "PRAGMA foreign_key_check", "checking foreign keys")
+    violations = run(db, "PRAGMA foreign_key_check", "checking foreign keys")
     tables = sorted({row[0] for row in violations.fetchall()})
     if not tables:
         return
@@ -285,7 +295,7 @@ def _first_orphan(db, table: str) -> str:
         return "an unknown address"
     child, parent, key = _FOREIGN_KEYS[table]
     match = " AND ".join("p.%s = c.%s" % (k, c) for k, c in zip(key, child))
-    row = _run(
+    row = run(
         db,
         "SELECT %s FROM %s AS c WHERE NOT EXISTS (SELECT 1 FROM %s AS p WHERE %s) "
         "ORDER BY %s LIMIT 1"
@@ -299,16 +309,16 @@ def _kind_name(kind) -> str:
     return kind if kind in ("juz", "hizb", "rub", "page") else "(unknown kind)"
 
 
-def _run(db, sql: str, step: str, parameters=()):
+def run(db, sql: str, step: str, parameters=(), file=_FILE):
     try:
         return db.execute(sql, parameters)
     except (sqlite3.Error, ValueError, OverflowError) as e:
         raise PackError(
-            "%s: %s failed (%s)" % (_FILE, step, type(e).__name__)
+            "%s: %s failed (%s)" % (file, step, type(e).__name__)
         ) from None
 
 
-def _remove(path: str) -> None:
+def remove_partial(path: str) -> None:
     for name in (path,) + tuple(path + side for side in _SIDE_FILES):
         try:
             os.remove(name)

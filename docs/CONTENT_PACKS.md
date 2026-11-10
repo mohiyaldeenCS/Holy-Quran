@@ -348,10 +348,11 @@ CREATE TABLE book (
 CREATE TABLE passage (
   number     INTEGER PRIMARY KEY,  -- 1..counts.passages, contiguous, mushaf order
   surah      INTEGER NOT NULL,
-  first_ayah INTEGER NOT NULL,
-  last_ayah  INTEGER NOT NULL,     -- >= first_ayah
+  first_ayah INTEGER NOT NULL,     -- 0 for a surah-level passage (D-184)
+  last_ayah  INTEGER NOT NULL,     -- >= first_ayah; 0 for a surah-level passage
   text       TEXT NOT NULL,        -- the book's wording, verbatim after the documented conversion
-  UNIQUE (surah, first_ayah)
+  UNIQUE (surah, first_ayah),
+  CHECK (surah >= 1 AND ((first_ayah = 0 AND last_ayah = 0) OR (first_ayah >= 1 AND last_ayah >= first_ayah)))
 ) STRICT;
 ```
 
@@ -365,11 +366,27 @@ CREATE TABLE passage (
 - A passage explains the ayat `first_ayah`..`last_ayah` of one surah and is shown
   once with that range. Passages do not overlap and follow in mushaf order, so an
   ayah has at most one passage. An ayah without a passage has none: there is no
-  empty row. A source passage that crosses a surah boundary, or text a book places
-  before ayah 1 of a surah, stops the pipeline until this format is revised.
+  empty row. A source passage that crosses a surah boundary stops the pipeline, and
+  so does a range that starts below ayah 1 or ends past its surah.
+- **Surah-level passage (D-184).** Commentary a book links to a surah but to no ayah
+  is at most one passage per surah, stored with the reserved range
+  `first_ayah = last_ayah = 0` and shown where that surah's tafsir begins, before
+  its first ayah passage. The CHECK admits that range or an ayah range from 1 and
+  nothing else, and `UNIQUE (surah, first_ayah)` allows one per surah. In mushaf
+  order it comes first in its surah, so its `number` is one below that of the
+  surah's first ayah passage; it counts in `counts.passages`. It is not an ayah
+  range: no ayah is 0, so a lookup by ayah never matches it, and a reader that does
+  not know the rule refuses the pack (an address has no ayah 0), so an older app
+  hides such a pack rather than showing it wrongly. The columns, and so the app's
+  schema check, are unchanged; `pragma_table_xinfo` does not show a CHECK.
+- `text` is not empty and holds no U+FEFF anywhere; a book fact that is not NULL is
+  not empty. Every code point of the book and its passages is in the tafsir font,
+  except U+000A, which joins a passage's paragraphs (D-184) and is laid out as a
+  line break, and U+2009 and U+2063 (D-185).
 - Quran quotations inside a passage are part of the book's text (`TF-08`).
 - No digest beyond the file hash. Ranges are checked against the text pack of the
-  same riwaya by the integrity suite and by the tafsir repository (P1-20).
+  same riwaya by the integrity suite and by the tafsir repository (P1-20), and by
+  the pipeline against the P5 ayah counts (`tools/packs/hqpack/verify_tafsir.py`).
 
 ### Recitation pack (`kind: "recitation"`, `recitation.sqlite`; `AU-13`, `AU-14`)
 

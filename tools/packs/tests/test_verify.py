@@ -7,8 +7,9 @@ import unittest
 from collections import namedtuple
 from pathlib import Path
 
-from hqpack.verify import verify_pack
+from hqpack.verify import pack_kind, verify_pack
 from tests import pack_factory as factory
+from tests import tafsir_pack_factory
 
 Font = namedtuple("Font", "family version sha256 code_points")
 
@@ -239,6 +240,27 @@ class VerifyTest(unittest.TestCase):
         self.assertIn(
             "ayah 1:1: mark 1 is stored as 0..9 after word 0; the text has "
             "no mark 1", problems)
+
+
+class PackKindTest(unittest.TestCase):
+    def setUp(self):
+        self._temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self._temporary.cleanup)
+        self.root = Path(self._temporary.name)
+
+    def test_the_kind_the_manifest_names(self):
+        self.assertEqual(pack_kind(factory.write_pack(self.root / "text")), "text")
+        self.assertEqual(pack_kind(tafsir_pack_factory.write_pack(self.root / "tafsir")), "tafsir")
+
+    def test_none_when_the_manifest_names_no_kind(self):
+        directory = self.root / "pack"
+        directory.mkdir()
+        self.assertIsNone(pack_kind(directory))
+        not_utf8 = bytes([0xFF]) + b'{"kind": "tafsir"}'
+        for data in (b"{", b"[]", b'{"kind": 1}', not_utf8, b"{}"):
+            with self.subTest(data=data):
+                (directory / "manifest.json").write_bytes(data)
+                self.assertIsNone(pack_kind(directory))
 
 
 if __name__ == "__main__":

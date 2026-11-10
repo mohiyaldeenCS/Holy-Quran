@@ -1,5 +1,9 @@
 """The command line: build, verify, sign, verify-signature, compare, review-page, kfgqpc-counts and drift.
 
+`verify` and `sign` choose their checks by the manifest's kind: a text pack
+with its font and mark table, a tafsir pack with the P5 ayah counts and its
+font.
+
 Output is paths, counts, hashes and `U+XXXX` only, never a text value. Exit
 codes: 0 done, 64 usage, 65 a source or a pack breaks a rule, 70 anything
 else (printed by its type alone, since its message might hold text).
@@ -12,6 +16,7 @@ import sys
 from pathlib import Path
 
 from . import compare, drift, review_page
+from .ayah_counts import read_ayah_counts
 from .build import build_pack
 from .digest import sha256_bytes
 from .errors import PackError
@@ -22,7 +27,8 @@ from .profiles import PROFILES
 from .tanzil_metadata import read_tanzil_metadata
 from .tanzil_text import read_tanzil_text
 from .signing import SIGNATURE_FILE, OpenSslEd25519Signer, sign_pack, verify_signature
-from .verify import verify_pack
+from .verify import pack_kind, verify_pack
+from .verify_tafsir import verify_tafsir_pack
 
 EX_USAGE = 64
 EX_DATAERR = 65
@@ -88,8 +94,12 @@ def _parser():
     _pack_inputs(verify)
     verify.set_defaults(run=_verify)
 
-    sign = commands.add_parser("sign", help="verify a pack with its font and mark table, then write manifest.json.sig")
-    _pack_inputs(sign, required=True)
+    sign = commands.add_parser(
+        "sign",
+        help="verify a pack (a text pack with its font and mark table, a tafsir pack with its font and the "
+        "ayah counts), then write manifest.json.sig",
+    )
+    _pack_inputs(sign)
     sign.add_argument("--key", required=True, type=Path, help="Ed25519 private key (PEM) of the key holder")
     sign.add_argument("--openssl", default="openssl", help="the OpenSSL 3 executable")
     sign.set_defaults(run=_sign)
@@ -151,10 +161,13 @@ def _parser():
     return parser
 
 
-def _pack_inputs(parser, required=False):
+def _pack_inputs(parser):
     parser.add_argument("pack", type=Path, help="the pack directory <id>/<version>")
-    parser.add_argument("--font", type=Path, required=required, help="check the font's hash, name, version and coverage")
-    parser.add_argument("--mark-table", type=Path, required=required, help="check every mark against the mark table")
+    parser.add_argument("--font", type=Path, help="check the font's coverage, and for a text pack its hash, name and version")
+    parser.add_argument("--mark-table", type=Path, help="text pack: check every mark against the mark table")
+    parser.add_argument(
+        "--ayah-counts", type=Path, help="tafsir pack, required: the P5 counts file, to check every passage's range"
+    )
 
 
 def _build(args, out):
@@ -187,7 +200,7 @@ def _build(args, out):
 
 
 def _verify(args, out):
-    report = _report(args)
+    report = _report(args, signing=False)
     for problem in report.problems:
         print("problem: %s" % problem, file=out)
     if report.counts is not None:
@@ -201,7 +214,7 @@ def _verify(args, out):
 
 
 def _sign(args, out):
-    report = _report(args)
+    report = _report(args, signing=True)
     if report.problems:
         for problem in report.problems:
             print("problem: %s" % problem, file=out)
@@ -313,13 +326,31 @@ def _drift(args, out):
     return 0 if report["summary"]["verdict"] == "PASS" else EX_DATAERR
 
 
-def _report(args):
+def _report(args, signing):
+    """Usage is checked for the pack's kind before any input is read."""
+    tafsir = pack_kind(args.pack) == "tafsir"
+    if tafsir:
+        if args.mark_table is not None:
+            raise _Usage("--mark-table is for a text pack; this is a tafsir pack")
+        if args.ayah_counts is None:
+            raise _Usage("a tafsir pack needs --ayah-counts")
+        if signing and args.font is None:
+            raise _Usage("sign needs --font for a tafsir pack")
+    else:
+        if args.ayah_counts is not None:
+            raise _Usage("--ayah-counts is for a tafsir pack")
+        if signing and (args.font is None or args.mark_table is None):
+            raise _Usage("sign needs --font and --mark-table for a text pack")
     font = read_font(args.font.read_bytes()) if args.font else None
+    if tafsir:
+        return verify_tafsir_pack(args.pack, read_ayah_counts(args.ayah_counts.read_bytes()), font=font)
     marks = read_mark_table(args.mark_table.read_bytes()) if args.mark_table else None
     return verify_pack(args.pack, mark_code_points=marks, font=font)
 
 
 def _counts_line(counts):
+    if "passages" in counts:
+        return "counts passages %d" % counts["passages"]
     return "counts surahs %d ayat %d words %d marks %d sajdas %d" % (
         counts["surahs"],
         counts["ayat"],
