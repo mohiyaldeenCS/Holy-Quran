@@ -259,30 +259,14 @@ def _tanzil_source(config, profile, compares, font_path, kfgqpc, table):
 
 
 def _kfgqpc_source(config, profile, compares, font_path, table, tanzil_text):
-    kfgqpc_file.check_file_name(config.text.file)
-    if config.text.version != kfgqpc_file.VERSION:
-        raise PackError(
-            "sources.text: the KFGQPC file is read as version %s; the description names version %s"
-            % (kfgqpc_file.VERSION, _ascii(config.text.version))
-        )
-    if options_from_url(config.text.url) is not None:
-        raise PackError(
-            "sources.text: the KFGQPC file is published with no download options; its URL has a query"
-        )
+    _check_kfgqpc_description(config)
     edition_map_options = options_from_url(config.edition_map.url)
     text_bytes = _source_bytes(config.text)
     metadata_bytes = _source_bytes(config.edition_map)
     marks = read_mark_table(config.mark_table.read_bytes())
-    font_path = Path(font_path)
-    if font_path.name != kfgqpc_file.FONT_FILE_NAME:
-        raise PackError(
-            "the font of a KFGQPC text is KFGQPC's own %s (D-198 Q2), not %s"
-            % (kfgqpc_file.FONT_FILE_NAME, _ascii(font_path.name))
-        )
-    font = read_font(font_path.read_bytes())
+    font = _kfgqpc_font(font_path)
     rules = presentation(read_table(Path(table).read_bytes()))
     ayat = kfgqpc_file.read_kfgqpc(text_bytes, profile.ayat)
-    offsets = kfgqpc_file.text_offsets(text_bytes, ayat)
     metadata = read_tanzil_metadata(metadata_bytes)
 
     source_checks.check_metadata_version(metadata, config.edition_map.version)
@@ -291,56 +275,14 @@ def _kfgqpc_source(config, profile, compares, font_path, table, tanzil_text):
     ayah_counts = {number: len(group) for number, group in enumerate(surahs, 1)}
     division_rows = source_checks.divisions(profile, metadata, ayah_counts)
     sajda_rows = source_checks.sajdas(metadata, ayah_counts)
-    found = {}
-    bodies = {}
-    for aya in ayat:
-        address = (aya.surah, aya.number)
-        found[address] = presented_spans(aya.text, marks, rules, address, "ayah %d:%d" % address)
-        bodies[address] = _body(aya.text, found[address].presentation)
-    first = ayat[0]
-    start, end = bodies[BASMALA_AYAH]
-    basmala = first.text[start:end]
-    offset = offsets[0][0] + len(first.text[:start].encode("utf-8"))
-    basmala_bytes = text_bytes[offset : offset + len(basmala.encode("utf-8"))]
-
-    with_basmala = [n for n in range(1, len(surahs) + 1) if n not in profile.without_basmala]
-    source_checks.check_profile_signs(profile, _kfgqpc_drawn(surahs, with_basmala, basmala, bodies))
-    source_checks.check_signed_sajdas(sajda_rows, [((a.surah, a.number), a.text) for a in ayat])
-    source_checks.check_font_coverage(font, _kfgqpc_drawn(surahs, with_basmala, basmala))
+    with_basmala = frozenset(range(1, len(surahs) + 1)) - profile.without_basmala
+    text = _KfgqpcText(surahs, text_bytes, marks, rules, with_basmala)
+    source_checks.check_profile_signs(profile, text.drawn(text.bodies))
+    source_checks.check_signed_sajdas(sajda_rows, list(text.stored.items()))
+    source_checks.check_font_coverage(font, text.drawn(text.stored))
     if compares:
         _compare_kfgqpc_text(tanzil_text, metadata, metadata_bytes, config.text.file, table, profile)
-    source_bytes = {(a.surah, a.number): text_bytes[o : o + n] for a, (o, n) in zip(ayat, offsets)}
-    surah_rows = []
-    expected = []
-    for number, (group, meta, (place, order)) in enumerate(zip(surahs, metadata.suras, places), 1):
-        own = basmala if number in with_basmala else None
-        surah_rows.append(
-            database.SurahRow(
-                number=number,
-                name=meta.name.value,
-                revelation_place=place,
-                revelation_order=order,
-                basmala=own,
-                ayat=[
-                    database.AyahRow(
-                        number=aya.number,
-                        text=aya.text,
-                        words=found[(number, aya.number)].words,
-                        marks=found[(number, aya.number)].marks,
-                        presentation=tuple(found[(number, aya.number)].presentation),
-                    )
-                    for aya in group
-                ],
-            )
-        )
-        expected.append(
-            (
-                number,
-                _slice(metadata_bytes, meta.name),
-                None if own is None else basmala_bytes,
-                [(aya.number, source_bytes[(number, aya.number)]) for aya in group],
-            )
-        )
+    surah_rows, expected = text.rows(metadata, places, metadata_bytes)
     return _Source(
         format_version=database.PRESENTED_FORMAT_VERSION,
         surah_rows=surah_rows,
@@ -360,6 +302,31 @@ def _kfgqpc_source(config, profile, compares, font_path, table, tanzil_text):
         presentation=rules,
         expected=expected,
     )
+
+
+def _check_kfgqpc_description(config):
+    """The text source is the published KFGQPC file, of the version kfgqpc.py reads, which has no download options."""
+    kfgqpc_file.check_file_name(config.text.file)
+    if config.text.version != kfgqpc_file.VERSION:
+        raise PackError(
+            "sources.text: the KFGQPC file is read as version %s; the description names version %s"
+            % (kfgqpc_file.VERSION, _ascii(config.text.version))
+        )
+    if options_from_url(config.text.url) is not None:
+        raise PackError(
+            "sources.text: the KFGQPC file is published with no download options; its URL has a query"
+        )
+
+
+def _kfgqpc_font(font_path):
+    """The font the KFGQPC text is paired with (D-198 Q2), known by its published file name."""
+    font_path = Path(font_path)
+    if font_path.name != kfgqpc_file.FONT_FILE_NAME:
+        raise PackError(
+            "the font of a KFGQPC text is KFGQPC's own %s (D-198 Q2), not %s"
+            % (kfgqpc_file.FONT_FILE_NAME, _ascii(font_path.name))
+        )
+    return read_font(font_path.read_bytes())
 
 
 def _kfgqpc_surahs(profile, ayat, metadata):
@@ -392,6 +359,77 @@ def _kfgqpc_surahs(profile, ayat, metadata):
     return surahs
 
 
+class _KfgqpcText:
+    """The KFGQPC ayat by surah with their spans (D-198 Q4), each ayah's text
+    without its presentation, the basmala taken from 1:1 (D-198 Q5), and the
+    bytes of the file each stored text must read back as."""
+
+    def __init__(self, surahs, data, marks, rules, with_basmala):
+        ayat = [aya for group in surahs for aya in group]
+        self.surahs = surahs
+        self.with_basmala = with_basmala
+        self.stored = {}
+        self.bodies = {}
+        self.spans = {}
+        self.source = {}
+        for aya, (offset, length) in zip(ayat, kfgqpc_file.text_offsets(data, ayat)):
+            address = (aya.surah, aya.number)
+            self.spans[address] = presented_spans(aya.text, marks, rules, address, "ayah %d:%d" % address)
+            start, end = _body(aya.text, self.spans[address].presentation)
+            self.stored[address] = aya.text
+            self.bodies[address] = aya.text[start:end]
+            self.source[address] = data[offset : offset + length]
+            if address == BASMALA_AYAH:
+                before = offset + len(aya.text[:start].encode("utf-8"))
+                self.basmala = self.bodies[address]
+                self.basmala_bytes = data[before : before + len(self.basmala.encode("utf-8"))]
+
+    def drawn(self, texts):
+        """(where, text) of every basmala and ayah in mushaf order, each ayah's text from `texts`."""
+        for number, group in enumerate(self.surahs, 1):
+            if number in self.with_basmala:
+                yield "surah %d basmala" % number, self.basmala
+            for aya in group:
+                address = (aya.surah, aya.number)
+                yield "ayah %d:%d" % address, texts[address]
+
+    def rows(self, metadata, places, metadata_bytes):
+        """The surah rows to store, and per surah the source bytes they must read back as."""
+        rows = []
+        expected = []
+        for number, (group, meta, (place, order)) in enumerate(zip(self.surahs, metadata.suras, places), 1):
+            basmala = self.basmala if number in self.with_basmala else None
+            rows.append(
+                database.SurahRow(
+                    number=number,
+                    name=meta.name.value,
+                    revelation_place=place,
+                    revelation_order=order,
+                    basmala=basmala,
+                    ayat=[self._ayah_row(aya) for aya in group],
+                )
+            )
+            expected.append(
+                (
+                    number,
+                    _slice(metadata_bytes, meta.name),
+                    None if basmala is None else self.basmala_bytes,
+                    [(aya.number, self.source[(aya.surah, aya.number)]) for aya in group],
+                )
+            )
+        return rows, expected
+
+    def _ayah_row(self, aya):
+        found = self.spans[(aya.surah, aya.number)]
+        return database.AyahRow(
+            number=aya.number,
+            text=aya.text,
+            words=found.words,
+            marks=found.marks,
+            presentation=tuple(found.presentation),
+        )
+
+
 def _body(text, presentation_spans):
     """The code point range of `text` between its presentation spans, which
     are UTF-16 offsets: the ending always, the quarter opening when there are two."""
@@ -400,21 +438,6 @@ def _body(text, presentation_spans):
         offsets.append(offsets[-1] + (2 if ord(c) > 0xFFFF else 1))
     start = presentation_spans[0][2] if len(presentation_spans) == 2 else 0
     return offsets.index(start), offsets.index(presentation_spans[-1][1])
-
-
-def _kfgqpc_drawn(surahs, with_basmala, basmala, bodies=None):
-    """(where, text) of every basmala and ayah, in mushaf order; with
-    `bodies`, each ayah without its presentation spans."""
-    for number, group in enumerate(surahs, 1):
-        if number in with_basmala:
-            yield "surah %d basmala" % number, basmala
-        for aya in group:
-            address = (aya.surah, aya.number)
-            text = aya.text
-            if bodies is not None:
-                start, end = bodies[address]
-                text = text[start:end]
-            yield "ayah %d:%d" % address, text
 
 
 def _compare_kfgqpc_text(tanzil_text, metadata, metadata_bytes, kfgqpc, table, profile):

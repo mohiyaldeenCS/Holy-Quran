@@ -13,7 +13,6 @@ else (printed by its type alone, since its message might hold text).
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
@@ -33,7 +32,7 @@ from .tafsir_build import TAFSIR_FONT_SHA256, build_tafsir_pack
 from .tanzil_metadata import read_tanzil_metadata
 from .tanzil_text import read_tanzil_text
 from .signing import SIGNATURE_FILE, OpenSslEd25519Signer, sign_pack, verify_signature
-from .verify import pack_kind, verify_pack
+from .verify import pack_format_version, pack_kind, verify_pack
 from .verify_tafsir import verify_tafsir_pack
 
 EX_USAGE = 64
@@ -468,7 +467,7 @@ def _report(args, signing):
             raise _Usage("--ayah-counts is for a tafsir pack")
         if signing and (args.font is None or args.mark_table is None):
             raise _Usage("sign needs --font and --mark-table for a text pack")
-        presented = _format_version(args.pack) == PRESENTED_FORMAT_VERSION
+        presented = pack_format_version(args.pack) == PRESENTED_FORMAT_VERSION
         if presented and args.table is None:
             raise _Usage("a text pack of format 3 needs --table, the table of known differences")
         if not presented and args.table is not None:
@@ -481,18 +480,6 @@ def _report(args, signing):
     marks = read_mark_table(args.mark_table.read_bytes()) if args.mark_table else None
     rules = presentation(read_table(args.table.read_bytes())) if args.table else None
     return verify_pack(args.pack, mark_code_points=marks, font=font, presentation=rules)
-
-
-def _format_version(directory):
-    """The manifest's format_version when manifest.json is a JSON object with
-    an integer one, else None; the verifier checks the rest."""
-    try:
-        manifest = json.loads((Path(directory) / "manifest.json").read_bytes().decode("utf-8"))
-    except (OSError, ValueError):
-        return None
-    if isinstance(manifest, dict) and type(manifest.get("format_version")) is int:
-        return manifest["format_version"]
-    return None
 
 
 def _counts_line(counts):

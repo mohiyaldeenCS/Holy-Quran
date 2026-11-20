@@ -70,14 +70,26 @@ def verify_pack(directory, mark_code_points=None, font=None, presentation=None) 
 def pack_kind(directory):
     """The manifest's `kind` when manifest.json is a JSON object with a
     string kind, else None; the verifier of that kind checks the rest."""
+    kind = _peek(directory).get("kind")
+    return kind if isinstance(kind, str) else None
+
+
+def pack_format_version(directory):
+    """The manifest's `format_version` when manifest.json is a JSON object
+    with an integer one, else None; the verifier checks the rest."""
+    version = _peek(directory).get("format_version")
+    return version if type(version) is int else None
+
+
+def _peek(directory):
+    """manifest.json as a JSON object, or {} when it is none, so that a
+    command can choose its checks before the verifier reads it strictly."""
     try:
         manifest = json.loads(
             (Path(directory) / MANIFEST).read_bytes().decode("utf-8"))
     except (OSError, ValueError):
-        return None
-    if isinstance(manifest, dict) and isinstance(manifest.get("kind"), str):
-        return manifest["kind"]
-    return None
+        return {}
+    return manifest if isinstance(manifest, dict) else {}
 
 
 def directory_problems(directory, data_file, problems):

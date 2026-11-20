@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 
+from .database import FORMAT_VERSION, PRESENTED_FORMAT_VERSION
 from .errors import PackError
 
 _SOURCE_KEYS = (
@@ -32,8 +33,8 @@ _REVIEW_KEYS = ("reviewer", "date", "scope")
 _COUNT_KEYS = ("surahs", "ayat", "words", "marks", "divisions", "sajdas")
 # The counts of a text pack by its format version.
 _TEXT_COUNT_KEYS = {
-    1: _COUNT_KEYS,
-    3: ("surahs", "ayat", "words", "marks", "presentations", "divisions", "sajdas"),
+    FORMAT_VERSION: _COUNT_KEYS,
+    PRESENTED_FORMAT_VERSION: ("surahs", "ayat", "words", "marks", "presentations", "divisions", "sajdas"),
 }
 _DIVISION_KEYS = ("juz", "hizb", "rub", "page")
 
@@ -90,7 +91,7 @@ def build_manifest(
     surah_sha256,
     counts,
     reviews,
-    format_version=1,
+    format_version=FORMAT_VERSION,
 ) -> dict:
     if format_version not in _TEXT_COUNT_KEYS:
         raise PackError("manifest: a text pack is format 1 or 3, not %s" % format_version)

@@ -73,6 +73,23 @@ def presented_spans(text, mark_code_points, presentation, address, where) -> Spa
     """The spans of a text stored with its presentation (D-198 Q4), cut by
     `presentation` (known_differences.Presentation); `address` is the
     ayah's (surah, number)."""
+    start, end = _presentation_edges(text, presentation, address, where)
+    body = text[start:end]
+    base = _length(text[:start])
+    _check_characters(body, where, base)
+    words = []
+    marks = []
+    for token, token_start, token_end in _tokens(body, base):
+        _add_joined(token, token_start, token_end, words, marks, mark_code_points, where)
+    body_end = base + _length(body)
+    shown = [(0, 0, base)] if start else []
+    shown.append((len(words), body_end, _length(text)))
+    return Spans(words=words, marks=marks, presentation=shown)
+
+
+def _presentation_edges(text, presentation, address, where):
+    """The code point range between the quarter opening, if the ayah opens
+    with its sign, and the ayah-end separator and number glyph."""
     opening = chr(presentation.quarter_sign) + chr(presentation.quarter_separator)
     separator = presentation.ayah_end_separators.get(address, presentation.ayah_end_separator)
     ending = chr(separator) + chr(presentation.first_number_glyph + address[1] - 1)
@@ -92,17 +109,7 @@ def presented_spans(text, mark_code_points, presentation, address, where) -> Spa
     end = len(text) - len(ending)
     if end <= start:
         raise PackError("%s holds nothing but its presentation" % where)
-    body = text[start:end]
-    base = _length(text[:start])
-    _check_characters(body, where, base)
-    words = []
-    marks = []
-    for token, token_start, token_end in _tokens(body, base):
-        _add_joined(token, token_start, token_end, words, marks, mark_code_points, where)
-    body_end = base + _length(body)
-    shown = [(0, 0, base)] if start else []
-    shown.append((len(words), body_end, body_end + _length(ending)))
-    return Spans(words=words, marks=marks, presentation=shown)
+    return start, end
 
 
 def _tokens(text, base):
