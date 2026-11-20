@@ -26,9 +26,12 @@ record settles a case only by excluding the entries it names, which holds them
 out (D-186); nothing else is added to the record.
 
 The P2 proof is extended to the passage: `regex_passage_text` rebuilds each
-passage from the html by a second path that shares nothing with the
-tokenizer or with this module's grouping. Messages name the book, site
-pages, numbers and entries only.
+passage from the html by a second path of regular expressions. With the
+tokenizer and with this module's grouping it shares only constants of
+`tafsir_html`: the markup strings (the tags, `NOTE_OPEN`, `SEPARATOR`), the
+digit class `DIGITS`, and the white-space pattern that `regex_text` and
+`assemble` both use. Messages name the book, site pages, numbers and entries
+only.
 """
 
 from __future__ import annotations

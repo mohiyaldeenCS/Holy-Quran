@@ -919,8 +919,10 @@ Four proofs:
 2. **P2:** an independent path of regular expressions over the `html` gives the same
    text, for each paragraph and for each whole passage, notes included
    (`tafsir_footnotes.regex_passage_text`: it finds marks, the separator, the notes and
-   their numbers by its own expressions, and shares nothing with the tokenizer or the
-   pairing).
+   their numbers by its own expressions). With the tokenizer and the pairing it shares
+   only constants of `tafsir_html`: the markup strings (the tags, `NOTE_OPEN`,
+   `SEPARATOR`), the digit class `DIGITS`, and the white-space pattern that
+   `regex_text` and `assemble` both use.
 3. **P3:** each paragraph, note paragraphs included, is one of its site page's
    paragraphs in `pages.jsonl`, each used once.
 4. **P4:** every stored text reads back as the bytes written.
