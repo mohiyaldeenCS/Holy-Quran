@@ -59,6 +59,67 @@ class Trace:
     surah_opening_quarters: list = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class Alignment:
+    """One KFGQPC ayah under the table, aligned code point by code point with its Tanzil ayah.
+
+    `body` is the KFGQPC ayah once the presentation rules are removed, and `front`
+    the number of code points removed before it; `side` is `body` after the
+    equivalences, and `origin` the range of `body` each code point of `side` comes
+    from (None when no equivalence is active); `opcodes` are difflib's over `side`
+    and the Tanzil ayah."""
+
+    body: str
+    front: int
+    side: str
+    origin: object
+    opcodes: tuple
+
+
+@dataclass
+class Tally:
+    """What aligning records over a run: how often each rule applied (and, for an
+    equivalence, where), the presentation problems, and KFGQPC's quarter starts."""
+
+    applied: dict
+    applied_at: dict
+    presentation_problems: list = field(default_factory=list)
+    kfgqpc_quarters: set = field(default_factory=set)
+    surah_opening_quarters: list = field(default_factory=list)
+
+    @classmethod
+    def of(cls, table):
+        return cls(
+            applied={rule.id: 0 for rule in _rules(table)},
+            applied_at={rule.id: set() for rule in table.equivalences},
+        )
+
+
+def align(table, address, kfgqpc_text, tanzil_text, quarter_starts, tally):
+    """The Alignment of one ayah, the comparison's own; presentation problems and
+    rule applications go to `tally`."""
+    label = "hafs:%d:%d" % address
+    side = kfgqpc_text
+    if table.ayah_end is not None:
+        side = _ayah_end(table, side, address, label, tally.presentation_problems, tally.applied)
+    front = len(side)
+    if table.quarter_start is not None:
+        side = _opening(
+            table, side, address, label, quarter_starts, tally.kfgqpc_quarters, tally.presentation_problems,
+            tally.applied, tally.surah_opening_quarters,
+        )
+    front -= len(side)
+    body = side
+    side, origin = _equivalences(table.equivalences, body, address, tally.applied, tally.applied_at)
+    return Alignment(body=body, front=front, side=side, origin=origin, opcodes=_opcodes(side, tanzil_text))
+
+
+def _opcodes(side, tanzil_text):
+    if side == tanzil_text:
+        return (("equal", 0, len(side), 0, len(side)),) if side else ()
+    return tuple(difflib.SequenceMatcher(None, side, tanzil_text, autojunk=False).get_opcodes())
+
+
 def run_comparison(text, metadata, kfgqpc_path, table_path, profile, tanzil_sha256, trace=None):
     """Reads the KFGQPC file and the table, compares, and returns the report with
     every input recorded; `tanzil_sha256` is {"text": hex, "metadata": hex}."""
@@ -107,35 +168,24 @@ def compare(text, metadata, witness, table, trace=None):
     juz_of = _unit_of(metadata.juzs, tanzil)
     page_of = _unit_of(metadata.pages, tanzil)
     quarter_starts = {(p.sura, p.aya) for p in metadata.quarters}
-    kfgqpc_quarters = set()
-    applied = {rule.id: 0 for rule in _rules(table)}
-    applied_at = {rule.id: set() for rule in table.equivalences}
-    presentation_problems = []
+    tally = Tally.of(table)
+    applied = tally.applied
     differences = []
     patterns = OrderedDict()
     page_differences = []
     juz_differences = []
-    surah_opening_quarters = []
 
     for (surah, number, tanzil_text), aya in zip(tanzil, witness):
         address = (surah, number)
         label = "hafs:%d:%d" % address
-        side = aya.text
-        if table.ayah_end is not None:
-            side = _ayah_end(table, side, address, label, presentation_problems, applied)
-        front = len(side)
-        if table.quarter_start is not None:
-            side = _opening(
-                table, side, address, label, quarter_starts, kfgqpc_quarters, presentation_problems, applied,
-                surah_opening_quarters,
-            )
-        front -= len(side)
-        side, origin = _equivalences(table.equivalences, side, address, applied, applied_at)
-        if side != tanzil_text:
+        alignment = align(table, address, aya.text, tanzil_text, quarter_starts, tally)
+        if alignment.side != tanzil_text:
             place = None
             if trace is not None:
-                place = _place_recorder(trace, address, aya.text, tanzil_text, side, front, origin)
-            _differences(label, side, tanzil_text, differences, patterns, place)
+                place = _place_recorder(
+                    trace, address, aya.text, tanzil_text, alignment.side, alignment.front, alignment.origin
+                )
+            _differences(label, alignment, tanzil_text, differences, patterns, place)
         for kind, found, expected, problems in (
             ("page", aya.page, page_of[address], page_differences),
             ("juz", aya.juz, juz_of[address], juz_differences),
@@ -154,9 +204,10 @@ def compare(text, metadata, witness, table, trace=None):
             )
         )
     else:
-        quarter_differences = _quarter_differences(kfgqpc_quarters, quarter_starts)
+        quarter_differences = _quarter_differences(tally.kfgqpc_quarters, quarter_starts)
     if trace is not None:
-        trace.surah_opening_quarters.extend(surah_opening_quarters)
+        trace.surah_opening_quarters.extend(tally.surah_opening_quarters)
+    presentation_problems = tally.presentation_problems
     for rule in table.equivalences:
         if rule.applies_to == EVERY_AYAH:
             if not applied[rule.id]:
@@ -165,7 +216,7 @@ def compare(text, metadata, witness, table, trace=None):
                 )
         else:
             for address in rule.applies_to:
-                if address not in applied_at[rule.id]:
+                if address not in tally.applied_at[rule.id]:
                     table_problems.append(
                         OrderedDict(
                             [("rule", rule.id), ("address", "hafs:%d:%d" % address), ("problem", "not applied in this listed ayah")]
@@ -437,10 +488,10 @@ def _place_recorder(trace, address, kfgqpc_text, tanzil_text, side, front, origi
     return record
 
 
-def _differences(label, side, tanzil_text, differences, patterns, place=None):
+def _differences(label, alignment, tanzil_text, differences, patterns, place=None):
+    side = alignment.side
     words = _word_numbers(tanzil_text)
-    matcher = difflib.SequenceMatcher(None, side, tanzil_text, autojunk=False)
-    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+    for tag, i1, i2, j1, j2 in alignment.opcodes:
         if tag == "equal":
             continue
         word, in_mark = words[j1]
