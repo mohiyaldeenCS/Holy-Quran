@@ -112,9 +112,9 @@ void main() {
     final context = tester.element(find.byType(IntegrityAlert));
     expect(Directionality.of(context), TextDirection.rtl);
     expect(context.colors, same(AppColors.paper));
-    final strings = AppLocalizations.of(context);
-    expect(find.text(strings.integrityStartFailedTitle), findsOneWidget);
-    expect(find.text(strings.integrityStartFailedBody), findsOneWidget);
+    final l10n = AppLocalizations.of(context);
+    expect(find.text(l10n.integrityStartFailedTitle), findsOneWidget);
+    expect(find.text(l10n.integrityStartFailedBody), findsOneWidget);
   });
 
   final failingSteps = <String, AreaSetup>{

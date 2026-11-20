@@ -1461,11 +1461,11 @@
   },
   "integrityStartFailedTitle": "تعذّر بدء التطبيق",
   "@integrityStartFailedTitle": {
-    "description": "Title of the integrity alert a failed start shows in place of the splash (M1.1). Wording given by the lead under the owner's delegation, 2026-11-20."
+    "description": "Title of the integrity alert a failed start shows in place of the splash (M1.1). Wording given by the lead under the owner's delegation, 2026-11-20 (D-196 (1))."
   },
   "integrityStartFailedBody": "أغلق التطبيق وافتحه من جديد، فإن تكرر فحدّثه أو أعد تثبيته.",
   "@integrityStartFailedBody": {
-    "description": "Body of the integrity alert a failed start shows in place of the splash (M1.1). Wording given by the lead under the owner's delegation, 2026-11-20."
+    "description": "Body of the integrity alert a failed start shows in place of the splash (M1.1). Wording given by the lead under the owner's delegation, 2026-11-20 (D-196 (1))."
   },
   "integrityPackTitle": "هذه الحزمة لم تجتز التحقق",
   "@integrityPackTitle": {

@@ -26,15 +26,15 @@ class _Body extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final strings = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context);
     return ColoredBox(
       color: context.colors.ground,
       child: SafeArea(
         child: SingleChildScrollView(
           padding: HomeMetrics.bodyPadding,
           child: IntegrityAlert(
-            title: strings.integrityStartFailedTitle,
-            body: strings.integrityStartFailedBody,
+            title: l10n.integrityStartFailedTitle,
+            body: l10n.integrityStartFailedBody,
           ),
         ),
       ),
