@@ -42,6 +42,7 @@ Future<GoRouter> _pumpApp(
 void main() {
   testWidgets('shows the display mode first, with its one choice, under '
       'the lockup (D-127)', (tester) async {
+    final semantics = tester.ensureSemantics();
     await _pumpApp(
       tester,
       FakeAppSettingsRepository(),
@@ -55,7 +56,11 @@ void main() {
     expect(tester.widget<RadioRow>(find.byType(RadioRow)).selected, isTrue);
     expect(find.text(_l10n.displayModeSurah), findsOneWidget);
     expect(find.text(_l10n.setupContinue), findsOneWidget);
-    expect(find.bySemanticsLabel(_l10n.setupStepDisplayMode), findsOneWidget);
+    expect(
+      tester.getSemantics(find.text(_l10n.setupStepDisplayMode)),
+      isSemantics(label: _l10n.setupStepDisplayMode, isHeader: true),
+    );
+    semantics.dispose();
   });
 
   testWidgets('passes the three steps, stores the level at once, then goes '
