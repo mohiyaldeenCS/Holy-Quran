@@ -1016,7 +1016,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get integrityStartFailedBody =>
-      'أغلق التطبيق وافتحه من جديد، فإن تكرر فحدّثه أو أعد تثبيته.';
+      'أغلق التطبيق وافتحه من جديد، فإن تكرر فحدّثه.';
 
   @override
   String get integrityPackTitle => 'هذه الحزمة لم تجتز التحقق';
