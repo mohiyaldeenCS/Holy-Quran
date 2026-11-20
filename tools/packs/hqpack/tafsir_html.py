@@ -185,7 +185,7 @@ _EDGES_RE = re.compile(r"\A(?:[ \t\n\r\f\v]|&nbsp)+|(?:[ \t\n\r\f\v]|&nbsp)+\Z")
 
 
 def regex_text(html: str, phrases: dict):
-    """The text by a second path that shares nothing with the tokenizer."""
+    """The text by a second path that shares only the markup strings and the white-space pattern with the tokenizer."""
     body = _P_BODY.fullmatch(html)
     if body is None:
         return None
