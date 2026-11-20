@@ -85,6 +85,42 @@ class Table:
         return None
 
 
+@dataclass(frozen=True)
+class Presentation:
+    """The presentation a KFGQPC text is stored with, cut from it as spans of
+    their own and not as words (D-198 Q4): an ayah ends with the separator
+    (the address-listed one where a rule lists the ayah) and the glyph
+    first_number_glyph + n - 1, and a quarter's first ayah opens with the
+    sign and the quarter separator."""
+
+    ayah_end_separator: int
+    first_number_glyph: int
+    ayah_end_separators: dict  # (surah, ayah) -> separator
+    quarter_sign: int
+    quarter_separator: int
+
+
+def presentation(table) -> Presentation:
+    """The Presentation of `table`, which needs its ayah_end and quarter_start rules."""
+    for kind, rule in ((AYAH_END, table.ayah_end), (QUARTER_START, table.quarter_start)):
+        if rule is None:
+            raise PackError(
+                "known differences: a text stored with its presentation needs a "
+                "presentation rule at %s" % kind
+            )
+    return Presentation(
+        ayah_end_separator=table.ayah_end.code_points["separator"],
+        first_number_glyph=table.ayah_end.code_points["first_number_glyph"],
+        ayah_end_separators={
+            address: rule.code_points["separator"]
+            for rule in table.ayah_end_separators
+            for address in rule.applies_to
+        },
+        quarter_sign=table.quarter_start.code_points["sign"],
+        quarter_separator=table.quarter_start.code_points["separator"],
+    )
+
+
 def read_table(data: bytes) -> Table:
     try:
         return _read(data)

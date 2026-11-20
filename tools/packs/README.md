@@ -5,7 +5,9 @@ v1 (`docs/CONTENT_PACKS.md`, D-064, as amended by D-077, D-078, D-079 and D-083)
 Python 3.9 or later, standard library only (D-035); SQLite 3.37 or later. Task B0.11.
 It also writes and verifies the tafsir pack of format 2 (kind `tafsir`, with the
 surah-level passage of D-184; B0.7, task B1), and `pack.py tafsir` builds one from a
-book of the Zaydi Library (task B2; see "Tafsir packs").
+book of the Zaydi Library (task B2; see "Tafsir packs"). And it writes and
+verifies a text pack from the KFGQPC text in a proposed format 3 (D-198, task
+T2; see "The KFGQPC text path").
 
 The pipeline stores what the source gives byte for byte. It splits an ayah only at
 U+0020 to find word and mark spans, refuses anything outside the rules (it never
@@ -28,19 +30,19 @@ All under `hqpack/`. Each raises `errors.PackError` with a message as above.
 | `strict_xml.py` | A byte-level reader of the closed XML subset both Tanzil files use: elements, attributes, one declaration, comments outside the root. Refuses a BOM, malformed UTF-8, references, CDATA, DOCTYPE, processing instructions, text content, tabs or line breaks inside a value, repeated attributes. Every value is the exact bytes between its quotes | `parse(data: bytes) -> Document` with `Element(name, attributes: {name: SourceValue}, children, offset)` and `Document(root, comments: [SourceValue])`; `SourceValue(value: str, offset: int, length: int)` |
 | `tanzil_text.py` | The Tanzil text XML: `<quran><sura index name><aya index text [bismillah]/></sura></quran>` and exactly one comment outside the root (the copyright notice) | `read_tanzil_text(data) -> TanzilText(suras: [TextSura], notice: SourceValue)`; `TextSura(index, name, ayat: [TextAya])`; `TextAya(surah, number, text, basmala or None)` |
 | `tanzil_metadata.py` | Tanzil's `quran-data.xml`: `suras`, `juzs`, `hizbs` (of `quarter`), `manzils`, `rukus`, `pages`, `sajdas`, and none or one comment outside the root (the published file has none; two or more are refused) | `read_tanzil_metadata(data) -> TanzilMetadata(suras: [MetaSura], juzs, quarters, manzils, rukus, pages: [Point], sajdas: [MetaSajda], version: SourceValue or None, notice: SourceValue or None)`; `MetaSura(index, ayas, start, name: SourceValue, tname, ename, type, order, rukus)`; `Point(index, sura, aya)`; `MetaSajda(index, sura, aya, type)` |
-| `tokens.py` | D-083: tokens are the maximal runs between U+0020; a token holding a code point of general category L is a word, any other a mark; UTF-16 offsets; refuses a separator of category Z other than U+0020 and a mark code point outside the mark table | `utf16_length(s)`, `spans(text, mark_code_points, where) -> Spans(words: [(start, end)], marks: [(after_word, start, end)])` |
+| `tokens.py` | D-083: tokens are the maximal runs between U+0020; a token holding a code point of general category L is a word, any other a mark; UTF-16 offsets; refuses a separator of category Z other than U+0020 and a mark code point outside the mark table. For a KFGQPC text (D-198 Q4), `presented_spans` first cuts the presentation spans at the ayah's edges by the table's rules, accepts U+00A0 there only, and cuts a run of `JOINED_MARKS` (U+06D6 to U+06DB, U+06E9) that ends a token holding a letter off its word as a mark | `token_spans(text)`, `spans(text, mark_code_points, where) -> Spans(words: [(start, end)], marks: [(after_word, start, end)], presentation: [])`, `presented_spans(text, mark_code_points, presentation, address, where) -> Spans(words, marks, presentation: [(after_word, start, end)])` |
 | `mark_table.py` | The mark table of code points (B0.4 delivers the real one): `{"code_points": ["U+06D6", ...]}`, sorted, unique, none a letter or a separator | `read_mark_table(data) -> frozenset[int]` |
 | `font.py` | The font file: SHA-256, family (name ID 16, else 1), version (`Version d.ddd` of name ID 5) and the code points of its `cmap` (formats 4 and 12) | `read_font(data) -> FontInfo(family, version, sha256, code_points)` |
 | `options.py` | `sources[].options` from the download URL (every query parameter but `agree`, D-077), and the checks the options imply. Tanzil's download form is a GET form of checkboxes (`marks`, `sajdah`, `rub`, `tatweel`, `stanween`, each `true`) and the server reads a parameter's presence, not its value, so `rub=false` switches the rub-el-hizb sign on: a checkbox with any value other than `true` is refused (the URL must omit it), a present `sajdah` or `marks` means at least one of its code points occurs, and an absent `rub` means no U+06DE occurs | `options_from_url(url)`, `option_problems(options, texts)` |
 | `digest.py` | The surah digest of `docs/CONTENT_PACKS.md` and file hashes | `surah_digest(fields: [(number, bytes)])`, `sha256_file(path)` |
-| `database.py` | `text.sqlite` with the exact DDL, `encoding`, `application_id`, `user_version`, `STRICT`, `journal_mode = DELETE`, ending with `VACUUM`; read-back of every stored text as bytes. The file rules every data file shares, each naming its file: create a new file, the header with the kind's `user_version`, a step whose SQLite error is named by type only, the text check (no leading U+FEFF, no lone surrogate), removal on failure | `require_sqlite(file)`, `write_text_database(path, surahs, divisions, sajdas)`, `read_stored_texts(path)`, `create_new(path, file)`, `set_header(db, user_version, file)`, `run(db, sql, step, parameters, file)`, `check_text(value, where, file)`, `remove_partial(path)` |
+| `database.py` | `text.sqlite` of format 1, or of format 3 with the `presentation` table (see "The KFGQPC text path"), with the exact DDL, `encoding`, `application_id`, `user_version`, `STRICT`, `journal_mode = DELETE`, ending with `VACUUM`; read-back of every stored text as bytes. The file rules every data file shares, each naming its file: create a new file, the header with the kind's `user_version`, a step whose SQLite error is named by type only, the text check (no leading U+FEFF, no lone surrogate), removal on failure | `require_sqlite(file)`, `write_text_database(path, surahs, divisions, sajdas, format_version=1)`, `read_stored_texts(path)`, `create_new(path, file)`, `set_header(db, user_version, file)`, `run(db, sql, step, parameters, file)`, `check_text(value, where, file)`, `remove_partial(path)` |
 | `tafsir_database.py` | `tafsir.sqlite` of format 2 (B0.7, D-184): the exact DDL of "Tafsir pack", `user_version` 2, one book row, the passages as given (a surah-level passage is the reserved range `0..0`, admitted by the table's CHECK, one per surah by `UNIQUE (surah, first_ayah)`), ending with `VACUUM`; refuses no passage, a non-integer number, a leading U+FEFF or a lone surrogate, and leaves no file; read-back of the book's facts and every passage as bytes | `write_tafsir_database(path, BookFacts(title, author, publisher, edition, editor), [PassageRow(number, surah, first_ayah, last_ayah, text)])`, `read_tafsir_texts(path) -> StoredTafsirTexts(book: {column: bytes or None}, passages: {number: bytes})`, `SURAH_LEVEL` |
-| `manifest.py` | The manifest's fields in the format's order, and its bytes (UTF-8, no BOM, two-space indent, final line break). A tafsir manifest is format 2 with no `edition`, `font` or `surah_sha256`, `tafsir` sources only, `files` `tafsir.sqlite` and `counts` `{"passages": n}`, `n` at least 1 | `build_manifest(...) -> dict`, `build_tafsir_manifest(pack_id, version, changelog, riwaya, sources, tafsir_sha256, tafsir_bytes, passages, reviews) -> dict`, `source_entry(...)`, `encode_manifest(dict) -> bytes` |
+| `manifest.py` | The manifest's fields in the format's order, and its bytes (UTF-8, no BOM, two-space indent, final line break). A text manifest is format 1, or format 3 whose `counts` add `presentations` after `marks`. A tafsir manifest is format 2 with no `edition`, `font` or `surah_sha256`, `tafsir` sources only, `files` `tafsir.sqlite` and `counts` `{"passages": n}`, `n` at least 1 | `build_manifest(..., format_version=1) -> dict`, `build_tafsir_manifest(pack_id, version, changelog, riwaya, sources, tafsir_sha256, tafsir_bytes, passages, reviews) -> dict`, `source_entry(...)`, `encode_manifest(dict) -> bytes` |
 | `ayah_counts.py` | The P5 counts file read back strictly: ASCII, the bytes `kfgqpc_counts.encode_counts` writes (keys, order, indentation, final line break), the KFGQPC file it names (registry row 2, its name and version), a calendar date, surahs `"1"` to `"n"` in order with positive integer counts, and a total equal to their sum | `read_ayah_counts(data) -> {surah: count}` |
 | `config.py` | The build description: pack identity, both sources' registry fields, expected source SHA-256, the mark table, reviews. Strict JSON | `read_build_config(path) -> BuildConfig` |
 | `profiles.py` | What a riwaya must hold: surah and ayah totals, division counts, which surahs have no basmala, whether the KFGQPC comparison is required | `PROFILES`, `profile_for(riwaya, pack_id, unapproved=False)` |
-| `build.py` | The pipeline: hash and read the sources, run every build check, write into a temporary directory, read back, write the manifest, run the verifier, then move into `<out>/<id>/<version>/` | `build_pack(config_path, font_path, out_root, unapproved=False) -> BuildResult` |
-| `verify.py` | An independent verifier of a pack directory, sharing no code with the writer beyond `errors.py`: everything the app and its integrity suite check, recomputed from the stored bytes. Its directory, file-hash, location and header checks serve every kind; `pack_kind` reads the manifest's `kind` so that `verify` and `sign` pick the verifier | `verify_pack(directory, mark_code_points=None, font=None) -> Report(problems, counts, signed)`, `pack_kind(directory) -> str or None` |
+| `build.py` | The pipeline: hash and read the sources, run every build check, write into a temporary directory, read back, write the manifest, run the verifier, then move into `<out>/<id>/<version>/`. The text source is Tanzil's text XML (format 1) or, for registry row 2, KFGQPC's file (format 3, see "The KFGQPC text path") | `build_pack(config_path, font_path, out_root, unapproved=False, kfgqpc=None, table=None, tanzil_text=None) -> BuildResult` |
+| `verify.py` | An independent verifier of a pack directory, sharing no code with the writer beyond `errors.py`: everything the app and its integrity suite check, recomputed from the stored bytes; a text pack of format 3 with the table's presentation rules (`presentation`), without which its spans are not checked, and that is a problem. Its directory, file-hash, location and header checks serve every kind; `pack_kind` reads the manifest's `kind` so that `verify` and `sign` pick the verifier | `verify_pack(directory, mark_code_points=None, font=None, presentation=None) -> Report(problems, counts, signed)`, `pack_kind(directory) -> str or None` |
 | `verify_tafsir.py` | The independent verifier of a tafsir pack (B0.7, D-184), with its own copy of the DDL: the kind's manifest keys and rules; the header (application id, `user_version` 2, DELETE journal, UTF-8, no free pages, so the build ended with `VACUUM`); exactly the tables `book` and `passage`, STRICT, their columns, and their CREATE statements as the format gives them (so a missing CHECK or UNIQUE is found); no other schema object; `integrity_check`; one book row; numbering 1 to n; mushaf order with a surah's surah-level passage first; no overlap; every range within the P5 counts (`0..0`, or from ayah 1 to the surah's last); strict UTF-8, not empty, no U+FEFF anywhere; U+000A only between two paragraphs of a passage (none at a passage's edges, never two together, none in a book fact); `riwaya` `hafs`; no extra file; `counts.passages`; with a font, every code point but U+2009 and U+2063, and U+000A in a passage | `verify_tafsir_pack(directory, ayah_counts, font=None) -> Report(problems, counts, signed)` |
 | `strict_json.py` | Strict JSON for the tafsir inputs: UTF-8 without a BOM (or ASCII), no repeated key, no NaN, objects with exactly the expected keys | `load(data, ascii_only=False)`, `loads(text)`, `fields(value, keys, where, optional=())`, `string`, `positive_int`, `date`, `sha256` |
 | `honorifics.py` | The honorific table (D-188) and its refusals | `read_honorific_table(data) -> HonorificTable(version, approved_by, approved_on, derived_from_font_sha256, phrases: {code: phrase}, sha256)` |
@@ -51,9 +53,9 @@ All under `hqpack/`. Each raises `errors.PackError` with a message as above.
 | `tafsir_config.py` | The tafsir description | `read_tafsir_config(path) -> TafsirConfig` |
 | `tafsir_build.py` | The tafsir pipeline: inputs, gate, conversion, font, database, read-back (P4), manifest, verifier, move into place | `build_tafsir_pack(config, honorifics, reviews, ayah_counts, font, out) -> TafsirBuildResult`, `TAFSIR_FONT_SHA256` |
 | `signing.py` | The signing seam (D-080, O-03): `Signer` with `sign(data) -> 64 bytes`; `OpenSslEd25519Signer(key_path)` runs `openssl pkeyutl -sign -rawin`; `sign_pack` writes `manifest.json.sig` for a pack that verifies; `verify_signature` checks it with a public key | `sign_pack(directory, signer)`, `verify_signature(directory, public_key_path)` |
-| `cli.py` | `build` (with `--unapproved-test-copy`, `--kfgqpc`, `--table`), `tafsir`, `verify` and `sign` (both by the pack's kind), `verify-signature`, `compare`, `review-page`, `kfgqpc-counts`, `kfgqpc-measure`, `drift`; prints counts, hashes, paths and `U+XXXX` only | `main(argv) -> exit code` |
-| `kfgqpc.py` | KFGQPC's `hafsData_v2-0.json` (registry row 2, B0.2, D-175, D-177): UTF-8 without a BOM, as published (a BOM is refused, and so is a file whose first bytes are not `5B 0A 09`), an array of objects with exactly the read.me's eleven columns, integers and strings typed strictly, ids 1..n in order, ayat in mushaf order; the published file name | `read_kfgqpc(data, ayat) -> [KfgqpcAya(id, surah, number, juz, page, text, emlaey)]`, `read_kfgqpc_file(path, ayat) -> (ayat, sha256)` |
-| `known_differences.py` | The table of known encoding differences, `tools/packs/known_differences.json` | `read_table(data) -> Table(version, ayah_end, ayah_end_separators, quarter_start, surah_opening_quarter_start, equivalences)`, `Table.ayah_end_rule_at(address) -> Rule or None` |
+| `cli.py` | `build` (with `--unapproved-test-copy`, `--kfgqpc`, `--table`, `--tanzil-text`), `tafsir`, `verify` and `sign` (both by the pack's kind; `--table` for a text pack of format 3), `verify-signature`, `compare`, `review-page`, `kfgqpc-counts`, `kfgqpc-measure`, `drift`; prints counts, hashes, paths and `U+XXXX` only | `main(argv) -> exit code` |
+| `kfgqpc.py` | KFGQPC's `hafsData_v2-0.json` (registry row 2, B0.2, D-175, D-177): UTF-8 without a BOM, as published (a BOM is refused, and so is a file whose first bytes are not `5B 0A 09`), an array of objects with exactly the read.me's eleven columns, integers and strings typed strictly, ids 1..n in order, ayat in mushaf order; the published file name. For a pack built from it, where each `aya_text` lies in the file's bytes, refusing an escape sequence in it or in a field name | `read_kfgqpc(data, ayat) -> [KfgqpcAya(id, surah, number, juz, page, text, emlaey)]`, `read_kfgqpc_file(path, ayat) -> (ayat, sha256)`, `text_offsets(data, ayat) -> [(offset, length)]`, `check_file_name(path)`, `FONT_FILE_NAME` |
+| `known_differences.py` | The table of known encoding differences, `tools/packs/known_differences.json`; the presentation rules a KFGQPC text is stored with | `read_table(data) -> Table(version, ayah_end, ayah_end_separators, quarter_start, surah_opening_quarter_start, equivalences)`, `Table.ayah_end_rule_at(address) -> Rule or None`, `presentation(table) -> Presentation(ayah_end_separator, first_number_glyph, ayah_end_separators, quarter_sign, quarter_separator)` |
 | `compare.py` | The comparison of PRD 9.4 and the page, juz and quarter comparison of P2; the report; with a `Trace`, every difference as a `Place` (the two whole ayat and the difference's range in each, in memory only) for the review page | `run_comparison(text, metadata, kfgqpc_path, table_path, profile, tanzil_sha256, trace=None) -> report` (`tanzil_sha256` is `{"text": hex, "metadata": hex}`), `compare(text, metadata, witness, table, trace=None) -> report`, `summary(report)`, `encode_report(report) -> bytes` |
 | `review_page.py` | The reciter's review page (D-176, D-178): runs the comparison, sorts the differences into sections A to C, checks the fonts and the output folder, writes the page and the two fonts | `write_review_page(text, metadata, kfgqpc, table, tanzil_font, kfgqpc_font, out, profile) -> ReviewResult`, `classify(places) -> Sections(a, b, c)` |
 | `review_html.py` | The page's HTML from `review_page.html` (frame, style, script) and `review_page.ar.json` (the Arabic labels); the only path from a source text to the page is `parts`, checked by `check_parts` | `render(Page) -> str`, `marked_span(text, start, end)`, `parts(text, start, end)` |
@@ -106,15 +108,17 @@ python3 tools/packs/pack.py compare --text <tanzil xml> --metadata <quran-data.x
 python3 tools/packs/pack.py review-page --text <tanzil xml> --metadata <quran-data.xml> --kfgqpc <hafsData_v2-0.json> --table tools/packs/known_differences.json --tanzil-font assets/fonts/AmiriQuran-Regular.ttf --kfgqpc-font <uthmanic_hafs_v20.ttf> --out <new folder outside every Git tree>
 python3 tools/packs/pack.py kfgqpc-counts --kfgqpc <hafsData_v2-0.json> --date <YYYY-MM-DD> --out testing/reference/kfgqpc-hafs-counts.json
 python3 tools/packs/pack.py kfgqpc-measure --kfgqpc <hafsData_v2-0.json> --font <uthmanic_hafs_v20.ttf> --table tools/packs/known_differences.json [--text <tanzil xml> --metadata <quran-data.xml>] --report <out.json outside every Git tree>
+python3 tools/packs/pack.py build --config <KFGQPC build.json> --font <uthmanic_hafs_v20.ttf> --out <folder outside every Git tree> --table tools/packs/known_differences.json [--tanzil-text <tanzil xml>]
+python3 tools/packs/pack.py verify <out>/<id>/<version> --table tools/packs/known_differences.json [--font <uthmanic_hafs_v20.ttf>] [--mark-table <marks.json>]
 python3 tools/packs/pack.py drift --timing <quran-align json> --audio <folder of SSSAAA.mp3> --edition <folder name> [--text <tanzil xml> --metadata <quran-data.xml>] [--report <out.json outside every Git tree>]
 ```
 
 | Command | Does |
 | --- | --- |
-| `build` | Reads the build description, runs every build check below, and writes `<out>/<id>/<version>/` with `manifest.json` and `text.sqlite`, unsigned. An existing version directory is refused: a released pack is never rebuilt in place. A `hafs` build needs `--kfgqpc` and `--table` and runs the KFGQPC comparison after every other check; any other build refuses both. Today a `hafs` build stops there even when the comparison passes (see "The KFGQPC comparison"). `--unapproved-test-copy` builds the owner's local test copy (see "Test-copy mode") |
+| `build` | Reads the build description, runs every build check below, and writes `<out>/<id>/<version>/` with `manifest.json` and `text.sqlite`, unsigned. An existing version directory is refused: a released pack is never rebuilt in place. A `hafs` build needs `--kfgqpc` and `--table` and runs the KFGQPC comparison after every other check; any other build refuses both. Today a `hafs` build stops there even when the comparison passes (see "The KFGQPC comparison"). `--unapproved-test-copy` builds the owner's local test copy (see "Test-copy mode"). A description whose text source is registry row 2 builds from the KFGQPC text (see "The KFGQPC text path"): it needs `--table`, refuses `--kfgqpc`, and takes `--tanzil-text`, the Tanzil text as the witness, exactly when the profile compares; a `hafs` build stops after the comparison either way |
 | `tafsir` | Builds an unsigned tafsir pack from a Zaydi-library book, its links and the reviewer's record (see "Tafsir packs") |
-| `verify` | Runs the independent verifier of the pack's kind (`pack_kind`). A text pack: with `--font` and `--mark-table` it also checks the font pair and every mark; `--ayah-counts` is a usage error. A tafsir pack: `--ayah-counts` (the P5 file) is required and checks every range; `--font` must be the pinned tafsir font (`TAFSIR_FONT_SHA256`; any other is refused, 65) and its coverage is checked; `--mark-table` is a usage error. A manifest whose kind cannot be read, given `--ayah-counts`, is refused (65) |
-| `sign` | Verifies the pack as `verify` does, then writes `manifest.json.sig` with OpenSSL (D-080). A text pack needs `--font` and `--mark-table`, a tafsir pack `--font` and `--ayah-counts`. Refuses a pack that already has one |
+| `verify` | Runs the independent verifier of the pack's kind (`pack_kind`). A text pack: with `--font` and `--mark-table` it also checks the font pair and every mark; `--ayah-counts` is a usage error. A tafsir pack: `--ayah-counts` (the P5 file) is required and checks every range; `--font` must be the pinned tafsir font (`TAFSIR_FONT_SHA256`; any other is refused, 65) and its coverage is checked; `--mark-table` is a usage error. A text pack of format 3 needs `--table`, whose presentation rules its spans are checked with; a pack of format 1 and a tafsir pack refuse it (64). A manifest whose kind cannot be read, given `--ayah-counts`, is refused (65) |
+| `sign` | Verifies the pack as `verify` does, then writes `manifest.json.sig` with OpenSSL (D-080). A text pack needs `--font` and `--mark-table` (and `--table` in format 3), a tafsir pack `--font` and `--ayah-counts`. Refuses a pack that already has one |
 | `verify-signature` | Checks `manifest.json.sig` against a public key |
 | `compare` | Runs the KFGQPC comparison against the `hafs` profile (6,236 ayat) and writes the report; exits 65 when the report has any problem, 0 when it has none |
 | `review-page` | Runs the KFGQPC comparison and writes the reciter's review page into a new or empty folder outside every Git working tree (see "The reciter's review page"); exits 0 when the page is written, whatever the comparison found |
@@ -130,6 +134,15 @@ python3 tools/packs/pack.py build --config /tmp/synthetic/build.json --font asse
 flutter test test/integrity --dart-define=HOLYQURAN_PACK_DIR=/tmp/packs/synthetic-text/1
 ```
 
+and on the synthetic KFGQPC-shaped source, with a font under KFGQPC's file name that
+covers the synthetic text (the tests write one, `tests/build_support.synthetic_kfgqpc_font`).
+The app does not read format 3 yet, so its integrity suite is not run on it:
+
+```
+python3 tools/packs/synthetic_source.py --kfgqpc /tmp/synthetic-kfgqpc
+python3 tools/packs/pack.py build --config /tmp/synthetic-kfgqpc/build.json --font <folder>/uthmanic_hafs_v20.ttf --out /tmp/packs --table tools/packs/known_differences.json
+```
+
 ### The build description
 
 A strict JSON file next to the source files (`config.py`); `synthetic_source.py`
@@ -140,6 +153,11 @@ writes an example. Every key is required and no other is accepted.
 | `id`, `version`, `changelog`, `riwaya`, `edition`, `reviews` | Copied to the manifest. `id` and `version` name the output directories |
 | `sources.text`, `sources.edition_map` | Each: `file` (relative path), `file_sha256` (the SHA-256 the file must have), `registry_row`, `name`, `publisher`, `url`, `version`, `fetched_on`, `trust_grade`, and `licence` with `text`, `permission_ref` and `allows_export`. There is no `notice`: it is taken verbatim from the comment of the source file, and is `null` for a file with none (Tanzil's metadata). `options` come from the query of `url` (every parameter but `agree`), `null` when there is none; they record what the URL holds, so a box left unticked has no key. The edition-map source's `version` must be the `version` attribute of the metadata file's root element |
 | `mark_table` | Path of the mark table, `{"code_points": ["U+06D6", ...]}`. The real table is B0.4's |
+
+A description whose `sources.text.registry_row` is 2 describes KFGQPC's
+`hafsData_v2-0.json` as the text (see "The KFGQPC text path"): its `file` has that
+published name, its `version` is `2.0 (update 13.0)`, the version `kfgqpc.py` reads,
+and its `url` has no query. `synthetic_source.py --kfgqpc` writes an example.
 
 The totals a riwaya must reach are in `profiles.py`, not in the description, so a
 description cannot relax them. `riwaya: "synthetic"` is the synthetic source's
@@ -170,7 +188,7 @@ it into place, so every verifier check is also a build check.
 | Values stored byte for byte; no value begins with U+FEFF | `strict_xml.py` keeps each value's offset and length and refuses a leading U+FEFF; `build._read_back` compares the stored bytes with the source bytes; the database and manifest writers refuse a leading U+FEFF again |
 | SQLite 3.37 or later; its version printed | `database.require_sqlite`; `build` prints it |
 | `encoding`, `application_id`, `user_version`, `STRICT`, no WAL, `VACUUM` | `database.py`; verifier: header bytes 18, 19, 36, 56, 60, 68 and the schema through `pragma_table_list` and `pragma_table_xinfo` |
-| Words and marks (D-078, D-083): only U+0020 separates (categories Z and Cc, and the zero-width U+200B and U+2060, are refused); a token with a letter (category L) is a word, any other a mark; UTF-16 offsets; `after_word` | `tokens.py`; the verifier recomputes every span and compares row by row |
+| Words and marks (D-078, D-083): only U+0020 separates (categories Z and Cc, and the zero-width U+200B and U+2060, are refused); a token with a letter (category L) is a word, any other a mark; UTF-16 offsets; `after_word` | `tokens.py`; the verifier recomputes every span and compares row by row. Format 3 adds presentation spans and joined marks (see "The KFGQPC text path") |
 | P3: a letterless token outside the mark table stops the build | `tokens.spans` with `mark_table.py` |
 | P2: juz, quarters and pages from the metadata; a hizb is every fourth quarter by position | `source_checks.divisions`; refuses a quarter count that is not a multiple of 4. `compare.py` compares the page and the juz of every ayah with the KFGQPC file's `page` and `jozz`, and the metadata's quarter starts with KFGQPC's (the ayat that open with its quarter sign, and the surah openings P-3 accepts); any difference stops |
 | P4: basmala from the separate field; none for surahs 1 and 9, present elsewhere | `tanzil_text.py` (only on ayah 1); `source_checks.check_structure` with the profile's `without_basmala` |
@@ -389,6 +407,104 @@ opening (U+06DE U+00A0) that stands before a space is a token of its own.
 | `emlaey_against_uthmani_tokens` | The histogram of emlaey tokens minus Uthmani tokens per ayah, and the ayat that differ |
 | `sajda_sign` | The ayat holding U+06E9, against Tanzil's sajda list when the metadata is given |
 | `tanzil_token_map` | A token-to-token map is not measured: `compare.py` aligns code points and exposes no token map. With `--text`, the histogram of Tanzil tokens minus KFGQPC Uthmani tokens per ayah; where they differ a one-to-one map has a gap |
+
+## The KFGQPC text path (D-195, D-198)
+
+D-195 makes KFGQPC's Hafs text the base text, and D-198 settles how: the text only
+(Q1), stored as published with its presentation in spans of their own (Q4), the
+basmala of surah openings taken from 1:1 (Q5), and the comparison still stopping
+the build (Q6). This is task T2 of that plan. Tanzil's metadata stays the source of
+surah facts, sajdas and, as before, divisions; Tanzil's text is the comparison's
+witness.
+
+### Proposed format 3
+
+Nothing here changes `docs/CONTENT_PACKS.md`: its owner decides the format, and the
+app reads formats 1 and 2 only (T3 of the plan). Until then the pipeline writes, and
+its verifier reads, this proposal:
+
+- `format_version` and `user_version` 3, `kind` `text`: the six tables of format 1,
+  then
+
+  ```sql
+  CREATE TABLE presentation (
+    surah        INTEGER NOT NULL,
+    ayah         INTEGER NOT NULL,
+    number       INTEGER NOT NULL,  -- 1..n per ayah, contiguous, in text order
+    after_word   INTEGER NOT NULL,  -- 0 for the quarter opening; the ayah's last word for its ending
+    start_offset INTEGER NOT NULL,  -- UTF-16 code units into ayah.text, half-open
+    end_offset   INTEGER NOT NULL,
+    PRIMARY KEY (surah, ayah, number),
+    FOREIGN KEY (surah, ayah) REFERENCES ayah(surah, number)
+  ) STRICT, WITHOUT ROWID;
+  ```
+
+- `counts` adds `presentations`, the row count of `presentation`, after `marks`.
+- No search forms: whether format 3 also carries format 2's `search_form` is for the
+  format's owner.
+
+### Spans
+
+- The ayah ends with the `ayah_end` rule's separator, U+00A0 (or, at an address an
+  address-listed rule names, its separator: U+0020 at `hafs:2:286`, P-4), and the
+  glyph of its own number, U+FC00 + n - 1 (P-1). Those two code points are its last
+  presentation span, after its last word. An ayah without them stops the build.
+- An ayah that opens a quarter begins with U+06DE and U+00A0 (P-2); those two are its
+  first presentation span, after word 0. The sign without the separator stops the
+  build.
+- The text between them is split as in format 1, with two differences. U+00A0 is
+  accepted inside a presentation span and nowhere else. And KFGQPC joins a pause mark
+  to the word before it inside one token (the lead's measurement: 4,272 tokens in
+  2,611 ayat, and no pause mark standing alone): a run of `JOINED_MARKS`, the pause
+  marks U+06D6 to U+06DB and the sajda sign U+06E9, that ends a token holding a letter
+  is a mark of its own, cut at its offset with nothing changed or re-spaced; such a
+  mark anywhere else in a word stops the build. Every mark's code points must be in
+  the mark table, as before.
+- So words, marks, presentation spans and the U+0020 between them make up the ayah
+  exactly. A word span may end where a mark span or the ending begins; nothing but
+  U+0020 lies outside the spans.
+- The app shows and copies the text without its presentation spans, and the
+  identity's ayah marker and margin mark stay (D-198 Q4). That is T3.
+
+### The build
+
+`build_pack` reads the description's text source as the KFGQPC file when its registry
+row is 2 (`kfgqpc.REGISTRY_ROW`). It refuses another file name or version, a URL with a
+query, a file whose SHA-256 is not the recorded one, a font not named
+`uthmanic_hafs_v20.ttf` (D-198 Q2), a build without `--table`, `--kfgqpc`, and
+`--tanzil-text` unless the profile compares. Then:
+
+| Step | How |
+| --- | --- |
+| Read | `kfgqpc.read_kfgqpc`, then `kfgqpc.text_offsets`: where each `aya_text` lies in the file's bytes. An escape sequence in it or in a field name stops the build, since its bytes would not be its text |
+| Structure | The KFGQPC surahs and their ayat against the profile and the metadata's `ayas` and `start` |
+| Spans | `tokens.presented_spans` with `known_differences.presentation(table)` |
+| Basmala | Every surah the profile gives one (all but 1 and 9 in `hafs`) gets 1:1 between its presentation spans, read back against those bytes of the file (D-198 Q5) |
+| D-079 | `check_profile_signs` on each ayah outside its presentation spans: no U+06DE there; pause marks and the sajda sign present |
+| Sajdas | The ayat holding U+06E9 are exactly the metadata's sajdas (the lead's measurement: the 15 of each are the same) |
+| Font | Every stored code point, presentation included, is in the font (the lead's measurement: none is missing) |
+| Read-back | Every stored ayah equals the file's bytes at its offset; names and basmalas as before |
+| Verifier | `verify_pack(..., presentation=...)` recomputes every span with its own copy of the rules |
+
+A `hafs` build then compares the KFGQPC text with its Tanzil witness
+(`compare.run_comparison`, the comparison of `compare`) and stops either way: on a
+difference with the summary; on a pass because the KFGQPC rights row is incomplete
+(D-198 Q3), the basmala from 1:1 waits for the proofreader (D-198 Q5), and format 3
+has no place yet to record the witness and the table. The unapproved test copy stays
+on the Tanzil text (D-198 Q7) and refuses a KFGQPC description.
+
+The manifest's KFGQPC source has `options` and `licence.notice` `null`: the JSON
+carries no notice. What the zip's read.me or EULA require inside a pack waits for Q3.
+
+### Tests
+
+All on synthetic data: `tests/test_tokens.py` (`PresentedSpansTest`, with a rejoin
+property over random texts), `tests/test_kfgqpc.py` (`TextOffsetsTest`),
+`tests/test_database.py` (`PresentedDatabaseTest`), `tests/test_verify.py`
+(`PresentedVerifyTest`: a clean pack and the nine faults of `tests/pack_factory.py`,
+each found), `tests/test_build_kfgqpc.py` (the synthetic KFGQPC-shaped source end to
+end, one refusal per check, and a hafs-shaped comparison that fails on joined marks
+and stops on a pass) and `tests/test_cli.py` (`KfgqpcTextCliTest`).
 
 ## The reciter's review page (B0.2, D-176, D-178)
 
@@ -1059,6 +1175,16 @@ be replaced. Another kind of signer, such as a hardware token, would be another
 
 ## Not done here
 
+- The format of the KFGQPC text: format 3 above is the pipeline's proposal until
+  `docs/CONTENT_PACKS.md` defines it and the app reads it (T3). Recording its Tanzil
+  witness and its table in the manifest is part of that change.
+- Pinning the KFGQPC font by its SHA-256 and family, as the tafsir build pins its
+  font: the build checks its file name only, as `review-page` and `kfgqpc-measure` do.
+- Divisions from the KFGQPC file (D-176 (2)): the KFGQPC path still takes juz,
+  quarters and pages from Tanzil's metadata, which the comparison checks against
+  KFGQPC's.
+- The proofreader's confirmation that the basmala taken from 1:1 matches its printed
+  form (D-198 Q5), a pending human check.
 - The allow-list of tags is the markup of the eight books listed above. A book with
   other markup stops the build until that markup is listed with its count.
 - Recording the KFGQPC file and the table in the manifest. Format 1 has no place for

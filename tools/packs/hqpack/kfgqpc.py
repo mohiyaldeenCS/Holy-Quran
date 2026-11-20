@@ -5,11 +5,18 @@ feed and a tab; the BOM is the CSV's, not this file's), an array of one object p
 exactly the columns of the read.me, ids 1..n in order, and the ayat in mushaf
 order. Anything else is refused. Errors name the entry, its id and a field,
 never a value, so no text reaches a log.
+
+`text_offsets` finds where each `aya_text` lies in the file's bytes, so that a
+pack whose text is this file can be read back against them (D-198). It needs
+the text written plainly; a file that writes `aya_text` or a field name with
+an escape sequence is refused there, and only there: as a witness the file is
+read by its parsed values.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,12 +26,20 @@ from .errors import PackError, code_point
 FILE_NAME = "hafsData_v2-0.json"
 VERSION = "2.0 (update 13.0)"
 REGISTRY_ROW = 2
+# The font of the same zip, the one the KFGQPC text is drawn with (D-198 Q2).
+FONT_FILE_NAME = "uthmanic_hafs_v20.ttf"
 
 _BOM = b"\xef\xbb\xbf"
 _OPENING = b"[\n\t"
 _INTEGERS = ("id", "jozz", "page", "sura_no", "line_start", "line_end", "aya_no")
 _STRINGS = ("sura_name_en", "sura_name_ar", "aya_text", "aya_text_emlaey")
 _COLUMNS = frozenset(_INTEGERS + _STRINGS)
+# A string literal in the file's bytes: neither the quote nor the backslash
+# byte occurs inside a multi-byte UTF-8 sequence.
+_STRING_LITERAL = re.compile(rb'"(?:[^"\\]|\\.)*"', re.DOTALL)
+_FOLLOWED_BY_COLON = re.compile(rb"[ \t\n\r]*:")
+_TEXT_NAME = b'"aya_text"'
+_BACKSLASH = b"\\"
 
 
 @dataclass(frozen=True)
@@ -38,13 +53,18 @@ class KfgqpcAya:
     emlaey: str
 
 
+def check_file_name(path):
+    """Refuses a KFGQPC file that does not have its published name."""
+    name = Path(path).name
+    if name != FILE_NAME:
+        name = "".join(c if " " <= c <= "~" else code_point(c) for c in name)
+        raise PackError("the KFGQPC file is named %s, not %s as published" % (name, FILE_NAME))
+
+
 def read_kfgqpc_file(path, ayat):
     """(the KfgqpcAya list, the file's SHA-256) of the file at `path`, which must have the published name."""
-    path = Path(path)
-    if path.name != FILE_NAME:
-        name = "".join(c if " " <= c <= "~" else code_point(c) for c in path.name)
-        raise PackError("the KFGQPC file is named %s, not %s as published" % (name, FILE_NAME))
-    data = path.read_bytes()
+    check_file_name(path)
+    data = Path(path).read_bytes()
     return read_kfgqpc(data, ayat), digest.sha256_bytes(data)
 
 
@@ -54,6 +74,46 @@ def read_kfgqpc(data: bytes, ayat: int) -> list:
         return _read(data, ayat)
     except PackError as e:
         raise PackError("KFGQPC: %s" % e) from None
+
+
+def text_offsets(data: bytes, ayat: list) -> list:
+    """(offset, length) of each ayah's aya_text in `data`, the bytes `read_kfgqpc` read `ayat` from.
+
+    Each entry writes its field names plainly, so the nth plain "aya_text"
+    name is the nth entry's and the string literal after it is its text. That
+    literal must hold no escape sequence, so that its bytes are the text; they
+    are checked against the parsed text.
+    """
+    try:
+        return _text_offsets(data, ayat)
+    except PackError as e:
+        raise PackError("KFGQPC: %s" % e) from None
+
+
+def _text_offsets(data, ayat):
+    offsets = []
+    literals = _STRING_LITERAL.finditer(data)
+    for literal in literals:
+        if not _FOLLOWED_BY_COLON.match(data, literal.end()):
+            continue
+        if _BACKSLASH in literal.group():
+            raise PackError(
+                "a field name near byte %d is written with an escape sequence" % literal.start()
+            )
+        if literal.group() != _TEXT_NAME:
+            continue
+        aya = ayat[len(offsets)]
+        value = next(literals)
+        start, end = value.start() + 1, value.end() - 1
+        if _BACKSLASH in data[start:end]:
+            raise PackError(
+                "id %d: field aya_text is written with an escape sequence, so its "
+                "bytes in the file are not its text" % aya.id
+            )
+        if data[start:end].decode("utf-8") != aya.text:
+            raise PackError("id %d: field aya_text in the file's bytes is not the parsed text" % aya.id)
+        offsets.append((start, end - start))
+    return offsets
 
 
 def _read(data, ayat):

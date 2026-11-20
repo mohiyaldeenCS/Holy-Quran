@@ -1,12 +1,14 @@
 """Writes a synthetic source for the pipeline's tests: a text file in Tanzil's
 text XML form, a metadata file in the form of Tanzil's quran-data.xml, a mark
-table and a build description.
+table and a build description. With --kfgqpc the text source is a file in the
+form of KFGQPC's hafsData (D-198), its pause marks joined to their words as
+KFGQPC writes them, and the Tanzil text is written beside it as its witness.
 
 Nothing here is Quran text. The words are Latin, and the one Arabic-script
 phrase is plainly synthetic; every non-ASCII character is a \\u escape so that
 no editor can recompose it.
 
-    python3 synthetic_source.py <directory>
+    python3 synthetic_source.py [--kfgqpc] <directory>
 """
 
 from __future__ import annotations
@@ -71,9 +73,40 @@ SYNTHETIC_SAJDAS = ((1, 2, "recommended"), (2, 3, "obligatory"))
 SYNTHETIC_MARK_CODE_POINTS = ("U+06D6", "U+06D7", "U+06DA", "U+06E9")
 
 KFGQPC_FILE = "hafsData_v2-0.json"
+# The version kfgqpc.py reads, which a KFGQPC text source's description names.
+KFGQPC_VERSION = "2.0 (update 13.0)"
 KFGQPC_NO_BREAK_SPACE = "\u00a0"
 KFGQPC_QUARTER_SIGN = "\u06de"
 KFGQPC_FIRST_NUMBER_GLYPH = 0xFC00
+
+# SYNTHETIC_SURAHS as KFGQPC writes an ayah: a pause mark or the sajda sign
+# that follows a word is joined to it, with no U+0020 between them.
+SYNTHETIC_KFGQPC_SURAHS = (
+    (
+        "Synthetic surah one",
+        None,
+        (
+            "Synthetic ayah one",
+            "Synthetic\u06d6 two\u06e9",
+            "\u06da Synthetic three",
+            SYNTHETIC_SURAHS[0][2][3],
+        ),
+    ),
+    (
+        "Synthetic surah two",
+        None,
+        (
+            "Synthetic  double  spaces",
+            "Synthetic \u0640 \u06e5 tatweel-and-small-waw\u06d7",
+            "Synthetic-pair joined\u06e9",
+        ),
+    ),
+    (
+        "Synthetic surah three",
+        None,
+        ("Synthetic last ayah",),
+    ),
+)
 
 _DECLARATION = '<?xml version="1.0" encoding="utf-8" ?>'
 _FORBIDDEN_IN_VALUES = ("&", "<", '"', "\t", "\n", "\r")
@@ -229,6 +262,42 @@ def synthetic_build_config(text_sha256: str, metadata_sha256: str) -> dict:
     }
 
 
+def synthetic_kfgqpc_build_config(kfgqpc_sha256: str, metadata_sha256: str) -> dict:
+    """The build description of a KFGQPC text: its text source is registry row 2."""
+    config = synthetic_build_config(kfgqpc_sha256, metadata_sha256)
+    config["id"] = "synthetic-kfgqpc-text"
+    config["sources"]["text"] = _source(
+        KFGQPC_FILE, kfgqpc_sha256, 2, "Synthetic KFGQPC text source",
+        "https://example.invalid/synthetic/kfgqpc.zip", KFGQPC_VERSION,
+    )
+    return config
+
+
+def write_synthetic_kfgqpc_source(
+    directory, kfgqpc_json=None, metadata_xml=None, mark_table=None, **config_overrides
+) -> Path:
+    """Writes the KFGQPC-shaped text, its Tanzil witness, the metadata, the
+    mark table and the build description into [directory]; returns the
+    description's path."""
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    if kfgqpc_json is None:
+        kfgqpc_json = synthetic_kfgqpc_json(synthetic_kfgqpc_entries(SYNTHETIC_KFGQPC_SURAHS))
+    metadata_xml = synthetic_metadata_xml() if metadata_xml is None else metadata_xml
+    mark_table = synthetic_mark_table() if mark_table is None else mark_table
+    (directory / KFGQPC_FILE).write_bytes(kfgqpc_json)
+    (directory / TEXT_FILE).write_bytes(synthetic_text_xml())
+    (directory / METADATA_FILE).write_bytes(metadata_xml)
+    (directory / MARK_TABLE_FILE).write_bytes(mark_table)
+    config = synthetic_kfgqpc_build_config(
+        hashlib.sha256(kfgqpc_json).hexdigest(), hashlib.sha256(metadata_xml).hexdigest()
+    )
+    config.update(config_overrides)
+    build = directory / BUILD_FILE
+    build.write_bytes(_json_bytes(config))
+    return build
+
+
 def write_synthetic_source(
     directory, text_xml=None, metadata_xml=None, mark_table=None, **config_overrides
 ) -> Path:
@@ -311,8 +380,11 @@ def _json_bytes(document) -> bytes:
 
 
 def _main(argv) -> int:
+    if len(argv) == 3 and argv[1] == "--kfgqpc":
+        print(write_synthetic_kfgqpc_source(argv[2]))
+        return 0
     if len(argv) != 2:
-        sys.stderr.write("usage: synthetic_source.py <directory>\n")
+        sys.stderr.write("usage: synthetic_source.py [--kfgqpc] <directory>\n")
         return 2
     print(write_synthetic_source(argv[1]))
     return 0

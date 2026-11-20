@@ -19,8 +19,7 @@ from hqpack.errors import PackError
 from hqpack.profiles import PROFILES
 from hqpack.tanzil_text import read_tanzil_text
 
-from tests.build_support import FONT, OTHER_FONT, synthetic_table_document
-from tests.test_font import cmap_table, format12, sfnt, windows_names
+from tests.build_support import FONT, OTHER_FONT, synthetic_kfgqpc_font, synthetic_table_document
 
 SUKUN = "\u0652"
 KFGQPC_SUKUN = "\u06e1"
@@ -71,16 +70,6 @@ ITEM_KEYS = {
     "C": ["id", "section", "kfgqpc", "tanzil", "count", "examples"],
     "D": ["id", "section", "kind", "address", "kfgqpc", "tanzil_metadata"],
 }
-
-
-def synthetic_kfgqpc_font(last=0xFFFF):
-    """A font under KFGQPC's file name whose cmap covers U+0020 to `last`."""
-    return sfnt(
-        [
-            (b"cmap", cmap_table([(3, 10, format12([(0x20, last, 1)]))])),
-            (b"name", windows_names(id1="Synthetic KFGQPC", id5="Version 1.000; synthetic")),
-        ]
-    )
 
 
 def _index(surah, ayah):

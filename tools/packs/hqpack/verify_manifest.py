@@ -1,5 +1,7 @@
 """The manifest.json rules of a text pack (docs/CONTENT_PACKS.md), as the
-app's strict parser applies them, for the independent verifier; and the
+app's strict parser applies them, and of the proposed format 3, a text stored
+with its presentation, whose counts add `presentations` (D-198 Q4), for the
+independent verifier; and the
 parts every kind shares (`read_checked`, `Fields`, the riwaya, changelog,
 sources, files and reviews), which `verify_tafsir` uses."""
 
@@ -12,6 +14,8 @@ import re
 
 TEXT = "text.sqlite"
 FORMAT_VERSION = 1
+PRESENTED_FORMAT_VERSION = 3
+TEXT_FORMAT_VERSIONS = (FORMAT_VERSION, PRESENTED_FORMAT_VERSION)
 DIVISION_KINDS = ("juz", "hizb", "rub", "page")
 
 _HASH = re.compile(r"[0-9a-f]{64}")
@@ -30,6 +34,8 @@ _SOURCE_KEYS = (
     "fetched_on", "file_sha256", "trust_grade", "options", "licence",
 )
 _COUNT_KEYS = ("surahs", "ayat", "words", "marks", "divisions", "sajdas")
+_PRESENTED_COUNT_KEYS = (
+    "surahs", "ayat", "words", "marks", "presentations", "divisions", "sajdas")
 
 
 def safe_name(name):
@@ -242,10 +248,11 @@ def _manifest_problems(manifest, problems):
     if manifest.get("format") != "holyquran-pack":
         problems.append("manifest.format is not holyquran-pack")
     version = manifest.get("format_version")
-    if type(version) is not int or version != FORMAT_VERSION:
+    if type(version) is not int or version not in TEXT_FORMAT_VERSIONS:
         problems.append(
-            "manifest.format_version is not %d, the format version this "
-            "verifier knows" % FORMAT_VERSION)
+            "manifest.format_version is not %s, the format versions of a text "
+            "pack this verifier knows"
+            % " or ".join(str(v) for v in TEXT_FORMAT_VERSIONS))
         return
     root = Fields(manifest, "manifest", problems)
     root.expect_keys(_MANIFEST_KEYS)
@@ -265,7 +272,7 @@ def _manifest_problems(manifest, problems):
         font.hash("sha256")
     sources_problems(root, "text", ("text", "edition_map"))
     files_problems(root, "text", TEXT)
-    surahs = _counts_problems(root.object("counts"))
+    surahs = _counts_problems(root.object("counts"), version)
     _surah_sha256_problems(root.object("surah_sha256"), surahs)
     review_problems(root)
 
@@ -369,14 +376,16 @@ def files_problems(root, kind, data_file):
             "files", "of a %s pack is not exactly %s" % (kind, data_file))
 
 
-def _counts_problems(counts):
+def _counts_problems(counts, version):
     """counts.surahs, or BAD."""
     if counts is None:
         return BAD
-    counts.expect_keys(_COUNT_KEYS)
+    keys = _PRESENTED_COUNT_KEYS if version == PRESENTED_FORMAT_VERSION else _COUNT_KEYS
+    counts.expect_keys(keys)
     surahs = counts.count("surahs")
-    for key in _COUNT_KEYS[1:4] + ("sajdas",):
-        counts.count(key)
+    for key in keys:
+        if key not in ("surahs", "divisions"):
+            counts.count(key)
     divisions = counts.object("divisions")
     if divisions is not None:
         divisions.expect_keys(DIVISION_KINDS)

@@ -1,12 +1,13 @@
 """The text.sqlite checks of the independent verifier: schema, integrity,
-numbering, references, stored text and surah digests."""
+numbering, references, stored text and surah digests; format 3 adds the
+presentation table (D-198 Q4)."""
 
 from __future__ import annotations
 
 import hashlib
 import struct
 
-from .verify_manifest import DIVISION_KINDS, safe_name
+from .verify_manifest import DIVISION_KINDS, PRESENTED_FORMAT_VERSION, safe_name
 
 # Table, WITHOUT ROWID, columns as (name, declared type, notnull, pk
 # position), foreign keys as (parent table, column, parent column).
@@ -50,15 +51,32 @@ _TABLES = (
         ("ayah", "INTEGER", 1, 2),
     ), (("ayah", "surah", "surah"), ("ayah", "ayah", "number"))),
 )
+_PRESENTATION_TABLE = (
+    "presentation", True, (
+        ("surah", "INTEGER", 1, 1),
+        ("ayah", "INTEGER", 1, 2),
+        ("number", "INTEGER", 1, 3),
+        ("after_word", "INTEGER", 1, 0),
+        ("start_offset", "INTEGER", 1, 0),
+        ("end_offset", "INTEGER", 1, 0),
+    ), (("ayah", "surah", "surah"), ("ayah", "ayah", "number")))
 
 
-def schema_problems(connection, problems):
-    """False when the tables, columns or STRICT differ, so that no row can be
-    trusted to hold the types the format gives it."""
+def _tables(format_version):
+    if format_version == PRESENTED_FORMAT_VERSION:
+        return _TABLES + (_PRESENTATION_TABLE,)
+    return _TABLES
+
+
+def schema_problems(connection, problems, format_version):
+    """False when the tables, columns or STRICT differ from those of
+    `format_version`, so that no row can be trusted to hold the types the
+    format gives it."""
     encoding = connection.execute("PRAGMA encoding").fetchone()[0]
     if encoding != "UTF-8":
         problems.append("text.sqlite: PRAGMA encoding is not UTF-8")
-    expected = [table[0] for table in _TABLES]
+    tables = _tables(format_version)
+    expected = [table[0] for table in tables]
     created = [row[0] for row in connection.execute(
         "SELECT name FROM sqlite_schema WHERE type = 'table' "
         "AND substr(name, 1, 7) != 'sqlite_' ORDER BY rowid")]
@@ -71,7 +89,7 @@ def schema_problems(connection, problems):
             % (", ".join(safe_name(name) for name in created), ", ".join(expected)))
         return False
     sound = True
-    for name, without_rowid, columns, keys in _TABLES:
+    for name, without_rowid, columns, keys in tables:
         kind, strict, wr = listed[name]
         if kind != "table" or strict != 1:
             problems.append("text.sqlite: table %s is not STRICT" % name)
@@ -87,9 +105,9 @@ def schema_problems(connection, problems):
             "ORDER BY id, seq", (name,)))
         if found_keys != keys:
             problems.append(
-                "text.sqlite: table %s has other foreign keys than format v1"
-                % name)
-    _object_problems(connection, problems)
+                "text.sqlite: table %s has other foreign keys than format v%d"
+                % (name, format_version))
+    _object_problems(connection, problems, format_version)
     _check_problems(connection, problems)
     return sound
 
@@ -115,7 +133,7 @@ def _column_problems(connection, table, columns, problems):
     return sound
 
 
-def _object_problems(connection, problems):
+def _object_problems(connection, problems, format_version):
     for kind, name, sql in connection.execute(
             "SELECT type, name, sql FROM sqlite_schema "
             "WHERE type != 'table' ORDER BY rowid"):
@@ -124,8 +142,8 @@ def _object_problems(connection, problems):
             and name.startswith("sqlite_autoindex_"))
         if not automatic:
             problems.append(
-                "text.sqlite: sqlite_schema holds the %s %s, which format v1 "
-                "has not" % (safe_name(kind), safe_name(name)))
+                "text.sqlite: sqlite_schema holds the %s %s, which format v%d "
+                "has not" % (safe_name(kind), safe_name(name), format_version))
 
 
 def _check_problems(connection, problems):
@@ -144,9 +162,9 @@ def _check_problems(connection, problems):
 
 
 class Contents:
-    """Every row of the pack, text as stored bytes."""
+    """Every row of the pack, text as stored bytes; presentation rows only in format 3."""
 
-    def __init__(self, connection):
+    def __init__(self, connection, format_version):
         self.surahs = connection.execute(
             "SELECT number, ayah_count, CAST(revelation_place AS BLOB), "
             "CAST(name AS BLOB), CAST(basmala AS BLOB) FROM surah "
@@ -165,6 +183,11 @@ class Contents:
             "ORDER BY kind, number").fetchall()
         self.sajdas = connection.execute(
             "SELECT surah, ayah FROM sajda ORDER BY surah, ayah").fetchall()
+        self.presentation = {}
+        if format_version == PRESENTED_FORMAT_VERSION:
+            self.presentation = _grouped(connection.execute(
+                "SELECT surah, ayah, number, after_word, start_offset, "
+                "end_offset FROM presentation ORDER BY surah, ayah, number"))
         self.addresses = {(surah, number) for surah, number, _ in self.ayat}
 
 
@@ -214,6 +237,10 @@ def numbering_problems(pack, manifest, problems):
     expect("marks", counts["marks"],
            sum(len(rows) for rows in pack.marks.values()),
            "the mark table holds")
+    if "presentations" in counts:
+        expect("presentations", counts["presentations"],
+               sum(len(rows) for rows in pack.presentation.values()),
+               "the presentation table holds")
     for kind in DIVISION_KINDS:
         found = sum(1 for row in pack.divisions if row[0] == kind.encode())
         expect("divisions.%s" % kind, counts["divisions"][kind], found,
@@ -257,7 +284,8 @@ def reference_problems(pack, problems):
             problems.append(
                 "a sajda refers to %d:%d, not an ayah of the pack"
                 % (surah, ayah))
-    for table, groups in (("word", pack.words), ("mark", pack.marks)):
+    for table, groups in (("word", pack.words), ("mark", pack.marks),
+                          ("presentation", pack.presentation)):
         for surah, ayah in sorted(set(groups) - pack.addresses):
             problems.append(
                 "the %s table holds rows of %d:%d, not an ayah of the pack"

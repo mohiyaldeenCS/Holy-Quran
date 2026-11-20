@@ -1,6 +1,8 @@
-"""`text.sqlite` of format v1 (docs/CONTENT_PACKS.md, "Text pack"), and the
-file rules every data file of a pack shares: `create_new`, `set_header`,
-`run`, `check_text` and `remove_partial`, each naming its file.
+"""`text.sqlite` of format v1 (docs/CONTENT_PACKS.md, "Text pack") and of the
+proposed format 3, a text stored with its presentation (D-198 Q4): format 1's
+six tables and `presentation`. And the file rules every data file of a pack
+shares: `create_new`, `set_header`, `run`, `check_text` and `remove_partial`,
+each naming its file.
 
 Every text is bound as the Python str the strict reader produced; Python's
 sqlite3 binds a str as its exact UTF-8 bytes. Nothing is stripped,
@@ -20,6 +22,7 @@ from .errors import PackError
 
 APPLICATION_ID = 1213288523  # ASCII HQPK
 FORMAT_VERSION = 1
+PRESENTED_FORMAT_VERSION = 3
 MIN_SQLITE = (3, 37, 0)
 
 _FILE = "text.sqlite"
@@ -75,6 +78,19 @@ _SCHEMA = (
 ) STRICT, WITHOUT ROWID""",
 )
 
+# Format 3: the presentation spans of an ayah, numbered in text order, each
+# after the words before it, as marks are.
+_PRESENTATION_SCHEMA = """CREATE TABLE presentation (
+  surah        INTEGER NOT NULL,
+  ayah         INTEGER NOT NULL,
+  number       INTEGER NOT NULL,
+  after_word   INTEGER NOT NULL,
+  start_offset INTEGER NOT NULL,
+  end_offset   INTEGER NOT NULL,
+  PRIMARY KEY (surah, ayah, number),
+  FOREIGN KEY (surah, ayah) REFERENCES ayah(surah, number)
+) STRICT, WITHOUT ROWID"""
+
 # Child table -> (child key columns, parent table, parent key columns).
 _FOREIGN_KEYS = {
     "ayah": (("surah",), "surah", ("number",)),
@@ -82,6 +98,7 @@ _FOREIGN_KEYS = {
     "mark": (("surah", "ayah"), "ayah", ("surah", "number")),
     "division": (("surah", "ayah"), "ayah", ("surah", "number")),
     "sajda": (("surah", "ayah"), "ayah", ("surah", "number")),
+    "presentation": (("surah", "ayah"), "ayah", ("surah", "number")),
 }
 
 _SIDE_FILES = ("-journal", "-wal", "-shm")
@@ -93,6 +110,7 @@ class AyahRow:
     text: str
     words: list  # [(start, end)], UTF-16 half-open
     marks: list  # [(after_word, start, end)], UTF-16 half-open
+    presentation: tuple = ()  # [(after_word, start, end)], UTF-16 half-open; format 3 only
 
 
 @dataclass(frozen=True)
@@ -137,14 +155,19 @@ def create_new(path, file) -> str:
     return path
 
 
-def write_text_database(path, surahs, divisions, sajdas) -> None:
-    """Writes a new `text.sqlite` at `path`; refuses an existing path."""
+def write_text_database(path, surahs, divisions, sajdas, format_version=FORMAT_VERSION) -> None:
+    """Writes a new `text.sqlite` of `format_version` (1, or 3 for a text
+    stored with its presentation) at `path`; refuses an existing path."""
+    if format_version not in (FORMAT_VERSION, PRESENTED_FORMAT_VERSION):
+        raise PackError("%s: format version %s is not %d or %d" % (
+            _FILE, format_version, FORMAT_VERSION, PRESENTED_FORMAT_VERSION))
+    presented = format_version == PRESENTED_FORMAT_VERSION
     path = create_new(path, _FILE)
     try:
         with closing(sqlite3.connect(path, isolation_level=None)) as db:
-            set_header(db, FORMAT_VERSION)
-            _create_tables(db)
-            _insert_all(db, surahs, divisions, sajdas)
+            set_header(db, format_version)
+            _create_tables(db, presented)
+            _insert_all(db, surahs, divisions, sajdas, presented)
             _check_foreign_keys(db)
             run(db, "VACUUM", "vacuum")
     except BaseException:
@@ -191,15 +214,16 @@ def set_header(db, user_version, file=_FILE) -> None:
         raise PackError("%s: the encoding is not UTF-8" % file)
 
 
-def _create_tables(db) -> None:
-    for number, statement in enumerate(_SCHEMA, 1):
-        run(db, statement, "creating table %d of %d" % (number, len(_SCHEMA)))
+def _create_tables(db, presented) -> None:
+    schema = _SCHEMA + ((_PRESENTATION_SCHEMA,) if presented else ())
+    for number, statement in enumerate(schema, 1):
+        run(db, statement, "creating table %d of %d" % (number, len(schema)))
 
 
-def _insert_all(db, surahs, divisions, sajdas) -> None:
+def _insert_all(db, surahs, divisions, sajdas, presented) -> None:
     run(db, "BEGIN", "beginning the transaction")
     for surah in surahs:
-        _insert_surah(db, surah)
+        _insert_surah(db, surah, presented)
     for kind, number, surah, ayah in divisions:
         run(
             db,
@@ -218,7 +242,7 @@ def _insert_all(db, surahs, divisions, sajdas) -> None:
     run(db, "COMMIT", "committing")
 
 
-def _insert_surah(db, surah: SurahRow) -> None:
+def _insert_surah(db, surah: SurahRow, presented) -> None:
     where = "surah %s" % surah.number
     check_text(surah.name, where + " name")
     if surah.basmala is not None:
@@ -237,10 +261,10 @@ def _insert_surah(db, surah: SurahRow) -> None:
         ),
     )
     for ayah in surah.ayat:
-        _insert_ayah(db, surah.number, ayah)
+        _insert_ayah(db, surah.number, ayah, presented)
 
 
-def _insert_ayah(db, surah: int, ayah: AyahRow) -> None:
+def _insert_ayah(db, surah: int, ayah: AyahRow, presented) -> None:
     address = "%s:%s" % (surah, ayah.number)
     check_text(ayah.text, "ayah " + address)
     run(
@@ -261,6 +285,18 @@ def _insert_ayah(db, surah: int, ayah: AyahRow) -> None:
             db,
             "INSERT INTO mark VALUES (?, ?, ?, ?, ?, ?)",
             "inserting mark %s:%d" % (address, number),
+            (surah, ayah.number, number, after_word, start, end),
+        )
+    if ayah.presentation and not presented:
+        raise PackError(
+            "%s: ayah %s has presentation spans, which format %d cannot store"
+            % (_FILE, address, FORMAT_VERSION)
+        )
+    for number, (after_word, start, end) in enumerate(ayah.presentation, 1):
+        run(
+            db,
+            "INSERT INTO presentation VALUES (?, ?, ?, ?, ?, ?)",
+            "inserting presentation span %s:%d" % (address, number),
             (surah, ayah.number, number, after_word, start, end),
         )
 

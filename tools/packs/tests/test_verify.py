@@ -7,6 +7,7 @@ import unittest
 from collections import namedtuple
 from pathlib import Path
 
+from hqpack.known_differences import Presentation
 from hqpack.verify import pack_kind, verify_pack
 from tests import pack_factory as factory
 from tests import tafsir_pack_factory
@@ -240,6 +241,91 @@ class VerifyTest(unittest.TestCase):
         self.assertIn(
             "ayah 1:1: mark 1 is stored as 0..9 after word 0; the text has "
             "no mark 1", problems)
+
+
+# The code points of the shipped table's rules P-1 and P-2.
+PRESENTATION = Presentation(
+    ayah_end_separator=0x00A0,
+    first_number_glyph=0xFC00,
+    ayah_end_separators={},
+    quarter_sign=0x06DE,
+    quarter_separator=0x00A0,
+)
+
+EXPECTED_PRESENTED = {
+    "presentation_not_stored":
+        "ayah 1:1: the text gives presentation 1 as 19..21 after word 3; it is not stored",
+    "joined_mark_in_word": "ayah 1:1: word 2 span 10..15 holds the mark U+06D6",
+    "wrong_glyph": "ayah 1:1 does not end with U+00A0 U+FC00, its ayah-end presentation",
+    "nbsp_in_body": "ayah 3:1: U+00A0 at offset 9 is a separator other than U+0020",
+    "quarter_sign_in_body":
+        "ayah 1:3: U+06DE at offset 3 lies outside the presentation that opens a quarter",
+    "wrong_presentation_after_word":
+        "ayah 1:1: presentation 1 has after_word 4; 3 words come before it",
+    "wrong_presentation_count": "counts.presentations is 12; the presentation table holds 11",
+    "no_presentation_table":
+        "text.sqlite: the tables are surah, ayah, word, mark, division, sajda, not surah, "
+        "ayah, word, mark, division, sajda, presentation",
+    "presentation_only": "ayah 3:1 holds nothing but its presentation",
+}
+
+
+class PresentedVerifyTest(unittest.TestCase):
+    """Format 3: a text stored with its presentation (D-198 Q4)."""
+
+    def setUp(self):
+        self._temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self._temporary.cleanup)
+        self.root = Path(self._temporary.name) / "with space"
+
+    def pack(self, fault=None):
+        return factory.write_pack(self.root / (fault or "clean"), fault=fault, presented=True)
+
+    def test_a_clean_pack_verifies_with_the_presentation_rules(self):
+        report = verify_pack(self.pack(), factory.MARK_CODE_POINTS, presentation=PRESENTATION)
+        self.assertEqual(report.problems, [])
+        self.assertEqual(
+            {key: report.counts[key] for key in ("words", "marks", "presentations")},
+            {"words": 23, "marks": 5, "presentations": 11},
+        )
+
+    def test_every_fault_is_found(self):
+        self.assertEqual(sorted(EXPECTED_PRESENTED), sorted(factory.PRESENTED_FAULTS))
+        for fault, expected in EXPECTED_PRESENTED.items():
+            with self.subTest(fault=fault):
+                problems = verify_pack(self.pack(fault), presentation=PRESENTATION).problems
+                self.assertIn(expected, problems)
+
+    def test_problems_are_ascii_and_hold_no_text(self):
+        values = factory.text_values(factory.PRESENTED_SURAHS) + [factory.PHRASE]
+        for fault in factory.PRESENTED_FAULTS:
+            with self.subTest(fault=fault):
+                for problem in verify_pack(self.pack(fault), presentation=PRESENTATION).problems:
+                    self.assertTrue(problem.isascii(), problem)
+                    for value in values:
+                        self.assertNotIn(value, problem)
+
+    def test_its_spans_need_the_presentation_rules(self):
+        self.assertEqual(
+            verify_pack(self.pack()).problems,
+            [
+                "text.sqlite of format 3 stores its text with its presentation; its spans "
+                "are checked only with the presentation rules of the table of known differences"
+            ],
+        )
+
+    def test_a_format_1_pack_does_not_use_them(self):
+        report = verify_pack(factory.write_pack(self.root / "plain"), presentation=PRESENTATION)
+        self.assertEqual(report.problems, [])
+
+    def test_its_tables_under_a_format_1_manifest(self):
+        directory = self.pack()
+        manifest = json.loads((directory / "manifest.json").read_bytes())
+        manifest["format_version"] = 1
+        del manifest["counts"]["presentations"]
+        (directory / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+        problems = verify_pack(directory).problems
+        self.assertIn("text.sqlite: user_version is 3, not 1", problems)
 
 
 class PackKindTest(unittest.TestCase):

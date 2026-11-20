@@ -1,5 +1,6 @@
-"""`manifest.json` of format v1 (kind `text`) and format v2 (kind `tafsir`): its
-fields in the format's order, and its bytes.
+"""`manifest.json` of format v1 (kind `text`), of the proposed format 3 (kind
+`text`, stored with its presentation, D-198 Q4) and of format v2 (kind
+`tafsir`): its fields in the format's order, and its bytes.
 
 docs/CONTENT_PACKS.md, "Manifest". Errors name field paths only, never a
 value.
@@ -9,6 +10,7 @@ from __future__ import annotations
 
 import json
 
+from .database import FORMAT_VERSION, PRESENTED_FORMAT_VERSION
 from .errors import PackError
 
 _SOURCE_KEYS = (
@@ -29,6 +31,11 @@ _FONT_KEYS = ("family", "version", "sha256")
 _CHANGE_KEYS = ("version", "date", "summary")
 _REVIEW_KEYS = ("reviewer", "date", "scope")
 _COUNT_KEYS = ("surahs", "ayat", "words", "marks", "divisions", "sajdas")
+# The counts of a text pack by its format version.
+_TEXT_COUNT_KEYS = {
+    FORMAT_VERSION: _COUNT_KEYS,
+    PRESENTED_FORMAT_VERSION: ("surahs", "ayat", "words", "marks", "presentations", "divisions", "sajdas"),
+}
 _DIVISION_KEYS = ("juz", "hizb", "rub", "page")
 
 
@@ -84,12 +91,15 @@ def build_manifest(
     surah_sha256,
     counts,
     reviews,
+    format_version=FORMAT_VERSION,
 ) -> dict:
-    counts = _ordered(counts, _COUNT_KEYS, "counts")
+    if format_version not in _TEXT_COUNT_KEYS:
+        raise PackError("manifest: a text pack is format 1 or 3, not %s" % format_version)
+    counts = _ordered(counts, _TEXT_COUNT_KEYS[format_version], "counts")
     counts["divisions"] = _ordered(counts["divisions"], _DIVISION_KEYS, "counts.divisions")
     return {
         "format": "holyquran-pack",
-        "format_version": 1,
+        "format_version": format_version,
         "id": pack_id,
         "kind": "text",
         "version": version,

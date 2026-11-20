@@ -241,7 +241,102 @@ class WrittenDatabaseTest(_TempDirTest):
         self.assertEqual(os.path.getsize(self.path), before)
 
 
+_NBSP = "\u00a0"
+_QUARTER_OPENING = "\u06de\u00a0"
+# Format 3: a text stored with its presentation (D-198 Q4), a pause mark joined to its word.
+_PRESENTED_SURAHS = [
+    SurahRow(
+        number=1,
+        name="Synthetic surah one",
+        revelation_place=None,
+        revelation_order=None,
+        basmala=None,
+        ayat=[
+            AyahRow(1, "ab\u06d6 cd" + _NBSP + "\ufc00", [(0, 2), (4, 6)], [(1, 2, 3)], ((2, 6, 8),)),
+            AyahRow(2, _QUARTER_OPENING + "ef" + _NBSP + "\ufc01", [(2, 4)], [], ((0, 0, 2), (1, 4, 6))),
+        ],
+    ),
+]
+
+
+class PresentedDatabaseTest(_TempDirTest):
+    def setUp(self):
+        super().setUp()
+        write_text_database(
+            self.path, _PRESENTED_SURAHS, [], [], format_version=database.PRESENTED_FORMAT_VERSION
+        )
+
+    def _query(self, sql):
+        with closing(sqlite3.connect(self.path)) as db:
+            return db.execute(sql).fetchall()
+
+    def test_the_user_version_is_3(self):
+        self.assertEqual(self._query("PRAGMA user_version"), [(3,)])
+
+    def test_the_presentation_table_follows_the_six_of_format_1(self):
+        rows = self._query("SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY rowid")
+        self.assertEqual(
+            [name for (name,) in rows],
+            ["surah", "ayah", "word", "mark", "division", "sajda", "presentation"],
+        )
+        self.assertEqual(
+            self._query(
+                "SELECT strict, wr FROM pragma_table_list "
+                "WHERE schema = 'main' AND name = 'presentation'"
+            ),
+            [(1, 1)],
+        )
+        self.assertEqual(
+            self._query(
+                "SELECT name, type, \"notnull\", pk FROM pragma_table_xinfo('presentation') ORDER BY cid"
+            ),
+            [
+                ("surah", "INTEGER", 1, 1),
+                ("ayah", "INTEGER", 1, 2),
+                ("number", "INTEGER", 1, 3),
+                ("after_word", "INTEGER", 1, 0),
+                ("start_offset", "INTEGER", 1, 0),
+                ("end_offset", "INTEGER", 1, 0),
+            ],
+        )
+        self.assertEqual(
+            self._query(
+                "SELECT \"table\", \"from\", \"to\" FROM pragma_foreign_key_list('presentation') ORDER BY seq"
+            ),
+            [("ayah", "surah", "surah"), ("ayah", "ayah", "number")],
+        )
+
+    def test_the_rows(self):
+        self.assertEqual(
+            self._query("SELECT * FROM presentation ORDER BY surah, ayah, number"),
+            [(1, 1, 1, 2, 6, 8), (1, 2, 1, 0, 0, 2), (1, 2, 2, 1, 4, 6)],
+        )
+        self.assertEqual(self._query("SELECT * FROM mark"), [(1, 1, 1, 1, 2, 3)])
+
+    def test_the_text_is_stored_as_given(self):
+        stored = read_stored_texts(self.path)
+        self.assertEqual(
+            stored.ayat,
+            {(1, a.number): a.text.encode("utf-8") for a in _PRESENTED_SURAHS[0].ayat},
+        )
+
+
 class RefusalTest(_TempDirTest):
+    def test_format_1_cannot_store_presentation_spans(self):
+        with self.assertRaises(PackError) as caught:
+            write_text_database(self.path, _PRESENTED_SURAHS, [], [])
+        self.assertEqual(
+            str(caught.exception),
+            "text.sqlite: ayah 1:1 has presentation spans, which format 1 cannot store",
+        )
+        self.assert_no_file_left()
+
+    def test_an_unknown_format_version(self):
+        with self.assertRaises(PackError) as caught:
+            write_text_database(self.path, _SURAHS, _DIVISIONS, _SAJDAS, format_version=2)
+        self.assertEqual(str(caught.exception), "text.sqlite: format version 2 is not 1 or 3")
+        self.assert_no_file_left()
+
     def test_a_division_pointing_at_a_missing_ayah_leaves_no_file(self):
         with self.assertRaises(PackError) as caught:
             write_text_database(self.path, _SURAHS, _DIVISIONS + [("juz", 2, 2, 9)], _SAJDAS)
