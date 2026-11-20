@@ -12,6 +12,7 @@ import 'package:holyquran/main.dart' as app;
 import 'package:holyquran/ui/core/reader/reader_block.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/mushaf_view_model.dart';
 import 'package:holyquran/ui/features/mushaf/views/mushaf_screen.dart';
+import 'package:holyquran/ui/features/start/view_models/app_start_view_model.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
@@ -21,6 +22,7 @@ import '../../testing/packs/synthetic_pack.dart' show amiriQuranFontPath;
 import 'perf_app.dart';
 import 'perf_pack.dart';
 import 'perf_run.dart';
+
 
 bool get _onDevice => Platform.isAndroid || Platform.isIOS;
 
@@ -184,7 +186,7 @@ Future<Launched> launch(
   final built = Completer<List<SingleChildWidget>>();
   final clock = Stopwatch()..start();
   markTimeline('start');
-  await tester.pumpWidget(app.AppStart(dependencies: built.future));
+  await tester.pumpWidget(app.AppStart(start: AppStartViewModel(built.future)));
   final splash = clock.elapsed;
   final start = (await tester.runAsync(perf.start))!;
   // Registered before anything that can fail, so that a launch that never
