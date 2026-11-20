@@ -115,7 +115,9 @@ class _StepHeading extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // A node of its own, so the prompt below is not read as the heading.
         Semantics(
+          container: true,
           header: true,
           child: Text(
             name,
