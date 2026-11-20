@@ -139,8 +139,15 @@ void main() {
     final copyText = AyahCopyText(repository, _l10n);
     var notified = 0;
     model.addListener(() => notified++);
-    // From the full form, selected first, to each form in turn, ending on it.
-    for (final form in CopyForm.values) {
+    // Each form other than the one selected first, then back to that one, so
+    // that every selection is a change.
+    final initial = model.selected;
+    final order = [
+      for (final form in CopyForm.values)
+        if (form != initial) form,
+      initial,
+    ];
+    for (final form in order) {
       model.select(form);
       expect(model.selected, form);
       final expected = await copyText.preview(address, form);

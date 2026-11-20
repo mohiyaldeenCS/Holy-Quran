@@ -73,6 +73,7 @@ void main() {
       ('surahAyahReference', '{name}', '{ayah}'),
       ('surahTitleAyahReference', '{name}', '{ayah}'),
       ('copyReferenceFull', '{surah}', '{number}'),
+      ('copyReferenceSurah', '{surah}', null),
     ]) {
       final template = _templates[key]! as String;
       expect(

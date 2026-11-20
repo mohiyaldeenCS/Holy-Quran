@@ -23,8 +23,10 @@ const _width = 360.0;
 Widget _sized(Widget sheet) => SizedBox(width: _width, child: sheet);
 
 void main() {
-  testWidgets('the copy sheet with the form the app offers and with all '
-      'three, each with its preview, in each theme', (tester) async {
+  testWidgets('the copy sheet with the full form alone and with all three, '
+      'the full form selected, each with its preview, in each theme', (
+    tester,
+  ) async {
     await expectGoldensInThemes(
       tester,
       'copy_sheet',
@@ -47,6 +49,37 @@ void main() {
       ]),
       // Measured with the app's fonts: 328 and 424 high, 16 apart.
       surfaceSize: const Size(400, 800),
+    );
+  });
+
+  testWidgets('the copy sheet with the ayah alone and with the surah name '
+      'selected, each with its preview, in each theme', (tester) async {
+    await expectGoldensInThemes(
+      tester,
+      'copy_sheet_forms',
+      (context) => goldenColumn([
+        _sized(
+          CopySheet(
+            forms: CopyForm.values,
+            selected: CopyForm.ayahOnly,
+            onSelected: (_) {},
+            onCopy: () {},
+            ayah: _text,
+          ),
+        ),
+        _sized(
+          CopySheet(
+            forms: CopyForm.values,
+            selected: CopyForm.withSurah,
+            onSelected: (_) {},
+            onCopy: () {},
+            ayah: _text,
+            surahName: _name,
+          ),
+        ),
+      ]),
+      // Two sheets of three forms, about 424 high each, 16 apart.
+      surfaceSize: const Size(400, 900),
     );
   });
 

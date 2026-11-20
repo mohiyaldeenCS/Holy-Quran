@@ -140,19 +140,15 @@ void main() {
       final ayat = await packAyat(pack, repository);
       expect(ayat, isNotEmpty);
       for (final ayah in ayat) {
-        final approved = await copyText.compose(
-          ayah.address,
-          CopyForm.withSurahAndNumber,
-        );
-        final copy = await marked.compose(
-          ayah.address,
-          CopyForm.withSurahAndNumber,
-        );
-        expect(utf8.encode((copy as Ok<String>).value), [
-          ...utf8.encode((approved as Ok<String>).value),
-          0x0A,
-          ...utf8.encode(_l10n.unapprovedTestCopy),
-        ], reason: '${ayah.address}');
+        for (final form in CopyForm.values) {
+          final approved = await copyText.compose(ayah.address, form);
+          final copy = await marked.compose(ayah.address, form);
+          expect(utf8.encode((copy as Ok<String>).value), [
+            ...utf8.encode((approved as Ok<String>).value),
+            0x0A,
+            ...utf8.encode(_l10n.unapprovedTestCopy),
+          ], reason: '${ayah.address} ${form.name}');
+        }
       }
     });
 
