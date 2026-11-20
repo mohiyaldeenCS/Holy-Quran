@@ -87,6 +87,37 @@ void main() {
       ]);
     });
 
+    test('adds the ayah to its surah end after the plans queued', () {
+      final playing = planOf(
+        builder,
+        WholeSurah(3),
+        repeat: RepeatMode(RepeatUnit.ayah, 2),
+      );
+      final player = playerAt(playing);
+      expect(viewModel(player, at(1, 2)).enqueue(), isTrue);
+      expect(viewModel(player, at(2, 1)).enqueue(), isTrue);
+      final queued = player.state.queue;
+      expect(queued.map((plan) => (plan.range as FromAyahTool).ayah), [
+        at(1, 2),
+        at(2, 1),
+      ]);
+      expect(queued.map((plan) => (plan.range as FromAyahTool).until).toSet(), {
+        AyahToolEnd.surah,
+      });
+      expect(queued.first.repeat, playing.repeat);
+      expect(player.state.plan, same(playing));
+      expect(player.commands, isEmpty);
+    });
+
+    test('adds nothing before any plan or outside the edition', () {
+      final none = playerAt(null);
+      expect(viewModel(none, at(1, 1)).canEnqueue, isFalse);
+      expect(viewModel(none, at(1, 1)).enqueue(), isFalse);
+      final player = playerAt(planOf(builder, WholeSurah(1)));
+      expect(viewModel(player, at(4, 1)).enqueue(), isFalse);
+      expect(player.state.queue, isEmpty);
+    });
+
     test('offers nothing before any plan or outside the edition', () {
       expect(viewModel(playerAt(null), at(1, 1)).options, isEmpty);
       final player = playerAt(planOf(builder, WholeSurah(1)));
@@ -104,7 +135,7 @@ void main() {
 
       expect(
         tester.widgetList<Button>(find.byType(Button)).map((b) => b.label),
-        allLabels,
+        [...allLabels, l10n.addToQueue],
       );
       expect(
         find.text(l10n.surahAyahReference('Synthetic surah 1', '٢')),
@@ -116,6 +147,19 @@ void main() {
         (player.state.plan!.range as FromAyahTool).until,
         AyahToolEnd.surah,
       );
+      expect(app.sheetOpen, isFalse);
+    });
+
+    testWidgets('adds to the play list and closes', (tester) async {
+      final player = playerAt(planOf(builder, WholeSurah(3)));
+      final app = ControlsApp(player: player, builder: builder, index: index);
+      await app.open(tester, Routes.playOptionsSheet(at(1, 2)));
+      final add = find.widgetWithText(Button, l10n.addToQueue);
+      expect(tester.widget<Button>(add).variant, ButtonVariant.tonal);
+      await tester.tap(add);
+      await tester.pumpAndSettle();
+      expect(player.state.queue, hasLength(1));
+      expect(player.commands, isEmpty);
       expect(app.sheetOpen, isFalse);
     });
 

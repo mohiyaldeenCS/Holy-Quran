@@ -11,7 +11,7 @@ import 'package:holyquran/ui/features/listen/view_models/controls/play_options_v
 import 'package:holyquran/ui/features/listen/views/controls/controls_sheet.dart';
 
 /// Play from the ayah tools (`AU-03`): the ayah, then one button for each
-/// end the recitation can play.
+/// end the recitation can play, then «أضف إلى قائمة التشغيل» (`AU-17`).
 class PlayOptionsSheet extends StatelessWidget {
   const PlayOptionsSheet({required this.viewModel, super.key});
 
@@ -38,6 +38,15 @@ class PlayOptionsSheet extends StatelessWidget {
             variant: ButtonVariant.outline,
             onPressed: () async {
               if (await vm.play(until) && context.mounted) context.pop();
+            },
+          ),
+        if (vm.canEnqueue)
+          Button(
+            label: l10n.addToQueue,
+            // The identity's variant for adding to a collection (`Button`).
+            variant: ButtonVariant.tonal,
+            onPressed: () {
+              if (vm.enqueue()) context.pop();
             },
           ),
       ],

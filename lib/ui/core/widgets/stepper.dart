@@ -48,7 +48,8 @@ const TextStyle _valueStyle = TextStyle(
 /// A number setting with minus and plus (`Stepper`, `.qk-stepper`): the
 /// [label] at the start, then minus, the value in Arabic-Indic digits with
 /// its optional [unit], and plus. The value stays within [min] and [max]; at
-/// a bound, the button that would pass it is disabled.
+/// a bound, the button that would pass it is disabled. A null [onChanged]
+/// disables both buttons, and the setting is announced as disabled.
 ///
 /// Each button is named after the setting («زيادة …»), and the value is a
 /// live region, announced when it changes. A keyboard user who steps to a
@@ -70,7 +71,7 @@ class Stepper extends StatefulWidget {
   final int min;
   final int max;
   final String? unit;
-  final ValueChanged<int> onChanged;
+  final ValueChanged<int>? onChanged;
 
   @override
   State<Stepper> createState() => _StepperState();
@@ -119,13 +120,15 @@ class _StepperState extends State<Stepper> {
     super.dispose();
   }
 
-  void _set(int next) => widget.onChanged(next.clamp(widget.min, widget.max));
+  void _set(int next) =>
+      widget.onChanged?.call(next.clamp(widget.min, widget.max));
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final l10n = AppLocalizations.of(context);
-    final Stepper(:label, :value, :min, :max, :unit) = widget;
+    final Stepper(:label, :value, :min, :max, :unit, :onChanged) = widget;
+    final enabled = onChanged != null;
     final digits = arabicDigits(value);
     final valueText = unit == null
         ? digits
@@ -139,9 +142,14 @@ class _StepperState extends State<Stepper> {
           spacing: AppSpacing.space3,
           children: [
             Expanded(
-              child: Text(
-                label,
-                style: _labelStyle.copyWith(color: colors.ink),
+              // The label is the node a reader announces, so it carries the
+              // disabled state; an enabled setting states none, as before.
+              child: Semantics(
+                enabled: enabled ? null : false,
+                child: Text(
+                  label,
+                  style: _labelStyle.copyWith(color: colors.ink),
+                ),
               ),
             ),
             Row(
@@ -154,7 +162,9 @@ class _StepperState extends State<Stepper> {
                   child: _StepButton(
                     icon: IconName.minus,
                     label: l10n.stepperDecrease(label),
-                    onPressed: value > min ? () => _set(value - 1) : null,
+                    onPressed: enabled && value > min
+                        ? () => _set(value - 1)
+                        : null,
                   ),
                 ),
                 Semantics(
@@ -180,7 +190,9 @@ class _StepperState extends State<Stepper> {
                   child: _StepButton(
                     icon: IconName.plus,
                     label: l10n.stepperIncrease(label),
-                    onPressed: value < max ? () => _set(value + 1) : null,
+                    onPressed: enabled && value < max
+                        ? () => _set(value + 1)
+                        : null,
                   ),
                 ),
               ],

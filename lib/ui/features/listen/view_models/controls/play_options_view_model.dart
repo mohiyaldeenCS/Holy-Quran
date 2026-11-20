@@ -11,8 +11,9 @@ import 'package:holyquran/domain/models/quran_address.dart';
 import 'current_plan.dart';
 
 /// Play from the ayah tools (`AU-03`): from [address] to the end of the
-/// ayah, page, surah or juz, or until stopped. It plays with the recitation,
-/// repeat and silence of the last plan; before any plan it offers nothing.
+/// ayah, page, surah or juz, or until stopped; or add [address] to the end
+/// of its surah to the queue (`AU-17`). Both take the recitation, repeat and
+/// silence of the last plan; before any plan it offers nothing.
 final class PlayOptionsViewModel extends ChangeNotifier with PlaysOnce {
   PlayOptionsViewModel({
     required this.address,
@@ -48,6 +49,19 @@ final class PlayOptionsViewModel extends ChangeNotifier with PlaysOnce {
     }
     return false;
   });
+
+  /// Whether [enqueue] can add a plan.
+  bool get canEnqueue => _outcome(AyahToolEnd.surah) is PlanReady;
+
+  /// Adds [address] to the end of its surah after the plans already queued;
+  /// false when it cannot.
+  bool enqueue() {
+    if (_outcome(AyahToolEnd.surah) case PlanReady(:final plan)) {
+      _player.enqueue(plan);
+      return true;
+    }
+    return false;
+  }
 
   PlanOutcome? _outcome(AyahToolEnd until) => switch (_player.state.plan) {
     final plan? when _inEdition => rebuildPlan(

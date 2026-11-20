@@ -652,4 +652,60 @@ void main() {
       expect(plan.segments.first.source, const IstiadhaFile());
     });
   });
+
+  group('the repeat unit being heard (AU-09)', () {
+    final range = AyahSpan(QuranRange(_a('2:3'), _a('3:4')));
+
+    PlaybackPlan repeating(RepeatUnit unit) =>
+        _plan(range, repeat: RepeatMode(unit, 2));
+
+    List<String>? unitOf(PlaybackPlan plan, String ayah) =>
+        switch (_builder.unitHolding(plan, _a(ayah))) {
+          final unit? => _ayat(unit),
+          null => null,
+        };
+
+    test('is the ayah, page or surah heard, cut to the range', () {
+      expect(unitOf(repeating(RepeatUnit.ayah), '2:7'), ['2:7']);
+      expect(unitOf(repeating(RepeatUnit.page), '2:4'), _span('2:3', '2:5'));
+      expect(unitOf(repeating(RepeatUnit.page), '3:1'), _span('2:11', '3:2'));
+      expect(unitOf(repeating(RepeatUnit.page), '3:4'), _span('3:3', '3:4'));
+      expect(unitOf(repeating(RepeatUnit.surah), '2:8'), _span('2:3', '2:12'));
+      expect(unitOf(repeating(RepeatUnit.surah), '3:2'), _span('3:1', '3:4'));
+    });
+
+    test('is the range itself when the range is repeated whole', () {
+      final plan = repeating(RepeatUnit.range);
+      expect(_builder.unitHolding(plan, _a('2:7')), same(plan.range));
+    });
+
+    test('is none for an ayah the plan does not play', () {
+      expect(unitOf(repeating(RepeatUnit.range), '2:2'), isNull);
+      expect(unitOf(repeating(RepeatUnit.page), '3:5'), isNull);
+    });
+
+    test('is the surah heard of a plan that runs on, still running on', () {
+      final plan = _plan(WholeSurah(8), continueToNextSurah: true);
+      expect(
+        _builder.unitHolding(plan, _a('9:3')),
+        isA<WholeSurah>().having((whole) => whole.surah, 'surah', 9),
+      );
+      expect(_builder.unitHolding(plan, _a('7:1')), isNull);
+      final byAyah = _plan(
+        WholeSurah(8),
+        repeat: RepeatMode(RepeatUnit.ayah, 2),
+        continueToNextSurah: true,
+      );
+      expect(unitOf(byAyah, '9:3'), ['9:3']);
+    });
+
+    test('is a whole surah of surah files', () {
+      final plan = _plan(
+        SurahSet([2, 5]),
+        recitation: _recitation(unit: RecitationUnit.surah),
+        repeat: RepeatMode(RepeatUnit.surah, 2),
+      );
+      expect(unitOf(plan, '5:1'), _span('5:1', '5:6'));
+    });
+  });
 }
