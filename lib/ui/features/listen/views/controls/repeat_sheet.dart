@@ -5,11 +5,12 @@ import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/core/widgets/icon_paths.g.dart';
 import 'package:holyquran/ui/core/widgets/stepper.dart';
+import 'package:holyquran/ui/core/widgets/switch.dart';
 import 'package:holyquran/ui/features/listen/view_models/controls/repeat_sheet_view_model.dart';
 import 'package:holyquran/ui/features/listen/views/controls/controls_sheet.dart';
 
-/// The repeat count (`AU-09`): a `Stepper` from 1 to 99, then play. Before
-/// any plan it is empty.
+/// The repeat count (`AU-09`): a `Stepper` from 1 to 99, a `Switch` for
+/// «بلا نهاية», then play. Before any plan it is empty.
 class RepeatSheet extends StatelessWidget {
   const RepeatSheet({required this.viewModel, super.key});
 
@@ -30,6 +31,11 @@ class RepeatSheet extends StatelessWidget {
             min: vm.min,
             max: vm.max,
             onChanged: vm.setCount,
+          ),
+          Switch(
+            label: l10n.repeatUnlimited,
+            value: vm.unlimited,
+            onChanged: vm.setUnlimited,
           ),
           Button(
             label: l10n.playerPlay,

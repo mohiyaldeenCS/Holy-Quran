@@ -7,25 +7,20 @@ import 'package:holyquran/domain/models/repeat_mode.dart';
 
 import 'current_plan.dart';
 
-/// The repeat count (`AU-09`), from 1 to 99, opening at the count of the
-/// plan playing. Its unit stays the plan's. Playing builds the plan playing
-/// then again with the count and goes on from the segment being heard.
-///
-/// A plan without end opens at 1 and stays without end until the count is
-/// changed: the sheet has no choice for it yet, so playing then changes
-/// nothing.
+/// The repeat count (`AU-09`), from 1 to 99 or without end, opening at the
+/// repeat of the plan playing. Its unit stays the plan's. Playing builds the
+/// plan playing then again with the repeat and goes on from the segment
+/// being heard; a plan without end left without end is not rebuilt.
 final class RepeatSheetViewModel extends ChangeNotifier with PlaysOnce {
   RepeatSheetViewModel({required this._player, required this._builder})
-    : _count = switch (_player.state.plan) {
-        final plan? => plan.repeat.count,
-        null => RepeatMode.minCount,
-      };
+    : _unlimited = _player.state.plan?.repeat.isUnlimited ?? false,
+      _count = _player.state.plan?.repeat.count ?? RepeatMode.minCount;
 
   final PlayerRepository _player;
   final PlaybackPlanBuilder _builder;
 
-  /// Null while a plan without end is left as it is.
-  int? _count;
+  bool _unlimited;
+  int _count;
 
   /// False before any plan, and when the plan repeats ayat or pages of
   /// surah files without timing data, which repeat whole surahs only
@@ -38,16 +33,26 @@ final class RepeatSheetViewModel extends ChangeNotifier with PlaysOnce {
     null => false,
   };
 
-  int get count => _count ?? min;
+  int get count => _count;
 
   int get min => RepeatMode.minCount;
 
   int get max => RepeatMode.maxCount;
 
+  /// «بلا نهاية»: setting a count turns it off.
+  bool get unlimited => _unlimited;
+
   void setCount(int count) {
     final next = count.clamp(min, max);
-    if (next == _count) return;
+    if (next == _count && !_unlimited) return;
     _count = next;
+    _unlimited = false;
+    notifyListeners();
+  }
+
+  void setUnlimited(bool unlimited) {
+    if (unlimited == _unlimited) return;
+    _unlimited = unlimited;
     notifyListeners();
   }
 
@@ -55,12 +60,14 @@ final class RepeatSheetViewModel extends ChangeNotifier with PlaysOnce {
     final state = _player.state;
     final plan = state.plan;
     if (plan == null || !available) return false;
-    final count = _count;
-    if (count == null && plan.repeat.isUnlimited) return true;
+    if (_unlimited && plan.repeat.isUnlimited) return true;
+    final unit = plan.repeat.unit;
     final outcome = rebuildPlan(
       _builder,
       plan,
-      repeat: count == null ? plan.repeat : RepeatMode(plan.repeat.unit, count),
+      repeat: _unlimited
+          ? RepeatMode.unlimited(unit)
+          : RepeatMode(unit, _count),
     );
     if (outcome is! PlanReady) return false;
     await _player.play(
