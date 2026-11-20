@@ -20,7 +20,7 @@ void main() {
     AppStart(
       // Listened to at once: a step that fails before the first frame would
       // otherwise be an uncaught error, and the splash would stay.
-      start: AppStartViewModel(buildDependencies()),
+      start: AppStartViewModel(startDependencies()),
       unapprovedCopy: unapprovedCopy,
     ),
   );
@@ -61,7 +61,7 @@ class _AppStartState extends State<AppStart> {
         delegates: AppLocalizations.localizationsDelegates,
         child: const Splash(),
       ),
-      StartFailed() => const StartFailedScreen(),
+      StartFailed(:final theme) => StartFailedScreen(theme: theme),
       StartReady(:final providers) => MultiProvider(
         providers: providers,
         child: QuranApp(router: _router, unapprovedCopy: widget.unapprovedCopy),

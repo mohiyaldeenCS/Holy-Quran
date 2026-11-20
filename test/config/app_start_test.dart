@@ -139,7 +139,7 @@ void main() {
     testWidgets('the start leaves the splash when $step', (tester) async {
       await tester.pumpWidget(
         app.AppStart(
-          start: AppStartViewModel(buildDependencies(areas: [area])),
+          start: AppStartViewModel(startDependencies(areas: [area])),
         ),
       );
       await tester.pumpAndSettle();
@@ -147,6 +147,49 @@ void main() {
       expect(tester.takeException(), isNotNull);
       expect(find.byType(Splash), findsNothing);
       expect(find.byType(StartFailedScreen), findsOneWidget);
+    });
+  }
+
+  for (final (shownIn, saved, colors) in [
+    (
+      'the saved theme when the settings were read',
+      const ThemePreference(theme: ReadingTheme.sepia),
+      AppColors.sepia,
+    ),
+    (
+      'the saved theme, which follows the dark system',
+      const ThemePreference(followSystemDark: true),
+      AppColors.night,
+    ),
+    (
+      'paper, dark system or not, when no settings were read',
+      null,
+      AppColors.paper,
+    ),
+  ]) {
+    testWidgets('a failed start is shown in $shownIn', (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      await tester.pumpWidget(
+        app.AppStart(
+          start: AppStartViewModel(
+            startDependencies(
+              areas: [
+                if (saved case final preference?)
+                  (dependencies) async =>
+                      dependencies.provideListenable<AppSettingsRepository>(
+                        FakeAppSettingsRepository(themePreference: preference),
+                      ),
+                (_) async => throw const FormatException('synthetic'),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isFormatException);
+      expect(tester.element(find.byType(IntegrityAlert)).colors, same(colors));
     });
   }
 

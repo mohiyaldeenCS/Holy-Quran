@@ -13,6 +13,8 @@ import 'package:holyquran/config/providers/share_providers.dart';
 import 'package:holyquran/config/providers/tafsir_providers.dart';
 import 'package:holyquran/config/providers/user_data_providers.dart';
 import 'package:holyquran/config/providers/user_database_providers.dart';
+import 'package:holyquran/data/repositories/app_settings_repository.dart';
+import 'package:holyquran/domain/models/start_failure.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
@@ -40,12 +42,26 @@ const List<AreaSetup> appAreas = [
 /// The app's providers, built by setting up [areas] one after another.
 Future<List<SingleChildWidget>> buildDependencies({
   List<AreaSetup> areas = appAreas,
+}) => Dependencies._()._setUp(areas);
+
+/// [buildDependencies] for the start of the app: an area that throws ends
+/// it in a [StartFailure], with the user's theme when an area before it read
+/// the settings, so that the failed start is shown in that theme.
+Future<List<SingleChildWidget>> startDependencies({
+  List<AreaSetup> areas = appAreas,
 }) async {
   final dependencies = Dependencies._();
-  for (final area in areas) {
-    await area(dependencies);
+  try {
+    return await dependencies._setUp(areas);
+  } catch (error, stack) {
+    Error.throwWithStackTrace(
+      StartFailure(
+        error,
+        theme: dependencies.tryRead<AppSettingsRepository>()?.themePreference,
+      ),
+      stack,
+    );
   }
-  return dependencies._providers;
 }
 
 /// What the areas set up so far have provided.
@@ -88,6 +104,13 @@ final class Dependencies {
   void provideListenable<T extends Listenable>(T value) {
     _keep<T>(value);
     _providers.add(ListenableProvider<T>.value(value: value));
+  }
+
+  Future<List<SingleChildWidget>> _setUp(List<AreaSetup> areas) async {
+    for (final area in areas) {
+      await area(this);
+    }
+    return _providers;
   }
 
   void _keep<T extends Object>(T value) {

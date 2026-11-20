@@ -9,17 +9,26 @@ import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 
 /// What a start that failed shows in place of the splash: the integrity
-/// alert where home shows the base pack's (PRD §9.5, D-180). Nothing was
-/// read, the user's theme included, so it is in the default `paper` theme.
+/// alert where home shows the base pack's (PRD §9.5, D-180), in [theme] as
+/// the app would show it, following a dark system when [theme] says so.
 class StartFailedScreen extends StatelessWidget {
-  const StartFailedScreen({super.key});
+  const StartFailedScreen({required this.theme, super.key});
+
+  final ThemePreference theme;
 
   @override
-  Widget build(BuildContext context) => Localizations(
-    locale: const Locale('ar'),
-    delegates: AppLocalizations.localizationsDelegates,
-    child: Theme(data: buildAppTheme(ReadingTheme.paper), child: const _Body()),
-  );
+  Widget build(BuildContext context) {
+    final systemIsDark =
+        MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    return Localizations(
+      locale: const Locale('ar'),
+      delegates: AppLocalizations.localizationsDelegates,
+      child: Theme(
+        data: buildAppTheme(theme.resolve(systemIsDark: systemIsDark)),
+        child: const _Body(),
+      ),
+    );
+  }
 }
 
 class _Body extends StatelessWidget {
