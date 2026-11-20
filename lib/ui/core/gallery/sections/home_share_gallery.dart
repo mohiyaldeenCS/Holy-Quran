@@ -116,7 +116,7 @@ class HomeShareGallery extends StatelessWidget {
         GallerySection(
           title: l10n.copySheetTitle,
           child: CopySheet(
-            forms: const [CopyForm.withSurahAndNumber],
+            forms: CopyForm.values,
             selected: CopyForm.withSurahAndNumber,
             onSelected: _ignore,
             onCopy: _none,
