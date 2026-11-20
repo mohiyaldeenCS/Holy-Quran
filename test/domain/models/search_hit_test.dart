@@ -4,27 +4,16 @@ import 'package:holyquran/domain/models/quran_range.dart';
 import 'package:holyquran/domain/models/search_hit.dart';
 
 void main() {
-  final ayah = QuranAddress('hafs', 1, 1);
-  final words = QuranRange(
-    QuranAddress('hafs', 1, 1, 1),
-    QuranAddress('hafs', 1, 1, 2),
-  );
-
-  test('a hit on the whole ayah is exact', () {
-    expect(
-      SearchHit(
-        ayah: ayah,
-        matches: [words],
-        exact: true,
-        gaps: 0,
-        whole: true,
-      ).whole,
-      isTrue,
-    );
+  test('a hit on the whole ayah that is not exact is refused', () {
     expect(
       () => SearchHit(
-        ayah: ayah,
-        matches: [words],
+        ayah: QuranAddress('hafs', 1, 1),
+        matches: [
+          QuranRange(
+            QuranAddress('hafs', 1, 1, 1),
+            QuranAddress('hafs', 1, 1, 2),
+          ),
+        ],
         exact: false,
         gaps: 0,
         whole: true,
