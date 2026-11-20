@@ -35,6 +35,7 @@ class KfgqpcAya:
     juz: int
     page: int
     text: str
+    emlaey: str
 
 
 def read_kfgqpc_file(path, ayat):
@@ -126,6 +127,7 @@ def _entry(entry, index):
         juz=entry["jozz"],
         page=entry["page"],
         text=entry["aya_text"],
+        emlaey=entry["aya_text_emlaey"],
     )
 
 

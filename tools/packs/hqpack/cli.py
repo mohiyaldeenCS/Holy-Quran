@@ -1,4 +1,5 @@
-"""The command line: build, tafsir, verify, sign, verify-signature, compare, review-page, kfgqpc-counts and drift.
+"""The command line: build, tafsir, verify, sign, verify-signature, compare, review-page, kfgqpc-counts,
+kfgqpc-measure and drift.
 
 `verify` and `sign` choose their checks by the manifest's kind: a text pack
 with its font and mark table, a tafsir pack with the P5 ayah counts and its
@@ -15,7 +16,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import compare, drift, review_page
+from . import compare, drift, kfgqpc_measure, review_page
 from .ayah_counts import read_ayah_counts
 from .build import build_pack
 from .digest import sha256_bytes
@@ -162,6 +163,19 @@ def _parser():
     counts.add_argument("--date", required=True, help="the day the counts are taken, YYYY-MM-DD")
     counts.add_argument("--out", required=True, type=Path, help="where the counts file is written")
     counts.set_defaults(run=_kfgqpc_counts)
+
+    measure = commands.add_parser(
+        "kfgqpc-measure", help="write counts of the KFGQPC Hafs text for the plan of D-195 (B0.2); no text"
+    )
+    measure.add_argument("--kfgqpc", required=True, type=Path, help="KFGQPC's hafsData_v2-0.json")
+    measure.add_argument("--font", required=True, type=Path, help="KFGQPC's uthmanic_hafs_v20.ttf, for its cmap")
+    measure.add_argument("--table", required=True, type=Path, help="the table of known differences, for the ayah end")
+    measure.add_argument("--text", type=Path, help="the Tanzil quran-uthmani text XML, with --metadata")
+    measure.add_argument("--metadata", type=Path, help="Tanzil's quran-data.xml, with --text")
+    measure.add_argument(
+        "--report", required=True, type=Path, help="where the report (JSON, counts only) is written, outside every Git working tree"
+    )
+    measure.set_defaults(run=_kfgqpc_measure)
 
     timing = commands.add_parser(
         "drift",
@@ -377,6 +391,20 @@ def _kfgqpc_counts(args, out):
     print("counts %s" % args.out, file=out)
     print("kfgqpc sha256 %s" % counts["kfgqpc_file"]["sha256"], file=out)
     print("surahs %d ayat %d" % (len(counts["surahs"]), counts["total"]), file=out)
+    return 0
+
+
+def _kfgqpc_measure(args, out):
+    if (args.text is None) != (args.metadata is None):
+        raise _Usage("--text and --metadata go together")
+    drift.check_report_path(args.report)
+    report = kfgqpc_measure.run_measure(
+        args.kfgqpc, args.font, args.table, PROFILES["hafs"], text_path=args.text, metadata_path=args.metadata
+    )
+    args.report.write_bytes(kfgqpc_measure.encode_report(report))
+    for line in kfgqpc_measure.lines(report):
+        print(line, file=out)
+    print("report %s" % args.report, file=out)
     return 0
 
 

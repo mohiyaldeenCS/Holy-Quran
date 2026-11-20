@@ -51,14 +51,15 @@ All under `hqpack/`. Each raises `errors.PackError` with a message as above.
 | `tafsir_config.py` | The tafsir description | `read_tafsir_config(path) -> TafsirConfig` |
 | `tafsir_build.py` | The tafsir pipeline: inputs, gate, conversion, font, database, read-back (P4), manifest, verifier, move into place | `build_tafsir_pack(config, honorifics, reviews, ayah_counts, font, out) -> TafsirBuildResult`, `TAFSIR_FONT_SHA256` |
 | `signing.py` | The signing seam (D-080, O-03): `Signer` with `sign(data) -> 64 bytes`; `OpenSslEd25519Signer(key_path)` runs `openssl pkeyutl -sign -rawin`; `sign_pack` writes `manifest.json.sig` for a pack that verifies; `verify_signature` checks it with a public key | `sign_pack(directory, signer)`, `verify_signature(directory, public_key_path)` |
-| `cli.py` | `build` (with `--unapproved-test-copy`, `--kfgqpc`, `--table`), `tafsir`, `verify` and `sign` (both by the pack's kind), `verify-signature`, `compare`, `review-page`, `kfgqpc-counts`, `drift`; prints counts, hashes, paths and `U+XXXX` only | `main(argv) -> exit code` |
-| `kfgqpc.py` | KFGQPC's `hafsData_v2-0.json` (registry row 2, B0.2, D-175, D-177): UTF-8 without a BOM, as published (a BOM is refused, and so is a file whose first bytes are not `5B 0A 09`), an array of objects with exactly the read.me's eleven columns, integers and strings typed strictly, ids 1..n in order, ayat in mushaf order; the published file name | `read_kfgqpc(data, ayat) -> [KfgqpcAya(id, surah, number, juz, page, text)]`, `read_kfgqpc_file(path, ayat) -> (ayat, sha256)` |
+| `cli.py` | `build` (with `--unapproved-test-copy`, `--kfgqpc`, `--table`), `tafsir`, `verify` and `sign` (both by the pack's kind), `verify-signature`, `compare`, `review-page`, `kfgqpc-counts`, `kfgqpc-measure`, `drift`; prints counts, hashes, paths and `U+XXXX` only | `main(argv) -> exit code` |
+| `kfgqpc.py` | KFGQPC's `hafsData_v2-0.json` (registry row 2, B0.2, D-175, D-177): UTF-8 without a BOM, as published (a BOM is refused, and so is a file whose first bytes are not `5B 0A 09`), an array of objects with exactly the read.me's eleven columns, integers and strings typed strictly, ids 1..n in order, ayat in mushaf order; the published file name | `read_kfgqpc(data, ayat) -> [KfgqpcAya(id, surah, number, juz, page, text, emlaey)]`, `read_kfgqpc_file(path, ayat) -> (ayat, sha256)` |
 | `known_differences.py` | The table of known encoding differences, `tools/packs/known_differences.json` | `read_table(data) -> Table(version, ayah_end, ayah_end_separators, quarter_start, surah_opening_quarter_start, equivalences)`, `Table.ayah_end_rule_at(address) -> Rule or None` |
 | `compare.py` | The comparison of PRD 9.4 and the page, juz and quarter comparison of P2; the report; with a `Trace`, every difference as a `Place` (the two whole ayat and the difference's range in each, in memory only) for the review page | `run_comparison(text, metadata, kfgqpc_path, table_path, profile, tanzil_sha256, trace=None) -> report` (`tanzil_sha256` is `{"text": hex, "metadata": hex}`), `compare(text, metadata, witness, table, trace=None) -> report`, `summary(report)`, `encode_report(report) -> bytes` |
 | `review_page.py` | The reciter's review page (D-176, D-178): runs the comparison, sorts the differences into sections A to C, checks the fonts and the output folder, writes the page and the two fonts | `write_review_page(text, metadata, kfgqpc, table, tanzil_font, kfgqpc_font, out, profile) -> ReviewResult`, `classify(places) -> Sections(a, b, c)` |
 | `review_html.py` | The page's HTML from `review_page.html` (frame, style, script) and `review_page.ar.json` (the Arabic labels); the only path from a source text to the page is `parts`, checked by `check_parts` | `render(Page) -> str`, `marked_span(text, start, end)`, `parts(text, start, end)` |
 | `git_tree.py` | Whether a path is inside a Git working tree, without a `git` program | `git_tree(path) -> directory or None` |
 | `kfgqpc_counts.py` | The P5 reference counts from the KFGQPC file alone (B0.3) | `kfgqpc_counts(path, date, profile)`, `encode_counts(counts) -> bytes` |
+| `kfgqpc_measure.py` | The counts the plan for D-195 rests on (B0.2, D-198): pause marks joined to letters, U+00A0 by position, code points the KFGQPC font lacks, emlaey against Uthmani token counts, U+06E9 against Tanzil's sajdas, Tanzil against KFGQPC token counts; counts, addresses and `U+XXXX` only | `run_measure(kfgqpc, font, table, profile, text_path=None, metadata_path=None) -> report`, `measure(ayat, font_code_points, table, text=None, metadata=None)`, `encode_report(report) -> bytes`, `lines(report)` |
 | `mp3.py` | A strict MPEG audio Layer III reader that decodes no sample (B0.5, D-179): skips one ID3v2 tag at the start (its footer only for ID3v2.4) and an ID3v1 and an APEv2 tag at the end (128 bytes from `TAG` are audio when the frame walk ends exactly at the end of the file), walks every frame header (MPEG 1, 2, 2.5; free bitrate and Layers I and II refused), reads a Xing, Info or VBRI info frame, whose frame count must equal the audio frames or exceed them by one (`xing_count`: `equal` or `includes_info_frame`, else refused), and a LAME tag, whose delay and padding are used only when its CRC-16 holds (`lame_tag`: `none`, `valid` or `crc_mismatch`); refuses a lost sync, a truncated frame, or a change of MPEG version, sample rate or channel count, naming the byte offset | `read_mp3(data) -> Mp3Audio(version, sample_rate, channel_mode, channels, frames, samples_per_frame, frame_ms, granule_ms, duration_ms, delay_known, encoder_delay, padding, lame_tag, xing_count, granules: [Granule(start_ms, channels: ((part2_3_length, global_gain), ...))])` |
 | `quran_align.py` | quran-align word timing (registry row 6), strictly: every ayah of the profile once, integer fields, word indices increasing; a segment whose times cannot be right is kept and marked defective, and an entry without segments is an ayah without timing (D-179) | `read_timing(data, profile, metadata=None) -> {(surah, ayah): Timing(surah, ayah, segments: [Segment(word_start, word_end, start_ms, end_ms, defects)], segments_field)}`, `Timing.sound()` |
 | `drift.py` | The drift measurement between a timing file and a folder of per-ayah MP3 files, and its verdict (see "Recitation drift") | `run_drift(timing, audio_dir, edition, profile, text_path=None, metadata_path=None) -> report`, `encode_report(report) -> bytes`, `lines(report)`, `verdict(summary)` |
@@ -104,6 +105,7 @@ python3 tools/packs/pack.py build --config <build.json> --font assets/fonts/Amir
 python3 tools/packs/pack.py compare --text <tanzil xml> --metadata <quran-data.xml> --kfgqpc <hafsData_v2-0.json> --table tools/packs/known_differences.json --report <out.json>
 python3 tools/packs/pack.py review-page --text <tanzil xml> --metadata <quran-data.xml> --kfgqpc <hafsData_v2-0.json> --table tools/packs/known_differences.json --tanzil-font assets/fonts/AmiriQuran-Regular.ttf --kfgqpc-font <uthmanic_hafs_v20.ttf> --out <new folder outside every Git tree>
 python3 tools/packs/pack.py kfgqpc-counts --kfgqpc <hafsData_v2-0.json> --date <YYYY-MM-DD> --out testing/reference/kfgqpc-hafs-counts.json
+python3 tools/packs/pack.py kfgqpc-measure --kfgqpc <hafsData_v2-0.json> --font <uthmanic_hafs_v20.ttf> --table tools/packs/known_differences.json [--text <tanzil xml> --metadata <quran-data.xml>] --report <out.json outside every Git tree>
 python3 tools/packs/pack.py drift --timing <quran-align json> --audio <folder of SSSAAA.mp3> --edition <folder name> [--text <tanzil xml> --metadata <quran-data.xml>] [--report <out.json outside every Git tree>]
 ```
 
@@ -117,6 +119,7 @@ python3 tools/packs/pack.py drift --timing <quran-align json> --audio <folder of
 | `compare` | Runs the KFGQPC comparison against the `hafs` profile (6,236 ayat) and writes the report; exits 65 when the report has any problem, 0 when it has none |
 | `review-page` | Runs the KFGQPC comparison and writes the reciter's review page into a new or empty folder outside every Git working tree (see "The reciter's review page"); exits 0 when the page is written, whatever the comparison found |
 | `kfgqpc-counts` | Writes the P5 reference counts of the KFGQPC file; `--date` is the day they are taken, so the same file and date give the same bytes |
+| `kfgqpc-measure` | Measures the KFGQPC Hafs text before the pipeline changes for D-195 and writes a report of counts, addresses (`hafs:s:a`; the `first` lists hold at most ten, the sajda lists every address) and `U+XXXX` only, outside every Git working tree; prints one summary line per measurement; exits 0 when the report is written (see "The KFGQPC measurement") |
 | `drift` | Measures drift between a recitation's quran-align timing and a sample of its everyayah files, prints one line per file, the summary and the verdict, and writes the report if `--report` is given (see "Recitation drift"); exits 0 on PASS and 65 on FAIL, whatever the word index problems |
 
 To try it on the synthetic source:
@@ -366,6 +369,26 @@ changed here; the lead decides (D-175).
 
 with all 114 surahs. The lead runs it where the KFGQPC file is, and commits the
 result as `testing/reference/kfgqpc-hafs-counts.json`.
+
+## The KFGQPC measurement (B0.2, D-195, D-198)
+
+`kfgqpc-measure` (B0.2, D-195, D-198) reads `hafsData_v2-0.json` through `kfgqpc.py`,
+the font's cmap through `font.py` (the standard-library reader the review page uses,
+not fontTools, D-035), the table for the ayah end, and with `--text` and `--metadata`
+Tanzil's two files. Tokens are the runs between U+0020; empty runs are counted, never
+kept. The Uthmani tokens of an ayah are those of `aya_text` without the ayah-end tail of
+the table's `ayah_end` rule (its separator and the ayah's own number glyph); an ayah
+without that tail is counted under `ayah_end_tail` and tokenised whole. A quarter
+opening (U+06DE U+00A0) that stands before a space is a token of its own.
+
+| Key | Holds |
+| --- | --- |
+| `pause_marks_joined_to_letters` | Tokens holding a mark U+06D6 to U+06DB and a letter (Unicode category L), the ayat that have one, the count per mark, and the tokens that are marks alone |
+| `no_break_spaces` | U+00A0 in `aya_text`: the total, those of the ayah-end tail, those of a quarter opening, and the rest (`elsewhere`) |
+| `missing_from_font` | For `aya_text` and `aya_text_emlaey`, each code point the font's cmap lacks, with its occurrences and ayat |
+| `emlaey_against_uthmani_tokens` | The histogram of emlaey tokens minus Uthmani tokens per ayah, and the ayat that differ |
+| `sajda_sign` | The ayat holding U+06E9, against Tanzil's sajda list when the metadata is given |
+| `tanzil_token_map` | A token-to-token map is not measured: `compare.py` aligns code points and exposes no token map. With `--text`, the histogram of Tanzil tokens minus KFGQPC Uthmani tokens per ayah; where they differ a one-to-one map has a gap |
 
 ## The reciter's review page (B0.2, D-176, D-178)
 
