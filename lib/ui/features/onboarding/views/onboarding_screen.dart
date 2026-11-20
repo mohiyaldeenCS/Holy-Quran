@@ -170,10 +170,7 @@ class _RecitationChoice extends StatelessWidget {
     return RadioRow(
       selected: true,
       onTap: () {},
-      child: Text(
-        recitation.recitation.reciter,
-        style: RadioRow.labelStyle,
-      ),
+      child: Text(recitation.recitation.reciter, style: RadioRow.labelStyle),
     );
   }
 }

@@ -11,6 +11,7 @@ import 'package:holyquran/routing/startup_redirect.dart';
 import 'package:holyquran/ui/core/app.dart';
 import 'package:holyquran/ui/core/widgets/level_switch.dart';
 import 'package:holyquran/ui/core/widgets/lockup.dart';
+import 'package:holyquran/ui/core/widgets/radio_row.dart';
 import 'package:holyquran/ui/features/home/views/home_screen.dart';
 import 'package:holyquran/ui/features/onboarding/views/onboarding_screen.dart';
 import 'package:provider/provider.dart';
@@ -39,7 +40,8 @@ Future<GoRouter> _pumpApp(
 }
 
 void main() {
-  testWidgets('shows the level step under the lockup', (tester) async {
+  testWidgets('shows the display mode first, with its one choice, under '
+      'the lockup (D-127)', (tester) async {
     await _pumpApp(
       tester,
       FakeAppSettingsRepository(),
@@ -48,29 +50,52 @@ void main() {
 
     expect(find.byType(OnboardingScreen), findsOneWidget);
     expect(find.byType(Lockup), findsOneWidget);
+    expect(find.text(_l10n.setupStepDisplayMode), findsOneWidget);
+    expect(find.text(_l10n.setupDisplayModePrompt), findsOneWidget);
+    expect(tester.widget<RadioRow>(find.byType(RadioRow)).selected, isTrue);
+    expect(find.text(_l10n.displayModeSurah), findsOneWidget);
+    expect(find.text(_l10n.setupContinue), findsOneWidget);
+    expect(find.bySemanticsLabel(_l10n.setupStepDisplayMode), findsOneWidget);
+  });
+
+  testWidgets('passes the three steps, stores the level at once, then goes '
+      'home (LV-01, LV-02)', (tester) async {
+    final settings = FakeAppSettingsRepository();
+    final router = await _pumpApp(
+      tester,
+      settings,
+      location: Routes.onboarding,
+    );
+
+    await tester.tap(find.text(_l10n.setupContinue));
+    await tester.pumpAndSettle();
+    expect(find.text(_l10n.setupLevelPrompt), findsOneWidget);
     expect(
       tester.widget<LevelSwitch>(find.byType(LevelSwitch)).semanticLabel,
       _l10n.levelLabel,
     );
-    final lockupBottom = tester.getBottomLeft(find.byType(Lockup)).dy;
-    expect(
-      tester.getTopLeft(find.byType(LevelSwitch)).dy,
-      greaterThan(lockupBottom),
-    );
-  });
-
-  testWidgets('a chosen level applies at once', (tester) async {
-    final settings = FakeAppSettingsRepository();
-    await _pumpApp(tester, settings, location: Routes.onboarding);
+    expect(settings.level, UiLevel.simple);
 
     await tester.tap(find.text(_l10n.levelMedium));
     await tester.pump();
-
     expect(settings.level, UiLevel.medium);
     expect(
       tester.element(find.byType(OnboardingScreen)).read<UiLevel>(),
       UiLevel.medium,
     );
+
+    await tester.tap(find.text(_l10n.setupContinue));
+    await tester.pumpAndSettle();
+    expect(find.text(_l10n.setupStepRecitation), findsOneWidget);
+    expect(find.text(_l10n.setupRecitationPrompt), findsOneWidget);
+    expect(settings.levelChosen, isFalse);
+
+    await tester.tap(find.text(_l10n.setupFinish));
+    await tester.pumpAndSettle();
+
+    expect(settings.levelChosen, isTrue);
+    expect(find.byType(HomeScreen), findsOneWidget);
+    expect(router.state.uri.path, Routes.home);
   });
 
   testWidgets('a finished setup goes to the home tab', (tester) async {
@@ -92,6 +117,10 @@ void main() {
       location: Routes.onboarding,
     );
 
+    expect(tester.takeException(), isNull);
+    expectWordsFit(tester, find.text(_l10n.displayModeSurah));
+    await tester.tap(find.text(_l10n.setupContinue));
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     for (final label in [
       _l10n.levelSimple,
