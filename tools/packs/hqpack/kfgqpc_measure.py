@@ -28,8 +28,8 @@ from .tokens import is_letter
 
 FORMAT = "holyquran-kfgqpc-measure"
 PAUSE_MARKS = range(0x06D6, 0x06DC)
-NO_BREAK_SPACE = " "
-SAJDA_SIGN = "۩"
+NO_BREAK_SPACE = "\u00a0"
+SAJDA_SIGN = "\u06e9"
 SPACE = " "
 FIRST_ADDRESSES = 10
 TOKEN_MAP_NOT_MEASURED = (

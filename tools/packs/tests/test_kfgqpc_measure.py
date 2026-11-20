@@ -37,7 +37,7 @@ def _measure(ayat, font=None, text=None, metadata=None):
 
 class MeasureTest(BuildCase):
     def test_a_pause_mark_joined_to_letters_is_counted_per_mark(self):
-        ayat = _ayat(_entries(surahs_with_ayah(1, 1, "Syntheticۖ oneۗ")))
+        ayat = _ayat(_entries(surahs_with_ayah(1, 1, "Synthetic\u06d6 one\u06d7")))
         pause = _measure(ayat)["pause_marks_joined_to_letters"]
         self.assertEqual(pause["tokens"], 2)
         self.assertEqual(pause["ayat"], 1)
@@ -46,7 +46,7 @@ class MeasureTest(BuildCase):
         self.assertEqual(pause["first"], ["hafs:1:1"])
 
     def test_no_break_spaces_by_position(self):
-        spaces = _measure(_ayat(_entries(surahs_with_ayah(3, 1, "Synthetic last"))))["no_break_spaces"]
+        spaces = _measure(_ayat(_entries(surahs_with_ayah(3, 1, "Synthetic\u00a0last"))))["no_break_spaces"]
         self.assertEqual(spaces["at_ayah_end"], AYAT)
         self.assertEqual(spaces["at_quarter_opening"], 5)
         self.assertEqual(spaces["elsewhere"], {"count": 1, "ayat": 1, "first": ["hafs:3:1"]})
