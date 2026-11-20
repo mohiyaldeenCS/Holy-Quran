@@ -780,8 +780,9 @@ writes inside the word before it, a mark KFGQPC lacks, a letter encoded otherwis
 Tanzil words in one KFGQPC word, a Tanzil word KFGQPC splits, a word either side lacks,
 a Tanzil word in a KFGQPC mark, an equivalence that joins two words, a presentation the
 table does not fit, texts naming other ayat; and for the timing, the merge of a mark's
-segment, the defects it carries, and each timing problem. Two runs of `timing-map`
-check its counts, its exit codes and that it prints no text.
+segment, the defects it carries, and each timing problem. Three runs of `timing-map`
+check its counts, that a map problem and a timing problem each exit 65, and that it
+prints no text.
 
 ## Tafsir packs (B0.7, D-184 to D-190)
 

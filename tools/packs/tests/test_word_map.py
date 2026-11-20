@@ -16,9 +16,8 @@ from hqpack.quran_align import OVERLAP, ZERO_LENGTH, Segment, Timing
 from hqpack.tanzil_text import read_tanzil_text
 from hqpack.word_map import AyahMap, Token, WordSegment, WordTiming
 
-from tests.build_support import synthetic_table_document
+from tests.build_support import hafs_shaped_profiles, synthetic_table_document
 from tests.test_cli import CliCase
-from tests.build_support import hafs_shaped_profiles
 
 NBSP = "\u00a0"
 TOKENS = {(1, 1): 3, (1, 2): 4, (1, 3): 3, (1, 4): 2, (2, 1): 3, (2, 2): 5, (2, 3): 3, (3, 1): 3}
@@ -186,6 +185,12 @@ class ReindexTest(unittest.TestCase):
         _, problems, _ = _reindex([(0, 1, 100, 200), (3, 4, 300, 400)])
         self.assertEqual(problems, [{"address": "hafs:1:2", "kind": "no_word", "segment": 2}])
 
+    def test_a_segment_over_marks_joined_to_two_words_stops(self):
+        ayah_map = AyahMap(words=2, tokens=(Token(1, True), Token(1, False), Token(2, False), Token(2, True)))
+        timing = Timing(1, 2, (Segment(0, 1, 100, 200), Segment(1, 3, 200, 300), Segment(3, 4, 300, 400)))
+        _, problems, _ = word_map.reindex({(1, 2): timing}, {(1, 2): ayah_map})
+        self.assertEqual(problems, [{"address": "hafs:1:2", "kind": "ambiguous_segment", "segment": 2}])
+
     def test_a_segment_past_the_ayah_s_tokens_stops(self):
         _, problems, _ = _reindex([(0, 5, 100, 200)])
         self.assertEqual(
@@ -220,7 +225,7 @@ def _timing_json(segments_of):
 
 
 class TimingMapCliTest(CliCase):
-    def run_timing_map(self, *timings):
+    def run_timing_map(self, *timings, entries=None):
         self.write_source()
         paths = []
         for number, data in enumerate(timings, 1):
@@ -232,7 +237,7 @@ class TimingMapCliTest(CliCase):
                 "timing-map",
                 "--text", self.source / synthetic.TEXT_FILE,
                 "--metadata", self.source / synthetic.METADATA_FILE,
-                "--kfgqpc", self.write_kfgqpc(),
+                "--kfgqpc", self.write_kfgqpc(entries),
                 "--table", self.write_table(),
                 *paths,
             )
@@ -257,6 +262,12 @@ class TimingMapCliTest(CliCase):
         self.assertEqual(code, 65, out)
         self.assertIn("problem no_word 1, first hafs:1:2", out)
         self.assertEqual(out.splitlines()[-1], "problems found: the timing cannot be put on KFGQPC words")
+
+    def test_a_map_problem_exits_65_without_any_timing(self):
+        code, out, _ = self.run_timing_map(entries=_entries({(1, 1): lambda t: t.replace("ayah one", "ayahone")}))
+        self.assertEqual(code, 65, out)
+        self.assertIn("problem shared_word 1, first hafs:1:1", out)
+        self.assertNotIn("timing 1", out)
 
 
 if __name__ == "__main__":
