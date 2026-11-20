@@ -8,7 +8,7 @@ from pathlib import Path
 
 import synthetic_source as synthetic
 from hqpack.errors import PackError
-from hqpack.kfgqpc import read_kfgqpc, read_kfgqpc_file
+from hqpack.kfgqpc import read_kfgqpc, read_kfgqpc_file, text_offsets
 
 AYAT = 8
 BOM = b"\xef\xbb\xbf"
@@ -51,44 +51,6 @@ class KfgqpcReaderTest(unittest.TestCase):
         entries[0]["aya_text"] = "x\u0651\u064e\u00a0\ufc00"
         ayat = read_kfgqpc(_json(entries), AYAT)
         self.assertEqual(ayat[0].text, "x\u0651\u064e\u00a0\ufc00")
-
-    def assert_offsets_hold(self, data):
-        for aya in read_kfgqpc(data, AYAT):
-            with self.subTest(id=aya.id):
-                found = data[aya.text_offset : aya.text_offset + aya.text_length]
-                self.assertEqual(found, aya.text.encode("utf-8"))
-
-    def test_each_ayah_keeps_where_its_text_lies_in_the_file(self):
-        self.assert_offsets_hold(synthetic.synthetic_kfgqpc_json())
-
-    def test_the_offsets_with_white_space_before_the_colon(self):
-        self.assert_offsets_hold(
-            synthetic.synthetic_kfgqpc_json().replace(b'"aya_text":', b'"aya_text" \t:')
-        )
-
-    def test_the_offsets_when_another_field_holds_the_name_as_its_value(self):
-        entries = self.entries()
-        entries[0]["sura_name_en"] = "aya_text"
-        entries[1]["aya_text_emlaey"] = "aya_text"
-        self.assert_offsets_hold(_json(entries))
-
-    def test_an_escape_sequence_in_the_text_is_refused(self):
-        # The json module parses the same text; its bytes in the file are not that text.
-        data = synthetic.synthetic_kfgqpc_json().replace(
-            b'"aya_text": "Synthetic', b'"aya_text": "\\u0053ynthetic', 1
-        )
-        self.assertEqual(
-            json.loads(data.decode("utf-8"))[0]["aya_text"], self.entries()[0]["aya_text"]
-        )
-        self.assert_refused(
-            "id 1: field aya_text is written with an escape sequence, so its bytes in the file are not its text",
-            data,
-        )
-
-    def test_an_escape_sequence_in_a_field_name_is_refused(self):
-        data = synthetic.synthetic_kfgqpc_json().replace(b'"aya_text":', b'"aya\\u005ftext":', 1)
-        self.assertIn("aya_text", json.loads(data.decode("utf-8"))[0])
-        self.assert_refused(r"a field name near byte \d+ is written with an escape sequence", data)
 
     def test_a_bom_is_refused(self):
         # The CSV is published with a BOM, the JSON without one.
@@ -193,6 +155,58 @@ class KfgqpcReaderTest(unittest.TestCase):
         entries = self.entries()
         entries[3] = [1]
         self.assert_refused("entry 4 is not an object", _json(entries))
+
+
+class TextOffsetsTest(unittest.TestCase):
+    """Where each aya_text lies in the file, for a pack whose text is the file."""
+
+    def assert_offsets_hold(self, data):
+        ayat = read_kfgqpc(data, AYAT)
+        offsets = text_offsets(data, ayat)
+        self.assertEqual(len(offsets), AYAT)
+        for aya, (offset, length) in zip(ayat, offsets):
+            with self.subTest(id=aya.id):
+                self.assertEqual(data[offset : offset + length], aya.text.encode("utf-8"))
+
+    def assert_refused(self, pattern, data):
+        ayat = read_kfgqpc(data, AYAT)
+        with self.assertRaises(PackError) as caught:
+            text_offsets(data, ayat)
+        message = str(caught.exception)
+        self.assertRegex(message, "^KFGQPC: " + pattern)
+        self.assertTrue(message.isascii(), message)
+        self.assertNotIn("Synthetic", message)
+
+    def test_the_synthetic_file(self):
+        self.assert_offsets_hold(synthetic.synthetic_kfgqpc_json())
+
+    def test_white_space_before_the_colon(self):
+        self.assert_offsets_hold(
+            synthetic.synthetic_kfgqpc_json().replace(b'"aya_text":', b'"aya_text" \t:')
+        )
+
+    def test_another_field_that_holds_the_name_as_its_value(self):
+        entries = synthetic.synthetic_kfgqpc_entries()
+        entries[0]["sura_name_en"] = "aya_text"
+        entries[1]["aya_text_emlaey"] = "aya_text"
+        self.assert_offsets_hold(_json(entries))
+
+    def test_an_escape_sequence_in_the_text(self):
+        # The parsed text is the same, so a witness reads it; its bytes in the file are not that text.
+        data = synthetic.synthetic_kfgqpc_json().replace(
+            b'"aya_text": "Synthetic', b'"aya_text": "\\u0053ynthetic', 1
+        )
+        self.assertEqual(
+            read_kfgqpc(data, AYAT)[0].text, synthetic.synthetic_kfgqpc_entries()[0]["aya_text"]
+        )
+        self.assert_refused(
+            "id 1: field aya_text is written with an escape sequence, so its bytes in the file are not its text",
+            data,
+        )
+
+    def test_an_escape_sequence_in_a_field_name(self):
+        data = synthetic.synthetic_kfgqpc_json().replace(b'"aya_text":', b'"aya\\u005ftext":', 1)
+        self.assert_refused(r"a field name near byte \d+ is written with an escape sequence", data)
 
 
 class KfgqpcFileTest(unittest.TestCase):

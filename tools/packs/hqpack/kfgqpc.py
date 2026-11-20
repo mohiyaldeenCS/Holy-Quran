@@ -6,9 +6,11 @@ exactly the columns of the read.me, ids 1..n in order, and the ayat in mushaf
 order. Anything else is refused. Errors name the entry, its id and a field,
 never a value, so no text reaches a log.
 
-Each ayah keeps where its `aya_text` lies in the file's bytes, so that a pack
-built from the file can be read back against them. That needs the text written
-plainly: an escape sequence inside `aya_text`, or in a field name, is refused.
+`text_offsets` finds where each `aya_text` lies in the file's bytes, so that a
+pack whose text is this file can be read back against them (D-198). It needs
+the text written plainly; a file that writes `aya_text` or a field name with
+an escape sequence is refused there, and only there: as a witness the file is
+read by its parsed values.
 """
 
 from __future__ import annotations
@@ -34,7 +36,7 @@ _COLUMNS = frozenset(_INTEGERS + _STRINGS)
 # byte occurs inside a multi-byte UTF-8 sequence.
 _STRING_LITERAL = re.compile(rb'"(?:[^"\\]|\\.)*"', re.DOTALL)
 _FOLLOWED_BY_COLON = re.compile(rb"[ \t\n\r]*:")
-_TEXT_KEY = b'"aya_text"'
+_TEXT_NAME = b'"aya_text"'
 _BACKSLASH = b"\\"
 
 
@@ -47,17 +49,20 @@ class KfgqpcAya:
     page: int
     text: str
     emlaey: str
-    text_offset: int  # where aya_text's bytes begin in the file, after its opening quote
-    text_length: int  # how many bytes it has
+
+
+def check_file_name(path):
+    """Refuses a KFGQPC file that does not have its published name."""
+    name = Path(path).name
+    if name != FILE_NAME:
+        name = "".join(c if " " <= c <= "~" else code_point(c) for c in name)
+        raise PackError("the KFGQPC file is named %s, not %s as published" % (name, FILE_NAME))
 
 
 def read_kfgqpc_file(path, ayat):
     """(the KfgqpcAya list, the file's SHA-256) of the file at `path`, which must have the published name."""
-    path = Path(path)
-    if path.name != FILE_NAME:
-        name = "".join(c if " " <= c <= "~" else code_point(c) for c in path.name)
-        raise PackError("the KFGQPC file is named %s, not %s as published" % (name, FILE_NAME))
-    data = path.read_bytes()
+    check_file_name(path)
+    data = Path(path).read_bytes()
     return read_kfgqpc(data, ayat), digest.sha256_bytes(data)
 
 
@@ -67,6 +72,46 @@ def read_kfgqpc(data: bytes, ayat: int) -> list:
         return _read(data, ayat)
     except PackError as e:
         raise PackError("KFGQPC: %s" % e) from None
+
+
+def text_offsets(data: bytes, ayat: list) -> list:
+    """(offset, length) of each ayah's aya_text in `data`, the bytes `read_kfgqpc` read `ayat` from.
+
+    Each entry writes its field names plainly, so the nth plain "aya_text"
+    name is the nth entry's and the string literal after it is its text. That
+    literal must hold no escape sequence, so that its bytes are the text; they
+    are checked against the parsed text.
+    """
+    try:
+        return _text_offsets(data, ayat)
+    except PackError as e:
+        raise PackError("KFGQPC: %s" % e) from None
+
+
+def _text_offsets(data, ayat):
+    offsets = []
+    literals = _STRING_LITERAL.finditer(data)
+    for literal in literals:
+        if not _FOLLOWED_BY_COLON.match(data, literal.end()):
+            continue
+        if _BACKSLASH in literal.group():
+            raise PackError(
+                "a field name near byte %d is written with an escape sequence" % literal.start()
+            )
+        if literal.group() != _TEXT_NAME:
+            continue
+        aya = ayat[len(offsets)]
+        value = next(literals)
+        start, end = value.start() + 1, value.end() - 1
+        if _BACKSLASH in data[start:end]:
+            raise PackError(
+                "id %d: field aya_text is written with an escape sequence, so its "
+                "bytes in the file are not its text" % aya.id
+            )
+        if data[start:end].decode("utf-8") != aya.text:
+            raise PackError("id %d: field aya_text in the file's bytes is not the parsed text" % aya.id)
+        offsets.append((start, end - start))
+    return offsets
 
 
 def _read(data, ayat):
@@ -87,62 +132,24 @@ def _read(data, ayat):
     # The opening bytes make the top level an array.
     if len(entries) != ayat:
         raise PackError("the file holds %d entries, not %d" % (len(entries), ayat))
+    result = []
     previous = (0, 0)
     for index, entry in enumerate(entries, 1):
-        _check_entry(entry, index)
-        if entry["id"] != index:
-            raise PackError("entry %d has id %d, not %d" % (index, entry["id"], index))
-        address = (entry["sura_no"], entry["aya_no"])
+        aya = _entry(entry, index)
+        if aya.id != index:
+            raise PackError("entry %d has id %d, not %d" % (index, aya.id, index))
+        address = (aya.surah, aya.number)
         if address not in ((previous[0], previous[1] + 1), (previous[0] + 1, 1)):
             raise PackError(
                 "id %d is %d:%d, which does not follow %d:%d"
-                % ((entry["id"],) + address + previous)
+                % ((aya.id,) + address + previous)
             )
         previous = address
-    return [_aya(entry, span) for entry, span in zip(entries, _text_spans(data, entries))]
+        result.append(aya)
+    return result
 
 
-def _text_spans(data, entries):
-    """(offset, length) of every entry's aya_text in `data`, in entry order.
-
-    `entries` are the parsed objects, already checked, in the order of the
-    file. Every field name is written plainly, so the nth plain `"aya_text"`
-    name is the nth entry's, and the string literal after it is its value.
-    """
-    spans = []
-    literals = _STRING_LITERAL.finditer(data)
-    for literal in literals:
-        if not _is_name(data, literal.end()):
-            continue
-        if _BACKSLASH in literal.group():
-            raise PackError(
-                "a field name near byte %d is written with an escape sequence" % literal.start()
-            )
-        if literal.group() != _TEXT_KEY:
-            continue
-        value = next(literals)
-        entry = entries[len(spans)]
-        start, end = value.start() + 1, value.end() - 1
-        raw = data[start:end]
-        if _BACKSLASH in raw:
-            raise PackError(
-                "id %d: field aya_text is written with an escape sequence, so its "
-                "bytes in the file are not its text" % entry["id"]
-            )
-        if raw.decode("utf-8") != entry["aya_text"]:
-            raise PackError(
-                "id %d: field aya_text in the file's bytes is not the parsed text" % entry["id"]
-            )
-        spans.append((start, end - start))
-    return spans
-
-
-def _is_name(data, end):
-    """Whether the string literal ending at `end` is a field name: a colon follows it."""
-    return _FOLLOWED_BY_COLON.match(data, end) is not None
-
-
-def _check_entry(entry, index):
+def _entry(entry, index):
     if not isinstance(entry, dict):
         raise PackError("entry %d is not an object" % index)
     label = "entry %d" % index
@@ -171,9 +178,6 @@ def _check_entry(entry, index):
             ) from None
     if not entry["aya_text"]:
         raise PackError("%s: field aya_text is empty" % label)
-
-
-def _aya(entry, span):
     return KfgqpcAya(
         id=entry["id"],
         surah=entry["sura_no"],
@@ -182,8 +186,6 @@ def _aya(entry, span):
         page=entry["page"],
         text=entry["aya_text"],
         emlaey=entry["aya_text_emlaey"],
-        text_offset=span[0],
-        text_length=span[1],
     )
 
 
