@@ -1,11 +1,15 @@
 import 'package:flutter/widgets.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:holyquran/l10n/app_localizations.dart';
+import 'package:holyquran/routing/route_table.dart';
+import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/routing/routes/sheet_page.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/tafsir/tafsir_page.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/core/widgets/copy_sheet.dart';
 import 'package:holyquran/ui/core/widgets/tafsir_text.dart';
 
@@ -19,7 +23,8 @@ Future<void> showSourceDetails(BuildContext context, TafsirPage page) =>
 
 /// The facts of a tafsir book (`TF-05`): its title, then its author, its
 /// edition and editor, the source it was digitised from and its version. A
-/// fact the source does not give is left out.
+/// fact the source does not give is left out. «أبلغ عن خطأ» on the ayah and
+/// its pack ends it while the report sheet has a route (D-127).
 class SourceDetailsSheet extends StatelessWidget {
   const SourceDetailsSheet({required this.page, super.key});
 
@@ -31,6 +36,8 @@ class SourceDetailsSheet extends StatelessWidget {
     final colors = context.colors;
     final book = page.book;
     final value = AppTextStyles.body.copyWith(color: colors.ink);
+    final router = GoRouter.maybeOf(context);
+    final report = Routes.reportSheet(page.position.ayah, pack: page.packId);
     return CopySheetFrame(
       children: [
         Semantics(
@@ -61,6 +68,15 @@ class SourceDetailsSheet extends StatelessWidget {
           label: l10n.versionLabel,
           value: Text(arabicDigits(page.version), style: value),
         ),
+        if (router != null && hasRoute(router, report))
+          Button(
+            label: l10n.reportError,
+            variant: ButtonVariant.text,
+            onPressed: () {
+              Navigator.of(context).pop();
+              router.push<Object?>(report);
+            },
+          ),
       ],
     );
   }
