@@ -1,4 +1,5 @@
 import 'dart:isolate';
+import 'dart:math';
 
 import '../../domain/models/pack_failure.dart';
 import '../../domain/models/pack_manifest.dart';
@@ -188,7 +189,8 @@ final class _Query {
     SearchMode.wholeAyah => _wholeAyah(ayah),
     SearchMode.phrase => _phrase(ayah),
     SearchMode.scattered => _scattered(ayah),
-    SearchMode.combined => _phrase(ayah) ?? _scattered(ayah),
+    SearchMode.combined =>
+      _phrase(ayah) ?? _scattered(ayah, byAppearance: true),
   };
 
   /// The number of query words from [j] that [form] stands for, or null.
@@ -233,10 +235,12 @@ final class _Query {
     return found.isEmpty ? null : _exactHit(ayah, found);
   }
 
-  SearchHit? _scattered(_AyahForms ayah) {
+  /// With [byAppearance], one occurrence is one appearance of every
+  /// distinct word: the fewest times any of them stands in the ayah.
+  SearchHit? _scattered(_AyahForms ayah, {bool byAppearance = false}) {
     final positions = <int>[];
     final labels = <Set<int>>[];
-    final seen = <int>{};
+    final counts = List.filled(_labels.length, 0);
     for (final (i, form) in ayah.forms.indexed) {
       final covered = <int>{};
       if (ayah.spaced) {
@@ -252,9 +256,11 @@ final class _Query {
       if (covered.isEmpty) continue;
       positions.add(i);
       labels.add(covered);
-      seen.addAll(covered);
+      for (final label in covered) {
+        counts[label]++;
+      }
     }
-    if (seen.length < _labels.length) return null;
+    if (counts.contains(0)) return null;
     final exact = Iterable<int>.generate(ayah.forms.length)
         .any((i) => _phraseAt(ayah, i) != null);
     return SearchHit(
@@ -263,6 +269,7 @@ final class _Query {
       exact: exact,
       gaps: exact ? 0 : _fewestGaps(positions, labels),
       whole: exact && _isWhole(ayah),
+      occurrences: byAppearance ? counts.reduce(min) : null,
     );
   }
 

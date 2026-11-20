@@ -195,6 +195,26 @@ void main() {
       );
     });
 
+    test('combined: an occurrence is the whole query, a phrase or the '
+        'fewest times one of its words stands', () {
+      final counted = SearchIndex.fromForms(
+        'p',
+        _forms({
+          (1, 1): ['alpha', 'beta', 'other', 'alpha', 'beta'],
+          (1, 2): ['beta', 'beta', 'other', 'alpha'],
+          (1, 3): ['beta', 'alpha', 'other', 'beta', 'alpha'],
+        }),
+      );
+      final hits = counted.search(_kind, [
+        'alpha',
+        'beta',
+      ], SearchMode.combined);
+      expect(
+        [for (final hit in hits) (hit.matches.length, hit.occurrences)],
+        [(2, 2), (3, 1), (4, 2)],
+      );
+    });
+
     test('a word matches only a whole form, exactly as stored', () {
       expect(search('alp', SearchMode.phrase).single.matches, [
         _words(2, 2, 2, 2),

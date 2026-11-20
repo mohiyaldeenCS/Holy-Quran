@@ -204,6 +204,22 @@ void main() {
     });
   });
 
+  test('combined: the total and the most frequent first count each whole '
+      'appearance of the query once', () async {
+    final results = await search(
+      _query('alpha beta', mode: SearchMode.combined),
+    );
+    expect(results.occurrences, 7);
+    expect(ayatOf(results.ordered(SearchOrder.frequency)), [
+      _ayah(2, 1),
+      _ayah(1, 1),
+      _ayah(1, 2),
+      _ayah(1, 3),
+      _ayah(2, 3),
+      _ayah(3, 1),
+    ]);
+  });
+
   test('matches are word ranges of the ayah', () async {
     final hit = (await search(_query('alpha beta'))).hits[1];
     expect(hit.matches, [
@@ -356,6 +372,13 @@ void main() {
       await answersWithin(
         _query(longAyah.join(' '), mode: SearchMode.wholeAyah),
         SearchOrder.mushaf,
+      );
+    });
+
+    test('the longest whole ayah as the one field searches it', () async {
+      await answersWithin(
+        _query(longAyah.join(' '), mode: SearchMode.combined),
+        SearchOrder.closeness,
       );
     });
 

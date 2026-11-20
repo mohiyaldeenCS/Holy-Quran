@@ -21,4 +21,24 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  test('occurrences are the matches unless given, and never more', () {
+    SearchHit hit({int? occurrences}) => SearchHit(
+      ayah: QuranAddress('hafs', 1, 1),
+      matches: [
+        for (final word in [1, 3])
+          QuranRange(
+            QuranAddress('hafs', 1, 1, word),
+            QuranAddress('hafs', 1, 1, word),
+          ),
+      ],
+      exact: false,
+      gaps: 1,
+      occurrences: occurrences,
+    );
+    expect(hit().occurrences, 2);
+    expect(hit(occurrences: 1).occurrences, 1);
+    expect(() => hit(occurrences: 0), throwsArgumentError);
+    expect(() => hit(occurrences: 3), throwsArgumentError);
+  });
 }

@@ -29,14 +29,19 @@ final class SearchHit {
     required this.exact,
     required this.gaps,
     this.whole = false,
-  }) : matches = List.unmodifiable(matches) {
+    int? occurrences,
+  }) : matches = List.unmodifiable(matches),
+       occurrences = occurrences ?? matches.length {
     if (ayah.isWord ||
         matches.isEmpty ||
         gaps < 0 ||
         (exact && gaps != 0) ||
-        (whole && !exact)) {
+        (whole && !exact) ||
+        this.occurrences < 1 ||
+        this.occurrences > matches.length) {
       throw ArgumentError(
-        'Not a search hit: $ayah, $matches, $exact, $gaps, $whole',
+        'Not a search hit: $ayah, $matches, $exact, $gaps, $whole, '
+        '${this.occurrences}',
       );
     }
     for (final range in matches) {
@@ -66,7 +71,10 @@ final class SearchHit {
   /// [exact] too.
   final bool whole;
 
-  int get occurrences => matches.length;
+  /// The occurrences (مواضع) of the query in the ayah, one per range of
+  /// [matches] unless given: the combined mode counts an ayah holding the
+  /// words scattered by the fewest times any distinct word of them stands.
+  final int occurrences;
 
   @override
   String toString() =>
