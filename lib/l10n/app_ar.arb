@@ -1447,6 +1447,10 @@
   "@reportNote": {
     "description": "Lead, 2026-10-28, D-128 (5)"
   },
+  "reportMailNotOpened": "تعذّر فتح تطبيق البريد",
+  "@reportMailNotOpened": {
+    "description": "Lead, 2026-11-20, D-196 (5): no mail app opened the report."
+  },
   "integrityBaseTitle": "نص المصحف لم يجتز التحقق",
   "@integrityBaseTitle": {
     "description": "Lead, 2026-10-28, D-128 (5)"

@@ -2,13 +2,16 @@ import 'package:flutter/foundation.dart';
 
 import 'package:holyquran/data/repositories/pack_install_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
+import 'package:holyquran/data/repositories/report_repository.dart';
 import 'package:holyquran/domain/models/installed_pack.dart';
+import 'package:holyquran/domain/models/pack_manifest.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
+import 'package:holyquran/utils/result.dart';
 
-/// What an error report names (O-17, D-127): the ayah, and for an entry its
-/// pack, version and source. D-127 sends it as a prepared message in the
-/// user's mail app; that action waits for a mail service and its wording.
+/// What an error report names (O-17, D-127): the ayah, and the pack, version
+/// and source of an entry or, for an ayah, of the base text. D-127 sends it
+/// as a prepared message in the user's mail app.
 @immutable
 final class ErrorReport {
   const ErrorReport({
@@ -33,9 +36,17 @@ final class ErrorReport {
 
   @override
   int get hashCode => Object.hash(address, packId, packVersion, sourceName);
+
+  /// The message's lines: the address (`hafs:2:255`), never the ayah's
+  /// text, then the pack, version and source apart by [separator].
+  String messageBody(String separator) => [
+    '$address',
+    if (packId case final packId?)
+      [packId, ?packVersion?.toString(), ?sourceName].join(separator),
+  ].join('\r\n');
 }
 
-/// The installed pack of a reported entry, as its manifest names it.
+/// The pack a report names, as its manifest names it.
 @immutable
 final class ReportedPack {
   const ReportedPack({
@@ -43,6 +54,13 @@ final class ReportedPack {
     required this.version,
     required this.sourceName,
   });
+
+  ReportedPack.of(PackManifest manifest)
+    : id = manifest.id,
+      version = manifest.version,
+      sourceName = manifest.sources.isEmpty
+          ? null
+          : manifest.sources.first.name;
 
   final String id;
   final int version;
@@ -53,13 +71,17 @@ final class ReportedPack {
 
 /// The «أبلغ عن خطأ» sheet's state: the ayah at [address] by its surah's
 /// name from the index, and the installed pack [packId] when the report is
-/// about one of its entries. A part whose data is missing is null.
+/// about one of its entries. A part whose data is missing is null. The
+/// report of an ayah names the base text's pack. The report is sent through
+/// the report repository; without it, it cannot be.
 final class ReportViewModel extends ChangeNotifier {
   ReportViewModel({
     required this.address,
     this.packId,
     this._index,
     this._packs,
+    this._basePack,
+    this._reports,
   }) {
     _packs?.addListener(notifyListeners);
   }
@@ -68,6 +90,39 @@ final class ReportViewModel extends ChangeNotifier {
   final String? packId;
   final QuranIndexRepository? _index;
   final PackInstallRepository? _packs;
+  final PackManifest? _basePack;
+  final ReportRepository? _reports;
+  bool _notOpened = false;
+  bool _sending = false;
+  bool _disposed = false;
+
+  bool get canSend => _reports != null;
+
+  /// The last [send] found no mail app to open.
+  bool get notOpened => _notOpened;
+
+  /// Opens the mail app with the report under [subject], its lines apart as
+  /// [ErrorReport.messageBody] puts them. A send while one is opening the
+  /// mail app is ignored.
+  Future<void> send({
+    required String subject,
+    required String separator,
+  }) async {
+    final reports = _reports;
+    if (reports == null || _sending) return;
+    _sending = true;
+    try {
+      final result = await reports.send(
+        subject: subject,
+        body: report.messageBody(separator),
+      );
+      if (_disposed) return;
+      _notOpened = result is Failure;
+      notifyListeners();
+    } finally {
+      _sending = false;
+    }
+  }
 
   /// Null unless the index is of the address's riwaya and holds the ayah.
   PackText? get surahName {
@@ -81,19 +136,19 @@ final class ReportViewModel extends ChangeNotifier {
     return null;
   }
 
-  ReportedPack? get pack {
-    final installed = _installed;
-    if (installed == null) return null;
-    final sources = installed.manifest.sources;
-    return ReportedPack(
-      id: installed.id,
-      version: installed.version,
-      sourceName: sources.isEmpty ? null : sources.first.name,
-    );
-  }
+  /// The installed pack of the reported entry; null for an ayah.
+  ReportedPack? get pack => switch (_installed) {
+    final installed? => ReportedPack.of(installed.manifest),
+    null => null,
+  };
 
   ErrorReport get report {
-    final pack = this.pack;
+    final pack = packId == null
+        ? switch (_basePack) {
+            final basePack? => ReportedPack.of(basePack),
+            null => null,
+          }
+        : this.pack;
     return ErrorReport(
       address: address,
       packId: pack?.id,
@@ -113,6 +168,7 @@ final class ReportViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _packs?.removeListener(notifyListeners);
     super.dispose();
   }

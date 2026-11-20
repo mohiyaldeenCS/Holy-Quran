@@ -33,6 +33,7 @@ import 'package:holyquran/data/services/clipboard_service.dart';
 import 'package:holyquran/data/services/download_service.dart';
 import 'package:holyquran/data/services/free_space_service.dart';
 import 'package:holyquran/data/services/link_service.dart';
+import 'package:holyquran/data/services/mail_service.dart';
 import 'package:holyquran/data/services/share_service.dart';
 import 'package:holyquran/data/services/user_database.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
@@ -114,6 +115,7 @@ void main() {
       Provider<ClipboardService>,
       Provider<ShareService>,
       Provider<LinkService>,
+      Provider<MailService>,
     ]);
     expect(
       provided.read<AppSettingsRepository>(),

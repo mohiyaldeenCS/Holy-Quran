@@ -5,11 +5,14 @@ import 'dart:math' as math;
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/config/report_mail.dart';
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/data/repositories/pack_install_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
+import 'package:holyquran/data/services/mail_service.dart';
 import 'package:holyquran/domain/models/installed_pack.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
+import 'package:holyquran/domain/models/verified_pack.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/router.dart';
 import 'package:holyquran/routing/routes.dart';
@@ -20,6 +23,7 @@ import 'package:holyquran/ui/features/report/views/report_sheet.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../testing/fakes/fake_app_settings_repository.dart';
+import '../../../../testing/fakes/fake_mail_service.dart';
 import '../../../../testing/fakes/fake_pack_install_repository.dart';
 import '../../../../testing/fakes/fake_quran_index_repository.dart';
 import '../../../../testing/test_app.dart';
@@ -41,7 +45,12 @@ void main() {
 
   final address = QuranAddress('hafs', 1, 4);
 
-  Future<void> pushReport(WidgetTester tester, String location) async {
+  Future<void> pushReport(
+    WidgetTester tester,
+    String location, {
+    MailService? mail,
+    VerifiedPack? base,
+  }) async {
     final router = createRouter();
     final index = FakeQuranIndexRepository.synthetic();
     await tester.pumpWidget(
@@ -54,6 +63,8 @@ void main() {
           ListenableProvider<PackInstallRepository>.value(
             value: FakePackInstallRepository(installed: [tafsir]),
           ),
+          Provider<MailService?>.value(value: mail),
+          Provider<VerifiedPack?>.value(value: base),
         ],
         child: QuranApp(router: router),
       ),
@@ -124,6 +135,63 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(ReportSheet), findsOneWidget);
     expectWordsFit(tester, find.textContaining(tafsir.manifest.id));
+  });
+
+  testWidgets('opens the mail app to D-127 with the report on «أرسل البلاغ», '
+      'and says so when none opens', (tester) async {
+    final mail = FakeMailService()..fails = true;
+    await pushReport(
+      tester,
+      Routes.reportSheet(address, pack: tafsir.id),
+      mail: mail,
+    );
+    expect(find.text(_l10n.reportNote), findsOneWidget);
+    expect(find.text(_l10n.reportMailNotOpened), findsNothing);
+
+    await tester.tap(find.bySemanticsLabel(_l10n.reportSend));
+    await tester.pumpAndSettle();
+
+    final draft = mail.composed.single;
+    expect(draft.to, reportMailAddress);
+    expect(draft.subject, _l10n.reportError);
+    expect(draft.body, startsWith('$address\r\n${tafsir.id}'));
+    expect(find.text(_l10n.reportMailNotOpened), findsOneWidget);
+  });
+
+  testWidgets('names the base text\'s pack, version and source in the report '
+      'of an ayah', (tester) async {
+    // The synthetic tafsir's manifest stands in for the base text's: the
+    // route reads only its id, version and sources.
+    final mail = FakeMailService();
+    await pushReport(
+      tester,
+      Routes.reportSheet(address),
+      mail: mail,
+      base: VerifiedPack(
+        directory: tafsir.directory,
+        manifest: tafsir.manifest,
+        signatureChecked: false,
+      ),
+    );
+
+    await tester.tap(find.bySemanticsLabel(_l10n.reportSend));
+    await tester.pumpAndSettle();
+
+    expect(mail.composed.single.body.split('\r\n'), [
+      '$address',
+      [
+        tafsir.id,
+        tafsir.version,
+        tafsir.manifest.sources.first.name,
+      ].join(_l10n.dataSeparator),
+    ]);
+  });
+
+  testWidgets('has no send action without the mail service', (tester) async {
+    await pushReport(tester, Routes.reportSheet(address));
+
+    expect(find.text(_l10n.reportSend), findsNothing);
+    expect(find.text(_l10n.reportNote), findsNothing);
   });
 
   testWidgets('is not opened over nothing at a cold start', (tester) async {

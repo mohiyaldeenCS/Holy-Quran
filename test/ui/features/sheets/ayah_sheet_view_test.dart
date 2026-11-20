@@ -21,10 +21,12 @@ import 'package:holyquran/ui/core/widgets/surah_name.dart';
 import 'package:holyquran/ui/core/widgets/tafsir_text.dart';
 import 'package:holyquran/ui/features/bookmarks/views/note_sheet_view.dart';
 import 'package:holyquran/ui/features/listen/views/controls/play_options_sheet.dart';
+import 'package:holyquran/ui/features/report/view_models/report_view_model.dart';
 import 'package:holyquran/ui/features/report/views/report_sheet.dart';
 import 'package:holyquran/ui/features/sheets/views/ayah_sheet_view.dart';
 import 'package:holyquran/ui/features/tafsir/views/tafsir_reader_screen.dart';
 import 'package:holyquran/utils/result.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../testing/fakes/fake_player_repository.dart';
 import '../../../../testing/packs/synthetic_tafsir_pack.dart';
@@ -472,6 +474,33 @@ void main() {
 
       expect(_sheet, findsNothing);
       expect(find.byType(ReportSheet), findsOneWidget);
+    });
+
+    sheetsTest('ends the details of the book with the report of its '
+        'entry', (tester, world) async {
+      await _open(tester, world);
+      await tester.ensureVisible(find.byType(SourceBadge));
+      await tester.tap(find.byType(SourceBadge));
+      await tester.pumpAndSettle();
+
+      final report = find.descendant(
+        of: find.byType(SourceDetailsSheet),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is Button && widget.label == sheetsL10n.reportError,
+        ),
+      );
+      await tester.ensureVisible(report);
+      await tester.tap(report);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SourceDetailsSheet), findsNothing);
+      final viewModel = Provider.of<ReportViewModel>(
+        tester.element(find.byType(ReportSheet)),
+        listen: false,
+      );
+      expect(viewModel.address, world.ayah(1, 2));
+      expect(viewModel.packId, world.fixture.tafsirs.installed.single.id);
     });
 
     sheetsTest('is the last thing in the sheet', (tester, world) async {

@@ -1001,6 +1001,9 @@ class AppLocalizationsAr extends AppLocalizations {
       'يفتح البلاغ تطبيق البريد برسالة فيها الموضع والمصدر وإصداره، وتراها قبل أن ترسلها.';
 
   @override
+  String get reportMailNotOpened => 'تعذّر فتح تطبيق البريد';
+
+  @override
   String get integrityBaseTitle => 'نص المصحف لم يجتز التحقق';
 
   @override

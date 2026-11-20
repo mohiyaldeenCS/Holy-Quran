@@ -5,20 +5,23 @@ import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/metrics/report_metrics.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/button.dart';
+import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/surah_name.dart';
 import 'package:holyquran/ui/features/report/view_models/report_view_model.dart';
 import 'package:provider/provider.dart';
 
 /// The «أبلغ عن خطأ» sheet (O-17), an extension on the identity's bottom
 /// sheet: the ayah reported and, for an entry, its pack's id, version and
-/// source as the manifest gives them. Its title, its other lines and the
-/// send action wait for their wording (PHASE1.md, Appendix B and C) and the
-/// mail service D-127 calls for.
+/// source as the manifest gives them, then, while the mail service is
+/// provided, the action that opens the user's mail app with them (D-127).
+/// Its title waits for its wording (PHASE1.md, Appendix B and C).
 class ReportSheet extends StatelessWidget {
   const ReportSheet({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final colors = context.colors;
     final viewModel = context.watch<ReportViewModel>();
     final surahName = viewModel.surahName;
@@ -66,11 +69,28 @@ class ReportSheet extends StatelessWidget {
                     pack.id,
                     arabicDigits(pack.version),
                     ?sourceName,
-                  ].join(AppLocalizations.of(context).dataSeparator),
+                  ].join(l10n.dataSeparator),
                   style: AppTextStyles.secondary.copyWith(
                     color: colors.inkMuted,
                   ),
                 ),
+              if (viewModel.canSend) ...[
+                Text(
+                  l10n.reportNote,
+                  style: AppTextStyles.secondary.copyWith(
+                    color: colors.inkMuted,
+                  ),
+                ),
+                if (viewModel.notOpened)
+                  IntegrityAlert(title: l10n.reportMailNotOpened),
+                Button(
+                  label: l10n.reportSend,
+                  onPressed: () => viewModel.send(
+                    subject: l10n.reportError,
+                    separator: l10n.dataSeparator,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
