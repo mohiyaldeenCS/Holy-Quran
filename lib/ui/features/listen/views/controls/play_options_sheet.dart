@@ -43,7 +43,8 @@ class PlayOptionsSheet extends StatelessWidget {
         if (vm.canEnqueue)
           Button(
             label: l10n.addToQueue,
-            variant: ButtonVariant.text,
+            // The identity's variant for adding to a collection (`Button`).
+            variant: ButtonVariant.tonal,
             onPressed: () {
               if (vm.enqueue()) context.pop();
             },

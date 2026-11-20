@@ -154,7 +154,9 @@ void main() {
       final player = playerAt(planOf(builder, WholeSurah(3)));
       final app = ControlsApp(player: player, builder: builder, index: index);
       await app.open(tester, Routes.playOptionsSheet(at(1, 2)));
-      await tester.tap(find.text(l10n.addToQueue));
+      final add = find.widgetWithText(Button, l10n.addToQueue);
+      expect(tester.widget<Button>(add).variant, ButtonVariant.tonal);
+      await tester.tap(add);
       await tester.pumpAndSettle();
       expect(player.state.queue, hasLength(1));
       expect(player.commands, isEmpty);
