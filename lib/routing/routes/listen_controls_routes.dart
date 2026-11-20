@@ -11,15 +11,18 @@ import 'package:holyquran/ui/features/listen/view_models/controls/queue_sheet_vi
 import 'package:holyquran/ui/features/listen/view_models/controls/range_sheet_view_model.dart';
 import 'package:holyquran/ui/features/listen/view_models/controls/repeat_sheet_view_model.dart';
 import 'package:holyquran/ui/features/listen/view_models/controls/silence_sheet_view_model.dart';
+import 'package:holyquran/ui/features/listen/view_models/controls/sleep_sheet_view_model.dart';
+import 'package:holyquran/ui/features/listen/view_models/controls/stop_after_sheet_view_model.dart';
 import 'package:holyquran/ui/features/listen/views/controls/play_options_sheet.dart';
 import 'package:holyquran/ui/features/listen/views/controls/queue_sheet.dart';
 import 'package:holyquran/ui/features/listen/views/controls/range_sheet.dart';
 import 'package:holyquran/ui/features/listen/views/controls/repeat_sheet.dart';
 import 'package:holyquran/ui/features/listen/views/controls/silence_sheet.dart';
+import 'package:holyquran/ui/features/listen/views/controls/sleep_sheet.dart';
 import 'package:provider/provider.dart';
 
-/// The player's control sheets (M1.9). The stop-after and sleep-timer
-/// sheets wait for their words (`docs/plans/PHASE1.md`, Appendices B and C).
+/// The player's control sheets (M1.9). Stop after (`AU-08`) is a section
+/// of the sleep-timer sheet (`AU-07`), not a sheet of its own.
 final listenControlsRoutes = FeatureRoutes(
   sheets: [
     SheetRoute(
@@ -78,6 +81,22 @@ final listenControlsRoutes = FeatureRoutes(
             builder: context.read(),
           ),
           builder: (viewModel) => SilenceSheet(viewModel: viewModel),
+        ),
+      ),
+    ),
+    SheetRoute(
+      path: RoutePaths.sleepSheet,
+      owner: _player,
+      builder: (context, state) => SheetNeeds(
+        available: _hasPlayer,
+        child: _Scoped(
+          create: (context) => SleepSheetViewModel(player: context.read()),
+          builder: (sleep) => _Scoped(
+            create: (context) =>
+                StopAfterSheetViewModel(player: context.read()),
+            builder: (stopAfter) =>
+                SleepSheet(sleep: sleep, stopAfter: stopAfter),
+          ),
         ),
       ),
     ),

@@ -11,11 +11,14 @@ import 'package:holyquran/ui/features/listen/view_models/controls/queue_sheet_vi
 import 'package:holyquran/ui/features/listen/view_models/controls/range_sheet_view_model.dart';
 import 'package:holyquran/ui/features/listen/view_models/controls/repeat_sheet_view_model.dart';
 import 'package:holyquran/ui/features/listen/view_models/controls/silence_sheet_view_model.dart';
+import 'package:holyquran/ui/features/listen/view_models/controls/sleep_sheet_view_model.dart';
+import 'package:holyquran/ui/features/listen/view_models/controls/stop_after_sheet_view_model.dart';
 import 'package:holyquran/ui/features/listen/views/controls/play_options_sheet.dart';
 import 'package:holyquran/ui/features/listen/views/controls/queue_sheet.dart';
 import 'package:holyquran/ui/features/listen/views/controls/range_sheet.dart';
 import 'package:holyquran/ui/features/listen/views/controls/repeat_sheet.dart';
 import 'package:holyquran/ui/features/listen/views/controls/silence_sheet.dart';
+import 'package:holyquran/ui/features/listen/views/controls/sleep_sheet.dart';
 
 import '../../../../../testing/fakes/fake_player_repository.dart';
 import 'controls_harness.dart';
@@ -75,6 +78,18 @@ void main() {
       tester,
       'silence_sheet',
       (context) => SilenceSheet(viewModel: vm),
+    );
+  });
+
+  testWidgets('sleep sheet', (tester) async {
+    final sleep = SleepSheetViewModel(player: player);
+    final stopAfter = StopAfterSheetViewModel(player: player);
+    addTearDown(sleep.dispose);
+    addTearDown(stopAfter.dispose);
+    await expectSheetGoldens(
+      tester,
+      'sleep_sheet',
+      (context) => SleepSheet(sleep: sleep, stopAfter: stopAfter),
     );
   });
 

@@ -1280,6 +1280,18 @@
   "@stopAfterSurah": {
     "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."
   },
+  "stopAfterTitle": "التوقف بعد",
+  "@stopAfterTitle": {
+    "description": "AU-08. Lead under the owner's delegation, 2026-11-20, pending the owner's look. Title of the stop-after section inside the sleep-timer sheet."
+  },
+  "stopAfterNone": "بلا توقف",
+  "@stopAfterNone": {
+    "description": "AU-08. Lead under the owner's delegation, 2026-11-20, pending the owner's look. The stop-after choice that stops nothing early."
+  },
+  "playerSleepOff": "بلا مؤقت",
+  "@playerSleepOff": {
+    "description": "AU-07. Lead under the owner's delegation, 2026-11-20, pending the owner's look. The sleep-timer choice that sets no timer."
+  },
   "playerStop": "إيقاف",
   "@playerStop": {
     "description": "Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text)."

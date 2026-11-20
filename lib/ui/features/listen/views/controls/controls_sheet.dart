@@ -28,17 +28,7 @@ class ControlsSheet extends StatelessWidget {
     final chips = this.chips;
     // Each with whether it is the chip strip, whose gaps are narrower.
     final items = [
-      if (title != null)
-        (
-          Semantics(
-            header: true,
-            child: Text(
-              title,
-              style: AppTextStyles.sectionTitle.copyWith(color: colors.ink),
-            ),
-          ),
-          false,
-        ),
+      if (title != null) (ControlsSheetTitle(title), false),
       if (chips != null) (chips, true),
       for (final child in children) (child, false),
     ];
@@ -96,4 +86,21 @@ class ControlsSheet extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A heading in a control sheet: its [ControlsSheet.title], or the title of a
+/// section further down.
+class ControlsSheetTitle extends StatelessWidget {
+  const ControlsSheetTitle(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    header: true,
+    child: Text(
+      text,
+      style: AppTextStyles.sectionTitle.copyWith(color: context.colors.ink),
+    ),
+  );
 }
