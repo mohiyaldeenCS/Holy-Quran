@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
+import 'package:holyquran/data/repositories/recitation_repository.dart';
+import 'package:holyquran/domain/models/catalogue_entry.dart';
 import 'package:holyquran/domain/models/ui_level.dart';
 import 'package:holyquran/ui/features/onboarding/view_models/setup_step.dart';
 import 'package:holyquran/utils/result.dart';
@@ -8,15 +10,20 @@ import 'package:holyquran/utils/result.dart';
 /// The first-run setup: the steps not yet done, one at a time, in order. A
 /// choice is stored at once (`LV-02`); [next] completes the current step.
 final class OnboardingViewModel extends ChangeNotifier {
-  OnboardingViewModel({required this._settings, required List<SetupStep> steps})
-    : _steps = [
-        for (final step in steps)
-          if (!step.done) step,
-      ] {
+  OnboardingViewModel({
+    required this._settings,
+    required List<SetupStep> steps,
+    this._recitations,
+  }) : _steps = [
+         for (final step in steps)
+           if (!step.done) step,
+       ] {
     _settings.addListener(notifyListeners);
+    _recitations?.addListener(notifyListeners);
   }
 
   final AppSettingsRepository _settings;
+  final RecitationRepository? _recitations;
   final List<SetupStep> _steps;
   int _current = 0;
   bool _completing = false;
@@ -27,7 +34,13 @@ final class OnboardingViewModel extends ChangeNotifier {
 
   bool get finished => _current >= _steps.length;
 
+  bool get onLastStep => _current == _steps.length - 1;
+
   UiLevel get level => _settings.level;
+
+  /// The recitation step's choice: the catalogue's first recitation, its
+  /// single choice until more are `Ready`; null when it lists none.
+  CatalogueRecitation? get recitation => _recitations?.recitations.firstOrNull;
 
   /// Stored as chosen; a later choice replaces an earlier one.
   Future<Result<void>> selectLevel(UiLevel level) => _settings.setLevel(level);
@@ -51,6 +64,7 @@ final class OnboardingViewModel extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _settings.removeListener(notifyListeners);
+    _recitations?.removeListener(notifyListeners);
     super.dispose();
   }
 }

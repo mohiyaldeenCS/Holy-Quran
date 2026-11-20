@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
+import 'package:holyquran/data/repositories/recitation_repository.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/routing/routes/feature_routes.dart';
 import 'package:holyquran/ui/features/onboarding/view_models/onboarding_view_model.dart';
@@ -18,6 +19,7 @@ final onboardingRoutes = FeatureRoutes(
           return OnboardingViewModel(
             settings: settings,
             steps: setupSteps(settings),
+            recitations: context.read<RecitationRepository?>(),
           );
         },
         child: const OnboardingScreen(),
