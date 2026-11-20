@@ -1012,6 +1012,13 @@ class AppLocalizationsAr extends AppLocalizations {
       'لم يُعثر على نص المصحف في التطبيق. حدّث التطبيق أو أعد تثبيته.';
 
   @override
+  String get integrityStartFailedTitle => 'تعذّر بدء التطبيق';
+
+  @override
+  String get integrityStartFailedBody =>
+      'أغلق التطبيق وافتحه من جديد، فإن تكرر فحدّثه أو أعد تثبيته.';
+
+  @override
   String get integrityPackTitle => 'هذه الحزمة لم تجتز التحقق';
 
   @override

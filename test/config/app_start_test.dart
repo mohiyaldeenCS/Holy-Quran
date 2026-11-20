@@ -10,6 +10,7 @@ import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/data/services/user_database.dart';
 import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
+import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/main.dart' as app;
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
@@ -111,6 +112,9 @@ void main() {
     final context = tester.element(find.byType(IntegrityAlert));
     expect(Directionality.of(context), TextDirection.rtl);
     expect(context.colors, same(AppColors.paper));
+    final strings = AppLocalizations.of(context);
+    expect(find.text(strings.integrityStartFailedTitle), findsOneWidget);
+    expect(find.text(strings.integrityStartFailedBody), findsOneWidget);
   });
 
   final failingSteps = <String, AreaSetup>{

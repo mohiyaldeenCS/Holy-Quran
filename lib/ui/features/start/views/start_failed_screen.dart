@@ -25,17 +25,19 @@ class _Body extends StatelessWidget {
   const _Body();
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: context.colors.ground,
-    child: SafeArea(
-      child: SingleChildScrollView(
-        padding: HomeMetrics.bodyPadding,
-        // Only the alert's word until the owner gives a failed start its
-        // wording.
-        child: IntegrityAlert(
-          title: AppLocalizations.of(context).integrityIconLabel,
+  Widget build(BuildContext context) {
+    final strings = AppLocalizations.of(context);
+    return ColoredBox(
+      color: context.colors.ground,
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: HomeMetrics.bodyPadding,
+          child: IntegrityAlert(
+            title: strings.integrityStartFailedTitle,
+            body: strings.integrityStartFailedBody,
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
