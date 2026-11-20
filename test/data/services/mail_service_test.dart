@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/data/services/link_service.dart';
 import 'package:holyquran/data/services/mail_service.dart';
 import 'package:holyquran/utils/result.dart';
 

@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../utils/result.dart';
 
@@ -52,26 +51,4 @@ final class MailDraft {
 /// itself.
 abstract interface class MailService {
   Future<Result<void>> compose(MailDraft draft);
-}
-
-/// Opens the system's mail app through `url_launcher`.
-final class SystemMailService implements MailService {
-  const SystemMailService([this._launch = _launchExternally]);
-
-  final Future<bool> Function(Uri url) _launch;
-
-  static Future<bool> _launchExternally(Uri url) =>
-      launchUrl(url, mode: LaunchMode.externalApplication);
-
-  @override
-  Future<Result<void>> compose(MailDraft draft) async {
-    final uri = draft.uri;
-    try {
-      return await _launch(uri)
-          ? const Ok(null)
-          : Failure(MailNotOpened(draft.to));
-    } on Exception catch (error) {
-      return Failure(error);
-    }
-  }
 }

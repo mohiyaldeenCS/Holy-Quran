@@ -1,6 +1,7 @@
 import 'package:holyquran/config/report_mail.dart';
 import 'package:holyquran/data/repositories/pack_install_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
+import 'package:holyquran/data/repositories/report_repository.dart';
 import 'package:holyquran/data/services/mail_service.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/routing/routes/feature_routes.dart';
@@ -18,8 +19,13 @@ final reportRoutes = FeatureRoutes(
           packId: Routes.packOf(state),
           index: context.read<QuranIndexRepository?>(),
           packs: context.read<PackInstallRepository?>(),
-          mail: context.read<MailService?>(),
-          recipient: reportMailAddress,
+          reports: switch (context.read<MailService?>()) {
+            final mail? => ReportRepository(
+              mail: mail,
+              recipient: reportMailAddress,
+            ),
+            null => null,
+          },
         ),
         child: const ReportSheet(),
       ),

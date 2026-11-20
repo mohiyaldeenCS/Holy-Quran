@@ -1,6 +1,7 @@
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../utils/result.dart';
+import 'mail_service.dart';
 
 /// The link was not an `http` or `https` address with a host, or the system
 /// had nothing to open it with. [address] is the address as given.
@@ -36,6 +37,29 @@ final class SystemLinkService implements LinkService {
       return await _launch(url)
           ? const Ok(null)
           : Failure(LinkNotOpened('$url'));
+    } on Exception catch (error) {
+      return Failure(error);
+    }
+  }
+}
+
+/// Opens the system's mail app through `url_launcher`. It lives here because
+/// this file is the app's one door to `url_launcher`, which the privacy guard
+/// reviews as one (`test/guards/privacy_test.dart`).
+final class SystemMailService implements MailService {
+  const SystemMailService([this._launch = _launchExternally]);
+
+  final Future<bool> Function(Uri url) _launch;
+
+  static Future<bool> _launchExternally(Uri url) =>
+      launchUrl(url, mode: LaunchMode.externalApplication);
+
+  @override
+  Future<Result<void>> compose(MailDraft draft) async {
+    try {
+      return await _launch(draft.uri)
+          ? const Ok(null)
+          : Failure(MailNotOpened(draft.to));
     } on Exception catch (error) {
       return Failure(error);
     }

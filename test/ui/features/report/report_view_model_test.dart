@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/data/repositories/report_repository.dart';
 import 'package:holyquran/data/services/mail_service.dart';
 import 'package:holyquran/domain/models/installed_pack.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
@@ -101,6 +102,9 @@ void sendTests(InstalledPack Function() tafsir) {
   const subject = 'نص تجريبي';
   const separator = ' · ';
 
+  ReportRepository reportsTo(FakeMailService mail) =>
+      ReportRepository(mail: mail, recipient: 'reports@example.org');
+
   test('sends the address, pack, version and source to the recipient, '
       'never the text', () async {
     final pack = tafsir();
@@ -109,8 +113,7 @@ void sendTests(InstalledPack Function() tafsir) {
       address: address,
       packId: pack.id,
       packs: FakePackInstallRepository(installed: [pack]),
-      mail: mail,
-      recipient: 'reports@example.org',
+      reports: reportsTo(mail),
     );
     addTearDown(viewModel.dispose);
 
@@ -139,8 +142,7 @@ void sendTests(InstalledPack Function() tafsir) {
     final mail = FakeMailService();
     final viewModel = ReportViewModel(
       address: address,
-      mail: mail,
-      recipient: 'reports@example.org',
+      reports: reportsTo(mail),
     );
     addTearDown(viewModel.dispose);
 
@@ -153,8 +155,7 @@ void sendTests(InstalledPack Function() tafsir) {
     final mail = FakeMailService()..fails = true;
     final viewModel = ReportViewModel(
       address: address,
-      mail: mail,
-      recipient: 'reports@example.org',
+      reports: reportsTo(mail),
     );
     addTearDown(viewModel.dispose);
 
@@ -163,11 +164,8 @@ void sendTests(InstalledPack Function() tafsir) {
     expect(viewModel.notOpened, isTrue);
   });
 
-  test('cannot send without the mail service', () {
-    final viewModel = ReportViewModel(
-      address: address,
-      recipient: 'reports@example.org',
-    );
+  test('cannot send without the report repository', () {
+    final viewModel = ReportViewModel(address: address);
     addTearDown(viewModel.dispose);
 
     expect(viewModel.canSend, isFalse);

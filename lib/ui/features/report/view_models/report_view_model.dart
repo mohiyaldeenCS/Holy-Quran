@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:holyquran/data/repositories/pack_install_repository.dart';
 import 'package:holyquran/data/repositories/quran_index_repository.dart';
-import 'package:holyquran/data/services/mail_service.dart';
+import 'package:holyquran/data/repositories/report_repository.dart';
 import 'package:holyquran/domain/models/installed_pack.dart';
 import 'package:holyquran/domain/models/pack_text.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
@@ -65,15 +65,14 @@ final class ReportedPack {
 /// The «أبلغ عن خطأ» sheet's state: the ayah at [address] by its surah's
 /// name from the index, and the installed pack [packId] when the report is
 /// about one of its entries. A part whose data is missing is null. The
-/// report is sent to [recipient] through [mail]; without both it cannot be.
+/// report is sent through the report repository; without it, it cannot be.
 final class ReportViewModel extends ChangeNotifier {
   ReportViewModel({
     required this.address,
     this.packId,
     this._index,
     this._packs,
-    this._mail,
-    this._recipient,
+    this._reports,
   }) {
     _packs?.addListener(notifyListeners);
   }
@@ -82,12 +81,11 @@ final class ReportViewModel extends ChangeNotifier {
   final String? packId;
   final QuranIndexRepository? _index;
   final PackInstallRepository? _packs;
-  final MailService? _mail;
-  final String? _recipient;
+  final ReportRepository? _reports;
   bool _notOpened = false;
   bool _disposed = false;
 
-  bool get canSend => _mail != null && _recipient != null;
+  bool get canSend => _reports != null;
 
   /// The last [send] found no mail app to open.
   bool get notOpened => _notOpened;
@@ -98,15 +96,11 @@ final class ReportViewModel extends ChangeNotifier {
     required String subject,
     required String separator,
   }) async {
-    final mail = _mail;
-    final recipient = _recipient;
-    if (mail == null || recipient == null) return;
-    final result = await mail.compose(
-      MailDraft(
-        to: recipient,
-        subject: subject,
-        body: report.messageBody(separator),
-      ),
+    final reports = _reports;
+    if (reports == null) return;
+    final result = await reports.send(
+      subject: subject,
+      body: report.messageBody(separator),
     );
     if (_disposed) return;
     _notOpened = result is Failure;
