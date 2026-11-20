@@ -137,6 +137,37 @@ final class PlaybackPlanBuilder {
   /// The ayat [range] covers, in mushaf order.
   Iterable<QuranAddress> ayatOf(PlaybackRange range) => _ayatOf(_spans(range));
 
+  /// The repeat unit of [plan] that holds [ayah], as a range of its own, or
+  /// null when [plan] does not play [ayah]. A repeat without end never
+  /// leaves its first unit, so a plan switched to one is built on the unit
+  /// being heard (`AU-09`). A whole surah of a plan that runs on into the
+  /// next surah stays a [WholeSurah], which keeps the run.
+  PlaybackRange? unitHolding(PlaybackPlan plan, QuranAddress ayah) {
+    final runsOn = plan.continuesToNextSurah;
+    final part = switch (plan.range) {
+      WholeSurah(:final surah) when runsOn =>
+        ayah.surah < surah ? const <QuranRange>[] : [_wholeSurah(ayah.surah)],
+      final range => _spans(range),
+    };
+    final unit = plan.repeat.unit;
+    if (unit == RepeatUnit.range && !runsOn) {
+      return _ayatOf(part).contains(ayah) ? plan.range : null;
+    }
+    Object keyOf(QuranAddress each) => switch (unit) {
+      RepeatUnit.ayah => each,
+      RepeatUnit.page => _edition.numberAt(Division.page, each),
+      RepeatUnit.surah || RepeatUnit.range => each.surah,
+    };
+    for (final group in _groups(_ayatOf(part), keyOf)) {
+      if (!group.contains(ayah)) continue;
+      final span = QuranRange(group.first, group.last);
+      return runsOn && _coversWholeSurahs(span)
+          ? WholeSurah(ayah.surah)
+          : AyahSpan(span);
+    }
+    return null;
+  }
+
   List<QuranRange> _spans(PlaybackRange range) => switch (range) {
     SingleAyah(:final ayah) => [_span(ayah, ayah)],
     AyahSpan(range: QuranRange(:final start, :final end)) => [

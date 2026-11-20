@@ -10,7 +10,9 @@ import 'current_plan.dart';
 /// The repeat count (`AU-09`), from 1 to 99 or without end, opening at the
 /// repeat of the plan playing. Its unit stays the plan's. Playing builds the
 /// plan playing then again with the repeat and goes on from the segment
-/// being heard; a plan without end left without end is not rebuilt.
+/// being heard. Without end, the plan is built on the repeat unit being
+/// heard, the only one it plays; a plan without end left without end is not
+/// rebuilt.
 final class RepeatSheetViewModel extends ChangeNotifier with PlaysOnce {
   RepeatSheetViewModel({required this._player, required this._builder})
     : _unlimited = _player.state.plan?.repeat.isUnlimited ?? false,
@@ -62,18 +64,19 @@ final class RepeatSheetViewModel extends ChangeNotifier with PlaysOnce {
     if (plan == null || !available) return false;
     if (_unlimited && plan.repeat.isUnlimited) return true;
     final unit = plan.repeat.unit;
+    final heard = heardIn(state);
     final outcome = rebuildPlan(
       _builder,
       plan,
+      range: _unlimited && heard != null
+          ? _builder.unitHolding(plan, heard)
+          : null,
       repeat: _unlimited
           ? RepeatMode.unlimited(unit)
           : RepeatMode(unit, _count),
     );
     if (outcome is! PlanReady) return false;
-    await _player.play(
-      outcome.plan,
-      startAt: segmentOf(outcome.plan, heardIn(state)),
-    );
+    await _player.play(outcome.plan, startAt: segmentOf(outcome.plan, heard));
     return true;
   });
 }

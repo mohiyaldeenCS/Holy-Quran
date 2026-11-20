@@ -1,7 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/domain/models/playback_plan.dart';
+import 'package:holyquran/domain/models/playback_plan_builder.dart';
 import 'package:holyquran/domain/models/playback_range.dart';
 import 'package:holyquran/domain/models/playback_segment.dart';
+import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/domain/models/recitation.dart';
 import 'package:holyquran/domain/models/repeat_mode.dart';
 import 'package:holyquran/routing/routes.dart';
@@ -136,25 +139,103 @@ void main() {
       });
     });
 
-    test('switched on mid-range, goes on from the ayah being heard', () async {
-      final player = playerAt(planOf(builder, WholeSurah(1)), segment: 2);
-      final vm = viewModel(player)..setUnlimited(true);
-      expect(await vm.play(), isTrue);
-      expect(
-        player.state.plan!.repeat,
-        const RepeatMode.unlimited(RepeatUnit.range),
-      );
-      expect(player.commands, ['play 2']);
-    });
+    group('switched on mid-range, goes on from the ayah heard in', () {
+      final longBuilder = syntheticBuilder(longIndex(20));
 
-    test('switched on, ends its search for an ayah never reached', () async {
-      final player = playerAt(
-        planOf(builder, WholeSurah(1), repeat: RepeatMode(RepeatUnit.ayah, 2)),
-        segment: 4,
-      );
-      final vm = viewModel(player)..setUnlimited(true);
-      expect(await vm.play(), isTrue);
-      expect(player.commands, ['play 0']);
+      /// Switches [plan], heard at [ayah], to without end; the next ayat the
+      /// player hears, from the segment it starts at.
+      Future<List<QuranAddress>> heardAfter(
+        PlaybackPlan plan,
+        QuranAddress ayah, {
+        PlaybackPlanBuilder? using,
+      }) async {
+        final index = plan.segments.toList().indexWhere(
+          (s) => s.address == ayah && s.kind != SegmentKind.basmala,
+        );
+        final player = playerAt(plan, segment: index);
+        final vm = RepeatSheetViewModel(
+          player: player,
+          builder: using ?? builder,
+        )..setUnlimited(true);
+        expect(await vm.play(), isTrue);
+        final rebuilt = player.state.plan!;
+        expect(rebuilt.repeat, RepeatMode.unlimited(plan.repeat.unit));
+        final startAt = int.parse(player.commands.single.split(' ').last);
+        return [
+          for (final segment
+              in rebuilt.segments
+                  .skip(startAt)
+                  .where((s) => s.kind != SegmentKind.basmala)
+                  .take(6))
+            segment.address,
+        ];
+      }
+
+      test('the range', () async {
+        final plan = planOf(builder, WholeSurah(1));
+        expect(await heardAfter(plan, at(1, 3)), [
+          at(1, 3),
+          at(1, 4),
+          at(1, 1),
+          at(1, 2),
+          at(1, 3),
+          at(1, 4),
+        ]);
+      });
+
+      test('the ayah', () async {
+        final plan = planOf(
+          builder,
+          WholeSurah(1),
+          repeat: RepeatMode(RepeatUnit.ayah, 2),
+        );
+        expect(await heardAfter(plan, at(1, 3)), List.filled(6, at(1, 3)));
+      });
+
+      test('the page, within the range', () async {
+        final plan = planOf(
+          builder,
+          WholeSurah(2),
+          repeat: RepeatMode(RepeatUnit.page, 2),
+        );
+        expect(await heardAfter(plan, at(2, 3)), [
+          at(2, 3),
+          at(2, 2),
+          at(2, 3),
+          at(2, 2),
+          at(2, 3),
+          at(2, 2),
+        ]);
+      });
+
+      test('the surah, within the range', () async {
+        final plan = planOf(
+          builder,
+          ToEndOfMushaf(at(1, 1)),
+          repeat: RepeatMode(RepeatUnit.surah, 2),
+        );
+        expect(await heardAfter(plan, at(2, 2)), [
+          at(2, 2),
+          at(2, 3),
+          at(2, 1),
+          at(2, 2),
+          at(2, 3),
+          at(2, 1),
+        ]);
+      });
+
+      test('the surah a plan of surah files ran on into', () async {
+        final plan = planOf(
+          longBuilder,
+          WholeSurah(17),
+          recitation: syntheticRecitation(unit: RecitationUnit.surah),
+          continueToNextSurah: true,
+        );
+        expect(
+          await heardAfter(plan, at(18, 1), using: longBuilder),
+          List.filled(6, at(18, 1)),
+        );
+      });
     });
 
     test('without end keeps the unit and never runs out', () async {
