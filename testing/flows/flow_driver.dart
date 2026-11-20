@@ -14,7 +14,6 @@ import 'package:provider/single_child_widget.dart';
 
 import '../application_support.dart';
 
-
 /// The app's Arabic words, from the same file the app reads, so that a flow
 /// names a control as the user hears it.
 final AppLocalizations flowL10n = lookupAppLocalizations(const Locale('ar'));

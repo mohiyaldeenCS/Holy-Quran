@@ -23,7 +23,6 @@ import 'perf_app.dart';
 import 'perf_pack.dart';
 import 'perf_run.dart';
 
-
 bool get _onDevice => Platform.isAndroid || Platform.isIOS;
 
 /// The application support folder: the device's own, or on a computer a new
