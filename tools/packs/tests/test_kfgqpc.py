@@ -52,6 +52,44 @@ class KfgqpcReaderTest(unittest.TestCase):
         ayat = read_kfgqpc(_json(entries), AYAT)
         self.assertEqual(ayat[0].text, "x\u0651\u064e\u00a0\ufc00")
 
+    def assert_offsets_hold(self, data):
+        for aya in read_kfgqpc(data, AYAT):
+            with self.subTest(id=aya.id):
+                found = data[aya.text_offset : aya.text_offset + aya.text_length]
+                self.assertEqual(found, aya.text.encode("utf-8"))
+
+    def test_each_ayah_keeps_where_its_text_lies_in_the_file(self):
+        self.assert_offsets_hold(synthetic.synthetic_kfgqpc_json())
+
+    def test_the_offsets_with_white_space_before_the_colon(self):
+        self.assert_offsets_hold(
+            synthetic.synthetic_kfgqpc_json().replace(b'"aya_text":', b'"aya_text" \t:')
+        )
+
+    def test_the_offsets_when_another_field_holds_the_name_as_its_value(self):
+        entries = self.entries()
+        entries[0]["sura_name_en"] = "aya_text"
+        entries[1]["aya_text_emlaey"] = "aya_text"
+        self.assert_offsets_hold(_json(entries))
+
+    def test_an_escape_sequence_in_the_text_is_refused(self):
+        # The json module parses the same text; its bytes in the file are not that text.
+        data = synthetic.synthetic_kfgqpc_json().replace(
+            b'"aya_text": "Synthetic', b'"aya_text": "\\u0053ynthetic', 1
+        )
+        self.assertEqual(
+            json.loads(data.decode("utf-8"))[0]["aya_text"], self.entries()[0]["aya_text"]
+        )
+        self.assert_refused(
+            "id 1: field aya_text is written with an escape sequence, so its bytes in the file are not its text",
+            data,
+        )
+
+    def test_an_escape_sequence_in_a_field_name_is_refused(self):
+        data = synthetic.synthetic_kfgqpc_json().replace(b'"aya_text":', b'"aya\\u005ftext":', 1)
+        self.assertIn("aya_text", json.loads(data.decode("utf-8"))[0])
+        self.assert_refused(r"a field name near byte \d+ is written with an escape sequence", data)
+
     def test_a_bom_is_refused(self):
         # The CSV is published with a BOM, the JSON without one.
         self.assert_refused("begins with a UTF-8 BOM, which the published file does not", BOM + synthetic.synthetic_kfgqpc_json())
