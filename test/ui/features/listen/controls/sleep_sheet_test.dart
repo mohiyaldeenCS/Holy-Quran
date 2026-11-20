@@ -1,3 +1,4 @@
+import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -8,6 +9,7 @@ import 'package:holyquran/domain/models/stop_after.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/widgets/radio_row.dart';
 import 'package:holyquran/ui/core/widgets/stepper.dart';
+import 'package:holyquran/ui/features/listen/views/controls/sleep_sheet.dart';
 
 import '../../../../../testing/fakes/fake_player_repository.dart';
 import 'controls_harness.dart';
@@ -64,6 +66,42 @@ void main() {
       expect(selected(tester, l10n.minutesCount(6, '٦')), isTrue);
       expect(selected(tester, l10n.playerSleepOff), isFalse);
       expect(app.sheetOpen, isTrue);
+
+      await tester.ensureVisible(find.byType(Stepper));
+      await tester.tap(
+        find.bySemanticsLabel(l10n.stepperIncrease(l10n.playerSleepTimer)),
+      );
+      await tester.pumpAndSettle();
+      expect(player.sleepTimer, SleepAfter(6));
+      expect(selected(tester, l10n.minutesCount(7, '٧')), isFalse);
+    });
+
+    testWidgets('reads each set of choices as a radio group named by it', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await open(tester, playingSurah());
+      final groups = find.descendant(
+        of: find.byType(SleepSheet),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics &&
+              widget.properties.role == SemanticsRole.radioGroup,
+        ),
+      );
+      expect(groups, findsNWidgets(2));
+      for (final (index, (name, row)) in [
+        (l10n.playerSleepTimer, l10n.playerSleepOff),
+        (l10n.stopAfterTitle, l10n.stopAfterNone),
+      ].indexed) {
+        final group = tester.getSemantics(groups.at(index));
+        expect((group.label, group.role), (name, SemanticsRole.radioGroup));
+        expect(
+          find.descendant(of: groups.at(index), matching: find.text(row)),
+          findsOneWidget,
+        );
+      }
+      handle.dispose();
     });
 
     testWidgets('sets the end of the ayah or surah, and turns it off', (

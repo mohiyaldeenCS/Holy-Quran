@@ -1,3 +1,4 @@
+import 'package:flutter/semantics.dart' show SemanticsRole;
 import 'package:flutter/widgets.dart';
 
 import 'package:holyquran/domain/models/sleep_timer.dart';
@@ -5,6 +6,7 @@ import 'package:holyquran/domain/models/stop_after.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/l10n/arabic_digits.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
+import 'package:holyquran/ui/core/theme/tokens.g.dart';
 import 'package:holyquran/ui/core/widgets/radio_row.dart';
 import 'package:holyquran/ui/core/widgets/stepper.dart';
 import 'package:holyquran/ui/features/listen/view_models/controls/sleep_sheet_view_model.dart';
@@ -39,39 +41,49 @@ class SleepSheet extends StatelessWidget {
             max: sleep.max,
             onChanged: sleep.setMinutes,
           ),
-          _Choice(
-            label: l10n.minutesCount(minutes, arabicDigits(minutes)),
-            selected: timer is SleepAfter,
-            onTap: sleep.startMinutes,
-          ),
-          if (sleep.offersEndOfAyah)
-            _Choice(
-              label: l10n.playerEndOfAyah,
-              selected: timer is SleepAtEndOfAyah,
-              onTap: sleep.endOfAyah,
-            ),
-          _Choice(
-            label: l10n.playerEndOfSurah,
-            selected: timer is SleepAtEndOfSurah,
-            onTap: sleep.endOfSurah,
-          ),
-          _Choice(
-            label: l10n.playerSleepOff,
-            selected: timer == null,
-            onTap: sleep.cancel,
+          _Group(
+            label: l10n.playerSleepTimer,
+            rows: [
+              _Choice(
+                label: l10n.minutesCount(minutes, arabicDigits(minutes)),
+                selected: timer == SleepAfter(minutes),
+                onTap: sleep.startMinutes,
+              ),
+              if (sleep.offersEndOfAyah)
+                _Choice(
+                  label: l10n.playerEndOfAyah,
+                  selected: timer is SleepAtEndOfAyah,
+                  onTap: sleep.endOfAyah,
+                ),
+              _Choice(
+                label: l10n.playerEndOfSurah,
+                selected: timer is SleepAtEndOfSurah,
+                onTap: sleep.endOfSurah,
+              ),
+              _Choice(
+                label: l10n.playerSleepOff,
+                selected: timer == null,
+                onTap: sleep.cancel,
+              ),
+            ],
           ),
           if (options.isNotEmpty) ...[
             ControlsSheetTitle(l10n.stopAfterTitle),
-            for (final option in options)
-              _Choice(
-                label: stopAfterLabel(l10n, option),
-                selected: stopAfter.chosen == option,
-                onTap: () => stopAfter.choose(option),
-              ),
-            _Choice(
-              label: l10n.stopAfterNone,
-              selected: stopAfter.chosen == null,
-              onTap: () => stopAfter.choose(null),
+            _Group(
+              label: l10n.stopAfterTitle,
+              rows: [
+                for (final option in options)
+                  _Choice(
+                    label: stopAfterLabel(l10n, option),
+                    selected: stopAfter.chosen == option,
+                    onTap: () => stopAfter.choose(option),
+                  ),
+                _Choice(
+                  label: l10n.stopAfterNone,
+                  selected: stopAfter.chosen == null,
+                  onTap: () => stopAfter.choose(null),
+                ),
+              ],
             ),
           ],
         ],
@@ -87,6 +99,29 @@ String stopAfterLabel(AppLocalizations l10n, StopAfter option) =>
       StopAfter.page => l10n.stopAfterPage,
       StopAfter.surah => l10n.stopAfterSurah,
     };
+
+/// One set of rows of which one is chosen, read as a radio group named
+/// [label]. Its rows keep the gap the sheet puts between its children.
+class _Group extends StatelessWidget {
+  const _Group({required this.label, required this.rows});
+
+  final String label;
+  final List<Widget> rows;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    container: true,
+    explicitChildNodes: true,
+    role: SemanticsRole.radioGroup,
+    label: label,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: AppSpacing.space4,
+      children: rows,
+    ),
+  );
+}
 
 class _Choice extends StatelessWidget {
   const _Choice({
