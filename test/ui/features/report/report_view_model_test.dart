@@ -2,10 +2,12 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/data/services/mail_service.dart';
 import 'package:holyquran/domain/models/installed_pack.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/ui/features/report/view_models/report_view_model.dart';
 
+import '../../../../testing/fakes/fake_mail_service.dart';
 import '../../../../testing/fakes/fake_pack_install_repository.dart';
 import '../../../../testing/fakes/fake_quran_index_repository.dart';
 import 'report_test_support.dart';
@@ -22,6 +24,8 @@ void main() {
   tearDownAll(() => root.delete(recursive: true));
 
   final address = QuranAddress('hafs', 2, 3);
+
+  group('send', () => sendTests(() => tafsir));
 
   test('names the ayah by its surah in the index', () {
     final index = FakeQuranIndexRepository.synthetic();
@@ -89,5 +93,83 @@ void main() {
 
     expect(notified, 1);
     expect(viewModel.pack?.id, tafsir.id);
+  });
+}
+
+void sendTests(InstalledPack Function() tafsir) {
+  final address = QuranAddress('hafs', 2, 3);
+  const subject = 'نص تجريبي';
+  const separator = ' · ';
+
+  test('sends the address, pack, version and source to the recipient, '
+      'never the text', () async {
+    final pack = tafsir();
+    final mail = FakeMailService();
+    final viewModel = ReportViewModel(
+      address: address,
+      packId: pack.id,
+      packs: FakePackInstallRepository(installed: [pack]),
+      mail: mail,
+      recipient: 'reports@example.org',
+    );
+    addTearDown(viewModel.dispose);
+
+    expect(viewModel.canSend, isTrue);
+    await viewModel.send(subject: subject, separator: separator);
+
+    expect(
+      mail.composed.single,
+      MailDraft(
+        to: 'reports@example.org',
+        subject: subject,
+        body: [
+          '$address',
+          [
+            pack.id,
+            pack.version,
+            pack.manifest.sources.first.name,
+          ].join(separator),
+        ].join('\r\n'),
+      ),
+    );
+    expect(viewModel.notOpened, isFalse);
+  });
+
+  test('sends the address alone for an ayah', () async {
+    final mail = FakeMailService();
+    final viewModel = ReportViewModel(
+      address: address,
+      mail: mail,
+      recipient: 'reports@example.org',
+    );
+    addTearDown(viewModel.dispose);
+
+    await viewModel.send(subject: subject, separator: separator);
+
+    expect(mail.composed.single.body, '$address');
+  });
+
+  test('says when no mail app opened', () async {
+    final mail = FakeMailService()..fails = true;
+    final viewModel = ReportViewModel(
+      address: address,
+      mail: mail,
+      recipient: 'reports@example.org',
+    );
+    addTearDown(viewModel.dispose);
+
+    await viewModel.send(subject: subject, separator: separator);
+
+    expect(viewModel.notOpened, isTrue);
+  });
+
+  test('cannot send without the mail service', () {
+    final viewModel = ReportViewModel(
+      address: address,
+      recipient: 'reports@example.org',
+    );
+    addTearDown(viewModel.dispose);
+
+    expect(viewModel.canSend, isFalse);
   });
 }
