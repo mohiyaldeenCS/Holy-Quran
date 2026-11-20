@@ -759,15 +759,25 @@ not fit, so its words cannot be told).
 
 **Re-indexing.** A segment's KFGQPC words are those of the Tanzil words it covers,
 written `first_word` to `last_word`, both included. A segment that covers marks only
-goes to the word they are joined to and is merged into the segment just before it,
-which must cover that word: the merged segment keeps that segment's words and start,
-ends where the mark's segment ends, and carries the defects of both (D-179's kinds, in
-the reader's order). Problems: `lone_mark` (no segment just before covers that word),
-`no_word` (the marks join no word), `ambiguous_segment` (they join two), `past_the_ayah`
-(the segment ends past the ayah's tokens, as D-182 found at `hafs:10:1` and `hafs:14:1`)
-and `unmapped_ayah` (a timed ayah without a map). An ayah without timing stays without
+belongs to the word they are joined to (`merged_joined_mark_segments`) or, when they go
+to no word because KFGQPC lacks the mark or writes another, to the word before them,
+where D-078 places a mark (`merged_wordless_mark_segments`, D-201). It is merged into
+the segment just before it, which must cover that word: the merged segment keeps that
+segment's words and start, ends where the mark's segment ends, and carries the defects
+of both (D-179's kinds, in the reader's order). Problems: `lone_mark` (no segment just
+before covers that word), `no_word_before` (marks that go to no word with no word before
+them), `ambiguous_segment` (marks joined to two words), `past_the_ayah` (the segment
+ends past the ayah's tokens, as D-182 found at `hafs:10:1` and `hafs:14:1`) and
+`unmapped_ayah` (a timed ayah without a map). An ayah without timing stays without
 timing. Nothing is guessed: a problem is reported with its address, kind and numbers,
 and the run fails.
+
+**Word boundaries (D-201).** Where two Tanzil words are one KFGQPC word (`shared_word`,
+and the cases of `hafs:24:21`), the map stops until the reviewer the owner names
+approves each place as an entry of the table of known differences (D-198 Q6). The
+table has no kind for such an entry yet: an equivalence cannot have an empty KFGQPC
+sequence, so a Tanzil U+0020 that KFGQPC lacks cannot be written as one. The entry's
+shape is the lead's to fix, with the map's use of it.
 
 `timing-map` runs both on the real files and prints counts and addresses only; no
 character of either text is printed (`lines` refuses any line outside ASCII). The
@@ -780,7 +790,8 @@ writes inside the word before it, a mark KFGQPC lacks, a letter encoded otherwis
 Tanzil words in one KFGQPC word, a Tanzil word KFGQPC splits, a word either side lacks,
 a Tanzil word in a KFGQPC mark, an equivalence that joins two words, a presentation the
 table does not fit, texts naming other ayat; and for the timing, the merge of a mark's
-segment, the defects it carries, and each timing problem. Three runs of `timing-map`
+segment, the merge of a segment on a mark with no word into the word before, the defects
+it carries, and each timing problem. Three runs of `timing-map`
 check its counts, that a map problem and a timing problem each exit 65, and that it
 prints no text.
 
