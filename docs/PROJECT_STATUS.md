@@ -8,12 +8,12 @@ corrected first.
 
 | | |
 | --- | --- |
-| Updated | 2026-11-11 |
+| Updated | 2026-11-20 |
 | Phase | 1 — opened before Gate 0's content items by the owner (D-099). Phase 0's engineering is merged |
 | Stream A — app | Phase 1 runs as the 40 tasks of `docs/plans/PHASE1.md`. **All 40 merged** (P1-35 as #91, 2026-11-09), of which 20 are partial (P1-12, P1-14, P1-15, P1-17, P1-22 to P1-34, P1-36, P1-37, P1-40). The composition root is wired (#72, D-151). **A local test copy with real text runs on the owner's phone (`HANDOFF.md` section 0); no real content is in `main` or any APK built from it** |
 | Stream B — content | In progress, by the planning session and the owner |
 | Working branch | One branch per task (`agent/*`), worked by agents in GitHub Actions (D-159) |
-| Last session | 2026-11-06 to 2026-11-11, local lead on the owner's machine: test copy on his phone, #93–#111 (Tanzil real files, KFGQPC comparison, reciter's review page, recitation drift, margin-mark rows, missing-pack alert, accessibility pass, and the Zaydi tafsir pipeline and app support of B0.7), D-172–D-194. **Read `HANDOFF.md` section 0 first** |
+| Last session | 2026-11-20, local lead: base text is KFGQPC (D-195); P5 counts file; linker rerun and review pages; honorific drawings; five code branches in flight (see "Next actions — stream A"). Before that, 2026-11-06 to 2026-11-11, local lead on the owner's machine: test copy on his phone, #93–#111 (Tanzil real files, KFGQPC comparison, reciter's review page, recitation drift, margin-mark rows, missing-pack alert, accessibility pass, and the Zaydi tafsir pipeline and app support of B0.7), D-172–D-194. **Read `HANDOFF.md` section 0 first** |
 
 ## What is in the repository
 
@@ -433,7 +433,13 @@ Stream B: the owner is extracting book 466. B0.11 (the pack pipeline) is on `mai
 
 ## Next actions — stream A (the implementing account)
 
-Current (2026-11-11, local lead; agents run locally under D-191 while no API key works — both secrets return "Invalid API key"): B0.7's code is merged (#104, #105, #108 to #111). Next: the honorific table once the owner has the site's font; rerun the linker and give the religious reviewer the review pages; the P5 counts file; then build the first real tafsir pack. Follow-ups from reviews: `tafsir_footnotes.py` should also stop when the page after a shipped last note opens with a note paragraph but has no footnote line (review of #111, finding 1; no real case); the README's P2 wording ("shares only the markup constants"); `test/perf/perf_scenarios_test.dart` flakes under full-suite load (a bookmark reload after teardown).
+Current (2026-11-20, local lead). Both API secrets are still dated 2026-10-11, so agents run locally (D-191). The owner asked for as many parallel agents as the machine allows; about 4 GB of 31.7 GB was free, so nine ran. The Agent tool's worktree isolation refuses this repository (it resolves `d:` and `D:` as different paths), so the lead makes worktrees by hand in `D:/projects/hq-wt/<name>` (`git worktree add D:/projects/hq-wt/<name> -b agent/<name> origin/main`) and points each agent there.
+
+Done on the owner's machine, outside Git: the P5 counts file (`$HOME/holyquran-test-copy/kfgqpc/counts/`, 114 surahs, 6,236 ayat; committed as `testing/reference/kfgqpc-hafs-counts.json`); the linker rerun on 183, 514, 276, 471, 473, 440 (139 tests pass; every count and every `passages.jsonl` hash equals `docs/content/ZIYDIA_LIBRARY.md` "Results"), with review pages in `D:/projects/New folder/ziydia_review_2026-11-20/book_<id>/`; the sixteen honorific codes drawn from the site's font (`D:/projects/New folder/Scheherazade-Regular.ttf`, SHA-256 `4fa8365c…f9c3a`) in `D:/projects/New folder/honorifics/` (`honorifics.html`, one PNG per code, `honorific_table_DRAFT.json` with empty phrases). Every code has its own non-empty glyph, each a whole phrase.
+
+In flight (branches from `main` 4c63dfc; each agent pushes and opens a pull request; none reviewed or merged yet): `agent/startup-failure-splash` (failed start stuck on the splash), `agent/au-07-08-sleep-stop` (AU-07, AU-08), `agent/sh-01-copy-forms` (SH-01), `agent/sr-02-search-modes` (SR-02), `agent/b07-footnote-followups` (review of #111, finding 1, and the README's P2 wording); and a read-only plan of what D-195 changes (font pairing, pipeline, word timing, linker, test copy, O-16). Agents ran only their own tests (`--exclude-tags golden`) for lack of memory; CI runs the full suite. Each needs an independent review before merge (D-176 (4)). Still without a task: the first-run setup (LV-01), the report sheet's send action (D-127), unlimited repeat (AU-09), add to the play list (AU-17), the possible stall in `audio_engine_service.dart:397-400`, the perf-test flake.
+
+Before 2026-11-20: B0.7's code is merged (#104, #105, #108 to #111). Next: the honorific table once the owner has the site's font; rerun the linker and give the religious reviewer the review pages; the P5 counts file; then build the first real tafsir pack. Follow-ups from reviews: `tafsir_footnotes.py` should also stop when the page after a shipped last note opens with a note paragraph but has no footnote line (review of #111, finding 1; no real case); the README's P2 wording ("shares only the markup constants"); `test/perf/perf_scenarios_test.dart` flakes under full-suite load (a bookmark reload after teardown).
 
 Work runs through agents in GitHub Actions; the lead only manages them (D-159; suspended by D-191 while no API key works). The
 current queue, in order, with how to start a run, is `HANDOFF.md`, sections 2 and 3.
@@ -641,6 +647,7 @@ Newest first. One line per session.
 
 | Date | Session | What was done | Where |
 | --- | --- | --- | --- |
+| 2026-11-20 | Local lead | Fetched: `main` equal to GitHub, no open pull requests. Owner's answers: base text KFGQPC (D-195); the site font downloaded; up to many agents in parallel. P5 counts file committed; linker rerun and review pages (unchanged counts); honorific drawings; five code agents and one planning agent started (branches in "Next actions — stream A") | `claude/records-2026-11-20` |
 | 2026-11-10–11 | Local lead, continued | Merged #103 to #111: the B0.7 plan and decisions D-184 to D-194, linker outcomes, the tafsir pack format with surah-level passages, `pack.py tafsir` (two reviews; the surah-level review gate D-193), the app reading and showing surah passages under «عن السورة» (owner's choice), footnotes; also #106 (second mark row, D-183) and #107 (tafsir reader alert, D-192). All agents ran locally (D-191) | `main` |
 | 2026-11-10 | Local lead, continued | Merged #102 (records) and #101 (missing base pack, D-180). The Zaydi site now refuses the fetch tool (403); the owner is asking the site owner. Both API keys fail (D-191). Planned B0.7 (`docs/plans/B07_TAFSIR_PACK.md`); owner's answers D-184 to D-190 | `main`, this branch |
 | 2026-11-09 | Local lead, continued | Merged #98 (records), #91 (P1-35, after its fix and goldens), #99 (recitation drift tool, B0.5) and #100 (margin-mark rows, D-181). Fetched quran-align and 72 ayat of each recitation outside Git and measured drift (two pass, two to a listening check). Owner's answers D-180 to D-182. Key 2 is out of credit | `main`, this branch |
