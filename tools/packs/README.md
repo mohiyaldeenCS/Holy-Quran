@@ -119,7 +119,7 @@ python3 tools/packs/pack.py drift --timing <quran-align json> --audio <folder of
 | `compare` | Runs the KFGQPC comparison against the `hafs` profile (6,236 ayat) and writes the report; exits 65 when the report has any problem, 0 when it has none |
 | `review-page` | Runs the KFGQPC comparison and writes the reciter's review page into a new or empty folder outside every Git working tree (see "The reciter's review page"); exits 0 when the page is written, whatever the comparison found |
 | `kfgqpc-counts` | Writes the P5 reference counts of the KFGQPC file; `--date` is the day they are taken, so the same file and date give the same bytes |
-| `kfgqpc-measure` | Measures the KFGQPC Hafs text before the pipeline changes for D-195 and writes a report of counts, addresses (`hafs:s:a`, at most ten per list) and `U+XXXX` only, outside every Git working tree; prints one summary line per measurement; exits 0 when the report is written (see "The KFGQPC measurement") |
+| `kfgqpc-measure` | Measures the KFGQPC Hafs text before the pipeline changes for D-195 and writes a report of counts, addresses (`hafs:s:a`; the `first` lists hold at most ten, the sajda lists every address) and `U+XXXX` only, outside every Git working tree; prints one summary line per measurement; exits 0 when the report is written (see "The KFGQPC measurement") |
 | `drift` | Measures drift between a recitation's quran-align timing and a sample of its everyayah files, prints one line per file, the summary and the verdict, and writes the report if `--report` is given (see "Recitation drift"); exits 0 on PASS and 65 on FAIL, whatever the word index problems |
 
 To try it on the synthetic source:
@@ -942,8 +942,10 @@ Four proofs:
 2. **P2:** an independent path of regular expressions over the `html` gives the same
    text, for each paragraph and for each whole passage, notes included
    (`tafsir_footnotes.regex_passage_text`: it finds marks, the separator, the notes and
-   their numbers by its own expressions, and shares nothing with the tokenizer or the
-   pairing).
+   their numbers by its own expressions). With the tokenizer and the pairing it shares
+   only constants of `tafsir_html`: the markup strings (the tags, `NOTE_OPEN`,
+   `SEPARATOR`), the digit class `DIGITS`, and the white-space pattern that
+   `regex_text` and `assemble` both use.
 3. **P3:** each paragraph, note paragraphs included, is one of its site page's
    paragraphs in `pages.jsonl`, each used once.
 4. **P4:** every stored text reads back as the bytes written.
@@ -967,8 +969,8 @@ with notes by (site page, N), never by N alone: a passage whose marks repeat a n
 from different pages ships each mark's own page's note, in the marks' order (D-194).
 
 Marks and notes pair one to one per page. On every page where a shipped passage has a
-mark, and on the page after one whose last note it uses, each of these stops the build
-(exit 65), naming the book, the site page, N and the entries involved:
+mark, each of these stops the build (exit 65), naming the book, the site page, N and
+the entries involved:
 
 | Case | What |
 | --- | --- |
@@ -977,6 +979,15 @@ mark, and on the page after one whose last note it uses, each of these stops the
 | `mark_without_note`, `note_without_mark` | a mark with no note of its N on the page, or a note with no mark |
 | `separator_not_empty` | a paragraph holding `<hr>` that is not exactly the separator |
 | `page_layout` | a note paragraph above the line, anything but a note below it, a second line, a mark in a note, or a passage carrying a note paragraph or the separator as its own paragraph |
+
+The page after one whose last note a shipped passage uses is checked too, because that
+note could go on there. It is that page's site page + 1, never the next page the
+extraction holds: `page_after_missing` when site page + 1 is not in the extraction
+although a later page is (a page the site skips), named by the missing site page;
+`unnumbered_note_opens_page` when its first note paragraph has no number; and
+`page_layout` when a note paragraph stands above its footnote line, or anywhere on it
+when it has no line. All three name the entries whose passage uses that last note. The
+extraction's last page has no page after, so none of them applies to it.
 
 All the cases are listed in one message. The review record settles a case only by
 excluding the entries it names (`excluded`, D-186), which holds them out; nothing new

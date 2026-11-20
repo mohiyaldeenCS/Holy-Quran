@@ -180,11 +180,12 @@ void main() {
       ]);
     });
 
-    test('closeness: in order and together, then fewer words between', () {
+    test('closeness: the whole ayah, then in order and together, then fewer '
+        'words between', () {
       expect(ayatOf(results.ordered(SearchOrder.closeness)), [
         _ayah(1, 1),
-        _ayah(2, 1),
         _ayah(3, 1),
+        _ayah(2, 1),
         _ayah(1, 2),
         _ayah(1, 3),
         _ayah(2, 3),
@@ -201,6 +202,22 @@ void main() {
         _ayah(3, 1),
       ]);
     });
+  });
+
+  test('combined: the total and the most frequent first count each whole '
+      'appearance of the query once', () async {
+    final results = await search(
+      _query('alpha beta', mode: SearchMode.combined),
+    );
+    expect(results.occurrences, 7);
+    expect(ayatOf(results.ordered(SearchOrder.frequency)), [
+      _ayah(2, 1),
+      _ayah(1, 1),
+      _ayah(1, 2),
+      _ayah(1, 3),
+      _ayah(2, 3),
+      _ayah(3, 1),
+    ]);
   });
 
   test('matches are word ranges of the ayah', () async {
@@ -344,10 +361,24 @@ void main() {
       );
     });
 
+    test('the commonest words as the one field searches them', () async {
+      await answersWithin(
+        _query('w2 w0 w1', mode: SearchMode.combined),
+        SearchOrder.closeness,
+      );
+    });
+
     test('the longest whole ayah', () async {
       await answersWithin(
         _query(longAyah.join(' '), mode: SearchMode.wholeAyah),
         SearchOrder.mushaf,
+      );
+    });
+
+    test('the longest whole ayah as the one field searches it', () async {
+      await answersWithin(
+        _query(longAyah.join(' '), mode: SearchMode.combined),
+        SearchOrder.closeness,
       );
     });
 

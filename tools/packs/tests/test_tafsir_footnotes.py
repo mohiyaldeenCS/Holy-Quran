@@ -106,12 +106,32 @@ class NotesOfMarksTest(unittest.TestCase):
             [("mark_without_note", 10, digits(1), (3,))],
         )
 
+    def test_a_note_off_the_notes_on_the_page_after_stops_the_build(self):
+        for where, p11 in (
+            ("opening a page without a line", page(note(None, "Synthetic"), para("Synthetic next"))),
+            ("closing a page without a line", page(para("Synthetic next"), note(1, "Synthetic"))),
+            ("above the line", page(note(None, "Synthetic"), SEPARATOR, note(1, "Synthetic"))),
+        ):
+            with self.subTest(where=where):
+                cases = tf.notes_of_marks({3: [(10, digits(1)), (10, digits(2))]}, {**PAGES, 11: p11})[1]
+                self.assertEqual(cases, [tf.Case("page_layout", 11, "", (3,))])
+
     def test_the_page_after_is_read_only_when_the_last_note_is_used(self):
-        pages = dict(PAGES)
-        pages[11] = page(SEPARATOR, note(None, "Synthetic"))
-        self.assertEqual(tf.notes_of_marks({3: [(10, digits(1))], 4: [(10, digits(2))]}, pages)[1][0].entries, (4,))
-        pages[10] = page(para("Synthetic" + mark(2)), para("x" + mark(1)), SEPARATOR, NOTES[2], *NOTES[:2])
-        self.assertEqual(tf.notes_of_marks({3: [(10, digits(2))]}, pages)[1], [])
+        for where, p11 in (("below the line", page(SEPARATOR, note(None, "Synthetic"))), ("without a line", page(note(None, "Synthetic")))):
+            with self.subTest(where=where):
+                pages = {**PAGES, 11: p11}
+                self.assertEqual(tf.notes_of_marks({3: [(10, digits(1))], 4: [(10, digits(2))]}, pages)[1][0].entries, (4,))
+                pages[10] = page(para("Synthetic" + mark(2)), para("x" + mark(1)), SEPARATOR, NOTES[2], *NOTES[:2])
+                self.assertEqual(tf.notes_of_marks({3: [(10, digits(2))]}, pages)[1], [])
+
+    def test_a_missing_page_after_stops_the_build_and_no_later_page_stands_in(self):
+        for later, p12 in (("a clean page", page(para("Synthetic later"))), ("an unnumbered note", page(SEPARATOR, note(None, "Synthetic")))):
+            with self.subTest(later=later):
+                cases = tf.notes_of_marks({3: [(10, digits(1)), (10, digits(2))]}, {10: PAGES[10], 12: p12})[1]
+                self.assertEqual(cases, [tf.Case("page_after_missing", 11, "", (3,))])
+
+    def test_the_last_page_of_the_extraction_has_no_page_after(self):
+        self.assertEqual(tf.notes_of_marks({3: [(10, digits(1)), (10, digits(2))]}, {10: PAGES[10]})[1], [])
 
 
 class PairingByPageTest(unittest.TestCase):

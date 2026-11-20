@@ -89,8 +89,8 @@ def measure(ayat, font_code_points, table, text=None, metadata=None):
     report["no_break_spaces"] = _no_break_spaces(ayat, bodies, table)
     report["missing_from_font"] = OrderedDict(
         [
-            ("aya_text", _missing(ayat, [aya.text for aya in ayat], font_code_points)),
-            ("aya_text_emlaey", _missing(ayat, [aya.emlaey for aya in ayat], font_code_points)),
+            ("aya_text", _missing([aya.text for aya in ayat], font_code_points)),
+            ("aya_text_emlaey", _missing([aya.emlaey for aya in ayat], font_code_points)),
         ]
     )
     report["emlaey_against_uthmani_tokens"] = _token_differences(ayat, uthmani, emlaey)
@@ -223,7 +223,7 @@ def _no_break_spaces(ayat, bodies, table):
     )
 
 
-def _missing(ayat, texts, font_code_points):
+def _missing(texts, font_code_points):
     occurrences = Counter()
     in_ayat = Counter()
     for text in texts:
