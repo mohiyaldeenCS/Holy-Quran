@@ -44,7 +44,7 @@ final class CopySheetViewModel extends ChangeNotifier {
   CopyPreview? get preview => _previews[_selected];
 
   void select(CopyForm form) {
-    if (!forms.contains(form) || form == _selected) return;
+    if (form == _selected) return;
     _selected = form;
     notifyListeners();
   }

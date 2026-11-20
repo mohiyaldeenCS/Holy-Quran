@@ -41,13 +41,16 @@ final _expected = {
   SurahNameFormat.withAyah: _filled('surahAyahReference'),
   SurahNameFormat.titledWithAyah: _filled('surahTitleAyahReference'),
   SurahNameFormat.copyReference: _filled('copyReferenceFull'),
+  SurahNameFormat.copyReferenceSurah: _filled('copyReferenceSurah'),
 };
 
 bool _hasAyah(SurahNameFormat format) => switch (format) {
   SurahNameFormat.withAyah ||
   SurahNameFormat.titledWithAyah ||
   SurahNameFormat.copyReference => true,
-  SurahNameFormat.name || SurahNameFormat.titled => false,
+  SurahNameFormat.name ||
+  SurahNameFormat.titled ||
+  SurahNameFormat.copyReferenceSurah => false,
 };
 
 SurahName _surahName(SurahNameFormat format) => SurahName(
