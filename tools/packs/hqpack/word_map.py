@@ -6,7 +6,7 @@ quran-align counts words as the U+0020 tokens of Tanzil's quran-uthmani text, fr
 removed (`compare.Alignment.body`) that hold a letter, numbered from 1 (D-078,
 D-083); a token with no letter is a mark.
 
-The map is read off the comparison's own alignment (`compare.align`): a Tanzil token
+The map is read off the comparison's own alignment (`compare.Aligner`): a Tanzil token
 goes to the KFGQPC token that holds the code points matched to it as equal, carried
 back through the equivalences. Accepted, and nothing else:
 
@@ -51,12 +51,13 @@ from .tanzil_text import read_tanzil_text
 from .tokens import token_spans
 
 FIRST_ADDRESSES = 10
+_TOKEN_PROBLEMS = ("unmatched_word", "ambiguous", "word_in_mark")
 _DEFECTS = (END_BEFORE_START, OVERLAP, ZERO_LENGTH)
-MAP_COUNTS = (
+_MAP_COUNTS = (
     "ayat", "tanzil_tokens", "tanzil_words", "tanzil_marks", "marks_joined", "marks_apart", "marks_unmatched",
     "kfgqpc_words",
 )
-TIMING_COUNTS = ("ayat", "ayat_without_timing", "segments", "merged_mark_segments", "kfgqpc_segments")
+_TIMING_COUNTS = ("ayat", "ayat_without_timing", "segments", "merged_mark_segments", "kfgqpc_segments")
 
 
 class Token(NamedTuple):
@@ -68,6 +69,8 @@ class Token(NamedTuple):
 
 @dataclass(frozen=True)
 class AyahMap:
+    """The ayah's number of KFGQPC words, and a Token for each Tanzil token, from 0."""
+
     words: int
     tokens: tuple
 
@@ -95,17 +98,17 @@ def map_words(text, witness, table):
     """({(surah, ayah): AyahMap}, problems, counts) of the parsed Tanzil text and KFGQPC ayat under `table`."""
     tanzil = [(aya.surah, aya.number, aya.text.value) for sura in text.suras for aya in sura.ayat]
     compare.check_addresses(tanzil, witness)
-    tally = compare.Tally.of(table)
+    # The metadata's quarter starts feed only the comparison's quarter records, which the map does not read.
+    aligner = compare.Aligner(table, frozenset())
     maps = {}
     problems = []
-    counts = OrderedDict((key, 0) for key in MAP_COUNTS)
+    counts = OrderedDict((key, 0) for key in _MAP_COUNTS)
     counts["ayat"] = len(tanzil)
     for (surah, number, tanzil_text), aya in zip(tanzil, witness):
         address = (surah, number)
-        before = len(tally.presentation_problems)
-        # The quarter starts feed only the comparison's quarter records, which the map does not read.
-        alignment = compare.align(table, address, aya.text, tanzil_text, frozenset(), tally)
-        if len(tally.presentation_problems) > before:
+        before = len(aligner.presentation_problems)
+        alignment = aligner.align(address, aya.text, tanzil_text)
+        if len(aligner.presentation_problems) > before:
             problems.append(_problem(address, "presentation"))
             continue
         ayah_map = _ayah_map(address, alignment, tanzil_text, problems, counts)
@@ -118,7 +121,7 @@ def reindex(timings, maps):
     """({(surah, ayah): WordTiming}, problems, counts): each ayah of `timings` whose segments all re-index."""
     result = {}
     problems = []
-    counts = OrderedDict((key, 0) for key in TIMING_COUNTS)
+    counts = OrderedDict((key, 0) for key in _TIMING_COUNTS)
     for address in sorted(timings):
         timing = timings[address]
         counts["ayat"] += 1
@@ -191,6 +194,7 @@ def lines(report):
 
 
 def _ayah_map(address, alignment, tanzil_text, problems, counts):
+    """The ayah's AyahMap, or None when it adds a problem to `problems`; `counts` gains its tokens."""
     found = len(problems)
     kfgqpc_tokens = token_spans(alignment.body)
     numbers = {}
@@ -200,37 +204,43 @@ def _ayah_map(address, alignment, tanzil_text, problems, counts):
     token_at = _token_at(len(alignment.body), kfgqpc_tokens)
     matched = _matched(alignment, len(tanzil_text))
     tokens = []
-    receivers = {}
     for index, (start, end, is_word) in enumerate(token_spans(tanzil_text)):
-        hit = sorted(
-            {
-                token_at[i]
-                for j in range(start, end)
-                if matched[j] is not None
-                for i in range(*matched[j])
-                if token_at[i] is not None
-            }
-        )
-        word, kind = _target(hit, numbers, is_word)
-        if kind in ("unmatched_word", "ambiguous", "word_in_mark"):
+        word, kind = _target(_hits(matched[start:end], token_at), numbers, is_word)
+        if kind in _TOKEN_PROBLEMS:
             problems.append(_problem(address, kind, tanzil_token=index))
         elif kind is not None:
             counts[kind] += 1
-        if is_word and word is not None:
-            receivers.setdefault(word, []).append(index)
         counts["tanzil_tokens"] += 1
         counts["tanzil_words" if is_word else "tanzil_marks"] += 1
         tokens.append(Token(word, is_word))
-    for word in range(1, len(numbers) + 1):
-        given = receivers.get(word, [])
-        if not given:
-            problems.append(_problem(address, "unmapped_word", kfgqpc_word=word))
-        elif len(given) > 1:
-            problems.append(_problem(address, "shared_word", kfgqpc_word=word, tanzil_tokens=given))
+    problems.extend(_receiver_problems(address, len(numbers), tokens))
     counts["kfgqpc_words"] += len(numbers)
     if len(problems) > found:
         return None
     return AyahMap(words=len(numbers), tokens=tuple(tokens))
+
+
+def _hits(matched, token_at):
+    """The KFGQPC tokens, sorted, that hold the code points matched to one Tanzil token."""
+    return sorted(
+        {token_at[i] for match in matched if match is not None for i in range(*match) if token_at[i] is not None}
+    )
+
+
+def _receiver_problems(address, words, tokens):
+    """A problem for each KFGQPC word that does not receive exactly one Tanzil word."""
+    receivers = {}
+    for index, token in enumerate(tokens):
+        if token.is_word and token.word is not None:
+            receivers.setdefault(token.word, []).append(index)
+    result = []
+    for word in range(1, words + 1):
+        given = receivers.get(word, [])
+        if not given:
+            result.append(_problem(address, "unmapped_word", kfgqpc_word=word))
+        elif len(given) > 1:
+            result.append(_problem(address, "shared_word", kfgqpc_word=word, tanzil_tokens=given))
+    return result
 
 
 def _target(hit, numbers, is_word):

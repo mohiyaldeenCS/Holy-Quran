@@ -76,42 +76,37 @@ class Alignment:
     opcodes: tuple
 
 
-@dataclass
-class Tally:
-    """What aligning records over a run: how often each rule applied (and, for an
-    equivalence, where), the presentation problems, and KFGQPC's quarter starts."""
+class Aligner:
+    """Aligns ayat under `table`, the comparison's own way, and records over the run
+    how often each rule applied (and, for an equivalence, where), the presentation
+    problems and KFGQPC's quarter starts; `quarter_starts` are the metadata's, which
+    P-3 needs."""
 
-    applied: dict
-    applied_at: dict
-    presentation_problems: list = field(default_factory=list)
-    kfgqpc_quarters: set = field(default_factory=set)
-    surah_opening_quarters: list = field(default_factory=list)
+    def __init__(self, table, quarter_starts):
+        self.table = table
+        self.quarter_starts = quarter_starts
+        self.applied = {rule.id: 0 for rule in _rules(table)}
+        self.applied_at = {rule.id: set() for rule in table.equivalences}
+        self.presentation_problems = []
+        self.kfgqpc_quarters = set()
+        self.surah_opening_quarters = []
 
-    @classmethod
-    def of(cls, table):
-        return cls(
-            applied={rule.id: 0 for rule in _rules(table)},
-            applied_at={rule.id: set() for rule in table.equivalences},
-        )
-
-
-def align(table, address, kfgqpc_text, tanzil_text, quarter_starts, tally):
-    """The Alignment of one ayah, the comparison's own; presentation problems and
-    rule applications go to `tally`."""
-    label = "hafs:%d:%d" % address
-    side = kfgqpc_text
-    if table.ayah_end is not None:
-        side = _ayah_end(table, side, address, label, tally.presentation_problems, tally.applied)
-    front = len(side)
-    if table.quarter_start is not None:
-        side = _opening(
-            table, side, address, label, quarter_starts, tally.kfgqpc_quarters, tally.presentation_problems,
-            tally.applied, tally.surah_opening_quarters,
-        )
-    front -= len(side)
-    body = side
-    side, origin = _equivalences(table.equivalences, body, address, tally.applied, tally.applied_at)
-    return Alignment(body=body, front=front, side=side, origin=origin, opcodes=_opcodes(side, tanzil_text))
+    def align(self, address, kfgqpc_text, tanzil_text):
+        table = self.table
+        label = "hafs:%d:%d" % address
+        side = kfgqpc_text
+        if table.ayah_end is not None:
+            side = _ayah_end(table, side, address, label, self.presentation_problems, self.applied)
+        front = len(side)
+        if table.quarter_start is not None:
+            side = _opening(
+                table, side, address, label, self.quarter_starts, self.kfgqpc_quarters, self.presentation_problems,
+                self.applied, self.surah_opening_quarters,
+            )
+        front -= len(side)
+        body = side
+        side, origin = _equivalences(table.equivalences, body, address, self.applied, self.applied_at)
+        return Alignment(body=body, front=front, side=side, origin=origin, opcodes=_opcodes(side, tanzil_text))
 
 
 def _opcodes(side, tanzil_text):
@@ -168,8 +163,8 @@ def compare(text, metadata, witness, table, trace=None):
     juz_of = _unit_of(metadata.juzs, tanzil)
     page_of = _unit_of(metadata.pages, tanzil)
     quarter_starts = {(p.sura, p.aya) for p in metadata.quarters}
-    tally = Tally.of(table)
-    applied = tally.applied
+    aligner = Aligner(table, quarter_starts)
+    applied = aligner.applied
     differences = []
     patterns = OrderedDict()
     page_differences = []
@@ -178,7 +173,7 @@ def compare(text, metadata, witness, table, trace=None):
     for (surah, number, tanzil_text), aya in zip(tanzil, witness):
         address = (surah, number)
         label = "hafs:%d:%d" % address
-        alignment = align(table, address, aya.text, tanzil_text, quarter_starts, tally)
+        alignment = aligner.align(address, aya.text, tanzil_text)
         if alignment.side != tanzil_text:
             place = None
             if trace is not None:
@@ -204,10 +199,10 @@ def compare(text, metadata, witness, table, trace=None):
             )
         )
     else:
-        quarter_differences = _quarter_differences(tally.kfgqpc_quarters, quarter_starts)
+        quarter_differences = _quarter_differences(aligner.kfgqpc_quarters, quarter_starts)
     if trace is not None:
-        trace.surah_opening_quarters.extend(tally.surah_opening_quarters)
-    presentation_problems = tally.presentation_problems
+        trace.surah_opening_quarters.extend(aligner.surah_opening_quarters)
+    presentation_problems = aligner.presentation_problems
     for rule in table.equivalences:
         if rule.applies_to == EVERY_AYAH:
             if not applied[rule.id]:
@@ -216,7 +211,7 @@ def compare(text, metadata, witness, table, trace=None):
                 )
         else:
             for address in rule.applies_to:
-                if address not in tally.applied_at[rule.id]:
+                if address not in aligner.applied_at[rule.id]:
                     table_problems.append(
                         OrderedDict(
                             [("rule", rule.id), ("address", "hafs:%d:%d" % address), ("problem", "not applied in this listed ayah")]
