@@ -54,7 +54,7 @@ All under `hqpack/`. Each raises `errors.PackError` with a message as above.
 | `cli.py` | `build` (with `--unapproved-test-copy`, `--kfgqpc`, `--table`), `tafsir`, `verify` and `sign` (both by the pack's kind), `verify-signature`, `compare`, `review-page`, `kfgqpc-counts`, `drift`; prints counts, hashes, paths and `U+XXXX` only | `main(argv) -> exit code` |
 | `kfgqpc.py` | KFGQPC's `hafsData_v2-0.json` (registry row 2, B0.2, D-175, D-177): UTF-8 without a BOM, as published (a BOM is refused, and so is a file whose first bytes are not `5B 0A 09`), an array of objects with exactly the read.me's eleven columns, integers and strings typed strictly, ids 1..n in order, ayat in mushaf order; the published file name | `read_kfgqpc(data, ayat) -> [KfgqpcAya(id, surah, number, juz, page, text)]`, `read_kfgqpc_file(path, ayat) -> (ayat, sha256)` |
 | `known_differences.py` | The table of known encoding differences, `tools/packs/known_differences.json` | `read_table(data) -> Table(version, ayah_end, ayah_end_separators, quarter_start, surah_opening_quarter_start, equivalences)`, `Table.ayah_end_rule_at(address) -> Rule or None` |
-| `compare.py` | The comparison of PRD 9.4 and the page, juz and quarter comparison of P2; the report; with a `Trace`, every difference as a `Place` (the two whole ayat and the difference's range in each, in memory only) for the review page | `run_comparison(text, metadata, kfgqpc_path, table_path, profile, tanzil_sha256, trace=None) -> report` (`tanzil_sha256` is `{"text": hex, "metadata": hex}`), `compare(text, metadata, witness, table, trace=None) -> report`, `summary(report)`, `encode_report(report) -> bytes` |
+| `compare.py` | The comparison of PRD 9.4 and the page, juz and quarter comparison of P2; the report; with a `Trace`, every difference as a `Place` (the two whole ayat and the difference's range in each, in memory only) for the review page | `run_comparison(text, metadata, kfgqpc_path, table_path, profile, tanzil_sha256, trace=None) -> report` (`tanzil_sha256` is `{"text": hex, "metadata": hex}`), `compare(text, metadata, witness, table, trace=None) -> report`, `summary(report)`, `encode_report(report) -> bytes`, `align(table, address, kfgqpc_text, tanzil_text, quarter_starts, tally) -> Alignment(body, front, side, origin, opcodes)` (one ayah, shared with `word_map.py`), `Tally.of(table)`, `check_addresses(tanzil, witness)` |
 | `review_page.py` | The reciter's review page (D-176, D-178): runs the comparison, sorts the differences into sections A to C, checks the fonts and the output folder, writes the page and the two fonts | `write_review_page(text, metadata, kfgqpc, table, tanzil_font, kfgqpc_font, out, profile) -> ReviewResult`, `classify(places) -> Sections(a, b, c)` |
 | `review_html.py` | The page's HTML from `review_page.html` (frame, style, script) and `review_page.ar.json` (the Arabic labels); the only path from a source text to the page is `parts`, checked by `check_parts` | `render(Page) -> str`, `marked_span(text, start, end)`, `parts(text, start, end)` |
 | `git_tree.py` | Whether a path is inside a Git working tree, without a `git` program | `git_tree(path) -> directory or None` |
@@ -62,13 +62,14 @@ All under `hqpack/`. Each raises `errors.PackError` with a message as above.
 | `mp3.py` | A strict MPEG audio Layer III reader that decodes no sample (B0.5, D-179): skips one ID3v2 tag at the start (its footer only for ID3v2.4) and an ID3v1 and an APEv2 tag at the end (128 bytes from `TAG` are audio when the frame walk ends exactly at the end of the file), walks every frame header (MPEG 1, 2, 2.5; free bitrate and Layers I and II refused), reads a Xing, Info or VBRI info frame, whose frame count must equal the audio frames or exceed them by one (`xing_count`: `equal` or `includes_info_frame`, else refused), and a LAME tag, whose delay and padding are used only when its CRC-16 holds (`lame_tag`: `none`, `valid` or `crc_mismatch`); refuses a lost sync, a truncated frame, or a change of MPEG version, sample rate or channel count, naming the byte offset | `read_mp3(data) -> Mp3Audio(version, sample_rate, channel_mode, channels, frames, samples_per_frame, frame_ms, granule_ms, duration_ms, delay_known, encoder_delay, padding, lame_tag, xing_count, granules: [Granule(start_ms, channels: ((part2_3_length, global_gain), ...))])` |
 | `quran_align.py` | quran-align word timing (registry row 6), strictly: every ayah of the profile once, integer fields, word indices increasing; a segment whose times cannot be right is kept and marked defective, and an entry without segments is an ayah without timing (D-179) | `read_timing(data, profile, metadata=None) -> {(surah, ayah): Timing(surah, ayah, segments: [Segment(word_start, word_end, start_ms, end_ms, defects)], segments_field)}`, `Timing.sound()` |
 | `drift.py` | The drift measurement between a timing file and a folder of per-ayah MP3 files, and its verdict (see "Recitation drift") | `run_drift(timing, audio_dir, edition, profile, text_path=None, metadata_path=None) -> report`, `encode_report(report) -> bytes`, `lines(report)`, `verdict(summary)` |
+| `word_map.py` | Tanzil's U+0020 tokens, which quran-align counts, to KFGQPC's words per ayah, read off `compare.align`, and quran-align segments re-indexed onto those words; every problem is collected and stops (see "Timing on KFGQPC words") | `map_words(text, witness, table) -> (maps, problems, counts)`, `reindex(timings, maps) -> (timings, problems, counts)`, `run_word_map(text, metadata, kfgqpc, table, timing_paths, profile) -> report`, `lines(report)` |
 
 `pack.py` (next to this file) runs the CLI; `synthetic_source.py` writes the synthetic
 source files, mark table and build description into a directory.
 
 ### Tests
 
-`tests/test_<module>.py` for each module (`test_drift.py` covers `drift.py` and `quran_align.py`), plus `tests/test_build.py` (end to end on
+`tests/test_<module>.py` for each module (`test_drift.py` covers `drift.py` and `quran_align.py`; `test_word_map.py` also runs `timing-map`), plus `tests/test_build.py` (end to end on
 the synthetic source, and one refusal per build check) and `tests/test_cli.py`.
 
 
@@ -105,6 +106,7 @@ python3 tools/packs/pack.py compare --text <tanzil xml> --metadata <quran-data.x
 python3 tools/packs/pack.py review-page --text <tanzil xml> --metadata <quran-data.xml> --kfgqpc <hafsData_v2-0.json> --table tools/packs/known_differences.json --tanzil-font assets/fonts/AmiriQuran-Regular.ttf --kfgqpc-font <uthmanic_hafs_v20.ttf> --out <new folder outside every Git tree>
 python3 tools/packs/pack.py kfgqpc-counts --kfgqpc <hafsData_v2-0.json> --date <YYYY-MM-DD> --out testing/reference/kfgqpc-hafs-counts.json
 python3 tools/packs/pack.py drift --timing <quran-align json> --audio <folder of SSSAAA.mp3> --edition <folder name> [--text <tanzil xml> --metadata <quran-data.xml>] [--report <out.json outside every Git tree>]
+python3 tools/packs/pack.py timing-map --text <tanzil xml> --metadata <quran-data.xml> --kfgqpc <hafsData_v2-0.json> --table tools/packs/known_differences.json [--timing <quran-align json> ...]
 ```
 
 | Command | Does |
@@ -118,6 +120,7 @@ python3 tools/packs/pack.py drift --timing <quran-align json> --audio <folder of
 | `review-page` | Runs the KFGQPC comparison and writes the reciter's review page into a new or empty folder outside every Git working tree (see "The reciter's review page"); exits 0 when the page is written, whatever the comparison found |
 | `kfgqpc-counts` | Writes the P5 reference counts of the KFGQPC file; `--date` is the day they are taken, so the same file and date give the same bytes |
 | `drift` | Measures drift between a recitation's quran-align timing and a sample of its everyayah files, prints one line per file, the summary and the verdict, and writes the report if `--report` is given (see "Recitation drift"); exits 0 on PASS and 65 on FAIL, whatever the word index problems |
+| `timing-map` | Maps Tanzil's tokens to KFGQPC's words for the `hafs` profile and re-indexes each `--timing` file onto them (see "Timing on KFGQPC words"); prints the inputs' SHA-256, counts, and each problem kind with its count and first ten addresses; exits 0 when there is no problem, 65 when there is any |
 
 To try it on the synthetic source:
 
@@ -721,6 +724,65 @@ detected pauses with no segment start near their end, read as dips inside long h
 notes; such pauses are counted as unmatched, and the chance baseline shows how often
 a window of 500 ms matches a pause by chance.
 
+## Timing on KFGQPC words (B0.5, D-195, D-198, PRD 10.4)
+
+quran-align's word indices count the U+0020 tokens of Tanzil's quran-uthmani text from
+0, pause marks written apart included (`quran_align.py`). The base text is KFGQPC's
+(D-195), so word timing has to be put on KFGQPC's words before an app can highlight
+them. `word_map.py` does that from the comparison's own alignment and does nothing the
+alignment does not show. The drift measurement is unchanged: it still counts Tanzil
+tokens (`drift --text`, D-179, D-182).
+
+**KFGQPC's words.** The U+0020 tokens of `aya_text` once the table's presentation
+rules are removed (`compare.Alignment.body`: no number glyph, no quarter opening)
+that hold a letter, numbered from 1 as the `word` table numbers them (D-078, D-083).
+
+**The map.** Per ayah, `compare.align` gives the KFGQPC side under the table and
+difflib's opcodes against the Tanzil ayah. A Tanzil code point in an `equal` block is
+matched to a code point of the side, carried back through the equivalences
+(`Alignment.origin`) to the KFGQPC token that holds it. A Tanzil token goes to the
+KFGQPC tokens its matched code points fall in:
+
+| Tanzil token | Falls in | Outcome |
+| --- | --- | --- |
+| A word | One KFGQPC word | That word; each KFGQPC word must receive exactly one Tanzil word |
+| A mark | One KFGQPC word | That word (`marks_joined`: KFGQPC writes the pause mark inside the word) |
+| A mark | One KFGQPC mark | No word (`marks_apart`) |
+| A mark | Nothing (no code point matched) | No word (`marks_unmatched`) |
+
+Everything else is a problem, collected over all ayat, and an ayah with any has no
+map: `unmatched_word` (a Tanzil word with no code point matched), `ambiguous` (a token
+in two KFGQPC tokens or more), `word_in_mark` (a Tanzil word in a KFGQPC mark),
+`shared_word` (a KFGQPC word that receives two Tanzil words or more), `unmapped_word`
+(one that receives none) and `presentation` (an ayah the table's presentation rules do
+not fit, so its words cannot be told).
+
+**Re-indexing.** A segment's KFGQPC words are those of the Tanzil words it covers,
+written `first_word` to `last_word`, both included. A segment that covers marks only
+goes to the word they are joined to and is merged into the segment just before it,
+which must cover that word: the merged segment keeps that segment's words and start,
+ends where the mark's segment ends, and carries the defects of both (D-179's kinds, in
+the reader's order). Problems: `lone_mark` (no segment just before covers that word),
+`no_word` (the marks join no word), `ambiguous_segment` (they join two), `past_the_ayah`
+(the segment ends past the ayah's tokens, as D-182 found at `hafs:10:1` and `hafs:14:1`)
+and `unmapped_ayah` (a timed ayah without a map). An ayah without timing stays without
+timing. Nothing is guessed: a problem is reported with its address, kind and numbers,
+and the run fails.
+
+`timing-map` runs both on the real files and prints counts and addresses only; no
+character of either text is printed (`lines` refuses any line outside ASCII). The
+timing files and the texts stay on the owner's machine.
+
+### Tests
+
+`tests/test_word_map.py`, on the synthetic source: equal texts, a pause mark KFGQPC
+writes inside the word before it, a mark KFGQPC lacks, a letter encoded otherwise, two
+Tanzil words in one KFGQPC word, a Tanzil word KFGQPC splits, a word either side lacks,
+a Tanzil word in a KFGQPC mark, an equivalence that joins two words, a presentation the
+table does not fit, texts naming other ayat; and for the timing, the merge of a mark's
+segment, the defects it carries, and each timing problem. Two runs of `timing-map`
+check its counts, its exit codes and that it prints no text.
+
 ## Tafsir packs (B0.7, D-184 to D-190)
 
 `pack.py tafsir` builds one book of the Zaydi Library (registry row 18) into a
@@ -1033,6 +1095,8 @@ be replaced. Another kind of signer, such as a hardware token, would be another
 
 ## Not done here
 
+- A timing pack. Its kind and format are not defined yet (`docs/CONTENT_PACKS.md`: timing "comes as its own kind");
+  its builder will take the segments `word_map.reindex` returns and refuse on any problem, as `timing-map` does.
 - The allow-list of tags is the markup of the eight books listed above. A book with
   other markup stops the build until that markup is listed with its count.
 - Recording the KFGQPC file and the table in the manifest. Format 1 has no place for
