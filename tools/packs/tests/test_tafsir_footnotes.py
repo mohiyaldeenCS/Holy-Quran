@@ -124,6 +124,15 @@ class NotesOfMarksTest(unittest.TestCase):
                 pages[10] = page(para("Synthetic" + mark(2)), para("x" + mark(1)), SEPARATOR, NOTES[2], *NOTES[:2])
                 self.assertEqual(tf.notes_of_marks({3: [(10, digits(2))]}, pages)[1], [])
 
+    def test_a_missing_page_after_stops_the_build_and_no_later_page_stands_in(self):
+        for later, p12 in (("a clean page", page(para("Synthetic later"))), ("an unnumbered note", page(SEPARATOR, note(None, "Synthetic")))):
+            with self.subTest(later=later):
+                cases = tf.notes_of_marks({3: [(10, digits(1)), (10, digits(2))]}, {10: PAGES[10], 12: p12})[1]
+                self.assertEqual(cases, [tf.Case("page_after_missing", 11, "", (3,))])
+
+    def test_the_last_page_of_the_extraction_has_no_page_after(self):
+        self.assertEqual(tf.notes_of_marks({3: [(10, digits(1)), (10, digits(2))]}, {10: PAGES[10]})[1], [])
+
 
 class PairingByPageTest(unittest.TestCase):
     def test_the_same_number_on_two_pages_pairs_with_each_pages_note(self):

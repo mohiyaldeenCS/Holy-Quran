@@ -18,12 +18,14 @@ continue the previous page's last note); a number repeated among a page's marks
 or notes; a mark without its note or a note without its mark; a footnote-line
 paragraph that is not the empty separator; and a page laid out otherwise (a
 note above the line, something else below it, a second line, a note or the
-line carried as a passage's own paragraph). On the page after one whose last
-note a shipped passage uses, where that note could go on, two of them stop it
-too: an unnumbered note paragraph opening its notes, and a note paragraph
-above its footnote line or on a page with none (`page_layout`). The review
-record settles a case only by excluding the entries it names, which holds them
-out (D-186); nothing else is added to the record.
+line carried as a passage's own paragraph). The page after one whose last
+note a shipped passage uses is its site page + 1, where that note could go on;
+three cases there stop it too: the page missing from the extraction before its
+last page (`page_after_missing`), an unnumbered note paragraph opening its
+notes, and a note paragraph above its footnote line or on a page with none
+(`page_layout`). The review record settles a case only by excluding the
+entries it names, which holds them out (D-186); nothing else is added to the
+record.
 
 The P2 proof is extended to the passage: `regex_passage_text` rebuilds each
 passage from the html by a second path of regular expressions. With the
@@ -51,6 +53,7 @@ KINDS = (
     "note_without_mark",
     "separator_not_empty",
     "page_layout",
+    "page_after_missing",
 )
 _LINE = re.compile(r"<hr\b", re.I)
 _PAGE_MARK = re.compile(re.escape(MARK_OPEN) + "\\(\\u2063(" + DIGITS + ")\\)" + re.escape(MARK_CLOSE))
@@ -116,7 +119,7 @@ def notes_of_marks(shipped_marks: dict, pages: dict):
     for n, marks in shipped_marks.items():
         for site_page, number in marks:
             on_page.setdefault(site_page, {}).setdefault(number, []).append(n)
-    found, cases, following = {}, [], sorted(pages)
+    found, cases, last = {}, [], max(pages)
     for site_page in sorted(on_page):
         shipped = on_page[site_page]
         entries = tuple(sorted({n for ns in shipped.values() for n in ns}))
@@ -134,17 +137,17 @@ def notes_of_marks(shipped_marks: dict, pages: dict):
             if number in page.notes:
                 found[(site_page, number)] = page.notes[number]
         if page.order and page.order[-1] in shipped:
-            cases += _cases_on_page_after(site_page, pages, following, tuple(sorted(shipped[page.order[-1]])))
+            cases += _cases_on_page_after(site_page, pages, last, tuple(sorted(shipped[page.order[-1]])))
     return found, cases
 
 
-def _cases_on_page_after(site_page: int, pages: dict, following: list, owners: tuple) -> list:
-    """The page after, where `site_page`'s last note could go on: its notes open
-    unnumbered, or a note paragraph stands above its line or on a page without one."""
-    later = following.index(site_page) + 1
-    if later == len(following):
-        return []
-    after = following[later]
+def _cases_on_page_after(site_page: int, pages: dict, last: int, owners: tuple) -> list:
+    """Site page + 1, where `site_page`'s last note could go on: missing from the
+    extraction before its `last` page, its notes open unnumbered, or a note
+    paragraph stands above its line or on a page without one."""
+    after = site_page + 1
+    if after not in pages:
+        return [Case("page_after_missing", after, "", owners)] if after < last else []
     page = read_page(pages[after], after)
     cases = []
     if ("unnumbered_note_opens_page", "") in page.problems:
