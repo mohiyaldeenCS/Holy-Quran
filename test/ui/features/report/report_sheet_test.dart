@@ -151,8 +151,7 @@ void main() {
     final draft = mail.composed.single;
     expect(draft.to, reportMailAddress);
     expect(draft.subject, _l10n.reportError);
-    expect(draft.body, startsWith('$address
-${tafsir.id}'));
+    expect(draft.body, startsWith('$address\r\n${tafsir.id}'));
     expect(find.text(_l10n.reportMailNotOpened), findsOneWidget);
   });
 
