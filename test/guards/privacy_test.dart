@@ -85,6 +85,7 @@ const _download = '${_services}download_service.dart';
 const _audioEngine = '${_services}audio_engine_service.dart';
 const _audioHandler = '${_services}audio_handler.dart';
 const _link = '${_services}link_service.dart';
+const _mail = '${_services}mail_service.dart';
 const _share = '${_services}share_service.dart';
 
 final _surfaces = <_Surface>[
@@ -168,6 +169,7 @@ const _networkServices = [
   _audioEngine,
   _audioHandler,
   _link,
+  _mail,
   _share,
 ];
 
