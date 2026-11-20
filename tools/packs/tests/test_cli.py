@@ -18,8 +18,15 @@ from hqpack.profiles import PROFILES
 from hqpack.review_page import KFGQPC_FONT_NAME
 
 from tests import tafsir_pack_factory
-from tests.build_support import FONT, HAFS_ID, OTHER_FONT, TEST_COPY_ID, BuildCase, hafs_shaped_profiles
-from tests.test_review_page import synthetic_kfgqpc_font
+from tests.build_support import (
+    FONT,
+    HAFS_ID,
+    OTHER_FONT,
+    TEST_COPY_ID,
+    BuildCase,
+    hafs_shaped_profiles,
+    synthetic_kfgqpc_font,
+)
 
 PACK_PY = Path(__file__).resolve().parents[1] / "pack.py"
 
@@ -285,6 +292,64 @@ class KfgqpcCliTest(CliCase):
         self.assertEqual(code, cli.EX_DATAERR)
         self.assertIn("not 6236", err)
         self.assertFalse(out_file.exists())
+
+
+class KfgqpcTextCliTest(CliCase):
+    """A text pack built from the KFGQPC text, stored in format 3 (D-198)."""
+
+    def setUp(self):
+        super().setUp()
+        self.font = self.work / KFGQPC_FONT_NAME
+        self.font.write_bytes(synthetic_kfgqpc_font())
+        self.table = self.write_table()
+
+    def build_kfgqpc(self, *extra):
+        config = synthetic.write_synthetic_kfgqpc_source(self.source)
+        return self.run_cli(
+            "build", "--config", config, "--font", self.font, "--out", self.out, "--table", self.table, *extra
+        )
+
+    def test_build_prints_its_presentation_spans(self):
+        code, out, _ = self.build_kfgqpc()
+        self.assertEqual(code, 0, out)
+        self.assertIn("counts surahs 3 ayat 8 words 21 marks 5 presentations 13 sajdas 2", out)
+        self.assertIn("verified", out)
+
+    def test_build_without_the_table_exits_65(self):
+        config = synthetic.write_synthetic_kfgqpc_source(self.source)
+        code, _, err = self.run_cli("build", "--config", config, "--font", self.font, "--out", self.out)
+        self.assertEqual(code, cli.EX_DATAERR)
+        self.assertIn("give the table (--table)", err)
+
+    def test_build_with_a_witness_where_nothing_is_compared_exits_65(self):
+        code, _, err = self.build_kfgqpc("--tanzil-text", self.source / synthetic.TEXT_FILE)
+        self.assertEqual(code, cli.EX_DATAERR)
+        self.assertIn("it takes no Tanzil text", err)
+
+    def test_verify_and_sign_need_the_table(self):
+        self.assertEqual(self.build_kfgqpc()[0], 0)
+        pack = self.out / "synthetic-kfgqpc-text" / "1"
+        marks = self.source / synthetic.MARK_TABLE_FILE
+        code, out, _ = self.run_cli("verify", pack, "--font", self.font, "--mark-table", marks, "--table", self.table)
+        self.assertEqual(code, 0, out)
+        code, _, err = self.run_cli("verify", pack)
+        self.assertEqual(code, cli.EX_USAGE)
+        self.assertIn("a text pack of format 3 needs --table", err)
+        code, _, _ = self.run_cli("sign", pack, "--key", self.work / "key.pem", "--font", self.font, "--mark-table", marks)
+        self.assertEqual(code, cli.EX_USAGE)
+        self.assertFalse((pack / "manifest.json.sig").exists())
+
+    def test_the_table_is_refused_for_a_pack_of_format_1(self):
+        pack, _ = self.build()
+        code, _, err = self.run_cli("verify", pack, "--table", self.table)
+        self.assertEqual(code, cli.EX_USAGE)
+        self.assertIn("--table is for a text pack of format 3", err)
+
+    def test_the_table_is_refused_for_a_tafsir_pack(self):
+        pack = tafsir_pack_factory.write_pack(self.work / "tafsir")
+        code, _, err = self.run_cli("verify", pack, "--ayah-counts", self.work / "counts.json", "--table", self.table)
+        self.assertEqual(code, cli.EX_USAGE)
+        self.assertIn("--table is for a text pack of format 3; this is a tafsir pack", err)
 
 
 class TafsirCliCase(CliCase):

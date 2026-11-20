@@ -13,17 +13,20 @@ else (printed by its type alone, since its message might hold text).
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
 from . import compare, drift, kfgqpc_measure, review_page
 from .ayah_counts import read_ayah_counts
 from .build import build_pack
+from .database import PRESENTED_FORMAT_VERSION
 from .digest import sha256_bytes
 from .errors import PackError
 from .font import read_font
 from .git_tree import git_tree
 from .kfgqpc_counts import encode_counts, kfgqpc_counts
+from .known_differences import presentation, read_table
 from .mark_table import read_mark_table
 from .profiles import PROFILES
 from .tafsir_build import TAFSIR_FONT_SHA256, build_tafsir_pack
@@ -89,8 +92,18 @@ def _parser():
         "for the owner's own phone (D-165): the id begins with unapproved-, reviews are "
         "empty and the output is outside every Git working tree",
     )
-    build.add_argument("--kfgqpc", type=Path, help="KFGQPC's hafsData_v2-0.json; required for a hafs pack (PRD 9.4)")
-    build.add_argument("--table", type=Path, help="the table of known differences; required with --kfgqpc")
+    build.add_argument(
+        "--kfgqpc", type=Path, help="KFGQPC's hafsData_v2-0.json, the witness of a hafs Tanzil text (PRD 9.4)"
+    )
+    build.add_argument(
+        "--table",
+        type=Path,
+        help="the table of known differences; required with --kfgqpc, and for a KFGQPC text (registry row 2), "
+        "whose presentation it cuts (D-198)",
+    )
+    build.add_argument(
+        "--tanzil-text", type=Path, help="the Tanzil text XML, the witness of a hafs KFGQPC text (PRD 9.4, D-198)"
+    )
     build.set_defaults(run=_build)
 
     tafsir = commands.add_parser(
@@ -207,6 +220,12 @@ def _pack_inputs(parser):
     )
     parser.add_argument("--mark-table", type=Path, help="text pack: check every mark against the mark table")
     parser.add_argument(
+        "--table",
+        type=Path,
+        help="text pack of format 3, required: the table of known differences, whose presentation rules its "
+        "spans are checked with",
+    )
+    parser.add_argument(
         "--ayah-counts", type=Path, help="tafsir pack, required: the P5 counts file, to check every passage's range"
     )
 
@@ -219,6 +238,7 @@ def _build(args, out):
         unapproved=args.unapproved_test_copy,
         kfgqpc=args.kfgqpc,
         table=args.table,
+        tanzil_text=args.tanzil_text,
     )
     counts = result.counts
     print("pack %s" % result.directory, file=out)
@@ -437,6 +457,8 @@ def _report(args, signing):
     if tafsir:
         if args.mark_table is not None:
             raise _Usage("--mark-table is for a text pack; this is a tafsir pack")
+        if args.table is not None:
+            raise _Usage("--table is for a text pack of format 3; this is a tafsir pack")
         if args.ayah_counts is None:
             raise _Usage("a tafsir pack needs --ayah-counts")
         if signing and args.font is None:
@@ -446,23 +468,45 @@ def _report(args, signing):
             raise _Usage("--ayah-counts is for a tafsir pack")
         if signing and (args.font is None or args.mark_table is None):
             raise _Usage("sign needs --font and --mark-table for a text pack")
+        presented = _format_version(args.pack) == PRESENTED_FORMAT_VERSION
+        if presented and args.table is None:
+            raise _Usage("a text pack of format 3 needs --table, the table of known differences")
+        if not presented and args.table is not None:
+            raise _Usage("--table is for a text pack of format 3, which stores its presentation")
     font = read_font(args.font.read_bytes()) if args.font else None
     if tafsir and font is not None and font.sha256 != TAFSIR_FONT_SHA256:
         raise PackError("the font has SHA-256 %s, not that of the tafsir font %s" % (font.sha256, TAFSIR_FONT_SHA256))
     if tafsir:
         return verify_tafsir_pack(args.pack, read_ayah_counts(args.ayah_counts.read_bytes()), font=font)
     marks = read_mark_table(args.mark_table.read_bytes()) if args.mark_table else None
-    return verify_pack(args.pack, mark_code_points=marks, font=font)
+    rules = presentation(read_table(args.table.read_bytes())) if args.table else None
+    return verify_pack(args.pack, mark_code_points=marks, font=font, presentation=rules)
+
+
+def _format_version(directory):
+    """The manifest's format_version when manifest.json is a JSON object with
+    an integer one, else None; the verifier checks the rest."""
+    try:
+        manifest = json.loads((Path(directory) / "manifest.json").read_bytes().decode("utf-8"))
+    except (OSError, ValueError):
+        return None
+    if isinstance(manifest, dict) and type(manifest.get("format_version")) is int:
+        return manifest["format_version"]
+    return None
 
 
 def _counts_line(counts):
     if "passages" in counts:
         return "counts passages %d" % counts["passages"]
-    return "counts surahs %d ayat %d words %d marks %d sajdas %d" % (
+    presentations = ""
+    if "presentations" in counts:
+        presentations = " presentations %d" % counts["presentations"]
+    return "counts surahs %d ayat %d words %d marks %d%s sajdas %d" % (
         counts["surahs"],
         counts["ayat"],
         counts["words"],
         counts["marks"],
+        presentations,
         counts["sajdas"],
     )
 
