@@ -188,6 +188,7 @@ final class _Query {
     SearchMode.wholeAyah => _wholeAyah(ayah),
     SearchMode.phrase => _phrase(ayah),
     SearchMode.scattered => _scattered(ayah),
+    SearchMode.combined => _phrase(ayah) ?? _scattered(ayah),
   };
 
   /// The number of query words from [j] that [form] stands for, or null.
@@ -214,10 +215,10 @@ final class _Query {
     return p;
   }
 
-  SearchHit? _wholeAyah(_AyahForms ayah) {
-    if (_phraseAt(ayah, 0) != ayah.forms.length) return null;
-    return _exactHit(ayah, [(0, ayah.forms.length)]);
-  }
+  bool _isWhole(_AyahForms ayah) => _phraseAt(ayah, 0) == ayah.forms.length;
+
+  SearchHit? _wholeAyah(_AyahForms ayah) =>
+      _isWhole(ayah) ? _exactHit(ayah, [(0, ayah.forms.length)]) : null;
 
   SearchHit? _phrase(_AyahForms ayah) {
     final found = <(int, int)>[];
@@ -261,6 +262,7 @@ final class _Query {
       matches: [for (final i in positions) _range(ayah, i, i + 1)],
       exact: exact,
       gaps: exact ? 0 : _fewestGaps(positions, labels),
+      whole: exact && _isWhole(ayah),
     );
   }
 
@@ -294,6 +296,7 @@ final class _Query {
     matches: [for (final (start, end) in found) _range(ayah, start, end)],
     exact: true,
     gaps: 0,
+    whole: found.length == 1 && found.single == (0, ayah.forms.length),
   );
 
   /// Forms [start] to [end] (exclusive) as a range of word addresses.

@@ -180,11 +180,12 @@ void main() {
       ]);
     });
 
-    test('closeness: in order and together, then fewer words between', () {
+    test('closeness: the whole ayah, then in order and together, then fewer '
+        'words between', () {
       expect(ayatOf(results.ordered(SearchOrder.closeness)), [
         _ayah(1, 1),
-        _ayah(2, 1),
         _ayah(3, 1),
+        _ayah(2, 1),
         _ayah(1, 2),
         _ayah(1, 3),
         _ayah(2, 3),
@@ -340,6 +341,13 @@ void main() {
     test('the commonest scattered words, nearest first', () async {
       await answersWithin(
         _query('w2 w0 w1', mode: SearchMode.scattered),
+        SearchOrder.closeness,
+      );
+    });
+
+    test('the commonest words as the one field searches them', () async {
+      await answersWithin(
+        _query('w2 w0 w1', mode: SearchMode.combined),
         SearchOrder.closeness,
       );
     });

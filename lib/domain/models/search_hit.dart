@@ -10,8 +10,9 @@ enum SearchOrder {
   /// By ayah, in the mushaf.
   mushaf,
 
-  /// The query's words in order and together first, then the fewest words
-  /// between them, then by ayah.
+  /// The ayat the query's words are the whole of first, then those holding
+  /// them in order and together, then the fewest words between them, then
+  /// by ayah.
   closeness,
 
   /// The most occurrences first, then by ayah.
@@ -27,9 +28,16 @@ final class SearchHit {
     required List<QuranRange> matches,
     required this.exact,
     required this.gaps,
+    this.whole = false,
   }) : matches = List.unmodifiable(matches) {
-    if (ayah.isWord || matches.isEmpty || gaps < 0 || (exact && gaps != 0)) {
-      throw ArgumentError('Not a search hit: $ayah, $matches, $exact, $gaps');
+    if (ayah.isWord ||
+        matches.isEmpty ||
+        gaps < 0 ||
+        (exact && gaps != 0) ||
+        (whole && !exact)) {
+      throw ArgumentError(
+        'Not a search hit: $ayah, $matches, $exact, $gaps, $whole',
+      );
     }
     for (final range in matches) {
       if (!range.start.isWord || range.start.ayahAddress != ayah) {
@@ -54,10 +62,15 @@ final class SearchHit {
   /// ayah holding all of them; 0 when [exact].
   final int gaps;
 
+  /// Whether the query's words are all of the ayah's words, in order; then
+  /// [exact] too.
+  final bool whole;
+
   int get occurrences => matches.length;
 
   @override
-  String toString() => 'SearchHit($ayah, $matches, exact: $exact, $gaps)';
+  String toString() =>
+      'SearchHit($ayah, $matches, exact: $exact, $gaps, whole: $whole)';
 }
 
 /// What a search of the Quran found: [hits] in mushaf order.
@@ -84,6 +97,7 @@ final class SearchResults {
   static int _byMushaf(SearchHit a, SearchHit b) => a.ayah.compareTo(b.ayah);
 
   static int _byCloseness(SearchHit a, SearchHit b) {
+    if (a.whole != b.whole) return a.whole ? -1 : 1;
     if (a.exact != b.exact) return a.exact ? -1 : 1;
     final byGaps = a.gaps.compareTo(b.gaps);
     return byGaps != 0 ? byGaps : _byMushaf(a, b);

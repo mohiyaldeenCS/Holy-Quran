@@ -170,6 +170,31 @@ void main() {
       expect(together[1].occurrences, 6);
     });
 
+    test('every mode marks the ayah the words are all of', () {
+      List<bool> whole(SearchMode mode) => [
+        for (final hit in search('alpha beta', mode)) hit.whole,
+      ];
+      expect(whole(SearchMode.wholeAyah), [true]);
+      expect(whole(SearchMode.phrase), [false, false, true]);
+      expect(whole(SearchMode.scattered), [false, false, false, true]);
+      expect(whole(SearchMode.combined), [false, false, false, true]);
+    });
+
+    test('combined: the phrase where an ayah holds it, else the words', () {
+      final hits = search('alpha beta', SearchMode.combined);
+      expect(ayatOf(hits), ayatOf(search('alpha beta', SearchMode.scattered)));
+      expect(hits.map((hit) => hit.matches), [
+        [_words(1, 1, 1, 2)],
+        [_words(1, 2, 4, 5), _words(1, 2, 6, 7)],
+        [_words(1, 3, 3, 3), _words(1, 3, 5, 5)],
+        [_words(2, 1, 1, 2)],
+      ]);
+      expect(
+        [for (final hit in hits) (hit.exact, hit.gaps)],
+        [(true, 0), (true, 0), (false, 1), (true, 0)],
+      );
+    });
+
     test('a word matches only a whole form, exactly as stored', () {
       expect(search('alp', SearchMode.phrase).single.matches, [
         _words(2, 2, 2, 2),
