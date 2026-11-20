@@ -8,5 +8,5 @@ import 'package:holyquran/data/services/mail_service.dart';
 Future<void> linksProviders(Dependencies dependencies) async {
   dependencies
     ..provide<LinkService>(const SystemLinkService())
-    ..provide<MailService>(const SystemMailService());
+    ..provide<MailService>(const SystemMailService(launchExternally));
 }

@@ -499,7 +499,8 @@ void main() {
         tester.element(find.byType(ReportSheet)),
         listen: false,
       );
-      expect(viewModel.packId, isNotNull);
+      expect(viewModel.address, world.ayah(1, 2));
+      expect(viewModel.packId, world.fixture.tafsirs.installed.single.id);
     });
 
     sheetsTest('is the last thing in the sheet', (tester, world) async {

@@ -1852,7 +1852,7 @@ abstract class AppLocalizations {
   /// **'يفتح البلاغ تطبيق البريد برسالة فيها الموضع والمصدر وإصداره، وتراها قبل أن ترسلها.'**
   String get reportNote;
 
-  /// Lead, 2026-11-20, under the owner's delegation (D-127): no mail app opened the report.
+  /// Lead, 2026-11-20, D-196 (5): no mail app opened the report.
   ///
   /// In ar, this message translates to:
   /// **'تعذّر فتح تطبيق البريد'**

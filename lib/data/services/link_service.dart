@@ -1,7 +1,6 @@
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../utils/result.dart';
-import 'mail_service.dart';
 
 /// The link was not an `http` or `https` address with a host, or the system
 /// had nothing to open it with. [address] is the address as given.
@@ -14,6 +13,12 @@ final class LinkNotOpened implements Exception {
   String toString() => 'LinkNotOpened($address)';
 }
 
+/// Opens [url] in the app the system has for it. This file is the app's one
+/// door to `url_launcher` (`test/guards/privacy_test.dart`), so the services
+/// that open something outside the app are given this launcher.
+Future<bool> launchExternally(Uri url) =>
+    launchUrl(url, mode: LaunchMode.externalApplication);
+
 /// Opens a web address outside the app. It sends nothing itself.
 abstract interface class LinkService {
   Future<Result<void>> open(Uri url);
@@ -21,12 +26,9 @@ abstract interface class LinkService {
 
 /// Opens links in the system's browser through `url_launcher`.
 final class SystemLinkService implements LinkService {
-  const SystemLinkService([this._launch = _launchExternally]);
+  const SystemLinkService([this._launch = launchExternally]);
 
   final Future<bool> Function(Uri url) _launch;
-
-  static Future<bool> _launchExternally(Uri url) =>
-      launchUrl(url, mode: LaunchMode.externalApplication);
 
   @override
   Future<Result<void>> open(Uri url) async {
@@ -37,29 +39,6 @@ final class SystemLinkService implements LinkService {
       return await _launch(url)
           ? const Ok(null)
           : Failure(LinkNotOpened('$url'));
-    } on Exception catch (error) {
-      return Failure(error);
-    }
-  }
-}
-
-/// Opens the system's mail app through `url_launcher`. It lives here because
-/// this file is the app's one door to `url_launcher`, which the privacy guard
-/// reviews as one (`test/guards/privacy_test.dart`).
-final class SystemMailService implements MailService {
-  const SystemMailService([this._launch = _launchExternally]);
-
-  final Future<bool> Function(Uri url) _launch;
-
-  static Future<bool> _launchExternally(Uri url) =>
-      launchUrl(url, mode: LaunchMode.externalApplication);
-
-  @override
-  Future<Result<void>> compose(MailDraft draft) async {
-    try {
-      return await _launch(draft.uri)
-          ? const Ok(null)
-          : Failure(MailNotOpened(draft.to));
     } on Exception catch (error) {
       return Failure(error);
     }

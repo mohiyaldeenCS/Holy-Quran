@@ -52,3 +52,23 @@ final class MailDraft {
 abstract interface class MailService {
   Future<Result<void>> compose(MailDraft draft);
 }
+
+/// Opens the system's mail app with the launcher it is given, which in the
+/// app is the link service's `launchExternally`: only that file may call
+/// `url_launcher` (`test/guards/privacy_test.dart`).
+final class SystemMailService implements MailService {
+  const SystemMailService(this._launch);
+
+  final Future<bool> Function(Uri url) _launch;
+
+  @override
+  Future<Result<void>> compose(MailDraft draft) async {
+    try {
+      return await _launch(draft.uri)
+          ? const Ok(null)
+          : Failure(MailNotOpened(draft.to));
+    } on Exception catch (error) {
+      return Failure(error);
+    }
+  }
+}

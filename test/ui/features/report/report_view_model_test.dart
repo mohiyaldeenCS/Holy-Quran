@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -138,17 +139,53 @@ void sendTests(InstalledPack Function() tafsir) {
     expect(viewModel.notOpened, isFalse);
   });
 
-  test('sends the address alone for an ayah', () async {
-    final mail = FakeMailService();
+  test(
+    'sends, for an ayah, the base text\'s pack, version and source',
+    () async {
+      // The view model reads only a manifest's id, version and sources, so the
+      // synthetic tafsir's manifest stands in for the base text's.
+      final basePack = tafsir().manifest;
+      final mail = FakeMailService();
+      final viewModel = ReportViewModel(
+        address: address,
+        basePack: basePack,
+        reports: reportsTo(mail),
+      );
+      addTearDown(viewModel.dispose);
+
+      await viewModel.send(subject: subject, separator: separator);
+
+      expect(
+        mail.composed.single.body,
+        [
+          '$address',
+          [
+            basePack.id,
+            basePack.version,
+            basePack.sources.first.name,
+          ].join(separator),
+        ].join('\r\n'),
+      );
+      expect(viewModel.pack, isNull);
+    },
+  );
+
+  test('ignores a send while one is opening the mail app', () async {
+    final gate = Completer<void>();
+    final mail = FakeMailService()..gate = gate;
     final viewModel = ReportViewModel(
       address: address,
       reports: reportsTo(mail),
     );
     addTearDown(viewModel.dispose);
 
+    final first = viewModel.send(subject: subject, separator: separator);
+    await viewModel.send(subject: subject, separator: separator);
+    gate.complete();
+    await first;
     await viewModel.send(subject: subject, separator: separator);
 
-    expect(mail.composed.single.body, '$address');
+    expect(mail.composed, hasLength(2));
   });
 
   test('says when no mail app opened', () async {
