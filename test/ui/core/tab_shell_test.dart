@@ -412,14 +412,14 @@ void main() {
       expect(player.commands, ['pause', 'resume', 'nextAyah', 'previousAyah']);
     });
 
-    testWidgets('has no sleep timer until its route exists', (tester) async {
+    testWidgets('has a sleep timer now that its route exists', (tester) async {
       await _pumpWithPlayer(tester, FakePlayerRepository(state: _playing));
 
       expect(
         tester.widget<MiniPlayer>(find.byType(MiniPlayer)).showSleepTimer,
-        isFalse,
+        isTrue,
       );
-      expect(_playerButton(IconName.night), findsNothing);
+      expect(_playerButton(IconName.night), findsOneWidget);
       expect(_playerButton(IconName.repeat), findsOneWidget);
     });
 
