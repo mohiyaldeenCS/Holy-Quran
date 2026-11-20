@@ -119,7 +119,7 @@ python3 tools/packs/pack.py drift --timing <quran-align json> --audio <folder of
 | `compare` | Runs the KFGQPC comparison against the `hafs` profile (6,236 ayat) and writes the report; exits 65 when the report has any problem, 0 when it has none |
 | `review-page` | Runs the KFGQPC comparison and writes the reciter's review page into a new or empty folder outside every Git working tree (see "The reciter's review page"); exits 0 when the page is written, whatever the comparison found |
 | `kfgqpc-counts` | Writes the P5 reference counts of the KFGQPC file; `--date` is the day they are taken, so the same file and date give the same bytes |
-| `kfgqpc-measure` | Measures the KFGQPC Hafs text before the pipeline changes for D-195 and writes a report of counts, addresses (`hafs:s:a`, at most ten per list) and `U+XXXX` only, outside every Git working tree; prints one summary line per measurement; exits 0 when the report is written (see "The KFGQPC measurement") |
+| `kfgqpc-measure` | Measures the KFGQPC Hafs text before the pipeline changes for D-195 and writes a report of counts, addresses (`hafs:s:a`; the `first` lists hold at most ten, the sajda lists every address) and `U+XXXX` only, outside every Git working tree; prints one summary line per measurement; exits 0 when the report is written (see "The KFGQPC measurement") |
 | `drift` | Measures drift between a recitation's quran-align timing and a sample of its everyayah files, prints one line per file, the summary and the verdict, and writes the report if `--report` is given (see "Recitation drift"); exits 0 on PASS and 65 on FAIL, whatever the word index problems |
 
 To try it on the synthetic source:
