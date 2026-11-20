@@ -80,7 +80,7 @@ void main() {
       ShareCardDesign.values,
     );
     final copySheet = tester.widget<CopySheet>(find.byType(CopySheet));
-    expect(copySheet.forms, [CopyForm.withSurahAndNumber]);
+    expect(copySheet.forms, CopyForm.values);
     expect(find.byType(Splash), findsOneWidget);
   });
 

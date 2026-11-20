@@ -40,21 +40,20 @@ void main() {
     );
   }
 
-  test('offers the full form, selected', () {
+  test('offers the three forms, the full one selected', () {
     final model = viewModel((riwaya) => QuranAddress(riwaya, 1, 1), []);
     addTearDown(model.dispose);
-    expect(model.forms, [CopyForm.withSurahAndNumber]);
+    expect(model.forms, CopyForm.values);
     expect(model.selected, CopyForm.withSurahAndNumber);
   });
 
-  test('ignores a form it does not offer', () {
+  test('selecting the selected form notifies nothing', () {
     final model = viewModel((riwaya) => QuranAddress(riwaya, 1, 1), []);
     addTearDown(model.dispose);
     var notified = 0;
     model
       ..addListener(() => notified++)
-      ..select(CopyForm.ayahOnly);
-    expect(model.selected, CopyForm.withSurahAndNumber);
+      ..select(CopyForm.withSurahAndNumber);
     expect(notified, 0);
   });
 
@@ -128,6 +127,41 @@ void main() {
       utf8.encode(copied.single),
       utf8.encode((expected as Ok<String>).value),
     );
+  });
+
+  test('copies and previews the form selected', () async {
+    final copied = <String>[];
+    final model = viewModel((riwaya) => QuranAddress(riwaya, 2, 2), copied);
+    addTearDown(model.dispose);
+    await loaded(model);
+    final repository = pack.openRepository();
+    final address = QuranAddress(repository.riwaya, 2, 2);
+    final copyText = AyahCopyText(repository, _l10n);
+    var notified = 0;
+    model.addListener(() => notified++);
+    // Each form other than the one selected first, then back to that one, so
+    // that every selection is a change.
+    final initial = model.selected;
+    final order = [
+      for (final form in CopyForm.values)
+        if (form != initial) form,
+      initial,
+    ];
+    for (final form in order) {
+      model.select(form);
+      expect(model.selected, form);
+      final expected = await copyText.preview(address, form);
+      expect(model.preview, (expected as Ok<CopyPreview>).value);
+      await model.copy.execute();
+      final composed = await copyText.compose(address, form);
+      expect(
+        utf8.encode(copied.last),
+        utf8.encode((composed as Ok<String>).value),
+        reason: form.name,
+      );
+    }
+    expect(notified, CopyForm.values.length);
+    expect(copied, hasLength(CopyForm.values.length));
   });
 
   test('reports a failed read and copies nothing', () async {

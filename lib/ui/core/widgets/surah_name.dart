@@ -22,6 +22,10 @@ enum SurahNameFormat {
   /// The reference that ends the full copy format, from the space after the
   /// closing bracket (`copyReferenceFull`, Share.dc.html l.54).
   copyReference,
+
+  /// The reference that ends the copy format with the surah's name alone,
+  /// from the space after the closing bracket (`copyReferenceSurah`).
+  copyReferenceSurah,
 }
 
 /// The only widget that draws or speaks a surah name read from a pack
@@ -170,6 +174,7 @@ String _written(
       value,
       arabicDigits(ayah!),
     ),
+    SurahNameFormat.copyReferenceSurah => l10n.copyReferenceSurah(value),
   };
 }
 

@@ -385,7 +385,9 @@ bool _carriesAyah(SurahNameFormat format) => switch (format) {
   SurahNameFormat.withAyah ||
   SurahNameFormat.titledWithAyah ||
   SurahNameFormat.copyReference => true,
-  SurahNameFormat.name || SurahNameFormat.titled => false,
+  SurahNameFormat.name ||
+  SurahNameFormat.titled ||
+  SurahNameFormat.copyReferenceSurah => false,
 };
 
 /// The bytes [format] should draw: its ARB template, with the stored name
@@ -398,6 +400,8 @@ List<int> _filled(SurahNameFormat format, List<int> name, int? ayah) {
     SurahNameFormat.titledWithAyah =>
       _templates['surahTitleAyahReference']! as String,
     SurahNameFormat.copyReference => _templates['copyReferenceFull']! as String,
+    SurahNameFormat.copyReferenceSurah =>
+      _templates['copyReferenceSurah']! as String,
   };
   final bytes = <int>[];
   var at = 0;

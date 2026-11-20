@@ -16,13 +16,9 @@ typedef CopyToClipboard = Future<Result<void>> Function(String text);
 final class CopySheetViewModel extends ChangeNotifier {
   CopySheetViewModel({
     required this.address,
-    required AyahCopyText copyText,
+    required this._copyText,
     required this._copyToClipboard,
-  }) : _copyText = copyText,
-       forms = copyText.forms {
-    _selected = forms.contains(CopyForm.withSurahAndNumber)
-        ? CopyForm.withSurahAndNumber
-        : forms.first;
+  }) {
     load = Command0(_load)..execute();
     copy = Command0(_copy);
   }
@@ -31,14 +27,14 @@ final class CopySheetViewModel extends ChangeNotifier {
   final AyahCopyText _copyText;
   final CopyToClipboard _copyToClipboard;
 
-  /// The forms that can be copied.
-  final List<CopyForm> forms;
+  /// The forms that can be copied, as the Share board lists them.
+  List<CopyForm> get forms => CopyForm.values;
 
   late final Command0<void> load;
   late final Command0<void> copy;
 
   // The Share board draws the full form selected.
-  late CopyForm _selected;
+  var _selected = CopyForm.withSurahAndNumber;
   final _previews = <CopyForm, CopyPreview>{};
   var _disposed = false;
 
@@ -48,7 +44,7 @@ final class CopySheetViewModel extends ChangeNotifier {
   CopyPreview? get preview => _previews[_selected];
 
   void select(CopyForm form) {
-    if (!forms.contains(form) || form == _selected) return;
+    if (form == _selected) return;
     _selected = form;
     notifyListeners();
   }

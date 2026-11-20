@@ -35,10 +35,23 @@ final _templates = jsonDecode(
 
 final _placeholder = RegExp(r'\{(\w+)\}');
 
-/// The bytes of `copyFormatFull` filled with the stored [ayah] and [surah]
-/// and the number [ayahNumber] in Arabic-Indic digits.
-List<int> _expected(List<int> ayah, List<int> surah, int ayahNumber) {
-  final template = _templates['copyFormatFull']! as String;
+/// The ARB key of each form's format.
+const _formatKeys = {
+  CopyForm.ayahOnly: 'copyFormatAyahOnly',
+  CopyForm.withSurah: 'copyFormatWithSurah',
+  CopyForm.withSurahAndNumber: 'copyFormatFull',
+};
+
+/// The bytes of [form]'s ARB format filled with the stored [ayah] and
+/// [surah] and the number [ayahNumber] in Arabic-Indic digits.
+List<int> _expected(
+  CopyForm form,
+  List<int> ayah,
+  List<int> surah,
+  int ayahNumber,
+) {
+  final key = _formatKeys[form]!;
+  final template = _templates[key]! as String;
   final bytes = <int>[];
   var at = 0;
   for (final match in _placeholder.allMatches(template)) {
@@ -48,7 +61,7 @@ List<int> _expected(List<int> ayah, List<int> surah, int ayahNumber) {
         'ayah' => ayah,
         'surah' => surah,
         'number' => utf8.encode(arabicDigits(ayahNumber)),
-        final other => fail('copyFormatFull has the placeholder $other'),
+        final other => fail('$key has the placeholder $other'),
       });
     at = match.end;
   }
@@ -56,7 +69,7 @@ List<int> _expected(List<int> ayah, List<int> surah, int ayahNumber) {
 }
 
 void _copiesEveryAyah(String description, Future<String> Function() directory) {
-  test('$description: every ayah is copied as its stored bytes in the full '
+  test('$description: every ayah is copied as its stored bytes in each '
       'form', () async {
     final pack = await PackUnderTest.load(await directory());
     addTearDown(pack.close);
@@ -66,18 +79,18 @@ void _copiesEveryAyah(String description, Future<String> Function() directory) {
     expect(ayat, hasLength(pack.manifest.counts.ayat));
     final problems = <String>[];
     for (final ayah in ayat) {
-      switch (await copyText.compose(
-        ayah.address,
-        CopyForm.withSurahAndNumber,
-      )) {
-        case Ok(:final value):
-          final mismatch = byteMismatch(
-            utf8.encode(value),
-            _expected(ayah.stored, ayah.storedName, ayah.address.ayah),
-          );
-          if (mismatch != null) problems.add('${ayah.address}: $mismatch');
-        case Failure(:final error):
-          problems.add('${ayah.address}: $error');
+      for (final form in CopyForm.values) {
+        final where = '${ayah.address} ${form.name}';
+        switch (await copyText.compose(ayah.address, form)) {
+          case Ok(:final value):
+            final mismatch = byteMismatch(
+              utf8.encode(value),
+              _expected(form, ayah.stored, ayah.storedName, ayah.address.ayah),
+            );
+            if (mismatch != null) problems.add('$where: $mismatch');
+          case Failure(:final error):
+            problems.add('$where: $error');
+        }
       }
     }
     expectNoProblems(problems);
@@ -127,19 +140,15 @@ void main() {
       final ayat = await packAyat(pack, repository);
       expect(ayat, isNotEmpty);
       for (final ayah in ayat) {
-        final approved = await copyText.compose(
-          ayah.address,
-          CopyForm.withSurahAndNumber,
-        );
-        final copy = await marked.compose(
-          ayah.address,
-          CopyForm.withSurahAndNumber,
-        );
-        expect(utf8.encode((copy as Ok<String>).value), [
-          ...utf8.encode((approved as Ok<String>).value),
-          0x0A,
-          ...utf8.encode(_l10n.unapprovedTestCopy),
-        ], reason: '${ayah.address}');
+        for (final form in CopyForm.values) {
+          final approved = await copyText.compose(ayah.address, form);
+          final copy = await marked.compose(ayah.address, form);
+          expect(utf8.encode((copy as Ok<String>).value), [
+            ...utf8.encode((approved as Ok<String>).value),
+            0x0A,
+            ...utf8.encode(_l10n.unapprovedTestCopy),
+          ], reason: '${ayah.address} ${form.name}');
+        }
       }
     });
 
@@ -154,29 +163,11 @@ void main() {
       );
     });
 
-    test('offers only the forms whose format the ARB file gives', () {
-      expect(copyText.forms, [CopyForm.withSurahAndNumber]);
-    });
-
-    test('refuses a form with no format', () async {
-      final address = QuranAddress(repository.riwaya, 1, 1);
-      for (final form in [CopyForm.ayahOnly, CopyForm.withSurah]) {
-        expect(
-          await copyText.compose(address, form),
-          isA<Failure<String>>().having(
-            (failure) => failure.error,
-            'error',
-            isA<CopyFormUnavailable>().having((e) => e.form, 'form', form),
-          ),
-        );
-      }
-    });
-
     testWidgets('previews every ayah and its surah name as the pack holds '
         'them, and the preview laid out is the copied text', (tester) async {
       final problems = <String>[];
       for (final ayah in await packAyat(pack, repository)) {
-        for (final form in copyText.forms) {
+        for (final form in CopyForm.values) {
           final where = '${ayah.address} ${form.name}';
           final preview = await copyText.preview(ayah.address, form);
           final copied = await copyText.compose(ayah.address, form);
@@ -185,15 +176,18 @@ void main() {
             Ok(value: final text),
           )) {
             if (shown != ayah.text) problems.add('$where: the ayah not read');
-            final name = surahName ?? fail('$where: no surah name');
             // The repository reads the surah list once, so the preview holds
             // the very string it gave.
-            if (!identical(name.verbatim, ayah.surahName.verbatim)) {
+            if (surahName != null &&
+                !identical(surahName.verbatim, ayah.surahName.verbatim)) {
               problems.add('$where: the surah name is not the one read');
+            }
+            if ((surahName == null) != (form == CopyForm.ayahOnly)) {
+              problems.add('$where: the surah name is $surahName');
             }
             for (final (what, value, stored) in [
               ('ayah', shown, ayah.stored),
-              ('surah name', name, ayah.storedName),
+              if (surahName != null) ('surah name', surahName, ayah.storedName),
             ]) {
               final mismatch = byteMismatch(
                 utf8.encode(value.verbatim),
@@ -201,14 +195,17 @@ void main() {
               );
               if (mismatch != null) problems.add('$where $what: $mismatch');
             }
-            if (ayahNumber != ayah.address.ayah) {
+            final number = form == CopyForm.withSurahAndNumber
+                ? ayah.address.ayah
+                : null;
+            if (ayahNumber != number) {
               problems.add('$where: the ayah number is $ayahNumber');
             }
             await tester.pumpWidget(
               goldenApp(
                 ReadingTheme.paper,
                 CopySheet(
-                  forms: copyText.forms,
+                  forms: CopyForm.values,
                   selected: form,
                   onSelected: (_) {},
                   onCopy: null,
@@ -238,20 +235,6 @@ void main() {
         }
       }
       expectNoProblems(problems);
-    });
-
-    test('previews nothing for a form with no format', () async {
-      final address = QuranAddress(repository.riwaya, 1, 1);
-      for (final form in [CopyForm.ayahOnly, CopyForm.withSurah]) {
-        expect(
-          await copyText.preview(address, form),
-          isA<Failure<CopyPreview>>().having(
-            (failure) => failure.error,
-            'error',
-            isA<CopyFormUnavailable>().having((e) => e.form, 'form', form),
-          ),
-        );
-      }
     });
 
     test('copies the ayah of a word address', () async {
