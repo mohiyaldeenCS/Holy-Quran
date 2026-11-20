@@ -3,6 +3,8 @@
 Independent of the builder: its own DDL copy, token rule and digest, written
 from docs/CONTENT_PACKS.md with sqlite3 and json only. Every text is plainly
 synthetic: Latin words and a synthetic Arabic-script phrase from escapes.
+With `presented`, a pack of the proposed format 3: texts stored with their
+presentation (D-198 Q4), read by this factory's own copy of the rule.
 """
 
 from __future__ import annotations
@@ -111,6 +113,71 @@ FAULTS = (
 
 APPLICATION_ID = 1213288523
 
+NBSP = "\u00a0"
+QUARTER_OPENING = "\u06de\u00a0"
+FIRST_NUMBER_GLYPH = 0xFC00
+JOINED = frozenset(range(0x06D6, 0x06DC)) | {0x06E9}
+
+
+def presented_text(body, number, quarter=False):
+    """`body` as KFGQPC publishes an ayah: the quarter opening if it opens a
+    quarter, then the body, a no-break space and the glyph of its number."""
+    opening = QUARTER_OPENING if quarter else ""
+    return opening + body + NBSP + chr(FIRST_NUMBER_GLYPH + number - 1)
+
+
+PRESENTED_SURAHS = (
+    Surah(
+        "Synthetic surah one",
+        (
+            presented_text("Synthetic ayah\u06d6 one", 1),
+            presented_text("Synthetic \u00e9 two\u06e9", 2, quarter=True),
+            presented_text("\u06da Synthetic e\u0301 three", 3),
+            presented_text(" %s  " % PHRASE, 4, quarter=True),
+        ),
+        basmala="Synthetic opening line",
+        place="makki",
+        order=2,
+    ),
+    Surah(
+        "Synthetic surah two",
+        (
+            presented_text("Synthetic  double  spaces", 1),
+            presented_text("ab \U0001f600 \U0001d400z cd", 2, quarter=True),
+            presented_text("Synthetic \u0640 joined\u06d6\u06da", 3),
+        ),
+        place="madani",
+        order=1,
+    ),
+    Surah(
+        "Synthetic surah three",
+        (presented_text("Synthetic last ayah", 1),),
+        basmala="Synthetic opening line",
+    ),
+)
+
+PRESENTED_FAULTS = (
+    "presentation_not_stored",
+    "joined_mark_in_word",
+    "wrong_glyph",
+    "nbsp_in_body",
+    "quarter_sign_in_body",
+    "wrong_presentation_after_word",
+    "wrong_presentation_count",
+    "no_presentation_table",
+)
+
+PRESENTATION_DDL = """CREATE TABLE presentation (
+  surah        INTEGER NOT NULL,
+  ayah         INTEGER NOT NULL,
+  number       INTEGER NOT NULL,
+  after_word   INTEGER NOT NULL,
+  start_offset INTEGER NOT NULL,
+  end_offset   INTEGER NOT NULL,
+  PRIMARY KEY (surah, ayah, number),
+  FOREIGN KEY (surah, ayah) REFERENCES ayah(surah, number)
+) STRICT, WITHOUT ROWID"""
+
 DDL = (
     """CREATE TABLE surah (
   number           INTEGER PRIMARY KEY,
@@ -206,10 +273,64 @@ def _spans(text, word_as_mark=False):
     return words, marks
 
 
+def _presented_spans(text):
+    """Word, mark and presentation rows of a text stored with its
+    presentation: the quarter opening and the last two code points (the
+    no-break space and the number glyph) are presentation, and a token's
+    ending run of joined marks is a mark of its own."""
+    start = len(QUARTER_OPENING) if text.startswith(QUARTER_OPENING) else 0
+    end = len(text) - 2
+    words, marks = [], []
+    offset = _width(text[:start])
+    for token in text[start:end].split(" "):
+        if token:
+            cut = 0
+            if any(unicodedata.category(c)[0] == "L" for c in token):
+                cut = len(token)
+                while ord(token[cut - 1]) in JOINED:
+                    cut -= 1
+                words.append(
+                    [len(words) + 1, offset, offset + _width(token[:cut])])
+            if cut < len(token):
+                marks.append([len(marks) + 1, len(words),
+                              offset + _width(token[:cut]),
+                              offset + _width(token)])
+        offset += _width(token) + 1
+    shown = [[1, 0, 0, _width(text[:start])]] if start else []
+    body_end = _width(text[:end])
+    shown.append([len(shown) + 1, len(words), body_end, _width(text)])
+    return words, marks, shown
+
+
 class _Ayah:
-    def __init__(self, text, word_as_mark=False):
+    def __init__(self, text, word_as_mark=False, presented=False):
         self.text = text
-        self.words, self.marks = _spans(text, word_as_mark)
+        if presented:
+            self.words, self.marks, self.shown = _presented_spans(text)
+        else:
+            self.words, self.marks = _spans(text, word_as_mark)
+            self.shown = []
+
+
+def _presented_stored(surahs, fault):
+    stored = [[_Ayah(text, presented=True) for text in surah.ayat]
+              for surah in surahs]
+    first = stored[0][0]
+    if fault == "presentation_not_stored":
+        first.shown.pop()
+    elif fault == "joined_mark_in_word":
+        mark = first.marks.pop(0)
+        first.words[mark[1] - 1][2] = mark[3]
+    elif fault == "wrong_glyph":
+        first.text = first.text[:-1] + chr(FIRST_NUMBER_GLYPH + 1)
+    elif fault == "nbsp_in_body":
+        stored[-1][0].text = stored[-1][0].text.replace(" ", NBSP, 1)
+    elif fault == "quarter_sign_in_body":
+        third = stored[0][2]
+        third.text = third.text.replace("y", QUARTER_OPENING[0], 1)
+    elif fault == "wrong_presentation_after_word":
+        first.shown[-1][1] += 1
+    return stored
 
 
 def _stored(surahs, fault):
@@ -244,14 +365,16 @@ def _digest(basmala, ayat):
     return h.hexdigest()
 
 
-def _write_database(path, surahs, stored, divisions, sajdas, fault):
+def _write_database(path, surahs, stored, divisions, sajdas, fault,
+                    presented):
     connection = sqlite3.connect(str(path), isolation_level=None)
     try:
         run = connection.execute
         run("PRAGMA encoding = 'UTF-8'")
         run("PRAGMA application_id = %d" % (
             APPLICATION_ID + (fault == "wrong_application_id")))
-        run("PRAGMA user_version = %d" % (1 + (fault == "wrong_user_version")))
+        version = 3 if presented else 1 + (fault == "wrong_user_version")
+        run("PRAGMA user_version = %d" % version)
         run("PRAGMA journal_mode = DELETE")
         if fault != "division_missing_ayah":
             run("PRAGMA foreign_keys = ON")
@@ -259,6 +382,8 @@ def _write_database(path, surahs, stored, divisions, sajdas, fault):
             if fault == "non_strict_schema" and ddl is DDL[-1]:
                 ddl = ddl.replace("STRICT, ", "")
             run(ddl)
+        if presented and fault != "no_presentation_table":
+            run(PRESENTATION_DDL)
         run("BEGIN")
         for s, (surah, ayat) in enumerate(zip(surahs, stored), 1):
             run("INSERT INTO surah VALUES (?, CAST(? AS TEXT), ?, ?, ?, "
@@ -274,6 +399,9 @@ def _write_database(path, surahs, stored, divisions, sajdas, fault):
                 for mark in ayah.marks:
                     run("INSERT INTO mark VALUES (?, ?, ?, ?, ?, ?)",
                         [s, a] + mark)
+                for shown in ayah.shown if fault != "no_presentation_table" else ():
+                    run("INSERT INTO presentation VALUES (?, ?, ?, ?, ?, ?)",
+                        [s, a] + shown)
         for kind, number, surah, ayah in divisions:
             if fault == "division_missing_ayah" and (kind, number) == (
                     "page", 4):
@@ -320,11 +448,11 @@ def _source(role, registry_row, options):
     }
 
 
-def _manifest(pack_id, version, text_path, digests, counts):
+def _manifest(pack_id, version, text_path, digests, counts, format_version):
     data = text_path.read_bytes()
     return {
         "format": "holyquran-pack",
-        "format_version": 1,
+        "format_version": format_version,
         "id": pack_id,
         "kind": "text",
         "version": version,
@@ -363,6 +491,8 @@ def _apply_manifest_fault(manifest, fault):
         counts["ayat"] += 1
     elif fault == "wrong_mark_count":
         counts["marks"] += 1
+    elif fault == "wrong_presentation_count":
+        counts["presentations"] += 1
     elif fault == "unsupported_format_version":
         manifest["format_version"] = 2
     elif fault == "path_in_file_name":
@@ -403,16 +533,25 @@ def _flip_first_ayah(path, text):
     path.write_bytes(bytes(data))
 
 
-def write_pack(root, *, surahs=SURAHS, divisions=DIVISIONS, sajdas=SAJDAS,
-               fault=None, pack_id="synthetic-text", version=1) -> Path:
-    """Writes `<root>/<id>/<version>/` and returns that directory."""
-    if fault is not None and fault not in FAULTS:
+def write_pack(root, *, surahs=None, divisions=DIVISIONS, sajdas=SAJDAS,
+               fault=None, pack_id="synthetic-text", version=1,
+               presented=False) -> Path:
+    """Writes `<root>/<id>/<version>/` and returns that directory; with
+    `presented`, a pack of format 3 and one of PRESENTED_FAULTS."""
+    if fault is not None and fault not in (
+            PRESENTED_FAULTS if presented else FAULTS):
         raise ValueError("unknown fault")
+    if surahs is None:
+        surahs = PRESENTED_SURAHS if presented else SURAHS
     directory = Path(root) / pack_id / str(version)
     directory.mkdir(parents=True)
     text_path = directory / "text.sqlite"
-    stored = _stored(surahs, fault)
-    _write_database(text_path, surahs, stored, divisions, sajdas, fault)
+    if presented:
+        stored = _presented_stored(surahs, fault)
+    else:
+        stored = _stored(surahs, fault)
+    _write_database(
+        text_path, surahs, stored, divisions, sajdas, fault, presented)
     digests = {
         str(n): _digest(surah.basmala, [a.text for a in ayat])
         for n, (surah, ayat) in enumerate(zip(surahs, stored), 1)
@@ -426,7 +565,11 @@ def write_pack(root, *, surahs=SURAHS, divisions=DIVISIONS, sajdas=SAJDAS,
         "divisions": {k: sum(d[0] == k for d in divisions) for k in kinds},
         "sajdas": len(sajdas),
     }
-    manifest = _manifest(pack_id, version, text_path, digests, counts)
+    if presented:
+        counts["presentations"] = sum(
+            len(a.shown) for ayat in stored for a in ayat)
+    manifest = _manifest(pack_id, version, text_path, digests, counts,
+                         3 if presented else 1)
     _apply_manifest_fault(manifest, fault)
     (directory / "manifest.json").write_bytes(_manifest_bytes(manifest, fault))
     if fault == "flipped_byte":

@@ -8,7 +8,9 @@ code points only, never a text value of the pack.
 This module checks the directory, the file and its header and runs the rest:
 `verify_manifest`, `verify_database` and `verify_spans`. Its directory, file
 and header checks serve every kind; `pack_kind` tells the command line which
-verifier a pack needs.
+verifier a pack needs. A text pack of format 3 stores its text with its
+presentation (D-198 Q4); its spans are recomputed from the presentation rules
+of the table of known differences, so it is verified with them.
 """
 
 from __future__ import annotations
@@ -23,7 +25,7 @@ from pathlib import Path
 from .verify_database import (
     Contents, numbering_problems, reference_problems, schema_problems,
     text_problems)
-from .verify_manifest import FORMAT_VERSION, TEXT, read_manifest, safe_name
+from .verify_manifest import PRESENTED_FORMAT_VERSION, TEXT, read_manifest, safe_name
 from .verify_spans import all_span_problems, coverage_problems
 
 MANIFEST = "manifest.json"
@@ -39,7 +41,9 @@ class Report:
     signed: bool
 
 
-def verify_pack(directory, mark_code_points=None, font=None) -> Report:
+def verify_pack(directory, mark_code_points=None, font=None, presentation=None) -> Report:
+    """`presentation` (known_differences.presentation of the table) checks
+    the spans of a pack of format 3; format 1 has none and ignores it."""
     directory = Path(directory)
     problems = []
     if not directory.is_dir():
@@ -57,8 +61,9 @@ def verify_pack(directory, mark_code_points=None, font=None) -> Report:
         problems.append("text.sqlite is missing")
         return Report(problems, counts, signed)
     file_problems(text, manifest["files"][0], problems)
-    if header_problems(text, FORMAT_VERSION, problems):
-        _database_problems(text, manifest, mark_code_points, font, problems)
+    if header_problems(text, manifest["format_version"], problems):
+        _database_problems(
+            text, manifest, mark_code_points, font, presentation, problems)
     return Report(problems, counts, signed)
 
 
@@ -164,7 +169,15 @@ def header_problems(path, user_version, problems):
     return True
 
 
-def _database_problems(path, manifest, mark_code_points, font, problems):
+def _database_problems(path, manifest, mark_code_points, font, presentation,
+                       problems):
+    version = manifest["format_version"]
+    presented = version == PRESENTED_FORMAT_VERSION
+    if presented and presentation is None:
+        problems.append(
+            "text.sqlite of format %d stores its text with its presentation; "
+            "its spans are checked only with the presentation rules of the "
+            "table of known differences" % version)
     uri = path.resolve().as_uri() + "?mode=ro&immutable=1"
     try:
         connection = sqlite3.connect(uri, uri=True)
@@ -172,12 +185,16 @@ def _database_problems(path, manifest, mark_code_points, font, problems):
         problems.append("text.sqlite does not open (%s)" % type(e).__name__)
         return
     try:
-        if schema_problems(connection, problems):
-            pack = Contents(connection)
+        if schema_problems(connection, problems, version):
+            pack = Contents(connection, version)
             numbering_problems(pack, manifest, problems)
             reference_problems(pack, problems)
             texts = text_problems(pack, manifest, problems)
-            all_span_problems(pack, texts, mark_code_points, problems)
+            if not presented:
+                all_span_problems(pack, texts, mark_code_points, problems)
+            elif presentation is not None:
+                all_span_problems(
+                    pack, texts, mark_code_points, problems, presentation)
             if font is not None:
                 coverage_problems(texts, font, problems)
     except sqlite3.Error as e:

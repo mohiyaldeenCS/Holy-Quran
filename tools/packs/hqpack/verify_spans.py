@@ -1,5 +1,13 @@
 """Word and mark spans and font coverage, recomputed from the stored text
-by the D-083 rule, for the independent verifier."""
+by the D-083 rule, for the independent verifier.
+
+A pack of format 3 stores its text with its presentation (D-198 Q4). The
+ayah-end separator and number glyph, and the quarter sign and separator that
+open a quarter, are rows of the presentation table, recomputed here from the
+table's presentation rules; a separator other than U+0020 may stand there and
+nowhere else. And a run of the D-078 marks that ends a token holding a letter
+is a mark of its own, cut from its word at its offset.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +17,9 @@ import unicodedata
 from .errors import code_point
 
 _SEPARATORS = ("Zs", "Zl", "Zp", "Cc")
+# This verifier's own copy of the marks a KFGQPC text joins to the word
+# before them: the pause marks U+06D6 to U+06DB and the sajda sign.
+_JOINED = frozenset(range(0x06D6, 0x06DC)) | {0x06E9}
 
 
 def _code_units(text):
@@ -51,8 +62,75 @@ def _tokens(text):
     return tokens
 
 
-def all_span_problems(pack, texts, mark_code_points, problems):
+def _positions(text):
+    """The UTF-16 offset of every code point index of `text`, and of its end."""
+    positions = [0]
+    for ch in text:
+        positions.append(positions[-1] + (2 if ord(ch) > 0xFFFF else 1))
+    return positions
+
+
+def _presented(where, text, presentation, address, problems):
+    """(tokens, presentation rows) of a text stored with its presentation:
+    the opening and ending cut by the rules, then the runs between U+0020
+    of the rest, a run of joined marks that ends a word a token of its own."""
+    separator = presentation.ayah_end_separators.get(
+        address, presentation.ayah_end_separator)
+    ending = chr(separator) + chr(
+        presentation.first_number_glyph + address[1] - 1)
+    opening = chr(presentation.quarter_sign) + chr(
+        presentation.quarter_separator)
+    positions = _positions(text)
+    start = len(opening) if text.startswith(opening) else 0
+    end = len(text)
+    if text.endswith(ending) and end - len(ending) > start:
+        end -= len(ending)
+    else:
+        problems.append(
+            "%s does not end with %s %s, its ayah-end presentation"
+            % (where, code_point(ending[0]), code_point(ending[1])))
+    tokens = _body_tokens(text, start, end, positions)
+    words = sum(1 for token in tokens if token[2])
+    shown = []
+    if start:
+        shown.append((1, 0, 0, positions[start]))
+    if end < len(text):
+        shown.append((len(shown) + 1, words, positions[end], positions[-1]))
+    return tokens, shown
+
+
+def _body_tokens(text, start, end, positions):
+    tokens = []
+    index = start
+    while index < end:
+        if text[index] == " ":
+            index += 1
+            continue
+        stop = index
+        while stop < end and text[stop] != " ":
+            stop += 1
+        points = [ord(ch) for ch in text[index:stop]]
+        if any(map(_is_letter, points)):
+            cut = len(points)
+            while points[cut - 1] in _JOINED:
+                cut -= 1
+            tokens.append(
+                (positions[index], positions[index + cut], True, points[:cut]))
+            if cut < len(points):
+                tokens.append((positions[index + cut], positions[stop], False,
+                               points[cut:]))
+        else:
+            tokens.append((positions[index], positions[stop], False, points))
+        index = stop
+    return tokens
+
+
+def all_span_problems(pack, texts, mark_code_points, problems,
+                      presentation=None):
+    """`presentation`, the rules of known_differences.Presentation, for a
+    pack of format 3; None for format 1, which has no presentation rows."""
     outside = {}
+    presented = presentation is not None
     for surah, number, _ in pack.ayat:
         where = "ayah %d:%d" % (surah, number)
         text = texts.get(where)
@@ -60,14 +138,25 @@ def all_span_problems(pack, texts, mark_code_points, problems):
             continue
         words = pack.words.get((surah, number), [])
         marks = pack.marks.get((surah, number), [])
-        tokens = _tokens(text)
-        _separator_problems(where, text, problems)
-        _recomputed_problems(where, tokens, words, marks, problems)
+        shown = pack.presentation.get((surah, number), [])
         units = _code_units(text)
-        _order_problems(where, units, words, marks, problems)
-        _token_problems(where, units, words, marks, problems)
-        _gap_problems(where, units, words, marks, problems)
-        _letter_problems(where, units, words, marks, problems)
+        if presented:
+            tokens, expected_shown = _presented(
+                where, text, presentation, (surah, number), problems)
+            _quarter_sign_problems(
+                where, text, presentation.quarter_sign, expected_shown,
+                problems)
+        else:
+            tokens, expected_shown = _tokens(text), []
+        _separator_problems(where, text, expected_shown, problems)
+        _recomputed_problems(where, tokens, words, marks, problems)
+        _row_differences(where, "presentation", shown, expected_shown,
+                         problems)
+        _order_problems(where, units, words, marks, shown, problems)
+        _token_problems(where, units, words, marks, shown, presented,
+                        problems)
+        _gap_problems(where, units, words, marks, shown, problems)
+        _letter_problems(where, units, words, marks, presented, problems)
         if mark_code_points is not None:
             for _, _, is_word, points in tokens:
                 for cp in points:
@@ -79,13 +168,29 @@ def all_span_problems(pack, texts, mark_code_points, problems):
             % (code_point(cp), outside[cp]))
 
 
-def _separator_problems(where, text, problems):
+def _inside(rows, offset):
+    return any(row[-2] <= offset < row[-1] for row in rows)
+
+
+def _separator_problems(where, text, shown, problems):
+    """A separator inside a presentation row of `shown` is the presentation's own."""
     offset = 0
     for ch in text:
-        if ch != " " and unicodedata.category(ch) in _SEPARATORS:
+        if (ch != " " and unicodedata.category(ch) in _SEPARATORS
+                and not _inside(shown, offset)):
             problems.append(
                 "%s: %s at offset %d is a separator other than U+0020"
                 % (where, code_point(ch), offset))
+        offset += 2 if ord(ch) > 0xFFFF else 1
+
+
+def _quarter_sign_problems(where, text, sign, shown, problems):
+    offset = 0
+    for ch in text:
+        if ord(ch) == sign and not _inside(shown, offset):
+            problems.append(
+                "%s: %s at offset %d lies outside the presentation that opens "
+                "a quarter" % (where, code_point(sign), offset))
         offset += 2 if ord(ch) > 0xFFFF else 1
 
 
@@ -104,7 +209,7 @@ def _recomputed_problems(where, tokens, words, marks, problems):
 
 def _describe(kind, row, index):
     span = "%d..%d" % row[-2:]
-    if kind == "mark":
+    if kind != "word":
         span += " after word %d" % row[1]
     if row[0] != index + 1:
         span = "number %d, %s" % (row[0], span)
@@ -133,10 +238,11 @@ def _row_differences(where, kind, stored, expected, problems):
                    _describe(kind, given, index)))
 
 
-def _spans(words, marks):
+def _spans(words, marks, shown=()):
     """(kind, number, start, end) of every stored span."""
     return ([("word", n, s, e) for n, s, e in words]
-            + [("mark", n, s, e) for n, _, s, e in marks])
+            + [("mark", n, s, e) for n, _, s, e in marks]
+            + [("presentation", n, s, e) for n, _, s, e in shown])
 
 
 def _in_bounds(units, start, end):
@@ -149,30 +255,32 @@ def _splits_pair(units, offset):
             and 0xDC00 <= units[offset] < 0xE000)
 
 
-def _order_problems(where, units, words, marks, problems):
+def _order_problems(where, units, words, marks, shown, problems):
     """Numbering, order, bounds, surrogate pairs and after_word, walking the
-    stored words and marks together in text order."""
-    for kind, rows in (("word", words), ("mark", marks)):
+    stored words, marks and presentation spans together in text order."""
+    lists = (("word", words), ("mark", marks), ("presentation", shown))
+    for kind, rows in lists:
         for index, row in enumerate(rows):
             if row[0] != index + 1:
                 problems.append(
                     "%s: %s %d is numbered %d" % (where, kind, index + 1,
                                                  row[0]))
+    taken = [0, 0, 0]
     previous_end = 0
-    w = m = 0
-    while w < len(words) or m < len(marks):
-        is_word = m == len(marks) or (
-            w < len(words) and words[w][1] <= marks[m][2])
-        if is_word:
-            kind, (number, start, end) = "word", words[w]
-            w += 1
-        else:
-            kind, (number, after, start, end) = "mark", marks[m]
-            if after != w:
-                problems.append(
-                    "%s: mark %d has after_word %d; %d words come before it"
-                    % (where, number, after, w))
-            m += 1
+    while True:
+        heads = [(rows[taken[k]][-2], k) for k, (_, rows) in enumerate(lists)
+                 if taken[k] < len(rows)]
+        if not heads:
+            break
+        k = min(heads)[1]
+        kind, rows = lists[k]
+        row = rows[taken[k]]
+        taken[k] += 1
+        number, start, end = row[0], row[-2], row[-1]
+        if kind != "word" and row[1] != taken[0]:
+            problems.append(
+                "%s: %s %d has after_word %d; %d words come before it"
+                % (where, kind, number, row[1], taken[0]))
         name = "%s: %s %d span %d..%d" % (where, kind, number, start, end)
         if start >= end:
             problems.append("%s is empty or reversed" % name)
@@ -193,22 +301,27 @@ def _order_problems(where, units, words, marks, problems):
         previous_end = end
 
 
-def _token_problems(where, units, words, marks, problems):
+def _token_problems(where, units, words, marks, shown, presented, problems):
+    """A word or mark span is a token, or in format 3 meets the span it is
+    cut from: a joined mark its word, the text its presentation."""
+    spans = _spans(words, marks, shown)
+    starts = {start for _, _, start, _ in spans} if presented else set()
+    ends = {end for _, _, _, end in spans} if presented else set()
     for kind, number, start, end in _spans(words, marks):
         if not _in_bounds(units, start, end):
             continue
         name = "%s: %s %d span %d..%d" % (where, kind, number, start, end)
         if 0x20 in units[start:end]:
             problems.append("%s holds U+0020" % name)
-        if start > 0 and units[start - 1] != 0x20:
+        if start > 0 and units[start - 1] != 0x20 and start not in ends:
             problems.append("%s does not start a token" % name)
-        if end < len(units) and units[end] != 0x20:
+        if end < len(units) and units[end] != 0x20 and end not in starts:
             problems.append("%s does not end a token" % name)
 
 
-def _gap_problems(where, units, words, marks, problems):
+def _gap_problems(where, units, words, marks, shown, problems):
     covered = [False] * len(units)
-    for _, _, start, end in _spans(words, marks):
+    for _, _, start, end in _spans(words, marks, shown):
         for i in range(max(start, 0), min(end, len(units))):
             covered[i] = True
     i = 0
@@ -234,13 +347,19 @@ def _first_letter(units, start, end):
     return None
 
 
-def _letter_problems(where, units, words, marks, problems):
+def _letter_problems(where, units, words, marks, presented, problems):
     for number, start, end in words:
-        if _in_bounds(units, start, end) and (
-                _first_letter(units, start, end) is None):
+        if not _in_bounds(units, start, end):
+            continue
+        if _first_letter(units, start, end) is None:
             problems.append(
                 "%s: word %d span %d..%d holds no letter"
                 % (where, number, start, end))
+        joined = [cp for cp in units[start:end] if cp in _JOINED]
+        if presented and joined:
+            problems.append(
+                "%s: word %d span %d..%d holds the mark %s"
+                % (where, number, start, end, code_point(joined[0])))
     for number, _, start, end in marks:
         if not _in_bounds(units, start, end):
             continue
