@@ -26,6 +26,8 @@ from .errors import PackError, code_point
 FILE_NAME = "hafsData_v2-0.json"
 VERSION = "2.0 (update 13.0)"
 REGISTRY_ROW = 2
+# The font of the same zip, the one the KFGQPC text is drawn with (D-198 Q2).
+FONT_FILE_NAME = "uthmanic_hafs_v20.ttf"
 
 _BOM = b"\xef\xbb\xbf"
 _OPENING = b"[\n\t"

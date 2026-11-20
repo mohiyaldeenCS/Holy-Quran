@@ -10,6 +10,7 @@ from pathlib import Path
 
 import synthetic_source as synthetic
 from hqpack.profiles import PROFILES
+from tests.test_font import cmap_table, format12, sfnt, windows_names
 
 REPO = Path(__file__).resolve().parents[3]
 FONT = REPO / "assets" / "fonts" / "AmiriQuran-Regular.ttf"
@@ -26,6 +27,16 @@ def synthetic_table_document():
     document = json.loads(TABLE.read_text(encoding="ascii"))
     document["rules"] = [r for r in document["rules"] if not isinstance(r["applies_to"], list)]
     return document
+
+
+def synthetic_kfgqpc_font(last=0xFFFF):
+    """The bytes of a font for KFGQPC's file name whose cmap covers U+0020 to `last`."""
+    return sfnt(
+        [
+            (b"cmap", cmap_table([(3, 10, format12([(0x20, last, 1)]))])),
+            (b"name", windows_names(id1="Synthetic KFGQPC", id5="Version 1.000; synthetic")),
+        ]
+    )
 
 
 def hafs_shaped_profiles():

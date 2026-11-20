@@ -160,6 +160,11 @@ def check_sajda_signs(options, sajda_rows, ayat):
     """With sajda signs in the text (D-079), the ayat holding U+06E9 are exactly the metadata's sajdas."""
     if not options or options.get("sajdah") != "true":
         return
+    check_signed_sajdas(sajda_rows, ayat)
+
+
+def check_signed_sajdas(sajda_rows, ayat):
+    """The ayat holding U+06E9 are exactly the metadata's sajdas; a KFGQPC text always holds the sign."""
     signed = {address for address, text in ayat if chr(SAJDA_SIGN) in text}
     listed = set(sajda_rows)
     for label, addresses in (

@@ -21,7 +21,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import compare, review_html
+from . import compare, kfgqpc, review_html
 from .build import FONT_FAMILY
 from .digest import sha256_bytes
 from .errors import PackError, code_point
@@ -34,7 +34,7 @@ from .tanzil_text import read_tanzil_text
 PAGE_FILE = "review.html"
 TANZIL_FONT_FILE = "font-tanzil.ttf"
 KFGQPC_FONT_FILE = "font-kfgqpc.ttf"
-KFGQPC_FONT_NAME = "uthmanic_hafs_v20.ttf"
+KFGQPC_FONT_NAME = kfgqpc.FONT_FILE_NAME
 RARE_COUNT = 3
 SPACE = " "
 # HTML parsing turns these into other characters, so a text holding one could not be shown unchanged.
