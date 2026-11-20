@@ -35,9 +35,12 @@ import 'package:holyquran/data/services/free_space_service.dart';
 import 'package:holyquran/data/services/link_service.dart';
 import 'package:holyquran/data/services/share_service.dart';
 import 'package:holyquran/data/services/user_database.dart';
+import 'package:holyquran/domain/models/reading_theme.dart';
+import 'package:holyquran/domain/models/start_failure.dart';
 import 'package:provider/provider.dart';
 
 import '../../testing/application_support.dart';
+import '../../testing/fakes/fake_app_settings_repository.dart';
 import '../../testing/fakes/memory_task_storage.dart';
 
 final class _Database {
@@ -243,6 +246,38 @@ void main() {
         ],
       ),
       throwsStateError,
+    );
+  });
+
+  test('the start ends in a StartFailure with the cause and the theme of '
+      'the settings an earlier area read', () async {
+    const theme = ThemePreference(theme: ReadingTheme.night);
+    final settings = FakeAppSettingsRepository(themePreference: theme);
+    addTearDown(settings.dispose);
+    final cause = StateError('synthetic');
+
+    await expectLater(
+      startDependencies(
+        areas: [
+          (dependencies) async =>
+              dependencies.provideListenable<AppSettingsRepository>(settings),
+          (_) async => throw cause,
+        ],
+      ),
+      throwsA(
+        isA<StartFailure>()
+            .having((failure) => failure.cause, 'cause', same(cause))
+            .having((failure) => failure.theme, 'theme', theme),
+      ),
+    );
+  });
+
+  test('the start gives no theme when no area read the settings', () async {
+    await expectLater(
+      startDependencies(areas: [(_) async => throw StateError('synthetic')]),
+      throwsA(
+        isA<StartFailure>().having((failure) => failure.theme, 'theme', isNull),
+      ),
     );
   });
 

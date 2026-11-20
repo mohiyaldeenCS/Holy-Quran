@@ -8,6 +8,7 @@ import 'package:holyquran/main.dart' show AppStart;
 import 'package:holyquran/routing/router.dart';
 import 'package:holyquran/routing/routes/feature_routes.dart';
 import 'package:holyquran/ui/core/app.dart';
+import 'package:holyquran/ui/features/start/view_models/app_start_view_model.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
@@ -37,7 +38,7 @@ Future<void> pumpFlowApp(
   if (features == null) {
     await tester.pumpWidget(
       AppStart(
-        dependencies: Future.value(providers),
+        start: AppStartViewModel(Future.value(providers)),
         unapprovedCopy: unapprovedCopy,
       ),
     );

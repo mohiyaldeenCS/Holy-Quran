@@ -1459,6 +1459,14 @@
   "@integrityBaseMissingBody": {
     "description": "Body of the integrity alert when the base pack is missing, not failed. Wording given by the owner, 2026-11-09 (D-180)."
   },
+  "integrityStartFailedTitle": "تعذّر بدء التطبيق",
+  "@integrityStartFailedTitle": {
+    "description": "Title of the integrity alert a failed start shows in place of the splash (M1.1). Wording given by the lead under the owner's delegation, 2026-11-20 (D-196 (1))."
+  },
+  "integrityStartFailedBody": "أغلق التطبيق وافتحه من جديد، فإن تكرر فحدّثه.",
+  "@integrityStartFailedBody": {
+    "description": "Body of the integrity alert a failed start shows in place of the splash (M1.1). Wording given by the lead under the owner's delegation, 2026-11-20 (D-196 (1) as amended). It does not suggest reinstalling, which erases the bookmarks and notes kept on the device."
+  },
   "integrityPackTitle": "هذه الحزمة لم تجتز التحقق",
   "@integrityPackTitle": {
     "description": "Lead, 2026-10-28, D-128 (5)"

@@ -7,8 +7,9 @@ import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/router.dart';
 import 'package:holyquran/ui/core/app.dart';
 import 'package:holyquran/ui/core/widgets/splash.dart';
+import 'package:holyquran/ui/features/start/view_models/app_start_view_model.dart';
+import 'package:holyquran/ui/features/start/views/start_failed_screen.dart';
 import 'package:provider/provider.dart';
-import 'package:provider/single_child_widget.dart';
 
 void main() {
   // Areas start before runApp and may call plugins at once.
@@ -16,20 +17,22 @@ void main() {
   // Read first: a release build given the test copy's defines stops here.
   final unapprovedCopy = testCopy != null;
   runApp(
-    AppStart(dependencies: buildDependencies(), unapprovedCopy: unapprovedCopy),
+    AppStart(
+      // Listened to at once: a step that fails before the first frame would
+      // otherwise be an uncaught error, and the splash would stay.
+      start: AppStartViewModel(startDependencies()),
+      unapprovedCopy: unapprovedCopy,
+    ),
   );
 }
 
-/// Shows the identity's splash at once, and the app once [dependencies] are
-/// built (M1.1).
+/// Shows the identity's splash at once, and the app once [start]'s
+/// dependencies are built (M1.1), or the failed start if building them throws.
+/// It disposes [start].
 class AppStart extends StatefulWidget {
-  const AppStart({
-    required this.dependencies,
-    this.unapprovedCopy = false,
-    super.key,
-  });
+  const AppStart({required this.start, this.unapprovedCopy = false, super.key});
 
-  final Future<List<SingleChildWidget>> dependencies;
+  final AppStartViewModel start;
 
   /// Whether this build is the unapproved test copy (D-163, D-164).
   final bool unapprovedCopy;
@@ -39,42 +42,30 @@ class AppStart extends StatefulWidget {
 }
 
 class _AppStartState extends State<AppStart> {
-  List<SingleChildWidget>? _providers;
+  late final AppStartViewModel _start = widget.start;
   late final GoRouter _router = createRouter();
 
   @override
-  void initState() {
-    super.initState();
-    widget.dependencies.then(
-      (providers) {
-        if (mounted) setState(() => _providers = providers);
-      },
-      // The splash stays: there is no wording for a failed start yet.
-      onError: (Object error, StackTrace stack) => FlutterError.reportError(
-        FlutterErrorDetails(exception: error, stack: stack, library: 'start'),
-      ),
-    );
-  }
-
-  @override
   void dispose() {
+    _start.dispose();
     _router.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    final providers = _providers;
-    if (providers == null) {
-      return Localizations(
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: _start,
+    builder: (context, _) => switch (_start.state) {
+      StartPending() => Localizations(
         locale: const Locale('ar'),
         delegates: AppLocalizations.localizationsDelegates,
         child: const Splash(),
-      );
-    }
-    return MultiProvider(
-      providers: providers,
-      child: QuranApp(router: _router, unapprovedCopy: widget.unapprovedCopy),
-    );
-  }
+      ),
+      StartFailed(:final theme) => StartFailedScreen(theme: theme),
+      StartReady(:final providers) => MultiProvider(
+        providers: providers,
+        child: QuranApp(router: _router, unapprovedCopy: widget.unapprovedCopy),
+      ),
+    },
+  );
 }

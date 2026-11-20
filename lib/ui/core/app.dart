@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
@@ -7,7 +6,7 @@ import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/domain/models/ui_level.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/theme/app_theme.dart';
-import 'package:holyquran/ui/core/theme/theme_context.dart';
+import 'package:holyquran/ui/core/theme/system_bars.dart';
 import 'package:holyquran/ui/core/widgets/unapproved_copy_banner.dart';
 import 'package:provider/provider.dart';
 
@@ -52,11 +51,7 @@ class QuranApp extends StatelessWidget {
       themeAnimationStyle: AnimationStyle.noAnimation,
       builder: (context, child) => Provider<UiLevel>.value(
         value: level,
-        child: AnnotatedRegion<SystemUiOverlayStyle>(
-          value: _systemBarsFor(
-            Theme.of(context).brightness,
-            ground: context.colors.ground,
-          ),
+        child: SystemBars(
           child: unapprovedCopy
               ? Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -77,20 +72,4 @@ class QuranApp extends StatelessWidget {
       ),
     );
   }
-}
-
-/// System bars on the theme's ground, with icons that stay legible on it.
-SystemUiOverlayStyle _systemBarsFor(
-  Brightness brightness, {
-  required Color ground,
-}) {
-  final icons = brightness == Brightness.dark
-      ? Brightness.light
-      : Brightness.dark;
-  return SystemUiOverlayStyle(
-    statusBarBrightness: brightness,
-    statusBarIconBrightness: icons,
-    systemNavigationBarColor: ground,
-    systemNavigationBarIconBrightness: icons,
-  );
 }

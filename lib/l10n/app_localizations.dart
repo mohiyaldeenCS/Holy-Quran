@@ -1876,6 +1876,18 @@ abstract class AppLocalizations {
   /// **'لم يُعثر على نص المصحف في التطبيق. حدّث التطبيق أو أعد تثبيته.'**
   String get integrityBaseMissingBody;
 
+  /// Title of the integrity alert a failed start shows in place of the splash (M1.1). Wording given by the lead under the owner's delegation, 2026-11-20 (D-196 (1)).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر بدء التطبيق'**
+  String get integrityStartFailedTitle;
+
+  /// Body of the integrity alert a failed start shows in place of the splash (M1.1). Wording given by the lead under the owner's delegation, 2026-11-20 (D-196 (1) as amended). It does not suggest reinstalling, which erases the bookmarks and notes kept on the device.
+  ///
+  /// In ar, this message translates to:
+  /// **'أغلق التطبيق وافتحه من جديد، فإن تكرر فحدّثه.'**
+  String get integrityStartFailedBody;
+
   /// Lead, 2026-10-28, D-128 (5)
   ///
   /// In ar, this message translates to:
