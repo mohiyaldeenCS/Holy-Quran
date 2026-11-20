@@ -3,6 +3,7 @@ import unittest
 
 from hqpack import tokens
 from hqpack.errors import PackError
+from hqpack.known_differences import Presentation
 
 # Synthetic text only: Latin words and the letters of the synthetic phrase
 # "\u0646\u0635 \u062a\u062c\u0631\u064a\u0628\u064a".
@@ -54,8 +55,8 @@ class SpansTest(unittest.TestCase):
         self.assertEqual(result.marks, [])
 
     def test_empty_and_spaces_only(self):
-        self.assertEqual(spans(""), tokens.Spans(words=[], marks=[]))
-        self.assertEqual(spans("   "), tokens.Spans(words=[], marks=[]))
+        self.assertEqual(spans(""), tokens.Spans(words=[], marks=[], presentation=[]))
+        self.assertEqual(spans("   "), tokens.Spans(words=[], marks=[], presentation=[]))
 
     def test_leading_trailing_and_double_spaces(self):
         result = spans("  ab   cd  ")
@@ -212,6 +213,186 @@ class SpansTest(unittest.TestCase):
         tail = units[2 * at :]
         self.assertEqual(tail, " ".encode("utf-16-le") * (len(tail) // 2))
         self.assertEqual(rebuilt + tail, units)
+
+
+NBSP = "\u00a0"
+QUARTER = "\u06de"
+PAUSE_2 = "\u06d7"
+SMALL_HIGH_SEEN = "\u06dc"
+# The code points of the shipped table's rules P-1, P-2 and P-4, at synthetic addresses.
+PRESENTATION = Presentation(
+    ayah_end_separator=0x00A0,
+    first_number_glyph=0xFC00,
+    ayah_end_separators={(2, 7): 0x0020},
+    quarter_sign=0x06DE,
+    quarter_separator=0x00A0,
+)
+
+
+def glyph(number):
+    return chr(0xFC00 + number - 1)
+
+
+def presented(text, address=(2, 5), marks=MARKS):
+    return tokens.presented_spans(text, marks, PRESENTATION, address, "ayah %d:%d" % address)
+
+
+class PresentedSpansTest(unittest.TestCase):
+    """D-198 Q4: the text as published, its presentation in spans of their own."""
+
+    def assert_refused(self, pattern, text, address=(2, 5), marks=MARKS):
+        with self.assertRaises(PackError) as caught:
+            presented(text, address, marks)
+        message = str(caught.exception)
+        self.assertRegex(message, pattern)
+        self.assertTrue(message.isascii(), message)
+        self.assertNotIn("zebra", message)
+
+    def test_the_ayah_end(self):
+        result = presented("ab cd" + NBSP + glyph(5))
+        self.assertEqual(result.words, [(0, 2), (3, 5)])
+        self.assertEqual(result.marks, [])
+        self.assertEqual(result.presentation, [(2, 5, 7)])
+
+    def test_a_quarter_opening(self):
+        result = presented(QUARTER + NBSP + "ab" + NBSP + glyph(5))
+        self.assertEqual(result.words, [(2, 4)])
+        self.assertEqual(result.presentation, [(0, 0, 2), (1, 4, 6)])
+
+    def test_the_separator_an_address_listed_rule_names(self):
+        result = presented("ab" + " " + glyph(7), address=(2, 7))
+        self.assertEqual(result.words, [(0, 2)])
+        self.assertEqual(result.presentation, [(1, 2, 4)])
+        self.assert_refused(
+            "ayah 2:7 does not end with U\\+0020 U\\+FC06", "ab" + NBSP + glyph(7), address=(2, 7)
+        )
+
+    def test_an_ayah_without_its_ending(self):
+        self.assert_refused("ayah 2:5 does not end with U\\+00A0 U\\+FC04, the ayah-end", "zebra lion")
+        self.assert_refused("does not end with U\\+00A0 U\\+FC04", "zebra" + NBSP + glyph(4))
+        self.assert_refused("does not end with U\\+00A0 U\\+FC04", "zebra" + " " + glyph(5))
+        self.assert_refused("does not end with", "zebra" + NBSP + glyph(5) + " ")
+
+    def test_a_quarter_sign_without_its_separator(self):
+        self.assert_refused(
+            "ayah 2:5 opens with U\\+06DE but not with U\\+06DE U\\+00A0",
+            QUARTER + " zebra" + NBSP + glyph(5),
+        )
+
+    def test_nothing_but_the_presentation(self):
+        self.assert_refused("ayah 2:5 holds nothing but its presentation", NBSP + glyph(5))
+        self.assert_refused("holds nothing but its presentation", QUARTER + NBSP + glyph(5))
+
+    def test_a_no_break_space_anywhere_else(self):
+        for text in (
+            "zebra" + NBSP + "lion" + NBSP + glyph(5),
+            NBSP + "zebra" + NBSP + glyph(5),
+            QUARTER + NBSP + NBSP + "zebra" + NBSP + glyph(5),
+            "zebra" + NBSP + NBSP + glyph(5),
+        ):
+            with self.subTest(text=text.encode("unicode_escape")):
+                self.assert_refused("holds U\\+00A0 \\(category Zs\\) at offset \\d+", text)
+
+    def test_the_offset_of_a_refused_separator_counts_from_the_ayah_start(self):
+        self.assert_refused("at offset 4;", QUARTER + NBSP + "ab" + NBSP + "cd" + NBSP + glyph(5))
+
+    def test_a_pause_mark_joined_to_its_word(self):
+        result = presented("ab" + PAUSE + " cd" + NBSP + glyph(5))
+        self.assertEqual(result.words, [(0, 2), (4, 6)])
+        self.assertEqual(result.marks, [(1, 2, 3)])
+        self.assertEqual(result.presentation, [(2, 6, 8)])
+
+    def test_a_sajda_sign_joined_to_the_last_word(self):
+        result = presented("ab cd" + SAJDA + NBSP + glyph(5))
+        self.assertEqual(result.words, [(0, 2), (3, 5)])
+        self.assertEqual(result.marks, [(2, 5, 6)])
+        self.assertEqual(result.presentation, [(2, 6, 8)])
+
+    def test_a_run_of_joined_marks_is_one_mark(self):
+        result = presented("a" + FATHA + PAUSE + PAUSE_2 + " b" + NBSP + glyph(5))
+        self.assertEqual(result.words, [(0, 2), (5, 6)])
+        self.assertEqual(result.marks, [(1, 2, 4)])
+
+    def test_a_standalone_mark_stays_a_mark(self):
+        result = presented("ab " + PAUSE + " cd" + NBSP + glyph(5))
+        self.assertEqual(result.words, [(0, 2), (5, 7)])
+        self.assertEqual(result.marks, [(1, 3, 4)])
+
+    def test_a_joined_mark_inside_a_word_stops(self):
+        self.assert_refused(
+            "ayah 2:5 word 2 holds U\\+06D6 before the end of its token",
+            "zebra li" + PAUSE + "on" + NBSP + glyph(5),
+        )
+        self.assert_refused("word 1 holds U\\+06E9", SAJDA + "zebra" + NBSP + glyph(5))
+        self.assert_refused("word 1 holds U\\+06D6", "z" + PAUSE + FATHA + NBSP + glyph(5))
+
+    def test_a_joined_mark_must_be_in_the_mark_table(self):
+        self.assert_refused(
+            "ayah 2:5 mark 1 holds U\\+06D7, which is not in the mark table",
+            "zebra" + PAUSE_2 + NBSP + glyph(5),
+            marks=frozenset({0x06D6}),
+        )
+
+    def test_another_letterless_code_point_stays_in_its_word(self):
+        result = presented("a" + SMALL_HIGH_SEEN + " b" + NBSP + glyph(5))
+        self.assertEqual(result.words, [(0, 2), (3, 4)])
+        self.assertEqual(result.marks, [])
+
+    def test_does_not_change_the_text(self):
+        text = QUARTER + NBSP + "e\u0301" + PAUSE + NBSP + glyph(5)
+        copy = text.encode("utf-8")
+        presented(text)
+        self.assertEqual(text.encode("utf-8"), copy)
+
+    def test_rejoin_property(self):
+        letters = ["a", "Z", NOON, SAD, TATWEEL, SMALL_WAW, "\U00010330"]
+        combining = [FATHA, "\u0301", SMALL_HIGH_SEEN]
+        joined = [PAUSE, PAUSE_2, SAJDA]
+        generator = random.Random(20261120)
+        for _ in range(500):
+            parts = [QUARTER + NBSP if generator.random() < 0.3 else ""]
+            for _ in range(generator.randint(1, 6)):
+                parts.append(" " * generator.randint(0 if len(parts) == 1 else 1, 2))
+                if generator.random() < 0.1:
+                    parts.append(generator.choice(joined))
+                    continue
+                parts.append("".join(
+                    generator.choice(letters) + generator.choice(["", ""] + combining)
+                    for _ in range(generator.randint(1, 3))
+                ))
+                if generator.random() < 0.4:
+                    parts.append("".join(generator.choice(joined) for _ in range(generator.randint(1, 2))))
+            number = generator.randint(1, 300)
+            parts.append(" " * generator.randint(0, 1) + NBSP + glyph(number))
+            text = "".join(parts)
+            self.check_rejoin(text, presented(text, address=(3, number)))
+
+    def check_rejoin(self, text, result):
+        units = text.encode("utf-16-le")
+        pieces = sorted(
+            [(start, end, "word") for start, end in result.words]
+            + [(start, end, "mark") for _, start, end in result.marks]
+            + [(start, end, "presentation") for _, start, end in result.presentation]
+        )
+        at = 0
+        words_seen = 0
+        for start, end, kind in pieces:
+            self.assertEqual(units[2 * at : 2 * start], " ".encode("utf-16-le") * (start - at))
+            piece = units[2 * start : 2 * end].decode("utf-16-le")
+            has_letter = any(tokens.is_letter(ord(c)) for c in piece)
+            if kind == "word":
+                self.assertNotIn(" ", piece)
+                self.assertTrue(has_letter)
+                self.assertFalse(set(map(ord, piece)) & tokens.JOINED_MARKS)
+                words_seen += 1
+            elif kind == "mark":
+                self.assertNotIn(" ", piece)
+                self.assertFalse(has_letter)
+                self.assertIn((words_seen, start, end), result.marks)
+            else:
+                self.assertIn((words_seen, start, end), result.presentation)
+            at = end
+        self.assertEqual(at, len(units) // 2)
 
 
 if __name__ == "__main__":
