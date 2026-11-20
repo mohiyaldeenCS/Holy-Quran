@@ -135,7 +135,8 @@ parallel tasks own whole folders: `onboarding` (the first-run setup), `home`,
 `mushaf` (reader), `index` (navigation), `listen` (players, recitation picker,
 player sheets), `study` (the hub), `search`, `tafsir`, `sheets` (the word and ayah
 sheets), `more` (the hub), `bookmarks` (bookmarks and notes), `resources`,
-`settings`, `sources` (sources and licences) and `report` («أبلغ عن خطأ», O-17).
+`settings`, `sources` (sources and licences), `report` («أبلغ عن خطأ», O-17) and
+`start` (the failed-start screen, D-196 (1)).
 Later phases add `khatma`, `hifz`, `account`.
 
 ### Naming
