@@ -4,15 +4,21 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/config/dependencies.dart';
+import 'package:holyquran/config/providers/user_database_providers.dart';
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/data/services/user_database.dart';
+import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/main.dart' as app;
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 import 'package:holyquran/ui/core/widgets/splash.dart';
 import 'package:holyquran/ui/core/widgets/unapproved_copy_banner.dart';
 import 'package:holyquran/ui/features/home/views/home_screen.dart';
+import 'package:holyquran/ui/features/start/view_models/app_start_view_model.dart';
+import 'package:holyquran/ui/features/start/views/start_failed_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
@@ -30,7 +36,9 @@ void main() {
     tester,
   ) async {
     final dependencies = Completer<List<SingleChildWidget>>();
-    await tester.pumpWidget(app.AppStart(dependencies: dependencies.future));
+    await tester.pumpWidget(
+      app.AppStart(start: AppStartViewModel(dependencies.future)),
+    );
 
     expect(find.byType(Splash), findsOneWidget);
     expect(find.byType(HomeScreen), findsNothing);
@@ -54,11 +62,13 @@ void main() {
         '(unapprovedCopy: $unapproved)', (tester) async {
       await tester.pumpWidget(
         app.AppStart(
-          dependencies: Future.value([
-            ChangeNotifierProvider<AppSettingsRepository>.value(
-              value: FakeAppSettingsRepository(),
-            ),
-          ]),
+          start: AppStartViewModel(
+            Future.value([
+              ChangeNotifierProvider<AppSettingsRepository>.value(
+                value: FakeAppSettingsRepository(),
+              ),
+            ]),
+          ),
           unapprovedCopy: unapproved,
         ),
       );
@@ -73,7 +83,9 @@ void main() {
 
   testWidgets('the splash is in Arabic, right to left', (tester) async {
     await tester.pumpWidget(
-      app.AppStart(dependencies: Completer<List<SingleChildWidget>>().future),
+      app.AppStart(
+        start: AppStartViewModel(Completer<List<SingleChildWidget>>().future),
+      ),
     );
 
     final context = tester.element(find.byType(Splash));
@@ -82,18 +94,52 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('a failed start is reported and keeps the splash', (
-    tester,
-  ) async {
+  testWidgets('a failed start is reported and leaves the splash for the '
+      'failed-start alert', (tester) async {
     final dependencies = Completer<List<SingleChildWidget>>();
-    await tester.pumpWidget(app.AppStart(dependencies: dependencies.future));
+    await tester.pumpWidget(
+      app.AppStart(start: AppStartViewModel(dependencies.future)),
+    );
 
     dependencies.completeError(StateError('synthetic'));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(tester.takeException(), isStateError);
-    expect(find.byType(Splash), findsOneWidget);
+    expect(find.byType(Splash), findsNothing);
+    expect(find.byType(StartFailedScreen), findsOneWidget);
+    expect(find.byType(IntegrityAlert), findsOneWidget);
+    final context = tester.element(find.byType(IntegrityAlert));
+    expect(Directionality.of(context), TextDirection.rtl);
+    expect(context.colors, same(AppColors.paper));
   });
+
+  final failingSteps = <String, AreaSetup>{
+    'the user database fails to open or migrate': (dependencies) =>
+        provideUserDatabase(
+          dependencies,
+          locate: () async =>
+              File('${Directory.systemTemp.path}/synthetic-absent.sqlite'),
+          open: (_) => throw StateError('synthetic migration failure'),
+        ),
+    'the base pack fails other than missing': (_) async =>
+        throw const ManifestUnreadable('synthetic.pack', 'synthetic'),
+    'a later start step throws': (_) async =>
+        throw const FormatException('synthetic'),
+  };
+  for (final MapEntry(key: step, value: area) in failingSteps.entries) {
+    testWidgets('the start leaves the splash when $step', (tester) async {
+      await tester.pumpWidget(
+        app.AppStart(
+          start: AppStartViewModel(buildDependencies(areas: [area])),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNotNull);
+      expect(find.byType(Splash), findsNothing);
+      expect(find.byType(StartFailedScreen), findsOneWidget);
+    });
+  }
 
   testWidgets('an unreadable user database no longer stops the start: the '
       'app runs on the defaults in memory and leaves the file as it is', (
