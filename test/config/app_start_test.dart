@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/config/dependencies.dart';
@@ -114,6 +115,13 @@ void main() {
     final l10n = AppLocalizations.of(context);
     expect(find.text(l10n.integrityStartFailedTitle), findsOneWidget);
     expect(find.text(l10n.integrityStartFailedBody), findsOneWidget);
+    final bars = tester
+        .widget<AnnotatedRegion<SystemUiOverlayStyle>>(
+          find.byType(AnnotatedRegion<SystemUiOverlayStyle>),
+        )
+        .value;
+    expect(bars.statusBarIconBrightness, Brightness.dark);
+    expect(bars.systemNavigationBarColor, AppColors.paper.ground);
   });
 
   final failingSteps = <String, AreaSetup>{

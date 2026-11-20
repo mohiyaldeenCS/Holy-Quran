@@ -4,6 +4,7 @@ import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/ui/core/metrics/home_metrics.dart';
 import 'package:holyquran/ui/core/theme/app_theme.dart';
+import 'package:holyquran/ui/core/theme/system_bars.dart';
 import 'package:holyquran/ui/core/theme/theme_context.dart';
 import 'package:holyquran/ui/core/widgets/integrity_alert.dart';
 
@@ -27,14 +28,16 @@ class _Body extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return ColoredBox(
-      color: context.colors.ground,
-      child: SafeArea(
-        child: SingleChildScrollView(
-          padding: HomeMetrics.bodyPadding,
-          child: IntegrityAlert(
-            title: l10n.integrityStartFailedTitle,
-            body: l10n.integrityStartFailedBody,
+    return SystemBars(
+      child: ColoredBox(
+        color: context.colors.ground,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: HomeMetrics.bodyPadding,
+            child: IntegrityAlert(
+              title: l10n.integrityStartFailedTitle,
+              body: l10n.integrityStartFailedBody,
+            ),
           ),
         ),
       ),
