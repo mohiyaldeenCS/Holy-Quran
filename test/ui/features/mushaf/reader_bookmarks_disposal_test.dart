@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/data/repositories/bookmark_repository.dart';
+import 'package:holyquran/data/repositories/category_repository.dart';
 import 'package:holyquran/domain/models/bookmark.dart';
+import 'package:holyquran/domain/models/category.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/reader_bookmarks.dart';
 import 'package:holyquran/utils/result.dart';
@@ -19,6 +21,10 @@ final class _Gated extends BookmarkRepository {
 
   final FakeBookmarkRepository inner;
   final gate = Completer<void>();
+
+  /// Set once the database under the store is closed: a read then fails as
+  /// drift's does, with an error the repository does not catch.
+  bool closed = false;
 
   @override
   Future<Result<Bookmark>> add(QuranAddress ayah, String categoryId) async {
@@ -59,12 +65,26 @@ final class _Gated extends BookmarkRepository {
     String? categoryId,
     String? tagId,
     String query = '',
-  }) => inner.list(
-    order: order,
-    categoryId: categoryId,
-    tagId: tagId,
-    query: query,
-  );
+  }) async {
+    if (closed) throw StateError('the database is closed');
+    return inner.list(
+      order: order,
+      categoryId: categoryId,
+      tagId: tagId,
+      query: query,
+    );
+  }
+}
+
+/// The built-in categories, once the test says so.
+final class _GatedCategories implements CategoryRepository {
+  final gate = Completer<void>();
+
+  @override
+  Future<Result<List<Category>>> categories() async {
+    await gate.future;
+    return FakeCategoryRepository().categories();
+  }
 }
 
 void main() {
@@ -86,6 +106,20 @@ void main() {
     await reader.load();
     return (store, reader);
   }
+
+  test('a load still reading the categories at dispose reads no bookmarks, '
+      'as the store may be closed by then', () async {
+    final store = _Gated(FakeBookmarkRepository());
+    final categories = _GatedCategories();
+    final reader = ReaderBookmarks(bookmarks: store, categories: categories);
+    final loading = reader.load();
+
+    reader.dispose();
+    store.closed = true;
+    categories.gate.complete();
+
+    await expectLater(loading, completes);
+  });
 
   testWidgets('an add that finishes after dispose changes nothing', (
     tester,

@@ -60,6 +60,8 @@ final class ReaderBookmarks extends ChangeNotifier {
   Future<void> load() async {
     if (_bookmarks == null || _categories == null) return;
     await _loadCategories();
+    // The reader that owned the store may have closed it on its way out.
+    if (_disposed) return;
     await _reload();
   }
 
