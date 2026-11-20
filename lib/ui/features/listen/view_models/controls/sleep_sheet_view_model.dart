@@ -14,7 +14,9 @@ final class SleepSheetViewModel extends ChangeNotifier {
     : _minutes = switch (_player.sleepTimer) {
         SleepAfter(:final minutes) => minutes,
         _ => SleepAfter.minMinutes,
-      };
+      } {
+    _player.addListener(notifyListeners);
+  }
 
   final PlayerRepository _player;
   int _minutes;
@@ -56,8 +58,12 @@ final class SleepSheetViewModel extends ChangeNotifier {
     if (!available || (timer != null && !plan!.supportsSleepTimer(timer))) {
       return false;
     }
-    await _player.setSleepTimer(timer);
-    notifyListeners();
-    return true;
+    return setOnRun(() => _player.setSleepTimer(timer));
+  }
+
+  @override
+  void dispose() {
+    _player.removeListener(notifyListeners);
+    super.dispose();
   }
 }

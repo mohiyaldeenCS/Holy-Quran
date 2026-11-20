@@ -83,5 +83,39 @@ void main() {
       await vm.startMinutes();
       expect(told, 2);
     });
+
+    test(
+      'reports false when the run ended before the timer reached it',
+      () async {
+        final player = playingSurah()..runEnded = true;
+        final vm = SleepSheetViewModel(player: player);
+        expect(vm.available, isTrue);
+        expect(await vm.endOfSurah(), isFalse);
+        expect(player.sleepTimer, isNull);
+      },
+    );
+
+    test('tells its listeners of the player until disposed', () {
+      final player = playingSurah();
+      final vm = SleepSheetViewModel(player: player);
+      var told = 0;
+      vm.addListener(() => told++);
+      player.state = player.state.copyWith(
+        stopReason: () => StopReason.endOfPlan,
+      );
+      expect((told, vm.available), (1, false));
+      vm.dispose();
+      player.state = player.state.copyWith(stopReason: () => null);
+      expect(told, 1);
+    });
+
+    test('a timer set as the sheet closes completes without error', () async {
+      final player = playingSurah();
+      final vm = SleepSheetViewModel(player: player);
+      final set = vm.endOfSurah();
+      vm.dispose();
+      expect(await set, isTrue);
+      expect(player.sleepTimer, isA<SleepAtEndOfSurah>());
+    });
   });
 }

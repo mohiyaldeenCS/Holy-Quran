@@ -9,7 +9,9 @@ import 'current_plan.dart';
 /// on the player at once and carries over the plans the other sheets
 /// rebuild; the sleep timer still comes first (`AU-23`).
 final class StopAfterSheetViewModel extends ChangeNotifier {
-  StopAfterSheetViewModel({required this._player});
+  StopAfterSheetViewModel({required this._player}) {
+    _player.addListener(notifyListeners);
+  }
 
   final PlayerRepository _player;
 
@@ -33,8 +35,12 @@ final class StopAfterSheetViewModel extends ChangeNotifier {
     if (!available || (stopAfter != null && !options.contains(stopAfter))) {
       return false;
     }
-    await _player.setStopAfter(stopAfter);
-    notifyListeners();
-    return true;
+    return setOnRun(() => _player.setStopAfter(stopAfter));
+  }
+
+  @override
+  void dispose() {
+    _player.removeListener(notifyListeners);
+    super.dispose();
   }
 }

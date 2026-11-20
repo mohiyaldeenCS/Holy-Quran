@@ -105,8 +105,14 @@ final class FakePlayerRepository extends PlayerRepository {
     notifyListeners();
   }
 
+  /// Set to make [setSleepTimer] and [setStopAfter] fail as the real
+  /// repository does when its run ended before they reached it, which
+  /// [state] does not show: an engine that failed to start, or a stop queued
+  /// ahead of them.
+  bool runEnded = false;
+
   void _checkPlaying() {
-    if (_state.plan == null || _state.stopReason != null) {
+    if (runEnded || _state.plan == null || _state.stopReason != null) {
       throw StateError('nothing is playing');
     }
   }

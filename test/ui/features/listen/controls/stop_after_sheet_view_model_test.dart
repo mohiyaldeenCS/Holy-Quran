@@ -58,5 +58,39 @@ void main() {
       );
       expect(player.stopAfter, isNull);
     });
+
+    test(
+      'reports false when the run ended before the choice reached it',
+      () async {
+        final player = playingSurah()..runEnded = true;
+        final vm = StopAfterSheetViewModel(player: player);
+        expect(vm.available, isTrue);
+        expect(await vm.choose(StopAfter.surah), isFalse);
+        expect(player.stopAfter, isNull);
+      },
+    );
+
+    test('tells its listeners of the player until disposed', () {
+      final player = playingSurah();
+      final vm = StopAfterSheetViewModel(player: player);
+      var told = 0;
+      vm.addListener(() => told++);
+      player.state = player.state.copyWith(
+        stopReason: () => StopReason.endOfPlan,
+      );
+      expect((told, vm.available), (1, false));
+      vm.dispose();
+      player.state = player.state.copyWith(stopReason: () => null);
+      expect(told, 1);
+    });
+
+    test('a choice made as the sheet closes completes without error', () async {
+      final player = playingSurah();
+      final vm = StopAfterSheetViewModel(player: player);
+      final set = vm.choose(StopAfter.ayah);
+      vm.dispose();
+      expect(await set, isTrue);
+      expect(player.stopAfter, StopAfter.ayah);
+    });
   });
 }

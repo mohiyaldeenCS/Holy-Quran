@@ -33,6 +33,19 @@ QuranAddress? heardIn(PlayerState state) => state.segment?.address;
 bool runsIn(PlayerState state) =>
     state.plan != null && state.stopReason == null;
 
+/// Runs [set], a sleep timer or stop-after, and reports whether the player
+/// took it. The player refuses it with a [StateError] when the run ended
+/// before [set] reached it, which [runsIn] cannot see: an engine that failed
+/// to start, or a stop queued ahead of it.
+Future<bool> setOnRun(Future<void> Function() set) async {
+  try {
+    await set();
+    return true;
+  } on StateError {
+    return false;
+  }
+}
+
 /// The first segment of [plan] that plays [ayah], so that a rebuilt plan
 /// goes on where the old one was; 0 when [ayah] is null or not in it, and
 /// for a plan without end, whose segments a search might never finish.
