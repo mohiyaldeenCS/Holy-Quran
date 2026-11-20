@@ -157,7 +157,7 @@ class ReindexTest(unittest.TestCase):
         self.assertEqual(
             result[(1, 2)], WordTiming(1, 2, (WordSegment(1, 1, 100, 200), WordSegment(2, 2, 300, 400)))
         )
-        self.assertEqual(counts["merged_mark_segments"], 0)
+        self.assertEqual((counts["merged_joined_mark_segments"], counts["merged_wordless_mark_segments"]), (0, 0))
 
     def test_a_segment_over_a_joined_mark_merges_into_the_word_s_segment(self):
         result, problems, counts = _reindex(
@@ -168,7 +168,9 @@ class ReindexTest(unittest.TestCase):
             result[(1, 2)].segments,
             (WordSegment(1, 1, 100, 250, (ZERO_LENGTH,)), WordSegment(2, 2, 300, 400)),
         )
-        self.assertEqual((counts["segments"], counts["merged_mark_segments"], counts["kfgqpc_segments"]), (3, 1, 2))
+        self.assertEqual(
+            (counts["segments"], counts["merged_joined_mark_segments"], counts["kfgqpc_segments"]), (3, 1, 2)
+        )
 
     def test_merged_defects_keep_the_reader_s_order(self):
         result, _, _ = _reindex(
@@ -181,9 +183,22 @@ class ReindexTest(unittest.TestCase):
         self.assertEqual(problems, [{"address": "hafs:1:2", "kind": "lone_mark", "segment": 1, "kfgqpc_word": 1}])
         self.assertEqual(result, {})
 
-    def test_a_segment_over_a_mark_kfgqpc_writes_apart_stops(self):
-        _, problems, _ = _reindex([(0, 1, 100, 200), (3, 4, 300, 400)])
-        self.assertEqual(problems, [{"address": "hafs:1:2", "kind": "no_word", "segment": 2}])
+    def test_a_segment_over_a_mark_that_goes_to_no_word_merges_into_the_word_before(self):
+        result, problems, counts = _reindex(
+            [(0, 1, 100, 200), (1, 2, 200, 260, (ZERO_LENGTH,)), (2, 3, 300, 400), (3, 4, 400, 450)],
+            changes={(1, 2): lambda t: t.replace(" \u06d6", "")},
+        )
+        self.assertEqual(problems, [])
+        self.assertEqual(
+            result[(1, 2)].segments,
+            (WordSegment(1, 1, 100, 260, (ZERO_LENGTH,)), WordSegment(2, 2, 300, 450)),
+        )
+        self.assertEqual((counts["merged_joined_mark_segments"], counts["merged_wordless_mark_segments"]), (0, 2))
+
+    def test_a_segment_over_marks_with_no_word_before_them_stops(self):
+        result, problems, _ = _reindex([(0, 1, 100, 200), (1, 3, 300, 400)], address=(1, 3))
+        self.assertEqual(problems, [{"address": "hafs:1:3", "kind": "no_word_before", "segment": 1}])
+        self.assertEqual(result, {})
 
     def test_a_segment_over_marks_joined_to_two_words_stops(self):
         ayah_map = AyahMap(words=2, tokens=(Token(1, True), Token(1, False), Token(2, False), Token(2, True)))
@@ -251,7 +266,7 @@ class TimingMapCliTest(CliCase):
             out,
         )
         self.assertRegex(out, r"timing 1 sha256 [0-9a-f]{64}: ayat 8, ayat without timing 0, segments 8, "
-                              r"merged mark segments 0, kfgqpc segments 8")
+                              r"merged joined mark segments 0, merged wordless mark segments 0, kfgqpc segments 8")
         self.assertRegex(out, r"kfgqpc sha256 [0-9a-f]{64}")
         self.assertEqual(out.splitlines()[-1], "passed")
 
@@ -260,7 +275,7 @@ class TimingMapCliTest(CliCase):
             _timing_json(lambda s, a, n: [[3, 4, 0, 1000]] if (s, a) == (1, 2) else [[0, n, 0, 1000]])
         )
         self.assertEqual(code, 65, out)
-        self.assertIn("problem no_word 1, first hafs:1:2", out)
+        self.assertIn("problem lone_mark 1, first hafs:1:2", out)
         self.assertEqual(out.splitlines()[-1], "problems found: the timing cannot be put on KFGQPC words")
 
     def test_a_map_problem_exits_65_without_any_timing(self):

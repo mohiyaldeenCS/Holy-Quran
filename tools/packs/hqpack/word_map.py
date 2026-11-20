@@ -24,14 +24,15 @@ receives none) and `presentation` (an ayah whose presentation the table could no
 remove). An ayah with a problem has no map.
 
 A segment's KFGQPC words are those of the Tanzil words it covers. A segment that
-covers marks only goes to the word they are joined to and is merged into the segment
-just before it, which must cover that word; the merged segment ends where the mark's
-segment ends and carries the defects of both. Timing problems: `lone_mark` (that word
-has no segment just before), `no_word` (the marks join no word), `ambiguous_segment`
-(they join two), `past_the_ayah` (the segment ends past the ayah's tokens, D-182) and
-`unmapped_ayah` (a timed ayah without a map). Every problem stops (PRD 10.4); none is
-resolved here. Problems and counts name addresses, numbers and kinds, never a
-character.
+covers marks only belongs to the word they are joined to or, when they go to no word,
+to the word before them (D-078, D-201), and is merged into the segment just before
+it, which must cover that word; the merged segment ends where the mark's segment ends
+and carries the defects of both. Timing problems: `lone_mark` (that word has no
+segment just before), `no_word_before` (marks that go to no word, with no word before
+them), `ambiguous_segment` (marks joined to two words), `past_the_ayah` (the segment
+ends past the ayah's tokens, D-182) and `unmapped_ayah` (a timed ayah without a map).
+Every problem stops (PRD 10.4); none is resolved here. Problems and counts name
+addresses, numbers and kinds, never a character.
 """
 
 from __future__ import annotations
@@ -57,7 +58,10 @@ _MAP_COUNTS = (
     "ayat", "tanzil_tokens", "tanzil_words", "tanzil_marks", "marks_joined", "marks_apart", "marks_unmatched",
     "kfgqpc_words",
 )
-_TIMING_COUNTS = ("ayat", "ayat_without_timing", "segments", "merged_mark_segments", "kfgqpc_segments")
+_TIMING_COUNTS = (
+    "ayat", "ayat_without_timing", "segments", "merged_joined_mark_segments", "merged_wordless_mark_segments",
+    "kfgqpc_segments",
+)
 
 
 class Token(NamedTuple):
@@ -290,15 +294,30 @@ def _segments(address, segments, ayah_map, problems, counts):
         if own:
             result.append(WordSegment(own[0], own[-1], segment.start_ms, segment.end_ms, segment.defects))
             continue
-        joined = sorted({token.word for token in covered if token.word is not None})
-        if len(joined) != 1:
-            problems.append(_problem(address, "ambiguous_segment" if joined else "no_word", segment=number))
-        elif not result or not result[-1].first_word <= joined[0] <= result[-1].last_word:
-            problems.append(_problem(address, "lone_mark", segment=number, kfgqpc_word=joined[0]))
+        word, kind = _mark_word(ayah_map.tokens, segment)
+        if word is None:
+            problems.append(_problem(address, kind, segment=number))
+        elif not result or not result[-1].first_word <= word <= result[-1].last_word:
+            problems.append(_problem(address, "lone_mark", segment=number, kfgqpc_word=word))
         else:
             result[-1] = _merged(result[-1], segment)
-            counts["merged_mark_segments"] += 1
+            counts[kind] += 1
     return tuple(result)
+
+
+def _mark_word(tokens, segment):
+    """(the KFGQPC word of a segment over marks only, the count its merge adds to), or (None, its problem):
+    the word its marks are joined to, else the word before them (D-078, D-201)."""
+    covered = tokens[segment.word_start:segment.word_end]
+    joined = sorted({token.word for token in covered if token.word is not None})
+    if len(joined) > 1:
+        return None, "ambiguous_segment"
+    if joined:
+        return joined[0], "merged_joined_mark_segments"
+    before = [token.word for token in tokens[:segment.word_start] if token.is_word]
+    if not before:
+        return None, "no_word_before"
+    return before[-1], "merged_wordless_mark_segments"
 
 
 def _merged(segment, mark_segment):
