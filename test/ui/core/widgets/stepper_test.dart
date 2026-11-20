@@ -263,6 +263,30 @@ void main() {
     handle.dispose();
   });
 
+  testWidgets('without onChanged: both buttons off, read as disabled', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final label = _l10n.galleryStepperRepeat;
+    await _pump(tester, Stepper(label: label, value: 5, onChanged: null));
+    expect(_icon(tester, IconName.minus).color, _colors.inkDisabled);
+    expect(_icon(tester, IconName.plus).color, _colors.inkDisabled);
+    for (final button in [
+      _l10n.stepperDecrease(label),
+      _l10n.stepperIncrease(label),
+    ]) {
+      expect(
+        tester.getSemantics(find.bySemanticsLabel(button)),
+        matchesSemantics(label: button, isButton: true, hasEnabledState: true),
+      );
+    }
+    expect(
+      tester.getSemantics(find.text(label)),
+      matchesSemantics(label: label, hasEnabledState: true),
+    );
+    handle.dispose();
+  });
+
   testWidgets('draws the focus ring in keyboard mode only', (tester) async {
     await _pump(tester, _live());
     final ring = find.byType(FocusRing).first;

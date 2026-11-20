@@ -10,7 +10,9 @@ import 'package:holyquran/ui/features/listen/view_models/controls/repeat_sheet_v
 import 'package:holyquran/ui/features/listen/views/controls/controls_sheet.dart';
 
 /// The repeat count (`AU-09`): a `Stepper` from 1 to 99, a `Switch` for
-/// «بلا نهاية», then play. Before any plan it is empty.
+/// «بلا نهاية», then play. While the switch is on the stepper is disabled,
+/// so that no count is shown as chosen beside it. Before any plan it is
+/// empty.
 class RepeatSheet extends StatelessWidget {
   const RepeatSheet({required this.viewModel, super.key});
 
@@ -30,7 +32,7 @@ class RepeatSheet extends StatelessWidget {
             value: vm.count,
             min: vm.min,
             max: vm.max,
-            onChanged: vm.setCount,
+            onChanged: vm.unlimited ? null : vm.setCount,
           ),
           Switch(
             label: l10n.repeatUnlimited,

@@ -271,6 +271,21 @@ void main() {
       expect(app.sheetOpen, isFalse);
     });
 
+    testWidgets('disables the count while without end is on', (tester) async {
+      final player = playerAt(planOf(builder, WholeSurah(1)), segment: 0);
+      final app = ControlsApp(player: player, builder: builder, index: index);
+      await app.open(tester, Routes.repeatSheet);
+      Stepper stepper() => tester.widget<Stepper>(find.byType(Stepper));
+
+      expect(stepper().onChanged, isNotNull);
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+      expect(stepper().onChanged, isNull);
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+      expect(stepper().onChanged, isNotNull);
+    });
+
     testWidgets('stays open when the player refuses to play', (tester) async {
       final player = playerAt(planOf(builder, WholeSurah(1)), segment: 0)
         ..playFailure = Exception('refused');
