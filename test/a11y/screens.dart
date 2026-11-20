@@ -5,19 +5,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
+import 'package:holyquran/data/repositories/recitation_repository.dart';
 import 'package:holyquran/domain/models/quran_address.dart';
 import 'package:holyquran/routing/router.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/features/mushaf/view_models/mushaf_view_model.dart';
 import 'package:holyquran/ui/features/mushaf/views/mushaf_screen.dart';
+import 'package:holyquran/ui/features/onboarding/view_models/onboarding_view_model.dart';
+import 'package:holyquran/ui/features/onboarding/views/onboarding_screen.dart';
+import 'package:provider/provider.dart';
 
 import '../../testing/fakes/fake_app_settings_repository.dart';
+import '../../testing/fakes/fake_recitation_repository.dart';
 import '../../testing/test_app.dart';
 import '../ui/features/bookmarks/bookmarks_harness.dart';
 import '../ui/features/home/home_harness.dart';
 import '../ui/features/index/index_fixture.dart';
 import '../ui/features/index/index_harness.dart';
 import '../ui/features/mushaf/mushaf_harness.dart';
+import '../ui/features/onboarding/onboarding_fixture.dart';
 import '../ui/features/search/search_fixture.dart';
 import '../ui/features/search/search_harness.dart';
 import 'a11y_support.dart';
@@ -53,6 +59,7 @@ final class A11yWorld {
     double textScale,
     String location, {
     AppSettingsRepository? settings,
+    RecitationRepository? recitations,
   }) async {
     tester.view
       ..physicalSize = size
@@ -62,10 +69,43 @@ final class A11yWorld {
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
     final router = createRouter();
     addTearDown(router.dispose);
-    await tester.pumpWidget(testApp(router, settings: settings));
+    final app = testApp(router, settings: settings);
+    await tester.pumpWidget(
+      recitations == null
+          ? app
+          : ListenableProvider<RecitationRepository>.value(
+              value: recitations,
+              child: app,
+            ),
+    );
     router.go(location);
     await tester.pumpAndSettle();
     return router;
+  }
+
+  /// The first-run setup over two `Ready` recitations, so that it asks all
+  /// three steps, with [passed] of them passed.
+  Future<void> _onboarding(
+    WidgetTester tester,
+    Size size,
+    double textScale, {
+    int passed = 0,
+  }) async {
+    await _more(
+      tester,
+      size,
+      textScale,
+      Routes.onboarding,
+      settings: FakeAppSettingsRepository(),
+      recitations: FakeRecitationRepository(twoReadyRecitations()),
+    );
+    for (var step = 0; step < passed; step++) {
+      await tester
+          .element(find.byType(OnboardingScreen))
+          .read<OnboardingViewModel>()
+          .next();
+      await tester.pumpAndSettle();
+    }
   }
 
   Future<GoRouter> _bookmarks(
@@ -197,15 +237,16 @@ final class A11yWorld {
       pump: (tester, size, textScale) =>
           _more(tester, size, textScale, Routes.settings),
     ),
+    (name: 'onboarding', pump: _onboarding),
     (
-      name: 'onboarding',
-      pump: (tester, size, textScale) => _more(
-        tester,
-        size,
-        textScale,
-        Routes.onboarding,
-        settings: FakeAppSettingsRepository(),
-      ),
+      name: 'onboarding level',
+      pump: (tester, size, textScale) =>
+          _onboarding(tester, size, textScale, passed: 1),
+    ),
+    (
+      name: 'onboarding recitation',
+      pump: (tester, size, textScale) =>
+          _onboarding(tester, size, textScale, passed: 2),
     ),
     (name: 'bookmarks', pump: _bookmarks),
   ];

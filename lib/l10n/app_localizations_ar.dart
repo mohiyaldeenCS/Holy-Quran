@@ -991,6 +991,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get setupFinish => 'ابدأ القراءة';
 
   @override
+  String get displayModeSurah => 'وضع السورة';
+
+  @override
   String get reportSend => 'أرسل البلاغ';
 
   @override

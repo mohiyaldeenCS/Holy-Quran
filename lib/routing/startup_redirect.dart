@@ -8,12 +8,14 @@ import 'package:holyquran/data/repositories/quran_index_repository.dart';
 import 'package:holyquran/data/repositories/reading_position_repository.dart';
 import 'package:holyquran/domain/use_cases/is_ayah_of_pack.dart';
 import 'package:holyquran/routing/routes.dart';
+import 'package:holyquran/routing/routes/onboarding_routes.dart';
 import 'package:holyquran/ui/features/onboarding/view_models/setup_step.dart';
 import 'package:provider/provider.dart';
 
-// Off until the setup's step names, prompts and continue button have their
-// wording (docs/plans/PHASE1.md, Appendix B and C): without a continue
-// button a new user could not leave the setup.
+// Off until the tests that open the whole app start past the setup: with it
+// on, the fake settings' default and the real settings over a fresh store
+// (app start, settings providers, flows) are a new user, sent to the setup
+// instead of the screen those tests open.
 const bool _firstRunSetupEnabled = false;
 
 /// Where the app goes instead of the location it is opened at: the first-run
@@ -41,9 +43,11 @@ final class StartupRedirect {
 /// The first-run setup for a user who has not finished it (O-17, D-127).
 String? firstRunRedirect(BuildContext context, GoRouterState state) {
   if (state.uri.path == Routes.onboarding) return null;
-  return setupFinished(setupSteps(context.read<AppSettingsRepository>()))
-      ? null
-      : Routes.onboarding;
+  final steps = setupSteps(
+    context.read<AppSettingsRepository>(),
+    recitations: readyRecitations(context),
+  );
+  return setupFinished(steps) ? null : Routes.onboarding;
 }
 
 // A pack that does not serve its text has no index, and the app then stays

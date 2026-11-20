@@ -5,16 +5,20 @@ import 'package:holyquran/domain/models/ui_level.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/metrics/settings_metrics.dart';
+import 'package:holyquran/ui/core/theme/theme_context.dart';
+import 'package:holyquran/ui/core/theme/tokens.g.dart';
+import 'package:holyquran/ui/core/widgets/button.dart';
 import 'package:holyquran/ui/core/widgets/level_switch.dart';
 import 'package:holyquran/ui/core/widgets/lockup.dart';
+import 'package:holyquran/ui/core/widgets/radio_row.dart';
 import 'package:holyquran/ui/features/onboarding/view_models/onboarding_view_model.dart';
 import 'package:holyquran/ui/features/onboarding/view_models/setup_step.dart';
 import 'package:provider/provider.dart';
 
-/// The first-run setup under the `Lockup` (O-17), an extension laid out as
-/// the settings screen. The step names, each step's prompt and the continue
-/// button wait for their wording (PHASE1.md, Appendix B and C), so they are
-/// not shown and the start-up redirect stays off.
+/// The first-run setup under the `Lockup` (O-17, D-127): one step at a time,
+/// its name, its prompt, its choices and the button that passes it. The
+/// identity does not draw it; it is laid out as the settings screen from the
+/// identity's components.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -45,6 +49,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final viewModel = context.watch<OnboardingViewModel>();
     final step = viewModel.step;
     return Scaffold(
@@ -62,10 +67,34 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: ListView(
                 padding: SettingsMetrics.content,
                 children: [
-                  if (step != null)
+                  if (step != null) ...[
+                    _StepHeading(
+                      name: l10n.stepName(step.kind),
+                      prompt: l10n.stepPrompt(step.kind),
+                    ),
+                    const SizedBox(height: SettingsMetrics.contentGap),
                     switch (step.kind) {
-                      SetupStepKind.level => _LevelStep(viewModel),
+                      SetupStepKind.displayMode => RadioRow(
+                        selected: true,
+                        onTap: () {},
+                        child: Text(
+                          l10n.displayModeSurah,
+                          style: RadioRow.labelStyle.copyWith(
+                            color: context.colors.ink,
+                          ),
+                        ),
+                      ),
+                      SetupStepKind.level => _LevelChoice(viewModel),
+                      SetupStepKind.recitation => _RecitationChoice(viewModel),
                     },
+                    const SizedBox(height: SettingsMetrics.contentGap),
+                    Button(
+                      label: viewModel.onLastStep
+                          ? l10n.setupFinish
+                          : l10n.setupContinue,
+                      onPressed: viewModel.next,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -76,8 +105,39 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
-class _LevelStep extends StatelessWidget {
-  const _LevelStep(this.viewModel);
+class _StepHeading extends StatelessWidget {
+  const _StepHeading({required this.name, required this.prompt});
+
+  final String name;
+  final String prompt;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // A node of its own, so the prompt below is not read as the heading.
+        Semantics(
+          container: true,
+          header: true,
+          child: Text(
+            name,
+            style: AppTextStyles.sectionTitle.copyWith(color: colors.ink),
+          ),
+        ),
+        const SizedBox(height: SettingsMetrics.contentGap),
+        Text(
+          prompt,
+          style: AppTextStyles.secondary.copyWith(color: colors.inkMuted),
+        ),
+      ],
+    );
+  }
+}
+
+class _LevelChoice extends StatelessWidget {
+  const _LevelChoice(this.viewModel);
 
   final OnboardingViewModel viewModel;
 
@@ -98,4 +158,40 @@ class _LevelStep extends StatelessWidget {
       semanticLabel: l10n.levelLabel,
     );
   }
+}
+
+class _RecitationChoice extends StatelessWidget {
+  const _RecitationChoice(this.viewModel);
+
+  final OnboardingViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = RadioRow.labelStyle.copyWith(color: context.colors.ink);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final recitation in viewModel.recitations)
+          RadioRow(
+            selected: recitation == viewModel.recitation,
+            onTap: () => viewModel.selectRecitation(recitation),
+            child: Text(recitation.recitation.reciter, style: style),
+          ),
+      ],
+    );
+  }
+}
+
+extension on AppLocalizations {
+  String stepName(SetupStepKind kind) => switch (kind) {
+    SetupStepKind.displayMode => setupStepDisplayMode,
+    SetupStepKind.level => setupStepLevel,
+    SetupStepKind.recitation => setupStepRecitation,
+  };
+
+  String stepPrompt(SetupStepKind kind) => switch (kind) {
+    SetupStepKind.displayMode => setupDisplayModePrompt,
+    SetupStepKind.level => setupLevelPrompt,
+    SetupStepKind.recitation => setupRecitationPrompt,
+  };
 }

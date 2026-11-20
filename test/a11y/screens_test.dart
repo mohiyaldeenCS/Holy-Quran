@@ -26,6 +26,8 @@ void main() {
         'more',
         'settings',
         'onboarding',
+        'onboarding level',
+        'onboarding recitation',
         'bookmarks',
       ]) {
         testWidgets('$name is accessible', (tester) async {

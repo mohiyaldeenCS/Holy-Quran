@@ -1,13 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:holyquran/domain/models/catalogue_entry.dart';
 import 'package:holyquran/domain/models/ui_level.dart';
 import 'package:holyquran/ui/features/onboarding/view_models/onboarding_view_model.dart';
 import 'package:holyquran/ui/features/onboarding/view_models/setup_step.dart';
 import 'package:holyquran/utils/result.dart';
 
 import '../../../../testing/fakes/fake_app_settings_repository.dart';
+import 'onboarding_fixture.dart';
 
-/// A step another task will bring, such as the display mode.
 final class _Step implements SetupStep {
   @override
   bool done = false;
@@ -27,23 +28,67 @@ void main() {
 
   setUp(() => settings = FakeAppSettingsRepository());
 
-  test('Phase 1 asks the level, the only step with its wording', () {
-    final steps = setupSteps(settings);
+  List<SetupStepKind> kinds(List<SetupStep> steps) => [
+    for (final step in steps) step.kind,
+  ];
 
-    expect([for (final step in steps) step.kind], [SetupStepKind.level]);
+  OnboardingViewModel open({List<CatalogueRecitation> recitations = const []}) {
+    final viewModel = OnboardingViewModel(
+      settings: settings,
+      steps: setupSteps(settings, recitations: recitations),
+      recitations: recitations,
+    );
+    addTearDown(viewModel.dispose);
+    return viewModel;
+  }
+
+  test('with no Ready recitation it asks the display mode and the level '
+      '(D-136 (3))', () {
+    final steps = setupSteps(settings, recitations: const []);
+
+    expect(kinds(steps), [SetupStepKind.displayMode, SetupStepKind.level]);
     expect(setupFinished(steps), isFalse);
   });
 
-  test('the level step is done once the level is chosen', () async {
-    final viewModel = OnboardingViewModel(
-      settings: settings,
-      steps: setupSteps(settings),
-    );
-    addTearDown(viewModel.dispose);
+  test('with Ready recitations it asks the recitation last, offering each '
+      '(D-127, D-136 (3))', () {
+    for (final recitations in [
+      [readyRecitation('synthetic-only', 'قارئ تجريبي')],
+      twoReadyRecitations(),
+    ]) {
+      final viewModel = open(recitations: recitations);
 
-    expect(viewModel.step, isA<LevelStep>());
+      expect(kinds(setupSteps(settings, recitations: recitations)), [
+        SetupStepKind.displayMode,
+        SetupStepKind.level,
+        SetupStepKind.recitation,
+      ]);
+      expect(viewModel.recitations, recitations);
+    }
+  });
+
+  test('the level starts at «بسيط» and a choice is stored at once '
+      '(LV-01, LV-02)', () async {
+    final viewModel = open();
+
+    expect(viewModel.level, UiLevel.simple);
     await viewModel.selectLevel(UiLevel.study);
+
     expect(settings.level, UiLevel.study);
+    expect(settings.levelChosen, isFalse);
+  });
+
+  test('the pass is recorded once, when its last step is passed', () async {
+    final viewModel = open(recitations: twoReadyRecitations());
+
+    expect(viewModel.step?.kind, SetupStepKind.displayMode);
+    expect(viewModel.onLastStep, isFalse);
+    await viewModel.next();
+    expect(viewModel.step?.kind, SetupStepKind.level);
+    expect(settings.levelChosen, isFalse);
+    await viewModel.next();
+    expect(viewModel.step?.kind, SetupStepKind.recitation);
+    expect(viewModel.onLastStep, isTrue);
     expect(settings.levelChosen, isFalse);
 
     await viewModel.next();
@@ -51,38 +96,43 @@ void main() {
     expect(settings.levelChosen, isTrue);
     expect(viewModel.finished, isTrue);
     expect(viewModel.step, isNull);
-    expect(setupFinished(setupSteps(settings)), isTrue);
   });
 
-  test('every step is shown in the order given, then the setup finishes '
-      '(D-127)', () async {
-    final first = _Step();
-    final last = _Step();
-    final steps = [first, LevelStep(settings), last];
-    final viewModel = OnboardingViewModel(settings: settings, steps: steps);
-    addTearDown(viewModel.dispose);
+  test('with no Ready recitation the level step ends the setup', () async {
+    final viewModel = open();
 
-    expect(viewModel.step, same(first));
     await viewModel.next();
-    expect(first.done, isTrue);
-    expect(viewModel.step, isA<LevelStep>());
-    await viewModel.next();
-    expect(viewModel.step, same(last));
+    expect(viewModel.step?.kind, SetupStepKind.level);
+    expect(viewModel.onLastStep, isTrue);
     await viewModel.next();
 
+    expect(settings.levelChosen, isTrue);
     expect(viewModel.finished, isTrue);
-    expect(setupFinished(steps), isTrue);
   });
 
-  test('a step already done is not asked again', () {
+  test('no recitation is chosen until the user chooses one', () {
+    final [first, second] = twoReadyRecitations();
+    final viewModel = open(recitations: [first, second]);
+    var notified = 0;
+    viewModel.addListener(() => notified++);
+
+    expect(viewModel.recitation, isNull);
+    viewModel.selectRecitation(second);
+
+    expect(viewModel.recitation, same(second));
+    expect(notified, 1);
+  });
+
+  test('a setup left midway starts again whole', () async {
+    await open().next();
+
+    expect(open().step?.kind, SetupStepKind.displayMode);
+  });
+
+  test('a finished setup is not asked again', () {
     settings.levelChosen = true;
-    final viewModel = OnboardingViewModel(
-      settings: settings,
-      steps: setupSteps(settings),
-    );
-    addTearDown(viewModel.dispose);
 
-    expect(viewModel.finished, isTrue);
+    expect(open().finished, isTrue);
   });
 
   test('a second next while a step completes moves on once', () async {
@@ -102,7 +152,7 @@ void main() {
   test('closing the setup while a step completes raises nothing', () async {
     final viewModel = OnboardingViewModel(
       settings: settings,
-      steps: setupSteps(settings),
+      steps: setupSteps(settings, recitations: const []),
     );
 
     final completing = viewModel.next();

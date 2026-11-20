@@ -1840,6 +1840,12 @@ abstract class AppLocalizations {
   /// **'ابدأ القراءة'**
   String get setupFinish;
 
+  /// Lead, 2026-11-20, D-196 (5); wording from the PRD (RD-02).
+  ///
+  /// In ar, this message translates to:
+  /// **'وضع السورة'**
+  String get displayModeSurah;
+
   /// Lead, 2026-10-28, D-128 (5)
   ///
   /// In ar, this message translates to:
