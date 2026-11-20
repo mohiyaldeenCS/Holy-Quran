@@ -944,8 +944,8 @@ with notes by (site page, N), never by N alone: a passage whose marks repeat a n
 from different pages ships each mark's own page's note, in the marks' order (D-194).
 
 Marks and notes pair one to one per page. On every page where a shipped passage has a
-mark, and on the page after one whose last note it uses, each of these stops the build
-(exit 65), naming the book, the site page, N and the entries involved:
+mark, each of these stops the build (exit 65), naming the book, the site page, N and
+the entries involved:
 
 | Case | What |
 | --- | --- |
@@ -954,6 +954,12 @@ mark, and on the page after one whose last note it uses, each of these stops the
 | `mark_without_note`, `note_without_mark` | a mark with no note of its N on the page, or a note with no mark |
 | `separator_not_empty` | a paragraph holding `<hr>` that is not exactly the separator |
 | `page_layout` | a note paragraph above the line, anything but a note below it, a second line, a mark in a note, or a passage carrying a note paragraph or the separator as its own paragraph |
+
+The page after one whose last note a shipped passage uses is checked too, because that
+note could go on there: `unnumbered_note_opens_page` when its first note paragraph has
+no number, and `page_layout` when a note paragraph stands above its footnote line, or
+anywhere on it when it has no line. Both name the entries whose passage uses that last
+note.
 
 All the cases are listed in one message. The review record settles a case only by
 excluding the entries it names (`excluded`, D-186), which holds them out; nothing new

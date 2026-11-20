@@ -12,15 +12,18 @@ U+000A like any other. Nothing else is added.
 Marks and notes pair one to one per page, by (site page, N): the books
 number their footnotes afresh on every page, so a number that comes again in
 one passage from another page is another note, appended in its mark's place
-(D-194). Checked on every page where a shipped passage has a mark, and on the
-page after one whose last note it uses, these stop the build (`Case`): an
-unnumbered note paragraph opening a page (it may continue the previous page's
-last note); a number repeated among a page's marks or notes; a mark without its note
-or a note without its mark; a footnote-line paragraph that is not the empty
-separator; and a page laid out otherwise (a note above the line, something
-else below it, a second line, a note or the line carried as a passage's own
-paragraph). The review record settles a case only by excluding the entries
-it names, which holds them out (D-186); nothing else is added to the record.
+(D-194). Checked on every page where a shipped passage has a mark, these stop
+the build (`Case`): an unnumbered note paragraph opening a page's notes (it may
+continue the previous page's last note); a number repeated among a page's marks
+or notes; a mark without its note or a note without its mark; a footnote-line
+paragraph that is not the empty separator; and a page laid out otherwise (a
+note above the line, something else below it, a second line, a note or the
+line carried as a passage's own paragraph). On the page after one whose last
+note a shipped passage uses, where that note could go on, two of them stop it
+too: an unnumbered note paragraph opening its notes, and a note paragraph
+above its footnote line or on a page with none (`page_layout`). The review
+record settles a case only by excluding the entries it names, which holds them
+out (D-186); nothing else is added to the record.
 
 The P2 proof is extended to the passage: `regex_passage_text` rebuilds each
 passage from the html by a second path that shares nothing with the
@@ -65,6 +68,7 @@ class PageNotes:
     notes: dict  # N -> the note's paragraphs (html), numbered one first
     order: tuple  # the notes' N in page order
     problems: tuple  # (kind, N) found in the page alone
+    note_above_line: bool  # a note paragraph above the footnote line, or on a page without one
 
 
 def read_page(html: str, site_page: int) -> PageNotes:
@@ -79,7 +83,8 @@ def read_page(html: str, site_page: int) -> PageNotes:
     cut = lines[0] if lines else len(paragraphs)
     body, below = paragraphs[:cut], paragraphs[cut + 1 :]
     marks = Counter(n for p in body for n in _PAGE_MARK.findall(p))
-    if any(p.startswith(NOTE_OPEN) for p in body):
+    note_above_line = any(p.startswith(NOTE_OPEN) for p in body)
+    if note_above_line:
         problems.append(("page_layout", ""))
     notes, order, current = {}, [], None
     for paragraph in below:
@@ -98,7 +103,7 @@ def read_page(html: str, site_page: int) -> PageNotes:
             problems.append(("unnumbered_note_opens_page", ""))
         else:
             notes[current].append(paragraph)
-    return PageNotes(marks, {n: tuple(p) for n, p in notes.items()}, tuple(order), tuple(problems))
+    return PageNotes(marks, {n: tuple(p) for n, p in notes.items()}, tuple(order), tuple(problems), note_above_line)
 
 
 def notes_of_marks(shipped_marks: dict, pages: dict):
@@ -126,13 +131,24 @@ def notes_of_marks(shipped_marks: dict, pages: dict):
             if number in page.notes:
                 found[(site_page, number)] = page.notes[number]
         if page.order and page.order[-1] in shipped:
-            later = following.index(site_page) + 1
-            if later < len(following):
-                after = following[later]
-                if ("unnumbered_note_opens_page", "") in read_page(pages[after], after).problems:
-                    owners = tuple(sorted(shipped[page.order[-1]]))
-                    cases.append(Case("unnumbered_note_opens_page", after, "", owners))
+            cases += _cases_on_page_after(site_page, pages, following, tuple(sorted(shipped[page.order[-1]])))
     return found, cases
+
+
+def _cases_on_page_after(site_page: int, pages: dict, following: list, owners: tuple) -> list:
+    """The page after, where `site_page`'s last note could go on: its notes open
+    unnumbered, or a note paragraph stands above its line or on a page without one."""
+    later = following.index(site_page) + 1
+    if later == len(following):
+        return []
+    after = following[later]
+    page = read_page(pages[after], after)
+    cases = []
+    if ("unnumbered_note_opens_page", "") in page.problems:
+        cases.append(Case("unnumbered_note_opens_page", after, "", owners))
+    if page.note_above_line:
+        cases.append(Case("page_layout", after, "", owners))
+    return cases
 
 
 def refuse(book: int, cases) -> None:
