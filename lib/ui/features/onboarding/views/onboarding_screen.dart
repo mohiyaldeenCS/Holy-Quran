@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart' hide Button;
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:holyquran/domain/models/ui_level.dart';
