@@ -52,15 +52,6 @@ void main() {
       expect(player.sleepTimer, isNull);
     });
 
-    test('reads the time left from the player', () {
-      final player = playingSurah()
-        ..sleepRemaining = const Duration(minutes: 3);
-      expect(
-        SleepSheetViewModel(player: player).remaining,
-        const Duration(minutes: 3),
-      );
-    });
-
     test('a surah file without timing offers no end of ayah', () async {
       final player = playingSurah(unit: RecitationUnit.surah);
       final vm = SleepSheetViewModel(player: player);

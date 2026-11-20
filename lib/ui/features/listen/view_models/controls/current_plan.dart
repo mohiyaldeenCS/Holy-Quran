@@ -28,6 +28,11 @@ PlanOutcome rebuildPlan(
 /// ayah segments set it and a later plan does not clear it.
 QuranAddress? heardIn(PlayerState state) => state.segment?.address;
 
+/// Whether [state] holds a run the sleep timer and stop-after can be set on:
+/// the player refuses them once a stop has ended it.
+bool runsIn(PlayerState state) =>
+    state.plan != null && state.stopReason == null;
+
 /// The first segment of [plan] that plays [ayah], so that a rebuilt plan
 /// goes on where the old one was; 0 when [ayah] is null or not in it, and
 /// for a plan without end, whose segments a search might never finish.

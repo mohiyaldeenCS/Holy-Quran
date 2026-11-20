@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:holyquran/data/repositories/player_repository.dart';
 import 'package:holyquran/domain/models/stop_after.dart';
 
+import 'current_plan.dart';
+
 /// Stop after the ayah, page or surah being heard (`AU-08`). A choice is set
 /// on the player at once and carries over the plans the other sheets
 /// rebuild; the sleep timer still comes first (`AU-23`).
@@ -12,8 +14,7 @@ final class StopAfterSheetViewModel extends ChangeNotifier {
   final PlayerRepository _player;
 
   /// False when nothing is playing.
-  bool get available =>
-      _player.state.plan != null && _player.state.stopReason == null;
+  bool get available => runsIn(_player.state);
 
   /// What the plan playing can stop after: a whole surah from a file without
   /// timing data has no ayah or page boundary, so only the surah (D-112).

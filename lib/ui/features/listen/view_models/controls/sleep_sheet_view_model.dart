@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:holyquran/data/repositories/player_repository.dart';
 import 'package:holyquran/domain/models/sleep_timer.dart';
 
+import 'current_plan.dart';
+
 /// The sleep timer (`AU-07`): after 5 to 120 minutes, which the player fades
 /// out, or at the end of the ayah or surah being heard. The minutes open at
 /// the timer set, else at the least; a choice is set on the player at once
@@ -18,8 +20,7 @@ final class SleepSheetViewModel extends ChangeNotifier {
   int _minutes;
 
   /// False when nothing is playing: a stop ends the timer with the run.
-  bool get available =>
-      _player.state.plan != null && _player.state.stopReason == null;
+  bool get available => runsIn(_player.state);
 
   /// False for a whole surah from a file without timing data, which has no
   /// ayah to end at (D-112).
@@ -27,9 +28,6 @@ final class SleepSheetViewModel extends ChangeNotifier {
       _player.state.plan?.supportsSleepTimer(const SleepAtEndOfAyah()) ?? false;
 
   SleepTimer? get timer => _player.sleepTimer;
-
-  /// Time left on a timer in minutes.
-  Duration? get remaining => _player.sleepRemaining;
 
   int get minutes => _minutes;
 
@@ -54,7 +52,8 @@ final class SleepSheetViewModel extends ChangeNotifier {
   Future<bool> cancel() => _set(null);
 
   Future<bool> _set(SleepTimer? timer) async {
-    if (!available || (timer is SleepAtEndOfAyah && !offersEndOfAyah)) {
+    final plan = _player.state.plan;
+    if (!available || (timer != null && !plan!.supportsSleepTimer(timer))) {
       return false;
     }
     await _player.setSleepTimer(timer);
