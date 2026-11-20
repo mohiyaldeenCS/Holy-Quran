@@ -136,6 +136,27 @@ void main() {
       });
     });
 
+    test('switched on mid-range, goes on from the ayah being heard', () async {
+      final player = playerAt(planOf(builder, WholeSurah(1)), segment: 2);
+      final vm = viewModel(player)..setUnlimited(true);
+      expect(await vm.play(), isTrue);
+      expect(
+        player.state.plan!.repeat,
+        const RepeatMode.unlimited(RepeatUnit.range),
+      );
+      expect(player.commands, ['play 2']);
+    });
+
+    test('switched on, ends its search for an ayah never reached', () async {
+      final player = playerAt(
+        planOf(builder, WholeSurah(1), repeat: RepeatMode(RepeatUnit.ayah, 2)),
+        segment: 4,
+      );
+      final vm = viewModel(player)..setUnlimited(true);
+      expect(await vm.play(), isTrue);
+      expect(player.commands, ['play 0']);
+    });
+
     test('without end keeps the unit and never runs out', () async {
       final player = playerAt(
         planOf(

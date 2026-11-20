@@ -29,12 +29,16 @@ PlanOutcome rebuildPlan(
 QuranAddress? heardIn(PlayerState state) => state.segment?.address;
 
 /// The first segment of [plan] that plays [ayah], so that a rebuilt plan
-/// goes on where the old one was; 0 when [ayah] is null or not in it, and
-/// for a plan without end, whose segments a search might never finish.
+/// goes on where the old one was; 0 when [ayah] is null or not in it. A plan
+/// without end never ends, so it is searched only up to its first second
+/// hearing: every ayah it plays is first heard before that.
 int segmentOf(PlaybackPlan plan, QuranAddress? ayah) {
-  if (ayah == null || plan.repeat.isUnlimited) return 0;
+  if (ayah == null) return 0;
+  final searched = plan.repeat.isUnlimited
+      ? plan.segments.takeWhile((segment) => segment.repeat == 1)
+      : plan.segments;
   var index = 0;
-  for (final segment in plan.segments) {
+  for (final segment in searched) {
     final at = segment.address;
     if (at.surah == ayah.surah &&
         (segment.kind == SegmentKind.surah || at.ayah == ayah.ayah)) {
