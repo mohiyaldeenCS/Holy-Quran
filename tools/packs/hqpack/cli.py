@@ -1,4 +1,5 @@
-"""The command line: build, tafsir, verify, sign, verify-signature, compare, review-page, kfgqpc-counts and drift.
+"""The command line: build, tafsir, verify, sign, verify-signature, compare, review-page, kfgqpc-counts, drift
+and timing-map.
 
 `verify` and `sign` choose their checks by the manifest's kind: a text pack
 with its font and mark table, a tafsir pack with the P5 ayah counts and its
@@ -15,7 +16,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import compare, drift, review_page
+from . import compare, drift, review_page, word_map
 from .ayah_counts import read_ayah_counts
 from .build import build_pack
 from .digest import sha256_bytes
@@ -179,6 +180,20 @@ def _parser():
         "--report", type=Path, help="where the report (JSON, numbers only) is written, outside every Git working tree"
     )
     timing.set_defaults(run=_drift)
+
+    words = commands.add_parser(
+        "timing-map",
+        help="map Tanzil's tokens, which quran-align counts, to KFGQPC's words and re-index each timing file "
+        "onto them (B0.5, D-198, PRD 10.4); prints counts and addresses only",
+    )
+    words.add_argument("--text", required=True, type=Path, help="the Tanzil quran-uthmani text XML")
+    words.add_argument("--metadata", required=True, type=Path, help="Tanzil's quran-data.xml")
+    words.add_argument("--kfgqpc", required=True, type=Path, help="KFGQPC's hafsData_v2-0.json")
+    words.add_argument("--table", required=True, type=Path, help="the table of known differences")
+    words.add_argument(
+        "--timing", action="append", default=[], type=Path, help="a quran-align JSON to re-index; may be repeated"
+    )
+    words.set_defaults(run=_timing_map)
     return parser
 
 
@@ -396,6 +411,13 @@ def _drift(args, out):
     if args.report is not None:
         print("report %s" % args.report, file=out)
     return 0 if report["summary"]["verdict"] == "PASS" else EX_DATAERR
+
+
+def _timing_map(args, out):
+    report = word_map.run_word_map(args.text, args.metadata, args.kfgqpc, args.table, args.timing, PROFILES["hafs"])
+    for line in word_map.lines(report):
+        print(line, file=out)
+    return 0 if report["passed"] else EX_DATAERR
 
 
 def _report(args, signing):

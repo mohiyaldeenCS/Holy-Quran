@@ -150,7 +150,7 @@ def compare(text, metadata, witness, table, trace=None):
     """The comparison of the parsed Tanzil text and metadata with the parsed KFGQPC ayat
     under `table`; with a Trace, also fills it."""
     tanzil = [(aya.surah, aya.number, aya.text.value) for sura in text.suras for aya in sura.ayat]
-    _check_addresses(tanzil, witness)
+    check_addresses(tanzil, witness)
     ayah_counts = {sura.index: len(sura.ayat) for sura in text.suras}
     for kind, points in (("juz", metadata.juzs), ("quarter", metadata.quarters), ("page", metadata.pages)):
         source_checks.check_points(kind, points, ayah_counts)
@@ -305,7 +305,8 @@ def encode_report(report):
     return data.encode("ascii")
 
 
-def _check_addresses(tanzil, witness):
+def check_addresses(tanzil, witness):
+    """Refuses unless the (surah, ayah, text) list and the KFGQPC ayat name the same ayat in the same order."""
     if len(tanzil) != len(witness):
         raise PackError(
             "the Tanzil text has %d ayat, the KFGQPC file %d" % (len(tanzil), len(witness))
