@@ -444,7 +444,11 @@ Open pull requests, all partial or awaiting review (agents ran only their own te
 - #116 `agent/b07-footnote-followups`: the footnote stop and P2 wording (D-196 (6)). Rerun the per-book footnote counts before the first real pack.
 - #117 `agent/startup-failure-splash`: the failed start leaves the splash (D-196 (1)); the lead pushed a `dart format` fix after CI failed on format.
 - Started late on 2026-11-20, state unknown at writing: `agent/au-09-17-repeat-queue` (AU-09 unlimited, AU-17 add), `agent/lv-01-first-run` (three-step setup), `agent/report-send` (D-127 mail action), `agent/kfgqpc-measure` (`pack.py kfgqpc-measure`, D-198). Check `gh pr list` and each branch.
-- Five `code-reviewer` runs were started on #113–#117; their verdicts were not recorded before the session ended unless a later line says so.
+- Five `code-reviewer` runs were started on #113–#117. Verdicts recorded:
+  - #113 ready after fixes: `runsIn` (`current_plan.dart:33`) differs from the repository's `_running` check, so the sheet view models can throw `StateError`; `notifyListeners()` after an await on a possibly disposed view model; the view models do not listen to the player. Sent to the agent of `agent/au-07-08-sheets`, whose pull request carries #113 plus the fixes and supersedes #113.
+  - #114 ready after fixes: (1) the view model still passed `scattered` at the reviewed head (follow-up agent switching it); (2) combined mode counts phrase hits per phrase and fallback hits per word, so «الأكثر ورودًا» and the مواضع total mix units. Lead's decision: one occurrence is one full appearance of the query: a phrase match, or for a scattered fallback the smallest count among the query's words in that ayah; test the order and the total. (3) The NF-03 longest-ayah test still uses `wholeAyah`; add a `combined` variant. Both go to data-builder. The reviewer could not run tests (the machine ran out of processes).
+  - #115, #116, #117: not recorded unless a later line says so.
+- The machine ran short of memory and processes with eleven agents (1.1 GB free, fork errno 11): next session, at most four agents that run Flutter at once.
 
 D-195's plan is settled in D-198 except Q3 (the KFGQPC permission terms, the owner's papers). The honorific table is approved (D-197) and lives on the owner's machine. Still without a task: several-ayat copy (needs a selection design), the possible stall in `audio_engine_service.dart:397-400`, the perf-test flake, and D-198's pipeline tasks after the measure.
 
