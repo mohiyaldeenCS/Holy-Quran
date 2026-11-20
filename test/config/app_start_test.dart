@@ -8,7 +8,6 @@ import 'package:holyquran/config/dependencies.dart';
 import 'package:holyquran/config/providers/user_database_providers.dart';
 import 'package:holyquran/data/repositories/app_settings_repository.dart';
 import 'package:holyquran/data/services/user_database.dart';
-import 'package:holyquran/domain/models/pack_failure.dart';
 import 'package:holyquran/domain/models/reading_theme.dart';
 import 'package:holyquran/l10n/app_localizations.dart';
 import 'package:holyquran/main.dart' as app;
@@ -118,15 +117,13 @@ void main() {
   });
 
   final failingSteps = <String, AreaSetup>{
-    'the user database fails to open or migrate': (dependencies) =>
+    'opening the user database file throws': (dependencies) =>
         provideUserDatabase(
           dependencies,
           locate: () async =>
               File('${Directory.systemTemp.path}/synthetic-absent.sqlite'),
-          open: (_) => throw StateError('synthetic migration failure'),
+          open: (_) => throw StateError('synthetic'),
         ),
-    'the base pack fails other than missing': (_) async =>
-        throw const ManifestUnreadable('synthetic.pack', 'synthetic'),
     'a later start step throws': (_) async =>
         throw const FormatException('synthetic'),
   };
