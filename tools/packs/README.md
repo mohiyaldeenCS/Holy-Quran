@@ -958,10 +958,13 @@ the entries involved:
 | `page_layout` | a note paragraph above the line, anything but a note below it, a second line, a mark in a note, or a passage carrying a note paragraph or the separator as its own paragraph |
 
 The page after one whose last note a shipped passage uses is checked too, because that
-note could go on there: `unnumbered_note_opens_page` when its first note paragraph has
-no number, and `page_layout` when a note paragraph stands above its footnote line, or
-anywhere on it when it has no line. Both name the entries whose passage uses that last
-note.
+note could go on there. It is that page's site page + 1, never the next page the
+extraction holds: `page_after_missing` when site page + 1 is not in the extraction
+although a later page is (a page the site skips), named by the missing site page;
+`unnumbered_note_opens_page` when its first note paragraph has no number; and
+`page_layout` when a note paragraph stands above its footnote line, or anywhere on it
+when it has no line. All three name the entries whose passage uses that last note. The
+extraction's last page has no page after, so none of them applies to it.
 
 All the cases are listed in one message. The review record settles a case only by
 excluding the entries it names (`excluded`, D-186), which holds them out; nothing new
