@@ -6,6 +6,7 @@ import 'package:holyquran/domain/models/recitation.dart';
 import 'package:holyquran/domain/models/repeat_mode.dart';
 import 'package:holyquran/routing/routes.dart';
 import 'package:holyquran/ui/core/widgets/stepper.dart';
+import 'package:holyquran/ui/core/widgets/switch.dart';
 import 'package:holyquran/ui/features/listen/view_models/controls/repeat_sheet_view_model.dart';
 
 import '../../../../../testing/fakes/fake_player_repository.dart';
@@ -107,10 +108,10 @@ void main() {
         repeat: const RepeatMode.unlimited(RepeatUnit.range),
       );
 
-      test('opens at 1 and plays nothing while the count is not set', () async {
+      test('opens without end and plays nothing while left so', () async {
         final player = playerAt(unlimited, segment: 2);
         final vm = viewModel(player);
-        expect(vm.count, 1);
+        expect((vm.unlimited, vm.count), (true, 1));
         expect(await vm.play(), isTrue);
         expect(player.commands, isEmpty);
         expect(player.state.plan, same(unlimited));
@@ -121,10 +122,38 @@ void main() {
         final vm = viewModel(player)
           ..setCount(3)
           ..setCount(1);
+        expect(vm.unlimited, isFalse);
         expect(await vm.play(), isTrue);
         expect(player.state.plan!.repeat, RepeatMode(RepeatUnit.range, 1));
         expect(player.commands, ['play 2']);
       });
+
+      test('turned off, plays the count shown', () async {
+        final player = playerAt(unlimited, segment: 2);
+        final vm = viewModel(player)..setUnlimited(false);
+        expect(await vm.play(), isTrue);
+        expect(player.state.plan!.repeat, RepeatMode(RepeatUnit.range, 1));
+      });
+    });
+
+    test('without end keeps the unit and never runs out', () async {
+      final player = playerAt(
+        planOf(
+          builder,
+          SingleAyah(at(1, 2)),
+          repeat: RepeatMode(RepeatUnit.ayah, 2),
+        ),
+        segment: 0,
+      );
+      final vm = viewModel(player)..setUnlimited(true);
+      expect(await vm.play(), isTrue);
+      final plan = player.state.plan!;
+      expect(plan.repeat, const RepeatMode.unlimited(RepeatUnit.ayah));
+      final heard = plan.segments
+          .where((s) => s.kind == SegmentKind.ayah)
+          .take(RepeatMode.maxCount + 1);
+      expect(heard.map((s) => s.repeat).last, RepeatMode.maxCount + 1);
+      expect(heard.map((s) => s.address).toSet(), {at(1, 2)});
     });
 
     test(
@@ -203,6 +232,21 @@ void main() {
       await tester.tap(find.text(l10n.playerPlay));
       await tester.pumpAndSettle();
       expect(player.state.plan!.repeat.count, 3);
+      expect(app.sheetOpen, isFalse);
+    });
+
+    testWidgets('plays without end once switched on', (tester) async {
+      final player = playerAt(planOf(builder, WholeSurah(1)), segment: 0);
+      final app = ControlsApp(player: player, builder: builder, index: index);
+      await app.open(tester, Routes.repeatSheet);
+
+      expect(find.text(l10n.repeatUnlimited), findsOneWidget);
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+      await tester.tap(find.text(l10n.playerPlay));
+      await tester.pumpAndSettle();
+      expect(player.state.plan!.repeat.isUnlimited, isTrue);
       expect(app.sheetOpen, isFalse);
     });
 
