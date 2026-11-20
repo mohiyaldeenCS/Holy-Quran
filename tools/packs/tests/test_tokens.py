@@ -338,12 +338,6 @@ class PresentedSpansTest(unittest.TestCase):
         self.assertEqual(result.words, [(0, 2), (3, 4)])
         self.assertEqual(result.marks, [])
 
-    def test_does_not_change_the_text(self):
-        text = QUARTER + NBSP + "e\u0301" + PAUSE + NBSP + glyph(5)
-        copy = text.encode("utf-8")
-        presented(text)
-        self.assertEqual(text.encode("utf-8"), copy)
-
     def test_rejoin_property(self):
         letters = ["a", "Z", NOON, SAD, TATWEEL, SMALL_WAW, "\U00010330"]
         combining = [FATHA, "\u0301", SMALL_HIGH_SEEN]

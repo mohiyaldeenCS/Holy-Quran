@@ -501,7 +501,7 @@ carries no notice. What the zip's read.me or EULA require inside a pack waits fo
 All on synthetic data: `tests/test_tokens.py` (`PresentedSpansTest`, with a rejoin
 property over random texts), `tests/test_kfgqpc.py` (`TextOffsetsTest`),
 `tests/test_database.py` (`PresentedDatabaseTest`), `tests/test_verify.py`
-(`PresentedVerifyTest`: a clean pack and the eight faults of `tests/pack_factory.py`,
+(`PresentedVerifyTest`: a clean pack and the nine faults of `tests/pack_factory.py`,
 each found), `tests/test_build_kfgqpc.py` (the synthetic KFGQPC-shaped source end to
 end, one refusal per check, and a hafs-shaped comparison that fails on joined marks
 and stops on a pass) and `tests/test_cli.py` (`KfgqpcTextCliTest`).
