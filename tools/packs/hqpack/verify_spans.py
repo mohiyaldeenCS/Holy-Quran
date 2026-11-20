@@ -83,12 +83,14 @@ def _presented(where, text, presentation, address, problems):
     positions = _positions(text)
     start = len(opening) if text.startswith(opening) else 0
     end = len(text)
-    if text.endswith(ending) and end - len(ending) > start:
-        end -= len(ending)
-    else:
+    if not text.endswith(ending):
         problems.append(
             "%s does not end with %s %s, its ayah-end presentation"
             % (where, code_point(ending[0]), code_point(ending[1])))
+    elif end - len(ending) <= start:
+        problems.append("%s holds nothing but its presentation" % where)
+    else:
+        end -= len(ending)
     tokens = _body_tokens(text, start, end, positions)
     words = sum(1 for token in tokens if token[2])
     shown = []

@@ -266,6 +266,7 @@ EXPECTED_PRESENTED = {
     "no_presentation_table":
         "text.sqlite: the tables are surah, ayah, word, mark, division, sajda, not surah, "
         "ayah, word, mark, division, sajda, presentation",
+    "presentation_only": "ayah 3:1 holds nothing but its presentation",
 }
 
 

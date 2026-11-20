@@ -165,6 +165,7 @@ PRESENTED_FAULTS = (
     "wrong_presentation_after_word",
     "wrong_presentation_count",
     "no_presentation_table",
+    "presentation_only",
 )
 
 PRESENTATION_DDL = """CREATE TABLE presentation (
@@ -330,6 +331,8 @@ def _presented_stored(surahs, fault):
         third.text = third.text.replace("y", QUARTER_OPENING[0], 1)
     elif fault == "wrong_presentation_after_word":
         first.shown[-1][1] += 1
+    elif fault == "presentation_only":
+        stored[-1][0].text = NBSP + chr(FIRST_NUMBER_GLYPH)
     return stored
 
 
