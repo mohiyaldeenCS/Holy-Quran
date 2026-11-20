@@ -883,6 +883,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get stopAfterSurah => 'التوقف بعد السورة';
 
   @override
+  String get stopAfterTitle => 'التوقف بعد';
+
+  @override
+  String get stopAfterNone => 'بلا توقف';
+
+  @override
+  String get playerSleepOff => 'بلا مؤقت';
+
+  @override
   String get playerStop => 'إيقاف';
 
   @override

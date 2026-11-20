@@ -1642,6 +1642,24 @@ abstract class AppLocalizations {
   /// **'التوقف بعد السورة'**
   String get stopAfterSurah;
 
+  /// AU-08. Lead under the owner's delegation, 2026-11-20, pending the owner's look. Title of the stop-after section inside the sleep-timer sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'التوقف بعد'**
+  String get stopAfterTitle;
+
+  /// AU-08. Lead under the owner's delegation, 2026-11-20, pending the owner's look. The stop-after choice that stops nothing early.
+  ///
+  /// In ar, this message translates to:
+  /// **'بلا توقف'**
+  String get stopAfterNone;
+
+  /// AU-07. Lead under the owner's delegation, 2026-11-20, pending the owner's look. The sleep-timer choice that sets no timer.
+  ///
+  /// In ar, this message translates to:
+  /// **'بلا مؤقت'**
+  String get playerSleepOff;
+
   /// Owner, 2026-10-28 (D-128 (4)); wording from docs/plans/PHASE1.md section 8, Appendix B (PRD requirement text).
   ///
   /// In ar, this message translates to:
