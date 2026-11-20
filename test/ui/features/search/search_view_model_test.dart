@@ -127,7 +127,7 @@ void main() {
       expect(it.viewModel.query, query);
       expect(it.viewModel.occurrences, 3);
       expect(it.viewModel.ayat, 2);
-      expect(it.search.queries.single.mode, SearchMode.scattered);
+      expect(it.search.queries.single.mode, SearchMode.combined);
       expect(it.viewModel.history, [query]);
     });
 

@@ -324,7 +324,7 @@ final class SearchViewModel extends ChangeNotifier {
       SearchQuery(
         text: query,
         kind: _kinds[_kindIndex],
-        mode: SearchMode.scattered,
+        mode: SearchMode.combined,
         scope: scope,
       ),
     );

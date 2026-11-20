@@ -10,6 +10,11 @@ enum SearchMode {
 
   /// Each distinct word is somewhere in the ayah, in any order.
   scattered,
+
+  /// The three at once, for the one search field the board draws (D-150
+  /// (1)): an ayah holding the query as a phrase, the whole ayah included,
+  /// is found as [phrase] finds it, and any other as [scattered] does.
+  combined,
 }
 
 /// Where a search looks (`SR-06`).

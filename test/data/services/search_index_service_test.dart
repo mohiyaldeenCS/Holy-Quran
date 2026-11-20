@@ -170,6 +170,51 @@ void main() {
       expect(together[1].occurrences, 6);
     });
 
+    test('every mode marks the ayah the words are all of', () {
+      List<bool> whole(SearchMode mode) => [
+        for (final hit in search('alpha beta', mode)) hit.whole,
+      ];
+      expect(whole(SearchMode.wholeAyah), [true]);
+      expect(whole(SearchMode.phrase), [false, false, true]);
+      expect(whole(SearchMode.scattered), [false, false, false, true]);
+      expect(whole(SearchMode.combined), [false, false, false, true]);
+    });
+
+    test('combined: the phrase where an ayah holds it, else the words', () {
+      final hits = search('alpha beta', SearchMode.combined);
+      expect(ayatOf(hits), ayatOf(search('alpha beta', SearchMode.scattered)));
+      expect(hits.map((hit) => hit.matches), [
+        [_words(1, 1, 1, 2)],
+        [_words(1, 2, 4, 5), _words(1, 2, 6, 7)],
+        [_words(1, 3, 3, 3), _words(1, 3, 5, 5)],
+        [_words(2, 1, 1, 2)],
+      ]);
+      expect(
+        [for (final hit in hits) (hit.exact, hit.gaps)],
+        [(true, 0), (true, 0), (false, 1), (true, 0)],
+      );
+    });
+
+    test('combined: an occurrence is the whole query, a phrase or the '
+        'fewest times one of its words stands', () {
+      final counted = SearchIndex.fromForms(
+        'p',
+        _forms({
+          (1, 1): ['alpha', 'beta', 'other', 'alpha', 'beta'],
+          (1, 2): ['beta', 'beta', 'other', 'alpha'],
+          (1, 3): ['beta', 'alpha', 'other', 'beta', 'alpha'],
+        }),
+      );
+      final hits = counted.search(_kind, [
+        'alpha',
+        'beta',
+      ], SearchMode.combined);
+      expect(
+        [for (final hit in hits) (hit.matches.length, hit.occurrences)],
+        [(2, 2), (3, 1), (4, 2)],
+      );
+    });
+
     test('a word matches only a whole form, exactly as stored', () {
       expect(search('alp', SearchMode.phrase).single.matches, [
         _words(2, 2, 2, 2),
