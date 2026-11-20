@@ -136,17 +136,20 @@ class _StepperState extends State<Stepper> {
     return Semantics(
       container: true,
       explicitChildNodes: true,
-      // Only a disabled setting says so; an enabled one is the usual case.
-      enabled: enabled ? null : false,
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: _minHeight),
         child: Row(
           spacing: AppSpacing.space3,
           children: [
             Expanded(
-              child: Text(
-                label,
-                style: _labelStyle.copyWith(color: colors.ink),
+              // The label is the node a reader announces, so it carries the
+              // disabled state; an enabled setting states none, as before.
+              child: Semantics(
+                enabled: enabled ? null : false,
+                child: Text(
+                  label,
+                  style: _labelStyle.copyWith(color: colors.ink),
+                ),
               ),
             ),
             Row(
