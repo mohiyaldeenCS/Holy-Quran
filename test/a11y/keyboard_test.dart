@@ -22,6 +22,8 @@ void main() {
     'more',
     'settings',
     'onboarding',
+    'onboarding level',
+    'onboarding recitation',
     'bookmarks',
   ]) {
     testWidgets('$name is reached by Tab, ring at each stop', (tester) async {

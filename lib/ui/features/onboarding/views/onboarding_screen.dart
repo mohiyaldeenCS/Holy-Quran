@@ -79,7 +79,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         onTap: () {},
                         child: Text(
                           l10n.displayModeSurah,
-                          style: RadioRow.labelStyle,
+                          style: RadioRow.labelStyle.copyWith(
+                            color: context.colors.ink,
+                          ),
                         ),
                       ),
                       SetupStepKind.level => _LevelChoice(viewModel),
@@ -158,8 +160,6 @@ class _LevelChoice extends StatelessWidget {
   }
 }
 
-// With no recitation in the catalogue the step keeps its name, prompt and
-// button, and shows no row.
 class _RecitationChoice extends StatelessWidget {
   const _RecitationChoice(this.viewModel);
 
@@ -167,12 +167,17 @@ class _RecitationChoice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final recitation = viewModel.recitation;
-    if (recitation == null) return const SizedBox.shrink();
-    return RadioRow(
-      selected: true,
-      onTap: () {},
-      child: Text(recitation.recitation.reciter, style: RadioRow.labelStyle),
+    final style = RadioRow.labelStyle.copyWith(color: context.colors.ink);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final recitation in viewModel.recitations)
+          RadioRow(
+            selected: recitation == viewModel.recitation,
+            onTap: () => viewModel.selectRecitation(recitation),
+            child: Text(recitation.recitation.reciter, style: style),
+          ),
+      ],
     );
   }
 }

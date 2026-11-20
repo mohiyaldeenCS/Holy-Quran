@@ -1,14 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:holyquran/domain/models/catalogue_entry.dart';
-import 'package:holyquran/domain/models/recitation.dart';
 import 'package:holyquran/domain/models/ui_level.dart';
 import 'package:holyquran/ui/features/onboarding/view_models/onboarding_view_model.dart';
 import 'package:holyquran/ui/features/onboarding/view_models/setup_step.dart';
 import 'package:holyquran/utils/result.dart';
 
 import '../../../../testing/fakes/fake_app_settings_repository.dart';
-import '../../../../testing/fakes/fake_recitation_repository.dart';
+import 'onboarding_fixture.dart';
 
 final class _Step implements SetupStep {
   @override
@@ -24,47 +23,48 @@ final class _Step implements SetupStep {
   }
 }
 
-CatalogueRecitation _recitation(String id) => CatalogueRecitation(
-  recitation: Recitation(
-    id: id,
-    reciter: 'نص تجريبي',
-    riwaya: 'hafs',
-    style: 'Synthetic style',
-    unit: RecitationUnit.ayah,
-    hasWordTiming: false,
-    rightsComplete: true,
-  ),
-  qualities: [64],
-  packId: 'synthetic-audio',
-);
-
 void main() {
   late FakeAppSettingsRepository settings;
 
   setUp(() => settings = FakeAppSettingsRepository());
 
-  OnboardingViewModel open({FakeRecitationRepository? recitations}) {
+  List<SetupStepKind> kinds(List<SetupStep> steps) => [
+    for (final step in steps) step.kind,
+  ];
+
+  OnboardingViewModel open({List<CatalogueRecitation> recitations = const []}) {
     final viewModel = OnboardingViewModel(
       settings: settings,
-      steps: setupSteps(settings),
+      steps: setupSteps(settings, recitations: recitations),
       recitations: recitations,
     );
     addTearDown(viewModel.dispose);
     return viewModel;
   }
 
-  test('asks display mode, level and recitation, in that order (D-127)', () {
-    final steps = setupSteps(settings);
+  test('with no Ready recitation it asks the display mode and the level '
+      '(D-136 (3))', () {
+    final steps = setupSteps(settings, recitations: const []);
 
-    expect(
-      [for (final step in steps) step.kind],
-      [
+    expect(kinds(steps), [SetupStepKind.displayMode, SetupStepKind.level]);
+    expect(setupFinished(steps), isFalse);
+  });
+
+  test('with Ready recitations it asks the recitation last, offering each '
+      '(D-127, D-136 (3))', () {
+    for (final recitations in [
+      [readyRecitation('synthetic-only', 'قارئ تجريبي')],
+      twoReadyRecitations(),
+    ]) {
+      final viewModel = open(recitations: recitations);
+
+      expect(kinds(setupSteps(settings, recitations: recitations)), [
         SetupStepKind.displayMode,
         SetupStepKind.level,
         SetupStepKind.recitation,
-      ],
-    );
-    expect(setupFinished(steps), isFalse);
+      ]);
+      expect(viewModel.recitations, recitations);
+    }
   });
 
   test('the level starts at «بسيط» and a choice is stored at once '
@@ -79,7 +79,7 @@ void main() {
   });
 
   test('the pass is recorded once, when its last step is passed', () async {
-    final viewModel = open();
+    final viewModel = open(recitations: twoReadyRecitations());
 
     expect(viewModel.step?.kind, SetupStepKind.displayMode);
     expect(viewModel.onLastStep, isFalse);
@@ -96,7 +96,31 @@ void main() {
     expect(settings.levelChosen, isTrue);
     expect(viewModel.finished, isTrue);
     expect(viewModel.step, isNull);
-    expect(setupFinished(setupSteps(settings)), isTrue);
+  });
+
+  test('with no Ready recitation the level step ends the setup', () async {
+    final viewModel = open();
+
+    await viewModel.next();
+    expect(viewModel.step?.kind, SetupStepKind.level);
+    expect(viewModel.onLastStep, isTrue);
+    await viewModel.next();
+
+    expect(settings.levelChosen, isTrue);
+    expect(viewModel.finished, isTrue);
+  });
+
+  test('no recitation is chosen until the user chooses one', () {
+    final [first, second] = twoReadyRecitations();
+    final viewModel = open(recitations: [first, second]);
+    var notified = 0;
+    viewModel.addListener(() => notified++);
+
+    expect(viewModel.recitation, isNull);
+    viewModel.selectRecitation(second);
+
+    expect(viewModel.recitation, same(second));
+    expect(notified, 1);
   });
 
   test('a setup left midway starts again whole', () async {
@@ -109,23 +133,6 @@ void main() {
     settings.levelChosen = true;
 
     expect(open().finished, isTrue);
-  });
-
-  test('the recitation choice is the catalogue first one, null with none', () {
-    final recitations = FakeRecitationRepository();
-    final viewModel = open(recitations: recitations);
-    var notified = 0;
-    viewModel.addListener(() => notified++);
-
-    expect(viewModel.recitation, isNull);
-    recitations.recitations = [
-      _recitation('synthetic-first'),
-      _recitation('synthetic-second'),
-    ];
-
-    expect(viewModel.recitation?.recitation.id, 'synthetic-first');
-    expect(notified, 1);
-    expect(open().recitation, isNull);
   });
 
   test('a second next while a step completes moves on once', () async {
@@ -145,7 +152,7 @@ void main() {
   test('closing the setup while a step completes raises nothing', () async {
     final viewModel = OnboardingViewModel(
       settings: settings,
-      steps: setupSteps(settings),
+      steps: setupSteps(settings, recitations: const []),
     );
 
     final completing = viewModel.next();
