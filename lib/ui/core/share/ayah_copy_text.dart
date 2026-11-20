@@ -27,23 +27,24 @@ final class AyahCopyText {
   /// after the copy exactly as an approved build composes it (D-162 (14)).
   final bool unapprovedCopy;
 
-  /// The forms whose format the ARB file gives, in [CopyForm]'s order.
-  List<CopyForm> get forms => [
-    for (final form in CopyForm.values)
-      if (_formatOf(form) != null) form,
-  ];
-
   /// The copied text of the ayah at [address] in [form].
-  Future<Result<String>> compose(QuranAddress address, CopyForm form) async {
-    final format = _formatOf(form);
-    if (format == null) return Failure(CopyFormUnavailable(form));
-    return switch (await _read(address)) {
-      Ok(value: (:final ayah, :final surahName, :final number)) => Ok(
-        _marked(
-          format(ayah.verbatim, surahName.verbatim, arabicDigits(number)),
-        ),
+  Future<Result<String>> compose(QuranAddress address, CopyForm form) async =>
+      switch (await _read(address)) {
+        Ok(:final value) => Ok(_marked(_formatted(form, value))),
+        Failure(:final error) => Failure(error),
+      };
+
+  String _formatted(CopyForm form, _Parts parts) {
+    final ayah = parts.ayah.verbatim;
+    final surah = parts.surahName.verbatim;
+    return switch (form) {
+      CopyForm.ayahOnly => _l10n.copyFormatAyahOnly(ayah),
+      CopyForm.withSurah => _l10n.copyFormatWithSurah(ayah, surah),
+      CopyForm.withSurahAndNumber => _l10n.copyFormatFull(
+        ayah,
+        surah,
+        arabicDigits(parts.number),
       ),
-      Failure(:final error) => Failure(error),
     };
   }
 
@@ -53,22 +54,29 @@ final class AyahCopyText {
   /// The parts the copy sheet previews of the ayah at [address] in [form],
   /// as the pack holds them: `QuranText.quoted` sets the ayah between the
   /// format's brackets and `SurahName.span` the reference after it (D-130).
-  /// The full form, the only one offered, has the surah's name and the
-  /// ayah's number in its reference.
+  /// The ayah alone has no reference; the form with the surah's name has no
+  /// ayah number in it.
   Future<Result<CopyPreview>> preview(
     QuranAddress address,
     CopyForm form,
-  ) async {
-    if (_formatOf(form) == null) return Failure(CopyFormUnavailable(form));
-    return switch (await _read(address)) {
-      Ok(value: (:final ayah, :final surahName, :final number)) => Ok((
-        ayah: ayah,
-        surahName: surahName,
-        ayahNumber: number,
-      )),
-      Failure(:final error) => Failure(error),
-    };
-  }
+  ) async => switch (await _read(address)) {
+    Ok(value: (:final ayah, :final surahName, :final number)) => Ok(
+      switch (form) {
+        CopyForm.ayahOnly => (ayah: ayah, surahName: null, ayahNumber: null),
+        CopyForm.withSurah => (
+          ayah: ayah,
+          surahName: surahName,
+          ayahNumber: null,
+        ),
+        CopyForm.withSurahAndNumber => (
+          ayah: ayah,
+          surahName: surahName,
+          ayahNumber: number,
+        ),
+      },
+    ),
+    Failure(:final error) => Failure(error),
+  };
 
   Future<Result<_Parts>> _read(QuranAddress address) async {
     final ayahAddress = address.ayahAddress;
@@ -97,30 +105,11 @@ final class AyahCopyText {
     }
     return Failure(AddressNotInPack(_repository.riwaya, ayahAddress));
   }
-
-  // The full form only, until the formats of Appendix B are approved
-  // (docs/plans/PHASE1.md, P1-38).
-  _CopyFormat? _formatOf(CopyForm form) => switch (form) {
-    CopyForm.withSurahAndNumber => _l10n.copyFormatFull,
-    CopyForm.ayahOnly || CopyForm.withSurah => null,
-  };
 }
 
 /// The parts of the copy sheet's preview of a form, from the pack: the ayah,
-/// whole, and, for a form with a reference, its surah's name and the ayah's
-/// number.
+/// whole, its surah's name for a form with a reference, and the ayah's number
+/// for the full form.
 typedef CopyPreview = ({PackText ayah, PackText? surahName, int? ayahNumber});
 
 typedef _Parts = ({PackText ayah, PackText surahName, int number});
-
-typedef _CopyFormat = String Function(String ayah, String surah, String number);
-
-/// A copy form whose format the ARB file does not give yet.
-final class CopyFormUnavailable implements Exception {
-  const CopyFormUnavailable(this.form);
-
-  final CopyForm form;
-
-  @override
-  String toString() => 'CopyFormUnavailable(${form.name})';
-}

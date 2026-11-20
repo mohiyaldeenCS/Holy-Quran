@@ -33,17 +33,23 @@ final _longAyah = PackText.fromPack(
 const _name = PackText.fromPack(' اسم  تجريبي ');
 const _ayahNumber = 5;
 
-/// The forms with a reference; only the full form has a format for one.
-const _withReference = {CopyForm.withSurahAndNumber};
+final _templates = jsonDecode(
+  File('lib/l10n/app_ar.arb').readAsStringSync(),
+) as Map<String, Object?>;
 
-/// The reference of the full form: its ARB template, read from the file so
-/// that no template is typed here, filled with [_name] and [_ayahNumber].
-final _reference =
-    ((jsonDecode(File('lib/l10n/app_ar.arb').readAsStringSync())
-                as Map<String, Object?>)['copyReferenceFull']!
-            as String)
-        .replaceFirst('{surah}', _name.verbatim)
-        .replaceFirst('{number}', arabicDigits(_ayahNumber));
+/// The reference of each form that has one: its ARB template, read from the
+/// file so that no template is typed here, filled with [_name] and, in the
+/// full form, [_ayahNumber].
+final _references = {
+  CopyForm.withSurah: (_templates['copyReferenceSurah']! as String)
+      .replaceFirst('{surah}', _name.verbatim),
+  CopyForm.withSurahAndNumber: (_templates['copyReferenceFull']! as String)
+      .replaceFirst('{surah}', _name.verbatim)
+      .replaceFirst('{number}', arabicDigits(_ayahNumber)),
+};
+
+/// The reference of the full form.
+final _reference = _references[CopyForm.withSurahAndNumber]!;
 
 final _labels = {
   CopyForm.ayahOnly: _l10n.copyAyahOnly,
@@ -87,7 +93,6 @@ Widget _live({
   var selected = CopyForm.withSurahAndNumber;
   return StatefulBuilder(
     builder: (context, setState) {
-      final referenced = _withReference.contains(selected);
       return CopySheet(
         forms: forms,
         selected: selected,
@@ -97,8 +102,10 @@ Widget _live({
         },
         onCopy: enabled ? () => copies?.add(1) : null,
         ayah: ayah,
-        surahName: referenced ? _name : null,
-        ayahNumber: referenced ? _ayahNumber : null,
+        surahName: selected == CopyForm.ayahOnly ? null : _name,
+        ayahNumber: selected == CopyForm.withSurahAndNumber
+            ? _ayahNumber
+            : null,
       );
     },
   );
@@ -255,14 +262,14 @@ void main() {
       expect(utf8.encode(text), utf8.encode(_ayah.verbatim));
       expect((spans[0] as TextSpan).text, _l10n.ayahQuoteOpen);
       expect((spans[2] as TextSpan).text, _l10n.ayahQuoteClose);
-      if (!_withReference.contains(form)) {
-        expect(spans, hasLength(3));
-      } else {
-        expect(spans, hasLength(4));
-        final reference = spans[3] as SurahNameSpan;
-        expect(reference.text, _reference);
-        expect(utf8.encode(reference.text!), utf8.encode(_reference));
-        expect(reference.style!.inherit, isFalse);
+      switch (_references[form]) {
+        case null:
+          expect(spans, hasLength(3));
+        case final expected:
+          expect(spans, hasLength(4));
+          final reference = spans[3] as SurahNameSpan;
+          expect(utf8.encode(reference.text!), utf8.encode(expected));
+          expect(reference.style!.inherit, isFalse);
       }
     });
   }
@@ -292,20 +299,17 @@ void main() {
     expect(reference, contains(name.verbatim));
   });
 
-  test('takes the surah name and the ayah number together', () {
-    for (final (surahName, ayahNumber) in [(_name, null), (null, 1)]) {
-      expect(
-        () => CopySheet(
-          forms: const [CopyForm.withSurahAndNumber],
-          selected: CopyForm.withSurahAndNumber,
-          onSelected: (_) {},
-          onCopy: null,
-          surahName: surahName,
-          ayahNumber: ayahNumber,
-        ),
-        throwsAssertionError,
-      );
-    }
+  test('takes an ayah number only with a surah name', () {
+    expect(
+      () => CopySheet(
+        forms: const [CopyForm.withSurahAndNumber],
+        selected: CopyForm.withSurahAndNumber,
+        onSelected: (_) {},
+        onCopy: null,
+        ayahNumber: 1,
+      ),
+      throwsAssertionError,
+    );
   });
 
   testWidgets('no preview without an ayah', (tester) async {

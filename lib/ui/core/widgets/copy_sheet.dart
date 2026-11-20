@@ -16,10 +16,10 @@ import 'package:holyquran/ui/core/widgets/surah_name.dart';
 ///
 /// [forms] are the forms that can be copied; the caller leaves out the rest.
 /// The preview shows [ayah], read from the pack, quoted, followed by the
-/// reference of [surahName] and [ayahNumber] when the selected form has one;
-/// it is hidden while [ayah] is null. What is copied is read from the pack
-/// again when [onCopy] runs, never from the preview (SH-05). Disabled while
-/// [onCopy] is null.
+/// reference of [surahName], with [ayahNumber] when given, when the selected
+/// form has one; it is hidden while [ayah] is null. What is copied is read
+/// from the pack again when [onCopy] runs, never from the preview (SH-05).
+/// Disabled while [onCopy] is null.
 class CopySheet extends StatelessWidget {
   const CopySheet({
     required this.forms,
@@ -30,7 +30,7 @@ class CopySheet extends StatelessWidget {
     this.surahName,
     this.ayahNumber,
     super.key,
-  }) : assert((surahName == null) == (ayahNumber == null));
+  }) : assert(ayahNumber == null || surahName != null);
 
   final List<CopyForm> forms;
   final CopyForm selected;
@@ -114,7 +114,9 @@ class _Preview extends StatelessWidget {
                 ? null
                 : SurahName.span(
                     surahName,
-                    format: SurahNameFormat.copyReference,
+                    format: ayahNumber == null
+                        ? SurahNameFormat.copyReferenceSurah
+                        : SurahNameFormat.copyReference,
                     ayah: ayahNumber,
                     style: _referenceStyle.copyWith(color: colors.inkMuted),
                     l10n: AppLocalizations.of(context),
